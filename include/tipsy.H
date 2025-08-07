@@ -1,6 +1,11 @@
 #ifndef _tipsy_H
 #define _tipsy_H
 
+// For MPI awareness
+//
+#include <localmpi.H>
+
+
 // Forward declare PR::Tipsy so it can friend TipsyFile
 //
 namespace PR {
@@ -157,24 +162,59 @@ namespace TipsyReader
       return header.nbodies;
     }
 
+    //! Generate stream position for parallel read
+    //! \param nsize The number of particles to read
+    //! \param ssize The size of each particle structure in bytes
+    unsigned xdr_psize(int nsize, int ssize)
+    {
+      // Number of particles per process
+      int psize = nsize/numprocs;
+
+      // Get current stream position
+      auto pos = xdr_getpos(&xdrs);
+
+      // Move the stream position to the start of this process' data
+      pos += psize * myid * ssize;
+      if (xdr_setpos(&xdrs, pos) == 0) {
+	throw std::runtime_error("TipsyFile: xdr_setpos failed");
+      }
+
+      // If this is the last process, read the remainder
+      if (myid == numprocs-1) psize = nsize - (numprocs-1)*psize;
+
+      return psize;
+    }
+
     int xdr_read()
     {
       int N=0;
       
       if (header.nsph != 0)  {
-	gas_particles.resize(header.nsph);
+	// Get the number of gas particles for this process
+	auto psize = xdr_psize(header.nsph, sizeof(gas_particle));
+
+	// Do the read
+	gas_particles.resize(psize);
 	read_gas();
 	N++;
       }
     
       if (header.ndark != 0) {
-	dark_particles.resize(header.ndark);
+	// Get the number of dark particles for this process
+	auto psize = xdr_psize(header.ndark, sizeof(dark_particle));
+
+	// Do the read
+	dark_particles.resize(psize);
 	read_dark();
 	N++;
       }
 
       if (header.nstar != 0) {
-	star_particles.resize(header.nstar);
+	// Get the number of star particles for this process
+	auto psize = xdr_psize(header.nstar, sizeof(star_particle));
+
+	// Do the read
+	star_particles.resize(psize);
 	read_star();
 	N++;
       }
@@ -186,7 +226,7 @@ namespace TipsyReader
     {
       if (sizeof(Real) == sizeof(float)) {
 	xdr_vector(&xdrs, (char *) &gas_particles[0],
-		   header.nsph*(sizeof(gas_particle)/sizeof(Real)),
+		   gas_particles.size()*(sizeof(gas_particle)/sizeof(Real)),
 		   sizeof(Real), (xdrproc_t) xdr_float);
       }
     }  
@@ -195,7 +235,7 @@ namespace TipsyReader
     {
       if (sizeof(Real) == sizeof(float)) {
 	xdr_vector(&xdrs, (char *) &dark_particles[0],
-		   header.ndark*(sizeof(dark_particle)/sizeof(Real)),
+		   dark_particles.size()*(sizeof(dark_particle)/sizeof(Real)),
 		   sizeof(Real), (xdrproc_t) xdr_float);
       }
     }  
@@ -204,7 +244,7 @@ namespace TipsyReader
     {
       if (sizeof(Real) == sizeof(float)) {
 	xdr_vector(&xdrs, (char *) &star_particles[0],
-		   header.nstar*(sizeof(star_particle)/sizeof(Real)),
+		   star_particles.size()*(sizeof(star_particle)/sizeof(Real)),
 		   sizeof(Real), (xdrproc_t) xdr_float);
       }
     }  
@@ -247,8 +287,9 @@ namespace TipsyReader
       try {
 	input.read((char *)&header, sizeof(header));
       } catch (std::exception& e) {
-	std::cerr << "TipsyFile native_header error: " << e.what() << std::endl;
-	throw;
+	std::ostringstream s;
+	s << "TipsyFile native error reading header: " << e.what();
+	throw std::runtime_error(s.str());
       }
       return 1;
     }
@@ -259,9 +300,10 @@ namespace TipsyReader
 	input.open(filename);
 	input.exceptions(ifstream::eofbit | ifstream::failbit | ifstream::badbit);
       } catch (std::exception& e) {
-	std::cerr << "TipsyFile native error opening file <" << filename << ">, "
-		  << e.what() << std::endl;
-	throw;
+	std::ostringstream s;
+	s << "TipsyFile native error opening file <" << filename << ">: "
+	  << e.what();
+	throw std::runtime_error(s.str());
       }
 	
       if (native_header() != 1) {
@@ -271,24 +313,60 @@ namespace TipsyReader
       return header.nbodies;
     }
 
+    //! Generate stream position for parallel read
+    //! \param nsize The number of particles to read
+    //! \param ssize The size of each particle structure in bytes
+    unsigned ios_psize(int nsize, int ssize)
+    {
+      // Number of particles per process
+      int psize = nsize/numprocs;
+
+      // Get current stream position
+      auto pos = input.tellg();
+
+      // Move the stream position to the start of this process' data
+      pos += psize * myid * ssize;
+      input.seekg(pos);
+      if (input.fail()) {
+	throw std::runtime_error("TipsyFile: seekg failed");
+      }
+
+      // If this is the last process, read the remainder
+      if (myid == numprocs-1) psize = nsize - (numprocs-1)*psize;
+
+      return psize;
+    }
+
     int native_read()
     {
       int N=0;
       
       if (header.nsph != 0)  {
-	gas_particles.resize(header.nsph);
+	// Get the number of gas particles for this process
+	auto psize = ios_psize(header.nsph, sizeof(gas_particle));
+
+	// Do the read
+	gas_particles.resize(psize);
 	read_gas();
 	N++;
       }
     
       if (header.ndark != 0) {
-	dark_particles.resize(header.ndark);
+	// Get the number of dark particles for this process
+	auto psize = ios_psize(header.ndark, sizeof(dark_particle));
+
+	// Do the read
+	dark_particles.resize(psize);
 	read_dark();
 	N++;
       }
 
       if (header.nstar != 0) {
-	star_particles.resize(header.nstar);
+	// Get the number of star particles for this process
+	int psize = ios_psize(header.nstar, sizeof(star_particle));
+
+	// Do the read
+	star_particles.resize(psize);
 	read_star();
 	N++;
       }
@@ -300,12 +378,12 @@ namespace TipsyReader
     {
       try {
 	input.read((char *) &gas_particles[0],
-		   header.nsph*sizeof(gas_particle));
+		   gas_particles.size()*sizeof(gas_particle));
       }
       catch (std::exception& e) {
-	std::cerr << "TipsyFile native error reading sph particles: "
-		  << e.what() << std::endl;
-	throw;
+	std::ostringstream s;
+	s << "TipsyFile native error reading gas particles: " << e.what();
+	throw std::runtime_error(s.str());
       }
     }
     
@@ -313,12 +391,12 @@ namespace TipsyReader
     {
       try {
 	input.read((char *) &dark_particles[0],
-		   header.ndark*sizeof(dark_particle));
+		   dark_particles.size()*sizeof(dark_particle));
       }
       catch (std::exception& e) {
-	std::cerr << "TipsyFile native error reading dark particles: "
-		  << e.what() << std::endl;
-	throw;
+	std::ostringstream s;
+	s << "TipsyFile native error reading dark particles: " << e.what();
+	throw std::runtime_error(s.str());
       }
     }  
   
@@ -326,12 +404,12 @@ namespace TipsyReader
     {
       try {
 	input.read((char *) &star_particles[0],
-		   header.nstar*sizeof(star_particle));
+		   star_particles.size()*sizeof(star_particle));
       }
       catch (std::exception& e) {
-	std::cerr << "TipsyFile native error reading star particles: "
-		  << e.what() << std::endl;
-	throw;
+	std::ostringstream s;
+	s << "TipsyFile native error reading star particles: " << e.what();
+	throw std::runtime_error(s.str());
       }
     }  
     
