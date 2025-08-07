@@ -39,7 +39,7 @@ namespace TipsyReader
     Real phi    ;
     //@}
 
-    //! Convert phi to index
+    //! Convert phi to index for Bonsai
     int ID() const {
       union id {Real v; int i;} u;
       u.v = phi; return u.i;
@@ -57,7 +57,7 @@ namespace TipsyReader
     Real phi    ;
     //@}
     
-    //! Convert phi to index
+    //! Convert phi to index for Bonsai
     int ID() const {
       union id {Real v; int i;} u;
       u.v = phi; return u.i;
@@ -77,7 +77,7 @@ namespace TipsyReader
     Real phi    ;
     //@}
 
-    //! Convert phi to index
+    //! Convert phi to index for Bonsai
     int ID() const {
       union id {Real v; int i;} u;
       u.v = phi; return u.i;
@@ -127,8 +127,14 @@ namespace TipsyReader
   {
   private:
 
+    //! The input file stream
     FILE* input;
+
+    //! The XDR stream
     XDR xdrs;
+
+    //! Cache the XDR stream position at beginning of particle group
+    unsigned curpos = 0;
 
     int xdr_header()
     {
@@ -165,13 +171,14 @@ namespace TipsyReader
     //! Generate stream position for parallel read
     //! \param nsize The number of particles to read
     //! \param ssize The size of each particle structure in bytes
-    unsigned xdr_psize(int nsize, int ssize)
+    unsigned xdr_psize(unsigned int nsize, unsigned int ssize)
     {
       // Number of particles per process
-      int psize = nsize/numprocs;
+      unsigned int psize = nsize/numprocs;
 
       // Get current stream position
-      auto pos = xdr_getpos(&xdrs);
+      curpos = xdr_getpos(&xdrs);
+      auto pos = curpos
 
       // Move the stream position to the start of this process' data
       pos += psize * myid * ssize;
@@ -185,38 +192,60 @@ namespace TipsyReader
       return psize;
     }
 
+    //! Set stream position to next group of particles
+    void xdr_pnext(unsigned int nsize, unsigned int ssize)
+    {
+      // Move the stream position to the start of the next particle
+      // group
+      if (xdr_setpos(&xdrs, curpos + nsize * ssize) == 0) {
+	throw std::runtime_error("TipsyFile: xdr_setpos failed");
+      }
+    }
+
     int xdr_read()
     {
       int N=0;
       
       if (header.nsph != 0)  {
-	// Get the number of gas particles for this process
+	// Get the number of gas particles for this process and set
+	// stream position
 	auto psize = xdr_psize(header.nsph, sizeof(gas_particle));
 
 	// Do the read
 	gas_particles.resize(psize);
 	read_gas();
 	N++;
+
+	// Set stream position to next group of particles
+	xdr_pnext(header.nsph, sizeof(gas_particle));
       }
     
       if (header.ndark != 0) {
-	// Get the number of dark particles for this process
+	// Get the number of dark particles for this process and set
+	// stream position
 	auto psize = xdr_psize(header.ndark, sizeof(dark_particle));
 
 	// Do the read
 	dark_particles.resize(psize);
 	read_dark();
 	N++;
+
+	// Set stream position to next group of particles
+	xdr_pnext(header.ndark, sizeof(dark_particle));
       }
 
       if (header.nstar != 0) {
-	// Get the number of star particles for this process
+	// Get the number of star particles for this process and set
+	// stream position
 	auto psize = xdr_psize(header.nstar, sizeof(star_particle));
 
 	// Do the read
 	star_particles.resize(psize);
 	read_star();
 	N++;
+
+	// Set stream position to next group of particles
+	xdr_pnext(header.nstar, sizeof(star_particle));
       }
 	
       return N;
@@ -281,6 +310,9 @@ namespace TipsyReader
     //! The input file stream
     std::ifstream input;
 
+    //! Cache stream position at beginning of partcile group
+    std::istream::pos_type curpos = 0; 
+
     //! Read the header
     int native_header()
     {
@@ -316,13 +348,14 @@ namespace TipsyReader
     //! Generate stream position for parallel read
     //! \param nsize The number of particles to read
     //! \param ssize The size of each particle structure in bytes
-    unsigned ios_psize(int nsize, int ssize)
+    unsigned ios_psize(unsigned int nsize, unsigned int ssize)
     {
       // Number of particles per process
-      int psize = nsize/numprocs;
+      unsigned int psize = nsize/numprocs;
 
       // Get current stream position
-      auto pos = input.tellg();
+      curpos = input.tellg();
+      auto pos = curpos;
 
       // Move the stream position to the start of this process' data
       pos += psize * myid * ssize;
@@ -337,38 +370,63 @@ namespace TipsyReader
       return psize;
     }
 
+    //! Move to next particle group
+    void ios_pnext(unsigned int nsize, unsigned int ssize)
+    {
+      // Move the stream position to the start of the next particle
+      // group
+      auto pos = curpos;	// Make a copy of the current position
+      pos += nsize * ssize;	// Augment the position
+      input.seekg(pos);
+      if (input.fail()) {
+	throw std::runtime_error("TipsyFile: seekg failed");
+      }
+    }
+
     int native_read()
     {
       int N=0;
       
       if (header.nsph != 0)  {
-	// Get the number of gas particles for this process
+	// Get the number of gas particles for this process and set
+	// stream position
 	auto psize = ios_psize(header.nsph, sizeof(gas_particle));
 
 	// Do the read
 	gas_particles.resize(psize);
 	read_gas();
 	N++;
+
+	// Set stream position to next group of particles
+	ios_pnext(header.nsph, sizeof(gas_particle));
       }
     
       if (header.ndark != 0) {
-	// Get the number of dark particles for this process
+	// Get the number of dark particles for this process and set
+	// stream position
 	auto psize = ios_psize(header.ndark, sizeof(dark_particle));
 
 	// Do the read
 	dark_particles.resize(psize);
 	read_dark();
 	N++;
+
+	// Set stream position to next group of particles
+	ios_pnext(header.ndark, sizeof(dark_particle));
       }
 
       if (header.nstar != 0) {
-	// Get the number of star particles for this process
-	int psize = ios_psize(header.nstar, sizeof(star_particle));
+	// Get the number of star particles for this process and set
+	// stream position
+	auto psize = ios_psize(header.nstar, sizeof(star_particle));
 
 	// Do the read
 	star_particles.resize(psize);
 	read_star();
 	N++;
+
+	// Set stream position to next group of particles
+	ios_pnext(header.nstar, sizeof(star_particle));
       }
 	
       return N;
