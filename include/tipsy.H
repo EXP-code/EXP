@@ -171,6 +171,8 @@ namespace TipsyReader
     //! Generate stream position for parallel read
     //! \param nsize The number of particles to read
     //! \param ssize The size of each particle structure in bytes
+    //! \note Using unsigned long to avoid wrapping issues
+    //! \return The number of particles to read for this process
     unsigned long xdr_psize(unsigned long nsize, unsigned long ssize)
     {
       // Number of particles per process
@@ -193,6 +195,9 @@ namespace TipsyReader
     }
 
     //! Set stream position to next group of particles
+    //! \param nsize The number of particles to read
+    //! \param ssize The size of each particle structure in bytes
+    //! \note Using unsigned long to avoid wrapping issues
     void xdr_pnext(unsigned long nsize, unsigned long ssize)
     {
       // Move the stream position to the start of the next particle
@@ -282,6 +287,7 @@ namespace TipsyReader
 
   public:
 
+    //! Constructor that opens the file and reads the header
     TipsyXDR(const std::string filename)
     {
       // Attempt to read tipsy file
@@ -291,8 +297,10 @@ namespace TipsyReader
       }
     }
 
+    //! Read the particles from the file
     int readParticles() { return xdr_read(); }
 
+    //! Destructor that removes the stream and closes the file
     ~TipsyXDR()
     {
       xdr_destroy(&xdrs);
@@ -326,6 +334,8 @@ namespace TipsyReader
       return 1;
     }
     
+    //! Open the file and read the header
+    //! \param filename The name of the file to read
     int native_init(const std::string& filename)
     {
       try {
@@ -348,6 +358,8 @@ namespace TipsyReader
     //! Generate stream position for parallel read
     //! \param nsize The number of particles to read
     //! \param ssize The size of each particle structure in bytes
+    //! \note Using unsigned long to avoid wrapping issues
+    //! \return The number of particles to read for this process
     unsigned long ios_psize(unsigned long nsize, unsigned long ssize)
     {
       // Number of particles per process
@@ -373,6 +385,9 @@ namespace TipsyReader
     }
 
     //! Move to next particle group
+    //! \param nsize The number of particles to read
+    //! \param ssize The size of each particle structure in bytes
+    //! \note Using unsigned long to avoid wrapping issues
     void ios_pnext(unsigned long nsize, unsigned long ssize)
     {
       // Move the stream position to the start of the next particle
@@ -385,6 +400,8 @@ namespace TipsyReader
       }
     }
 
+    //! Read the particles from the file
+    //! \return The number of particle groups read
     int native_read()
     {
       int N=0;
@@ -436,6 +453,7 @@ namespace TipsyReader
       return N;
     }
 
+    //! Read the gas particles from the file
     void read_gas()
     {
       try {
@@ -449,6 +467,7 @@ namespace TipsyReader
       }
     }
     
+    //! Read the dark particles from the file
     void read_dark()
     {
       try {
@@ -462,6 +481,7 @@ namespace TipsyReader
       }
     }  
   
+    //! Read the star particles from the file
     void read_star()
     {
       try {
@@ -479,6 +499,7 @@ namespace TipsyReader
 
   public:
 
+    //! Constructor that opens the file and reads the header
     TipsyNative(const std::string filename)
     {
       // Attempt to read tipsy file
@@ -488,8 +509,10 @@ namespace TipsyReader
       }
     }
 
+    //! Read the particles from the file
     int readParticles() { return native_read(); }
 
+    //! Destructor that closes the file by scoping
     ~TipsyNative()
     {
       // Nothing
