@@ -120,7 +120,7 @@ double sphdens(double r)
   return 4.0*M_PI * model->get_density(r);
 }
 
-// Use entire grid for for l<Lswitch
+// Use entire grid for l<Lswitch
 int SLGridSph::Lswitch = 32;
   
 // For l>=Lswitch: rmin=rmap/rfac, rmax=rmap*rfac with rfac=pow(10,
@@ -2907,7 +2907,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 		<< std::setw( 5) << iflag[i]
 		<< std::endl;
   
-      if (VERBOSE and iflag[i] != 0) {
+      if (VERBOSE && iflag[i] != 0) {
 
 	if (iflag[i] > -10) {
 	  cout << std::setw(14) << "x"
