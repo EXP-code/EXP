@@ -134,7 +134,7 @@ namespace TipsyReader
     XDR xdrs;
 
     //! Cache the XDR stream position at beginning of particle group
-    unsigned curpos = 0;
+    unsigned long curpos = 0;
 
     int xdr_header()
     {
@@ -171,14 +171,14 @@ namespace TipsyReader
     //! Generate stream position for parallel read
     //! \param nsize The number of particles to read
     //! \param ssize The size of each particle structure in bytes
-    unsigned xdr_psize(unsigned int nsize, unsigned int ssize)
+    unsigned long xdr_psize(unsigned long nsize, unsigned long ssize)
     {
       // Number of particles per process
-      unsigned int psize = nsize/numprocs;
+      unsigned long psize = nsize/numprocs;
 
       // Get current stream position
       curpos = xdr_getpos(&xdrs);
-      auto pos = curpos
+      auto pos = curpos;
 
       // Move the stream position to the start of this process' data
       pos += psize * myid * ssize;
@@ -193,7 +193,7 @@ namespace TipsyReader
     }
 
     //! Set stream position to next group of particles
-    void xdr_pnext(unsigned int nsize, unsigned int ssize)
+    void xdr_pnext(unsigned long nsize, unsigned long ssize)
     {
       // Move the stream position to the start of the next particle
       // group
@@ -348,21 +348,23 @@ namespace TipsyReader
     //! Generate stream position for parallel read
     //! \param nsize The number of particles to read
     //! \param ssize The size of each particle structure in bytes
-    unsigned ios_psize(unsigned int nsize, unsigned int ssize)
+    unsigned long ios_psize(unsigned long nsize, unsigned long ssize)
     {
       // Number of particles per process
-      unsigned int psize = nsize/numprocs;
+      unsigned long psize = nsize/numprocs;
 
       // Get current stream position
       curpos = input.tellg();
-      auto pos = curpos;
+      std::streampos pos(curpos);
 
       // Move the stream position to the start of this process' data
       pos += psize * myid * ssize;
-      input.seekg(pos);
-      if (input.fail()) {
+
+      if (input.seekg(pos).fail()) {
 	throw std::runtime_error("TipsyFile: seekg failed");
       }
+
+      std::streampos test = input.tellg();
 
       // If this is the last process, read the remainder
       if (myid == numprocs-1) psize = nsize - (numprocs-1)*psize;
@@ -371,14 +373,14 @@ namespace TipsyReader
     }
 
     //! Move to next particle group
-    void ios_pnext(unsigned int nsize, unsigned int ssize)
+    void ios_pnext(unsigned long nsize, unsigned long ssize)
     {
       // Move the stream position to the start of the next particle
       // group
-      auto pos = curpos;	// Make a copy of the current position
-      pos += nsize * ssize;	// Augment the position
-      input.seekg(pos);
-      if (input.fail()) {
+      std::streampos pos(curpos); // Make a copy of the current position
+      pos += nsize * ssize;	  // Augment the position
+
+      if (input.seekg(pos).fail()) {
 	throw std::runtime_error("TipsyFile: seekg failed");
       }
     }
@@ -409,6 +411,8 @@ namespace TipsyReader
 	// Do the read
 	dark_particles.resize(psize);
 	read_dark();
+	// Stream position debug
+	std::streampos test = input.tellg();
 	N++;
 
 	// Set stream position to next group of particles
