@@ -35,7 +35,7 @@ namespace PR {
   { {"Gas", 0}, {"Halo", 1}, {"Disk", 2}, {"Bulge", 3}, {"Stars", 4}, {"Bndry", 5}};
   
   
-  GadgetNative::GadgetNative(const std::vector<std::string>& files, bool verbose)
+  GadgetNative::GadgetNative(const std::vector<std::string>& files, bool verbose) : ParticleReader()
   {
     _files   = files;		// Copy file list (bunch)
     _verbose = verbose;
@@ -317,7 +317,7 @@ namespace PR {
   { {"Gas", 0}, {"Halo", 1}, {"Disk", 2}, {"Bulge", 3}, {"Stars", 4}, {"Bndry", 5}};
   
   
-  GadgetHDF5::GadgetHDF5(const std::vector<std::string>& files, bool verbose)
+  GadgetHDF5::GadgetHDF5(const std::vector<std::string>& files, bool verbose) : ParticleReader()
   {
     _files   = files;
     _verbose = verbose;
@@ -705,7 +705,7 @@ namespace PR {
   }
   
 
-  PSPhdf5::PSPhdf5(const std::vector<std::string>& files, bool verbose)
+  PSPhdf5::PSPhdf5(const std::vector<std::string>& files, bool verbose) : ParticleReader()
   {
     _files   = files;
     _verbose = verbose;
@@ -2125,7 +2125,7 @@ namespace PR {
   }
 
   Tipsy::Tipsy(const std::string& file, TipsyType Type,
-	       bool verbose)
+	       bool verbose) : ParticleReader()
   {
     ttype = Type;
     files.push_back(file);
@@ -2137,7 +2137,7 @@ namespace PR {
   }
   
   Tipsy::Tipsy(const std::vector<std::string>& filelist, TipsyType Type,
-	       bool verbose)
+	       bool verbose) : ParticleReader()
   {
     files = filelist;
 

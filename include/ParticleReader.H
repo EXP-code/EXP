@@ -456,7 +456,7 @@ namespace PR
   public:
     
     //! Default constructor
-    PSP(bool verbose) : VERBOSE(verbose) { init(); }
+    PSP(bool verbose) : VERBOSE(verbose), ParticleReader() { init(); }
     
     //! Destructor
     virtual ~PSP() { if (in.is_open()) in.close(); }

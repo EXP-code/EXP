@@ -224,14 +224,19 @@ void UtilityClasses(py::module &m) {
       }
     },
     R"(
-      Initialize EXP for MPI from Python.
+      Initialize EXP's C++ MPI communicators and variables from pyEXP
   
-      Sets internal MPI-specific library values necessary to MPI from Python scripts.
-   
+      Sets all of the internal MPI-specific library values necessary
+      to use the full complement of the EXP C++ classes from Python
+      scripts.  For example, this is needed for ParticleReader, which
+      does not provide its own MPI initialization. The BasisFactory,
+      Basis, ParticleReader, and FieldGenerator classes can do this
+      automatically.
+
       Parameters
       ----------
       verbose : bool
-         If true, print the node and process assignments
+         Print the node and process assignments.  Default: false.
 
       Returns
       -------
