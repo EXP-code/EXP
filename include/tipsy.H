@@ -1,6 +1,8 @@
 #ifndef _tipsy_H
 #define _tipsy_H
 
+#include <map>
+
 // For MPI awareness
 //
 #include <localmpi.H>
@@ -97,6 +99,8 @@ namespace TipsyReader
 #endif
   } ;
   
+  enum class Ptype { gas, dark, star };
+
   class TipsyFile
   {
   protected:
@@ -105,6 +109,9 @@ namespace TipsyReader
     virtual void read_dark() = 0;
     virtual void read_star() = 0;
 
+    // Offset for indexing particles in the file
+    std::map<Ptype, unsigned long> index_offset_map
+      { {Ptype::gas,  0}, {Ptype::dark, 0}, {Ptype::star, 0} };
 
   public:
 
@@ -116,6 +123,11 @@ namespace TipsyReader
     virtual int readParticles() = 0;
 
     virtual ~TipsyFile() {}
+
+    unsigned long getIndexOffset(const Ptype ptype)
+    {
+      return index_offset_map[ptype];
+    }
   };
 
 #ifdef HAVE_XDR
@@ -173,7 +185,7 @@ namespace TipsyReader
     //! \param ssize The size of each particle structure in bytes
     //! \note Using unsigned long to avoid wrapping issues
     //! \return The number of particles to read for this process
-    unsigned long xdr_psize(unsigned long nsize, unsigned long ssize)
+    unsigned long xdr_psize(unsigned long nsize, unsigned long ssize, Ptype ptype)
     {
       // Number of particles per process
       unsigned long psize = nsize/numprocs;
@@ -182,14 +194,20 @@ namespace TipsyReader
       curpos = xdr_getpos(&xdrs);
       auto pos = curpos;
 
+      // Set the index offset for indexing particles
+      index_offset_map[ptype] = psize * myid;
+
       // Move the stream position to the start of this process' data
-      pos += psize * myid * ssize;
+      pos += index_offset_map[ptype] * ssize;
       if (xdr_setpos(&xdrs, pos) == 0) {
 	throw std::runtime_error("TipsyFile: xdr_setpos failed");
       }
 
       // If this is the last process, read the remainder
-      if (myid == numprocs-1) psize = nsize - (numprocs-1)*psize;
+      if (myid == numprocs-1) {
+	index_offset_map[ptype] = (numprocs-1) * psize;
+	psize = nsize - index_offset;
+      }}
 
       return psize;
     }
@@ -214,7 +232,7 @@ namespace TipsyReader
       if (header.nsph != 0)  {
 	// Get the number of gas particles for this process and set
 	// stream position
-	auto psize = xdr_psize(header.nsph, sizeof(gas_particle));
+	auto psize = xdr_psize(header.nsph, sizeof(gas_particle), Ptype::gas);
 
 	// Do the read
 	gas_particles.resize(psize);
@@ -228,7 +246,7 @@ namespace TipsyReader
       if (header.ndark != 0) {
 	// Get the number of dark particles for this process and set
 	// stream position
-	auto psize = xdr_psize(header.ndark, sizeof(dark_particle));
+	auto psize = xdr_psize(header.ndark, sizeof(dark_particle), Ptype::dark);
 
 	// Do the read
 	dark_particles.resize(psize);
@@ -242,7 +260,7 @@ namespace TipsyReader
       if (header.nstar != 0) {
 	// Get the number of star particles for this process and set
 	// stream position
-	auto psize = xdr_psize(header.nstar, sizeof(star_particle));
+	auto psize = xdr_psize(header.nstar, sizeof(star_particle), Ptype::star);
 
 	// Do the read
 	star_particles.resize(psize);
@@ -360,7 +378,7 @@ namespace TipsyReader
     //! \param ssize The size of each particle structure in bytes
     //! \note Using unsigned long to avoid wrapping issues
     //! \return The number of particles to read for this process
-    unsigned long ios_psize(unsigned long nsize, unsigned long ssize)
+    unsigned long ios_psize(unsigned long nsize, unsigned long ssize, Ptype ptype)
     {
       // Number of particles per process
       unsigned long psize = nsize/numprocs;
@@ -369,8 +387,11 @@ namespace TipsyReader
       curpos = input.tellg();
       std::streampos pos(curpos);
 
+      // Set the index offset for indexing particles
+      index_offset_map[ptype] = psize * myid;
+
       // Move the stream position to the start of this process' data
-      pos += psize * myid * ssize;
+      pos += index_offset_map[ptype] * ssize;
 
       if (input.seekg(pos).fail()) {
 	throw std::runtime_error("TipsyFile: seekg failed");
@@ -379,7 +400,10 @@ namespace TipsyReader
       std::streampos test = input.tellg();
 
       // If this is the last process, read the remainder
-      if (myid == numprocs-1) psize = nsize - (numprocs-1)*psize;
+      if (myid == numprocs-1) {
+	index_offset_map[ptype] = (numprocs-1) * psize;
+	psize = nsize - index_offset_map[ptype];
+      }
 
       return psize;
     }
@@ -409,7 +433,7 @@ namespace TipsyReader
       if (header.nsph != 0)  {
 	// Get the number of gas particles for this process and set
 	// stream position
-	auto psize = ios_psize(header.nsph, sizeof(gas_particle));
+	auto psize = ios_psize(header.nsph, sizeof(gas_particle), Ptype::gas);
 
 	// Do the read
 	gas_particles.resize(psize);
@@ -423,7 +447,7 @@ namespace TipsyReader
       if (header.ndark != 0) {
 	// Get the number of dark particles for this process and set
 	// stream position
-	auto psize = ios_psize(header.ndark, sizeof(dark_particle));
+	auto psize = ios_psize(header.ndark, sizeof(dark_particle), Ptype::dark);
 
 	// Do the read
 	dark_particles.resize(psize);
@@ -439,7 +463,7 @@ namespace TipsyReader
       if (header.nstar != 0) {
 	// Get the number of star particles for this process and set
 	// stream position
-	auto psize = ios_psize(header.nstar, sizeof(star_particle));
+	auto psize = ios_psize(header.nstar, sizeof(star_particle), Ptype::star);
 
 	// Do the read
 	star_particles.resize(psize);
