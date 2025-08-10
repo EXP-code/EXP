@@ -2185,6 +2185,8 @@ namespace PR {
 	P.vel[k] = ps->gas_particles[pcount].vel[k];
       }
       if (ttype == TipsyType::bonsai) P.indx = ps->gas_particles[pcount].ID();
+      else P.indx = ps->getIndexOffset(TipsyReader::Ptype::gas) + pcount + 1;
+
       pcount++;
       return;
     }
@@ -2197,6 +2199,8 @@ namespace PR {
 	P.vel[k] = ps->dark_particles[pcount].vel[k];
       }
       if (ttype == TipsyType::bonsai) P.indx = ps->dark_particles[pcount].ID();
+      else P.indx = ps->getIndexOffset(TipsyReader::Ptype::dark) + pcount + 1;
+
       pcount++;
       return;
     }
@@ -2209,6 +2213,8 @@ namespace PR {
 	P.vel[k] = ps->star_particles[pcount].vel[k];
       }
       if (ttype == TipsyType::bonsai) P.indx = ps->star_particles[pcount].ID();
+      else P.indx = ps->getIndexOffset(TipsyReader::Ptype::star) + pcount + 1;
+
       pcount++;
       return;
     }

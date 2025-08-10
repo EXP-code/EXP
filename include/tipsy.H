@@ -99,8 +99,10 @@ namespace TipsyReader
 #endif
   } ;
   
+  //! Used to identify particle type for indexing
   enum class Ptype { gas, dark, star };
 
+  //! Base class for Tipsy file reading
   class TipsyFile
   {
   protected:
@@ -109,7 +111,7 @@ namespace TipsyReader
     virtual void read_dark() = 0;
     virtual void read_star() = 0;
 
-    // Offset for indexing particles in the file
+    //! Offset for indexing particles in the file
     std::map<Ptype, unsigned long> index_offset_map
       { {Ptype::gas,  0}, {Ptype::dark, 0}, {Ptype::star, 0} };
 
@@ -124,6 +126,7 @@ namespace TipsyReader
 
     virtual ~TipsyFile() {}
 
+    //! Get the index offset for a given particle type
     unsigned long getIndexOffset(const Ptype ptype)
     {
       return index_offset_map[ptype];
@@ -135,6 +138,7 @@ namespace TipsyReader
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 
+  //! Tipsy XDR file reader
   class TipsyXDR : public TipsyFile
   {
   private:
@@ -329,6 +333,7 @@ namespace TipsyReader
 #endif
 
 
+  //! Tipsy native file reader
   class TipsyNative : public TipsyFile
   {
   private:
