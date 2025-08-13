@@ -53,13 +53,13 @@ namespace TipsyReader
     Real phi    ;
     //@}
     
-    //! Convert phi to 32-bit index for ChaNGa
+    //! Convert phi to 32-bit index for Bonsai v1
     int ID() const {
       union id {Real v; int i;} u;
       u.v = phi; return u.i;
     }
 
-    //! Convert phi to 64-bit index for Bonsai
+    //! Convert phi to 64-bit index for Bonsai v2
     unsigned long ID2() const {
       union id {Real v[2]; uint64_t i;} u;
       u.v[0] = eps; u.v[1] = phi; return u.i;
@@ -80,13 +80,13 @@ namespace TipsyReader
     Real phi    ;
     //@}
 
-    //! Convert phi to 32-bit index for ChaNGa
+    //! Convert phi to 32-bit index for Bonsai v1
     int ID() const {
       union id {Real v; int i;} u;
       u.v = phi; return u.i;
     }
 
-    //! Convert exp, phi to 64bit index for Bonsai
+    //! Convert exp, phi to 64bit index for Bonsai v2
     unsigned long ID2() const {
       union id {Real v[2]; uint64_t i;} u;
       u.v[0] = eps; u.v[1] = phi; return u.i;

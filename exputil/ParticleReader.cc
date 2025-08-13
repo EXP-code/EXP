@@ -1896,7 +1896,7 @@ namespace PR {
   
   std::vector<std::string> ParticleReader::readerTypes
     {"PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "PSPhdf5",
-     "TipsyNative", "TipsyXDR", "ChaNGa", "Bonsai"};
+     "TipsyNative", "TipsyXDR", "Bonsai1", "Bonsai"};
   
   
   std::vector<std::vector<std::string>>
@@ -2031,8 +2031,8 @@ namespace PR {
       exit(1);
     }
 #endif
-    else if (reader.find("ChaNGa") == 0)
-      ret = std::make_shared<Tipsy>(file, Tipsy::TipsyType::changa, verbose);
+    else if (reader.find("Bonsai1") == 0)
+      ret = std::make_shared<Tipsy>(file, Tipsy::TipsyType::bonsai1, verbose);
     else if (reader.find("Bonsai") == 0)
       ret = std::make_shared<Tipsy>(file, Tipsy::TipsyType::bonsai, verbose);
     else {
@@ -2072,6 +2072,8 @@ namespace PR {
       // Native tipsy with ID conversion
       else if (ttype == TipsyType::bonsai)
 	ps = std::make_shared<TipsyReader::TipsyNative>(file);
+      else if (ttype == TipsyType::bonsai1)
+	ps = std::make_shared<TipsyReader::TipsyNative>(file);
       // Make a tipsy xdr reader
       else {
 #ifdef HAVE_XDR
@@ -2110,6 +2112,8 @@ namespace PR {
     if (ttype == TipsyType::native)
       ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
     else if (ttype == TipsyType::bonsai)
+      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
+    else if (ttype == TipsyType::bonsai1)
       ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
     else {
 #ifdef HAVE_XDR
@@ -2200,7 +2204,7 @@ namespace PR {
       }
       if (ttype == TipsyType::bonsai)
 	P.indx = ps->dark_particles[pcount].ID2();
-      else if (ttype == TipsyType::changa)
+      else if (ttype == TipsyType::bonsai1)
 	P.indx = ps->dark_particles[pcount].ID();
       else
 	P.indx = ps->getIndexOffset(TipsyReader::Ptype::dark) + pcount + 1;
@@ -2218,7 +2222,7 @@ namespace PR {
       }
       if (ttype == TipsyType::bonsai)
 	P.indx = ps->star_particles[pcount].ID2();
-      else if (ttype == TipsyType::changa)
+      else if (ttype == TipsyType::bonsai1)
 	P.indx = ps->star_particles[pcount].ID();
       else
 	P.indx = ps->getIndexOffset(TipsyReader::Ptype::star) + pcount + 1;
