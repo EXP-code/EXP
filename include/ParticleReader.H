@@ -573,7 +573,7 @@ namespace PR
 
   public:
 
-    enum class TipsyType { native, xdr, bonsai };
+    enum class TipsyType { native, xdr, changa, bonsai };
 
   private:
     //! List of files

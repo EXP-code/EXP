@@ -1896,7 +1896,7 @@ namespace PR {
   
   std::vector<std::string> ParticleReader::readerTypes
     {"PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "PSPhdf5",
-     "TipsyNative", "TipsyXDR", "Bonsai"};
+     "TipsyNative", "TipsyXDR", "ChaNGa", "Bonsai"};
   
   
   std::vector<std::vector<std::string>>
@@ -2031,7 +2031,8 @@ namespace PR {
       exit(1);
     }
 #endif
-
+    else if (reader.find("ChaNGa") == 0)
+      ret = std::make_shared<Tipsy>(file, Tipsy::TipsyType::changa, verbose);
     else if (reader.find("Bonsai") == 0)
       ret = std::make_shared<Tipsy>(file, Tipsy::TipsyType::bonsai, verbose);
     else {
@@ -2184,8 +2185,7 @@ namespace PR {
 	P.pos[k] = ps->gas_particles[pcount].pos[k];
 	P.vel[k] = ps->gas_particles[pcount].vel[k];
       }
-      if (ttype == TipsyType::bonsai) P.indx = ps->gas_particles[pcount].ID();
-      else P.indx = ps->getIndexOffset(TipsyReader::Ptype::gas) + pcount + 1;
+      P.indx = ps->getIndexOffset(TipsyReader::Ptype::gas) + pcount + 1;
 
       pcount++;
       return;
@@ -2198,8 +2198,12 @@ namespace PR {
 	P.pos[k] = ps->dark_particles[pcount].pos[k];
 	P.vel[k] = ps->dark_particles[pcount].vel[k];
       }
-      if (ttype == TipsyType::bonsai) P.indx = ps->dark_particles[pcount].ID();
-      else P.indx = ps->getIndexOffset(TipsyReader::Ptype::dark) + pcount + 1;
+      if (ttype == TipsyType::bonsai)
+	P.indx = ps->dark_particles[pcount].ID2();
+      else if (ttype == TipsyType::changa)
+	P.indx = ps->dark_particles[pcount].ID();
+      else
+	P.indx = ps->getIndexOffset(TipsyReader::Ptype::dark) + pcount + 1;
 
       pcount++;
       return;
@@ -2212,8 +2216,12 @@ namespace PR {
 	P.pos[k] = ps->star_particles[pcount].pos[k];
 	P.vel[k] = ps->star_particles[pcount].vel[k];
       }
-      if (ttype == TipsyType::bonsai) P.indx = ps->star_particles[pcount].ID();
-      else P.indx = ps->getIndexOffset(TipsyReader::Ptype::star) + pcount + 1;
+      if (ttype == TipsyType::bonsai)
+	P.indx = ps->star_particles[pcount].ID2();
+      else if (ttype == TipsyType::changa)
+	P.indx = ps->star_particles[pcount].ID();
+      else
+	P.indx = ps->getIndexOffset(TipsyReader::Ptype::star) + pcount + 1;
 
       pcount++;
       return;

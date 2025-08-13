@@ -40,12 +40,6 @@ namespace TipsyReader
     Real metals ;
     Real phi    ;
     //@}
-
-    //! Convert phi to index for Bonsai
-    int ID() const {
-      union id {Real v; int i;} u;
-      u.v = phi; return u.i;
-    }
   } ;
 
   struct dark_particle
@@ -59,11 +53,18 @@ namespace TipsyReader
     Real phi    ;
     //@}
     
-    //! Convert phi to index for Bonsai
+    //! Convert phi to 32-bit index for ChaNGa
     int ID() const {
       union id {Real v; int i;} u;
       u.v = phi; return u.i;
     }
+
+    //! Convert phi to 64-bit index for Bonsai
+    unsigned long ID2() const {
+      union id {Real v[2]; uint64_t i;} u;
+      u.v[0] = eps; u.v[1] = phi; return u.i;
+    }
+
   } ;
 
   struct star_particle
@@ -79,10 +80,16 @@ namespace TipsyReader
     Real phi    ;
     //@}
 
-    //! Convert phi to index for Bonsai
+    //! Convert phi to 32-bit index for ChaNGa
     int ID() const {
       union id {Real v; int i;} u;
       u.v = phi; return u.i;
+    }
+
+    //! Convert exp, phi to 64bit index for Bonsai
+    unsigned long ID2() const {
+      union id {Real v[2]; uint64_t i;} u;
+      u.v[0] = eps; u.v[1] = phi; return u.i;
     }
   } ;
   
