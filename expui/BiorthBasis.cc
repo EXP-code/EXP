@@ -93,6 +93,87 @@ namespace BasisClasses
     return labels;
   }
 
+  std::shared_ptr<BiorthBasis> BiorthBasis::factory_string(const std::string& conf)
+  {
+    YAML::Node node;
+    
+    try {
+      // Read the YAML from a string
+      //
+      node = YAML::Load(conf);
+    }
+    catch (const std::runtime_error& error) {
+      std::cout << "BiorthBasis::factory constructor: found a problem in the YAML config"
+		<< std::endl;
+      throw;
+    }
+
+    // Complete the initialization
+    //
+    return factory_initialize(node);
+  }
+
+  std::shared_ptr<BiorthBasis> BiorthBasis::factory(const YAML::Node& conf)
+  {
+    return factory_initialize(conf);
+  }
+
+  std::shared_ptr<BiorthBasis> BiorthBasis::factory_initialize(const YAML::Node& conf)
+  {
+    std::shared_ptr<BiorthBasis> basis;
+    std::string name;
+    
+    // Load parameters from YAML configuration node
+    try {
+      name = conf["id"].as<std::string>();
+    } 
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing force id in BiorthBasis::factory"
+			     << std::string(60, '-') << std::endl
+			     << conf                 << std::endl
+			     << std::string(60, '-') << std::endl;
+      
+      throw std::runtime_error("BiorthBasis::factory: error parsing YAML");
+    }
+    
+    try {
+      if ( !name.compare("sphereSL") ) {
+	basis = std::make_shared<SphericalSL>(conf);
+      }
+      else if ( !name.compare("bessel") ) {
+	basis = std::make_shared<Bessel>(conf);
+      }
+      else if ( !name.compare("cylinder") ) {
+	basis = std::make_shared<Cylindrical>(conf);
+      }
+      else if ( !name.compare("flatdisk") ) {
+	basis = std::make_shared<FlatDisk>(conf);
+      }
+      else if ( !name.compare("CBDisk") ) {
+	basis = std::make_shared<CBDisk>(conf);
+      }
+      else if ( !name.compare("slabSL") ) {
+	basis = std::make_shared<Slab>(conf);
+      }
+      else if ( !name.compare("cube") ) {
+	basis = std::make_shared<Cube>(conf);
+      }
+      else {
+	std::string msg("I don't know about the basis named: ");
+	msg += name;
+	msg += ". Known types are currently 'sphereSL', 'cylinder', 'flatdisk', 'CBDisk', 'slabSL', 'cube', 'field', and 'velocity'";
+	throw std::runtime_error(msg);
+      }
+    }
+    catch (std::exception& e) {
+      std::cout << "Error in BiorthBasis::factory constructor: " << e.what() << std::endl;
+      throw;			// Rethrow the exception?
+    }
+    
+    return basis;
+  }
+
+
   Spherical::Spherical(const YAML::Node& CONF, const std::string& forceID) :
     BiorthBasis(CONF, forceID)
   {

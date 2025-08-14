@@ -40,6 +40,12 @@ namespace BasisClasses
   {
     friend class Field::FieldGenerator;
 
+  private:
+
+    //! Helper for factory
+    static std::shared_ptr<BiorthBasis>
+    factory_initialize(const YAML::Node& node);
+
   protected:
     
     /** @name Utility functions */
@@ -154,8 +160,8 @@ namespace BasisClasses
     //@{
     //! The coefficient factory.  Creates a shared pointer to derived
     //! instance of the desired type and returns it.
-    // static std::shared_ptr<Basis> factory(const YAML::Node&  conf);
-    // static std::shared_ptr<Basis> factory_string(const std::string& conf);
+    static std::shared_ptr<BiorthBasis> factory(const YAML::Node&  conf);
+    static std::shared_ptr<BiorthBasis> factory_string(const std::string& conf);
     //@}
     
     //! Set the particle selector callback
