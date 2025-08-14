@@ -120,7 +120,7 @@ double sphdens(double r)
   return 4.0*M_PI * model->get_density(r);
 }
 
-// Use entire grid for for l<Lswitch
+// Use entire grid for l<Lswitch
 int SLGridSph::Lswitch = 32;
   
 // For l>=Lswitch: rmin=rmap/rfac, rmax=rmap*rfac with rfac=pow(10,
