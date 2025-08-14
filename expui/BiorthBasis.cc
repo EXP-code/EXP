@@ -161,7 +161,7 @@ namespace BasisClasses
       else {
 	std::string msg("I don't know about the basis named: ");
 	msg += name;
-	msg += ". Known types are currently 'sphereSL', 'cylinder', 'flatdisk', 'CBDisk', 'slabSL', 'cube', 'field', and 'velocity'";
+	msg += ". Known types are currently 'sphereSL', 'bessel', 'cylinder', 'flatdisk', 'CBDisk', 'slabSL', and 'cube'";
 	throw std::runtime_error(msg);
       }
     }
