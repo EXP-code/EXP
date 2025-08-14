@@ -946,6 +946,8 @@ WARN_LOGFILE           = debug.txt
 INPUT                  = ../include \
                          ../src \
                          ../src/user \
+			 ../exputil \
+			 ../expui \
                          ../utils/ICs \
                          ../utils/Analysis \
                          ../utils/PhaseSpace
