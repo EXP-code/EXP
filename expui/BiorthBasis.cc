@@ -4116,7 +4116,7 @@ namespace BasisClasses
     int rows = accel.rows();
     for (int n=0; n<rows; n++) {
       Eigen::Vector3d pp;
-      for (int k=0; k<3; k++) pp(k) = ps(n, k) - ctr[k];
+      for (int k=0; k<3; k++) pp(k) = ps(n, k) - ctr(k);
       pp = rot * pp;
 
       auto v = basis->getFields(pp(0), pp(1), pp(2));
