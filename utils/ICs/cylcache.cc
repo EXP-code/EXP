@@ -49,9 +49,9 @@ main(int ac, char **av)
     "  logr       : true\n"
     "  expcond    : true\n"
     "  deproject  : true\n"
-    "  cachefile  : .eof.cache.file_new\n"
+    "  cachefile  : eof.cache.file_new\n"
     "  ignore     : true\n"
-    "  vflag      : 16\n"
+    "  vflag      : 5\n"
     ;
 
   // Inialize MPI stuff
