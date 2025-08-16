@@ -1,5 +1,7 @@
 #include <DiskDensityFunc.H>
 
+#ifdef HAVE_PYTHON3
+
 namespace py = pybind11;
 
 DiskDensityFunc::DiskDensityFunc(const std::string& modulename,
@@ -29,3 +31,23 @@ double DiskDensityFunc::operator() (double R, double z, double phi)
 {
   return disk_density(R, z, phi).cast<double>();
 }
+
+#else
+
+DiskDensityFunc::DiskDensityFunc(const std::string& modulename,
+				 const std::string& funcname)
+  : funcname(funcname)
+{
+  throw std::runtime_error("DiskDensityFunc: you environoment does not have Python3 support.  Use a built-in density target or install Python3 and recompile");
+}
+
+DiskDensityFunc::~DiskDensityFunc()
+{
+}
+
+double DiskDensityFunc::operator() (double R, double z, double phi)
+{
+  return 0.0;
+}
+
+#endif
