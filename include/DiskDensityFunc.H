@@ -3,6 +3,8 @@
 
 #include <functional>
 
+#include <config_exp.h>
+
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
 
@@ -35,8 +37,10 @@ DiskDensityFunc
 {
 private:
 
+#ifdef HAVE_PYTHON3
   //! The disk-density function
   pybind11::function disk_density;
+#endif
 
   //! Interpreter started?
   bool started = false;

@@ -268,7 +268,13 @@ endif()
 # try to find pybind11 and build wrapper python module
 find_package(Python3 COMPONENTS Interpreter Development)
 message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
-
+if(Python3_FOUND)
+  set(HAVE_PYTHON3 TRUE)
+else()
+  if(ENABLE_PYEXP)
+    message(FATAL_ERROR "You asked for pyEXP but I cannot find a Python3 environment. Please make Python3 available or disable pyEXP. CMake will exit." )
+  endif()
+endif()
 
 # Force installation of the yaml-cpp libraries
 install(TARGETS yaml-cpp DESTINATION lib)
