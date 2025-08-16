@@ -22,6 +22,8 @@ OutDiag::valid_keys = {
 
 OutDiag::OutDiag(const YAML::Node& conf) : Output(conf)
 {
+  initialize();
+
   if (myid) return;
 				// Defaults
   RMIN = 1.0e-3;
@@ -43,8 +45,6 @@ OutDiag::OutDiag(const YAML::Node& conf) : Output(conf)
   names.push_back("d(Pot)/dr)");
   names.push_back("d(Pot)/d cos(theta)");
   names.push_back("d(Pot)/d phi");
-
-  initialize();
 }
 
 void OutDiag::initialize()
