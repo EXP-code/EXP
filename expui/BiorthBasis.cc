@@ -4067,7 +4067,7 @@ namespace BasisClasses
 	  coefindx++;
 	  
 	  if (use) {
-	    auto pp = coefrot * (p.col(n) - coefctr);
+	    auto pp = coefrot * (p.row(n).transpose() - coefctr);
 	    accumulate(pp(0), pp(1), pp(2), m(n));
 	  }
 	}
