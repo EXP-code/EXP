@@ -3905,26 +3905,35 @@ namespace BasisClasses
     //
     coef->rot = rot;
 
-    std::vector<double> pp(3), vv(3);
+    std::vector<double> p1(3), v1(3);
+    
+    // Map the vector rather than copy
+    //
+    Eigen::Map<Eigen::Vector3d> pp(p1.data(), 3), vv(v1.data(), 3);
+    vv.setZero();
 
     reset_coefs();
     for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
 
       bool use = false;
       
+      // Translate and rotate the position vector
+      //
+      for (int k=0; k<3; k++) p1[k] = p->pos[k];
+      pp = coefrot * (pp - coefctr);
+
       if (ftor) {
-	pp.assign(p->pos, p->pos+3);
-	vv.assign(p->vel, p->vel+3);
-	use = ftor(p->mass, pp, vv, p->indx);
+	// Rotate the velocity vector
+	//
+	for (int k=0; k<3; k++) v1[k] = p->vel[k];
+	vv = coefrot * vv;
+	
+	use = ftor(p->mass, p1, v1, p->indx);
       } else {
 	use = true;
       }
 
       if (use) {
-	Eigen::Vector3d pp;
-	for (int k=0; k<3; k++) pp(k) = p->pos[k] - coefctr(k);
-	pp = coefrot * pp;
-	
 	accumulate(pp(0), pp(1), pp(2), p->mass);
       }
     }
@@ -3994,6 +4003,7 @@ namespace BasisClasses
     int cols = p.cols(); 
 
     bool ambiguous = false;
+    bool haveVel   = false;
 
     if (cols==3 or cols==6) {
       if (rows != 3 and rows != 6) PosVelRows = false;
@@ -4014,7 +4024,11 @@ namespace BasisClasses
 		<< "if this assumption is wrong." << std::endl;
     }
 
-    std::vector<double> p1(3), v1(3, 0);
+    // Map the vector rather than copy
+    //
+    std::vector<double> p1(3), v1(3);
+    Eigen::Map<Eigen::Vector3d> pp(p1.data(), 3), vv(v1.data(), 3);
+    vv.setZero();
 
     if (PosVelRows) {
       if (p.rows()<3) {
@@ -4024,13 +4038,23 @@ namespace BasisClasses
 	throw std::runtime_error(msg.str());
       }
 
-      for (int n=0; n<p.cols(); n++) {
+      if (p.rows() == 6) haveVel = true;
 
+      for (int n=0; n<p.cols(); n++) {
+	
 	if (n % numprocs==myid or not RoundRobin) {
 
+	  for (int k=0; k<3; k++) {
+	    pp(k) = p(k, n);
+	    if (haveVel) vv(k) = p(k+3, n);
+	  }
+	  
+	  pp = coefrot * (pp - coefctr);
+
 	  bool use = true;
+
 	  if (ftor) {
-	    for (int k=0; k<3; k++) p1[k] = p(k, n);
+	    if (haveVel) vv = coefrot * vv;
 	    use = ftor(m(n), p1, v1, coefindx);
 	  } else {
 	    use = true;
@@ -4038,7 +4062,6 @@ namespace BasisClasses
 	  coefindx++;
 	  
 	  if (use) {
-	    auto pp = coefrot * (p.col(n) - coefctr);
 	    accumulate(pp(0), pp(1), pp(2), m(n));
 	  }
 	}
@@ -4053,13 +4076,23 @@ namespace BasisClasses
 	throw std::runtime_error(msg.str());
       }
 
+      if (p.cols() == 6) haveVel = true;
+
+
       for (int n=0; n<p.rows(); n++) {
 
 	if (n % numprocs==myid or not RoundRobin) {
 
+	  for (int k=0; k<3; k++) {
+	    pp(k) = p(n, k);
+	    if (haveVel) vv(k) = p(n, k+3);
+	  }
+	  
+	  pp = coefrot * (pp - coefctr);
+
 	  bool use = true;
 	  if (ftor) {
-	    for (int k=0; k<3; k++) p1[k] = p(n, k);
+	    if (haveVel) vv = coefrot * vv;
 	    use = ftor(m(n), p1, v1, coefindx);
 	  } else {
 	    use = true;
@@ -4067,7 +4100,6 @@ namespace BasisClasses
 	  coefindx++;
 	  
 	  if (use) {
-	    auto pp = coefrot * (p.row(n).transpose() - coefctr);
 	    accumulate(pp(0), pp(1), pp(2), m(n));
 	  }
 	}
