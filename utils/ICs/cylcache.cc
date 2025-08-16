@@ -49,8 +49,7 @@ main(int ac, char **av)
     "  logr       : true\n"
     "  expcond    : true\n"
     "  deproject  : true\n"
-    "  cachefile  : eof.cache.file_new\n"
-    "  ignore     : true\n"
+    "  cachename  : eof.cache.file_new\n"
     "  vflag      : 5\n"
     ;
 
@@ -82,17 +81,16 @@ main(int ac, char **av)
   // Write YAML template config file and exit
   //
   if (vm.count("template")) {
-    // Write template file
-    //
     if (myid==0) {
       std::ofstream out("template.yaml");
-      if (out) out << disk_config;
-      std::cout << "Wrote <template.yaml>.  Please adjust to your preferences"
-		<< std::endl;
-    } else {
-      std::cerr << "Error opening <template.yaml> for output" << std::endl;
+      if (out) {
+	out << disk_config;
+	std::cout << "Wrote <template.yaml>.  Please adjust to your preferences"
+		  << std::endl;
+      } else {
+	std::cerr << "Error opening <template.yaml> for output" << std::endl;
+      }
     }
-
     MPI_Finalize();
     return 0;
   }
