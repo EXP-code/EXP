@@ -2211,7 +2211,7 @@ void BasisFactoryClasses(py::module &m)
              the basis coefficients computed from the particles
          )",
 	 py::arg("reader"), 
-	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("center") = Eigen::Vector3d::Zero(),
 	 py::arg("rotation") = Eigen::Matrix3d::Identity())
     .def("initFromArray",
 	 [](BasisClasses::FieldBasis& A,
