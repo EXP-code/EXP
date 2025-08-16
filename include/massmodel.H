@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <random>
+#include <tuple>
 
 #include <Eigen/Eigen>
 
@@ -111,6 +112,10 @@ public:
 class AxiSymModel : public MassModel,
 		    public std::enable_shared_from_this<AxiSymModel>
 {
+public:
+
+  using PSret = std::tuple<Eigen::VectorXd, int>;
+
 protected:
   //@{
   //! Stuff for gen_point
@@ -123,14 +128,18 @@ protected:
   bool gen_firstime_jeans;
   Eigen::VectorXd gen_rloc, gen_mass, gen_fmax;
   SphericalOrbit gen_orb;
-  double gen_fomax, gen_ecut;
+  double gen_fomax, gen_ecut, gen_lastr=-1.0;
   //@}
 
-  Eigen::VectorXd gen_point_2d(int& ierr);
-  Eigen::VectorXd gen_point_2d(double r, int& ierr);
-  Eigen::VectorXd gen_point_3d(int& ierr);
-  Eigen::VectorXd gen_point_3d(double Emin, double Emax, double Kmin, double Kmax, int& ierr);
-  Eigen::VectorXd gen_point_jeans_3d(int& ierr);
+  PSret gen_point_2d();
+  PSret gen_point_2d(double r);
+  PSret gen_point_3d();
+  PSret gen_point_3d(double Emin, double Emax, double Kmin, double Kmax);
+  PSret gen_point_jeans_3d();
+  PSret gen_point_3d(double r, double theta, double phi);
+  PSret gen_point_3d_iso(double r, double theta, double phi,
+			 int N, int nv, int na,
+			 double PHI=0, double THETA=0, double PSI=0);
   
   double Emin_grid, Emax_grid, dEgrid, dKgrid;
   vector<double> Egrid, Kgrid, EgridMass;
@@ -212,55 +221,89 @@ public:
   void set_Ecut(double cut) { gen_ecut = cut; }
 
   //! Generate a phase-space point
-  virtual Eigen::VectorXd gen_point(int& ierr) {
+  virtual PSret gen_point()
+  {
     if (dof()==2)
-      return gen_point_2d(ierr);
+      return gen_point_2d();
     else if (dof()==3)
-      return gen_point_3d(ierr);
+      return gen_point_3d();
     else
       bomb( "dof must be 2 or 3" );
     
-    return Eigen::VectorXd();
+    return {Eigen::VectorXd(), 1};
   }
   
   //! Generate a phase-space point using Jeans' equations
-  virtual Eigen::VectorXd gen_point_jeans(int& ierr) {
+  virtual PSret gen_point_jeans()
+  {
     if (dof()==2)
       bomb( "AxiSymModel: gen_point_jeans_2d(ierr) not implemented!" );
     else if (dof()==3)
-      return gen_point_jeans_3d(ierr);
+      return gen_point_jeans_3d();
     else
       bomb( "dof must be 2 or 3" );
     
-    return Eigen::VectorXd();
+    return {Eigen::VectorXd(), 1};
   }
   
   //! Generate a phase-space point at a particular radius
-  virtual Eigen::VectorXd gen_point(double r, int& ierr) {
+  virtual PSret gen_point(double r) {
     if (dof()==2)
-      return gen_point_2d(r, ierr);
+      return gen_point_2d(r);
     else if (dof()==3)
-      bomb( "AxiSymModel: gen_point(r, ierr) not implemented!" );
+      bomb( "AxiSymModel: gen_point(r) not implemented!" );
     else
       bomb( "AxiSymModel: dof must be 2 or 3" );
     
-    return Eigen::VectorXd();
+    return {Eigen::VectorXd(), 1};
+  }
+  
+  //! Generate a phase-space point at a particular radius, theta, and phi
+  virtual PSret
+  gen_point(double r, double theta, double phi)
+  {
+    if (dof()==2)
+      bomb( "AxiSymModel: gen_point(r, theta, phi) not implemented!" );
+    else if (dof()==3)
+      return gen_point_3d(r, theta, phi);
+    else
+      bomb( "AxiSymModel: dof must be 2 or 3" );
+    
+    return {Eigen::VectorXd(), 1};
+  }
+  
+  //! Generate a phase-space point at a particular radius, theta, and phi
+  virtual PSret
+  gen_point_iso(double r, double theta, double phi, int N, int nv, int na,
+		double PHI, double THETA, double PSI)
+  {
+    if (dof()==2)
+      bomb( "AxiSymModel: gen_point(r, theta, phi) not implemented!" );
+    else if (dof()==3)
+      return gen_point_3d_iso(r, theta, phi, N, nv, na,
+			      PHI, THETA, PSI);
+    else
+      bomb( "AxiSymModel: dof must be 2 or 3" );
+    
+    return {Eigen::VectorXd(), 1};
   }
   
   //! Generate a phase-space point at a particular energy and angular momentum
-  virtual Eigen::VectorXd gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr) {
+  virtual PSret
+  gen_point(double Emin, double Emax, double Kmin, double Kmax)
+  {
     if (dof()==2)
-      bomb( "AxiSymModel: gen_point(r, ierr) not implemented!" );
+      bomb( "AxiSymModel: gen_point(r) not implemented!" );
     else if (dof()==3)
-      return gen_point_3d(Emin, Emax, Kmin, Kmax, ierr);
+      return gen_point_3d(Emin, Emax, Kmin, Kmax);
     else
       bomb( "AxiSymModel: dof must be 2 or 3" );
     
-    return Eigen::VectorXd();
+    return {Eigen::VectorXd(), 1};
   }
   
   //! Generate a the velocity variate from a position
-  virtual void gen_velocity(double *pos, double *vel, int& ierr);
+  virtual int gen_velocity(double *pos, double *vel);
   
 };
 
@@ -501,9 +544,10 @@ public:
 
   //@{
   //! Overloaded to provide mass distribution from Real and Number distribution from Fake
-  Eigen::VectorXd gen_point(int& ierr);
-  Eigen::VectorXd gen_point(double r, int& ierr);
-  Eigen::VectorXd gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr);
+  PSret gen_point();
+  PSret gen_point(double r);
+  PSret gen_point(double Emin, double Emax, double Kmin, double Kmax);
+  PSret gen_point(double r, double theta, double phi);
   //@}
 
 

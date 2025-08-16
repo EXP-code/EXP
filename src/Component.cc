@@ -86,7 +86,10 @@ const std::set<std::string> Component::valid_keys_parm =
     "ctr_name",
     "noswitch",
     "freezeL",
-    "dtreset"
+    "dtreset",
+    "H5compress",
+    "H5shuffle",
+    "H5chunk",
   };
 
 const std::set<std::string> Component::valid_keys_force =
@@ -761,6 +764,209 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 
   if (SPL) read_bodies_and_distribute_binary_spl(in);
   else     read_bodies_and_distribute_binary_out(in);
+
+  mdt_ctr = std::vector< std::vector<unsigned> > (multistep+1);
+  for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = std::vector<unsigned>(mdtDim, 0);
+
+  angmom_lev  = std::vector<double>(3*(multistep+1), 0);
+  com_lev     = std::vector<double>(3*(multistep+1), 0);
+  cov_lev     = std::vector<double>(3*(multistep+1), 0);
+  coa_lev     = std::vector<double>(3*(multistep+1), 0);
+  com_mas     = std::vector<double>(   multistep+1,  0);
+
+  reset_level_lists();
+
+  pbuf.resize(PFbufsz);
+}
+
+Component::Component(YAML::Node& CONF, PR::PSPhdf5& reader) : conf(CONF)
+{
+  // Make a copy
+  conf = CONF;
+
+  try {
+    name = conf["name"].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << __FILE__ << ": " << __LINE__ << std::endl
+			   << "Error parsing component 'name': "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    throw std::runtime_error("Component: error parsing component <name>");
+  }
+
+  try {
+    cconf = conf["parameters"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing 'parameters' for Component <"
+			   << name << ">: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf
+			   << std::string(60, '-') << std::endl;
+
+    throw std::runtime_error("Component: error parsing <parameters>");
+  }
+  
+  pfile = conf["bodyfile"].as<std::string>();
+
+  YAML::Node cforce;
+  try {
+    cforce = conf["force"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing 'force' for Component <"
+			   << name << ">: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    throw std::runtime_error("Component: error parsing <force>");
+  }
+
+  id = cforce["id"].as<std::string>();
+
+  try {
+    fconf = cforce["parameters"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing force 'parameters' for Component <"
+			   << name << ">: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << cforce                << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    throw std::runtime_error("Component: error parsing force <parameters>");
+  }
+
+  // Defaults
+  //
+  EJ          = 0;
+  nEJkeep     = 100;
+  nEJwant     = 500;
+  nEJaccel    = 0;
+  EJkinE      = true;
+  EJext       = false;
+  EJdiag      = false;
+  EJdryrun    = false;
+  EJx0        = 0.0;
+  EJy0        = 0.0;
+  EJz0        = 0.0;
+  EJu0        = 0.0;
+  EJv0        = 0.0;
+  EJw0        = 0.0;
+  EJdT        = 0.0;
+  EJlinear    = false;
+  EJdamp      = 1.0;
+
+  binary      = true;
+
+  adiabatic   = false;
+  ton         = -1.0e20;
+  toff        =  1.0e20;
+  twid        = 0.1;
+
+  rtrunc      = 1.0e20;
+  rcom        = 1.0e20;
+  consp       = false;
+  tidal       = -1;
+
+  com_system  = false;
+  com_log     = false;
+  com_restart = 0;
+  c0          = NULL;		// Component for centering (null by
+				// default)
+#if HAVE_LIBCUDA==1
+  bunchSize   = 100000;
+#endif
+
+  timers      = false;
+
+  force       = 0;		// Null out pointers
+  orient      = 0;
+
+  com         = 0;
+  cov         = 0;
+  coa         = 0;
+  center      = 0;
+  angmom      = 0;
+  ps          = 0;
+
+  com0        = 0;
+  cov0        = 0;
+  acc0        = 0;
+
+  indexing    = true;
+  aindex      = false;
+  umagic      = true;
+
+  keyPos      = -1;
+  nlevel      = -1;
+  top_seq     = 0;
+
+  pBufSiz     = 100000;
+  blocking    = false;
+  buffered    = true;		// Use buffered writes for POSIX binary
+  noswitch    = false;		// Allow multistep switching at master step only
+  dtreset     = true;		// Select level from criteria over last step
+  freezeLev   = false;		// Only compute new levels on first step
+
+  configure();
+
+  find_ctr_component();
+
+  initialize_cuda();
+
+  particles.clear();
+
+  // Read bodies
+  //
+  double rmax1=0.0;
+  niattrib=-1;
+  for (auto p=reader.firstParticle(); p!=0; p=reader.nextParticle()) {
+    // Assign attribute sizes
+    if (niattrib<0) {
+      niattrib = p->iattrib.size();
+      ndattrib = p->dattrib.size();
+    }
+
+    // Make the particle
+    particles[p->indx] = std::make_shared<Particle>(*p);
+
+    // Get limits
+    double r2 = 0.0;
+    for (int k=0; k<3; k++) r2 += p->pos[k]*p->pos[k];
+    rmax1 = std::max<double>(r2, rmax1);
+    top_seq = std::max<unsigned long>(top_seq, p->indx);
+  }
+
+				// Default: set to max radius
+  rmax = sqrt(fabs(rmax1));
+  MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+				// Send top_seq to all nodes
+  MPI_Bcast(&top_seq, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+
+  initialize();
+
+				// Initialize the particle ferry
+				// instance with dynamic attribute
+				// sizes
+  if (not pf) pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
 
   mdt_ctr = std::vector< std::vector<unsigned> > (multistep+1);
   for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = std::vector<unsigned>(mdtDim, 0);
@@ -2246,6 +2452,232 @@ void Component::write_binary(ostream* out, bool real4)
   }
     
 }
+
+//! Write HDF5 phase-space structure for this nodes particles only.
+//! Use template to specialize to either float or double precision.
+template <typename T>
+void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
+{
+  Eigen::Matrix<T, Eigen::Dynamic, 3> pos(nbodies, 3);
+  Eigen::Matrix<T, Eigen::Dynamic, 3> vel(nbodies, 3);
+    
+  std::vector<T>        mas, pot, potext;
+  std::vector<long int> ids;
+
+  Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic> iattrib;
+  Eigen::Matrix<T,   Eigen::Dynamic, Eigen::Dynamic> dattrib;
+    
+  if (masses)   mas.resize(nbodies);
+  if (IDs)      ids.resize(nbodies);
+  if (niattrib) iattrib.resize(nbodies, niattrib);
+  if (ndattrib) dattrib.resize(nbodies, niattrib);
+    
+  pot.   resize(nbodies);
+  potext.resize(nbodies);
+
+  unsigned int ctr = 0;
+  for (auto it=particles.begin(); it!=particles.end(); it++) {
+
+    // Get the particle pointer
+    auto &P = it->second;
+
+    // Pack HDF5 data
+    if (masses) mas[ctr] = P->mass;
+    if (IDs)    ids[ctr] = P->indx;
+    for (int j=0; j<3; j++) pos(ctr, j) = P->pos[j];
+    for (int j=0; j<3; j++) vel(ctr, j) = P->vel[j];
+    pot   [ctr] = P->pot;
+    potext[ctr] = P->potext;
+    for (int j=0; j<niattrib; j++) iattrib(ctr, j) = P->iattrib[j];
+    for (int j=0; j<ndattrib; j++) dattrib(ctr, j) = P->dattrib[j];
+
+    // Increment array position
+    ctr++;
+  }
+  
+  // Set properties, if requested
+  auto dcpl1 = HighFive::DataSetCreateProps{};
+  auto dcpl3 = HighFive::DataSetCreateProps{};
+  auto dcplI = HighFive::DataSetCreateProps{};
+  auto dcplD = HighFive::DataSetCreateProps{};
+
+  if (H5compress or H5chunk) {
+    int chunk = H5chunk;
+
+    // Sanity
+    if (H5chunk >= nbodies) {
+      chunk = nbodies/8;
+    }
+
+    dcpl1.add(HighFive::Chunking(chunk));
+    if (H5shuffle) dcpl1.add(HighFive::Shuffle());
+    dcpl1.add(HighFive::Deflate(H5compress));
+
+    dcpl3.add(HighFive::Chunking(chunk, 3));
+    if (H5shuffle) dcpl3.add(HighFive::Shuffle());
+    dcpl3.add(HighFive::Deflate(H5compress));
+
+    if (niattrib) {
+      dcplI.add(HighFive::Chunking(chunk, niattrib));
+      if (H5shuffle) dcplI.add(HighFive::Shuffle());
+      dcplI.add(HighFive::Deflate(H5compress));
+    }
+    if (ndattrib) {
+      dcplD.add(HighFive::Chunking(chunk, ndattrib));
+      if (H5shuffle) dcplD.add(HighFive::Shuffle());
+      dcplD.add(HighFive::Deflate(H5compress));
+    }
+  }
+
+  // Add all datasets
+  if (masses) {
+    HighFive::DataSet ds = group.createDataSet("Masses", mas, dcpl1);
+  }
+  
+  if (IDs) {
+    HighFive::DataSet ds = group.createDataSet("ParticleIDs", ids, dcpl1);
+  }
+  
+  HighFive::DataSet dsPos = group.createDataSet("Coordinates", pos, dcpl3);
+  HighFive::DataSet dsVel = group.createDataSet("Velocities",  vel, dcpl3);
+  
+  HighFive::DataSet dsPot = group.createDataSet("Potential",    pot,    dcpl1);
+  HighFive::DataSet dsExt = group.createDataSet("PotentialExt", potext, dcpl1);
+
+  if (niattrib>0) 
+    HighFive::DataSet dsInt = group.createDataSet("IntAttributes",  iattrib, dcplI);
+
+  if (ndattrib>0) 
+    HighFive::DataSet dsReal = group.createDataSet("RealAttributes",  dattrib, dcplD);
+}
+
+// Explicit instantiations for float and double
+template
+void Component::write_HDF5<float>
+(HighFive::Group& group, bool masses, bool IDs);
+
+template
+void Component::write_HDF5<double>
+(HighFive::Group& group, bool masses, bool IDs);
+
+// Helper structure for reading and writing the HDF5 compound data
+// type.  Used by Component and ParticleReader.
+template <typename T>
+struct H5Particle
+{
+  unsigned long id;
+  T mass;
+  T pos[3];
+  T vel[3];
+  T pot;
+  T potext;
+  hvl_t iattrib;		// HDF5 variable length
+  hvl_t dattrib;		// HDF5 variable length
+};
+
+// Write HDF5 phase-space structure for this nodes particles only in
+// PSP style
+template <typename T>
+void Component::write_H5(H5::Group& group)
+{
+  try {
+
+    // Define the compound datatype
+    H5::CompType compound_type(sizeof(H5Particle<T>));
+    
+    H5::DataType type;
+    if constexpr (std::is_same_v<T, double>)
+      type = H5::PredType::NATIVE_DOUBLE;
+    else if constexpr (std::is_same_v<T, float>)
+      type = H5::PredType::NATIVE_FLOAT;
+    else assert(0);
+
+    // Add members to the type
+    compound_type.insertMember("id",   HOFFSET(H5Particle<T>, id), H5::PredType::NATIVE_INT);
+    compound_type.insertMember("mass", HOFFSET(H5Particle<T>, mass), type);
+
+    hsize_t dims3[1] = {3};
+    H5::ArrayType array3_type(type, 1, dims3);
+
+    compound_type.insertMember("pos",     HOFFSET(H5Particle<T>, pos   ), array3_type);
+    compound_type.insertMember("vel",     HOFFSET(H5Particle<T>, vel   ), array3_type);
+    compound_type.insertMember("pot",     HOFFSET(H5Particle<T>, pot   ), type);
+    compound_type.insertMember("potext",  HOFFSET(H5Particle<T>, potext), type);
+    compound_type.insertMember("iattrib", HOFFSET(H5Particle<T>, iattrib), H5::VarLenType(H5::PredType::NATIVE_INT));
+    compound_type.insertMember("dattrib", HOFFSET(H5Particle<T>, dattrib), H5::VarLenType(type));
+
+    
+    // Create the data space
+    std::vector<H5Particle<T>> h5_particles(particles.size());
+
+    size_t n = 0;
+    for (auto it=particles.begin(); it!=particles.end(); it++, n++) {
+
+      // Get the particle pointer
+      auto &P = it->second;
+
+      // Load the data
+      h5_particles[n].id = P->indx;
+      h5_particles[n].mass = P->mass;
+      for (int k=0; k<3; k++) {
+	h5_particles[n].pos[k] = P->pos[k];
+	h5_particles[n].vel[k] = P->vel[k];
+      }
+      h5_particles[n].pot         = P->pot;
+      h5_particles[n].potext      = P->potext;
+      h5_particles[n].iattrib.len = P->iattrib.size();
+      h5_particles[n].dattrib.len = P->dattrib.size();
+      h5_particles[n].iattrib.p   = P->iattrib.data();
+      h5_particles[n].dattrib.p   = P->dattrib.data();
+    }
+
+    // Set properties, if requested for chunking and compression
+    H5::DSetCreatPropList dcpl;
+
+    // This could be generalized by registering a user filter, like
+    // blosc.  Right now, we're using the default (which is gzip)
+    if (H5compress or H5chunk) {
+      // Set chunking
+      if (H5chunk) {
+	// Sanity
+	int chunk = H5chunk;
+	if (H5chunk >= nbodies) {
+	  chunk = nbodies/8;
+	}
+	hsize_t chunk_dims[1] = {static_cast<hsize_t>(chunk)};
+	dcpl.setChunk(1, chunk_dims);
+      }
+
+      // Set compression level
+      if (H5compress) dcpl.setDeflate(H5compress);
+
+      // Enable shuffle filter
+      if (H5shuffle) dcpl.setShuffle();
+    }
+
+    // Create dataspace
+    hsize_t dims[1] = {h5_particles.size()};
+    H5::DataSpace dataspace(1, dims);
+
+    // Create dataset
+    H5::DataSet dataset = group.createDataSet("particles", compound_type, dataspace, dcpl);
+
+    // Write data to the dataset
+    dataset.write(h5_particles.data(), compound_type);
+
+  } catch (H5::Exception &error) {
+    throw std::runtime_error("Component::writeH5 error: " + error.getDetailMsg());
+  }
+
+}
+
+// Explicit instantiations for float and double
+template
+void Component::write_H5<float>(H5::Group& group);
+
+template
+void Component::write_H5<double>(H5::Group& group);
+
 
 void Component::write_binary_header(ostream* out, bool real4, const std::string prefix, int nth)
 {

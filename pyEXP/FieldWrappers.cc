@@ -94,6 +94,20 @@ void FieldGeneratorClasses(py::module &m) {
   py::class_<Field::FieldGenerator, std::shared_ptr<Field::FieldGenerator>>
     f(m, "FieldGenerator");
 
+  f.def(py::init<>(),
+	R"(
+        Null constructor for FieldGenerator
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        FieldGenerator
+            new object
+        )");
+
   f.def(py::init<const std::vector<double>, const std::vector<double>,
 	const std::vector<double>, const std::vector<int>>(),
 	R"(
@@ -361,10 +375,7 @@ void FieldGeneratorClasses(py::module &m) {
 
         See also
         --------
-<<<<<<< HEAD
-=======
         points : generate fields at an array of mesh points
->>>>>>> pointMesh
         slices : generate fields in a surface slice given by the
                  initializtion grid
         volumes : generate fields in volume given by the initializtion grid

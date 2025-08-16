@@ -4,24 +4,28 @@
 [![Documentation](https://readthedocs.org/projects/exp-docs/badge/?version=latest)](https://exp-docs.readthedocs.io/)
 [![DOI](https://joss.theoj.org/papers/10.21105/joss.07302/status.svg)](https://doi.org/10.21105/joss.07302)
 
+EXP is a Basis Function Expansion C++ library and Python package for running N-body galactic simulations and dynamical discovery.
 
 ## Repo organization
 
-| Files   | Description |
+| Directory   | Description |
 | ---     | ---         |
-| README  | This file |
-| TODO	  | Wish list of features to add, things to fix, big and small |
-| include | Include file for all common classes |
-| src	  | Source for nbody code |
+| Paper   | The JOSS paper for EXP |
+| cmake   | Helpers for `cmake` installation process |
+| doc     | The doxygen documentation for EXP |
+| expui   | Classes used by Python wrappers and by the nbody code and other standalone utilities for coefficient IO support. |
 | exputil | The main EXP function and class library used by both pyEXP and EXP |
-| coefs   | Source for standalone classes used by Python wrappers and other standalone utilities |
+| extern  | The directory for external code needed for installation |
+| include | Include file for all common classes |
 | pyEXP   | Source for Python wrappers |
+| src	  | Source for nbody code |
+| tests   | An assortment of automatic tests for EXP |
 | utils   | Older but still useful standalone C++ utilities |
 
 ## Version reporting
 
 EXP automatically stashes its compile time, git branch, and git commit
-hash when `make` is invoked in the src directory.  You can see this
+hash when `make` is invoked in the src directory (e.g. as part of the `cmake` installation).  You can see this info using `pyEXP` using the `pyEXP.util.getVersionInfo()` command. You can also see this
 info using the -v flag, i.e. `mpirun -np 1 exp -v` or `exp -v`.  Note:
 some MPI implementations require the MPI-aware executable to be run
 using 'mpirun'.  Some recent HPC systems using `slurm` require the use
@@ -30,7 +34,7 @@ resource request.
 
 ## Compile hints
 
-See INSTALL.md for a brief synposis.
+See INSTALL.md for a brief synposis and pointers to more detailed information.
 
 A few quick additional notes. By default, both the n-body code and the
 Python bindings, the pyEXP interface, will be compiled by default.
@@ -54,7 +58,7 @@ We are developing two repositories of examples and tutorials:
 | EXP-examples | Each subdirectory contains a full set of body files and configurations to run EXP with with model galaxy |
 | pyEXP-examples | Tutorials and example workflows for a variety of envisioned use cases |
 
-Both of these are available from the origin as EXP.
+Both of these are available from the [origin as EXP](https://github.com/EXP-code).
 
 ## pyEXP
 
@@ -94,11 +98,9 @@ To provide some context, suppose you want to read some snapshots, make some coef
 5. 'newcoefs' and 'disk' can then be passed to the FieldGenerator to provide density, potential, force fields, etc. for the each principal signal
 
 This is only one example of many possible uses.  There are many
-variants to this work flow, of course, and I expect that you will
+variants to this work flow, of course, and we expect that you will
 invent some interesting ones.
 
 ## Citation
 
-If you use EXP in your research, please cite the following paper:
-
-[![DOI](https://joss.theoj.org/papers/10.21105/joss.07302/status.svg)](https://doi.org/10.21105/joss.07302)
+If you use EXP in your research, please cite the [JOSS paper](https://doi.org/10.21105/joss.07302), and consider including other papers from the list in CITATIONS.bib.

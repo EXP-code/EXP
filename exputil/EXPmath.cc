@@ -61,12 +61,12 @@ namespace AltMath
     return ans;
   }
 
-#define ACC 40.0
-#define BIGNO 1.0e10
-#define BIGNI 1.0e-10
-
   double bessj(int n,double x)
   {
+    const double ACC = 40.0;
+    const double BIGNO = 1.0e10;
+    const double BIGNI = 1.0e-10;
+
     int j,jsum,m;
     double ax,bj,bjm,bjp,sum,tox,ans;
     
@@ -114,10 +114,6 @@ namespace AltMath
     return  x < 0.0 && n%2 == 1 ? -ans : ans;
   }
   
-#undef ACC
-#undef BIGNO
-#undef BIGNI
-
   double bessk0(double x)
   {
     double y,ans;
@@ -174,12 +170,12 @@ namespace AltMath
     return ans;
   }
 
-#define ACC 40.0
-#define BIGNO 1.0e10
-#define BIGNI 1.0e-10
-
   double bessi(int n,double x)
   {
+    const double ACC = 40.0;
+    const double BIGNO = 1.0e10;
+    const double BIGNI = 1.0e-10;
+
     int j;
     double bi,bim,bip,tox,ans;
     double bessi0(double );
@@ -206,10 +202,6 @@ namespace AltMath
       return  x < 0.0 && n%2 == 1 ? -ans : ans;
     }
   }
-
-#undef ACC
-#undef BIGNO
-#undef BIGNI
 
   double bessi0(double x)
   {
@@ -253,12 +245,12 @@ namespace AltMath
     return x < 0.0 ? -ans : ans;
   }
 
-#define ACC 40.0
-#define BIGNO 1.0e10
-#define BIGNI 1.0e-10
-
   double jn_sph(int n, double x)
   {
+    const double ACC = 40.0;
+    const double BIGNO = 1.0e10;
+    const double BIGNI = 1.0e-10;
+
     int j,m;
     double ax,bj,bjm,bjp,tox,ans;
     double jn_sph0(double x),jn_sph1(double x),jn_sphm1(double x);
@@ -306,13 +298,10 @@ namespace AltMath
     return  x < 0.0 && n%2 == 1 ? -ans : ans;
   }
   
-#undef ACC
-#undef BIGNO
-#undef BIGNI
-
-#define TOL 1.0e-7
   double jn_sph0(double x)
   {
+    const double TOL = 1.0e-7;
+
     if (fabs(x)<TOL)
       return 1.0-x*x/6.0;
     else
@@ -321,6 +310,8 @@ namespace AltMath
 
   double jn_sph1(double x)
   {
+    const double TOL = 1.0e-7;
+
     if (fabs(x)<TOL)
       return x/3.0;
     else
@@ -331,7 +322,6 @@ namespace AltMath
   {
     return cos(x)/x;
   }
-#undef TOL
 
   double check_nu(double nu)
   {
