@@ -24,6 +24,8 @@ namespace BasisClasses
 {
   using RowMatrixXd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
+  using RowMatrix3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
+
     //! Callback function signature for selection particles to
     //! accumulate
     using Callback =
@@ -69,7 +71,7 @@ namespace BasisClasses
     Eigen::Vector3d coefctr = Eigen::Vector3d::Zero();
 
     //! Rotation matrix
-    Eigen::Matrix3d coefrot = Eigen::Matrix3d::Identity();
+    RowMatrix3d coefrot = Eigen::Matrix3d::Identity();
 
     //! Contains contructor and BFE parameter database
     YAML::Node node, conf;
@@ -157,7 +159,7 @@ namespace BasisClasses
     void setCenter(Eigen::Vector3d center) { coefctr = center; }
     
     //! Set the rotation matrix
-    void setRotation(Eigen::Matrix3d rot) { coefrot = rot; }
+    void setRotation(RowMatrix3d rot) { coefrot = rot; }
     
     //! Evaluate basis in desired coordinates
     virtual std::vector<double>
@@ -219,11 +221,11 @@ namespace BasisClasses
     //! Generate coeffients from a particle reader
     virtual CoefClasses::CoefStrPtr
     createFromReader(PR::PRptr reader, Eigen::Vector3d ctr,
-		     Eigen::Matrix3d rot) = 0;
+		     RowMatrix3d rot) = 0;
 
     //! Generate coefficients from a phase-space table
     virtual void
-    initFromArray(Eigen::Vector3d ctr, Eigen::Matrix3d rot) = 0;
+    initFromArray(Eigen::Vector3d ctr, RowMatrix3d rot) = 0;
 
     //! Accumulate coefficient contributions from arrays
     virtual void
@@ -235,7 +237,7 @@ namespace BasisClasses
     CoefClasses::CoefStrPtr createFromArray
     (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
      Eigen::Vector3d center=Eigen::Vector3d::Zero(),
-     Eigen::Matrix3d rot=Eigen::Matrix3d::Identity(),
+     RowMatrix3d rot=RowMatrix3d::Identity(),
      bool roundrobin=true, bool posvelrows=false);
 
     //! Create and the coefficients from the array accumulation with the
@@ -285,7 +287,7 @@ namespace BasisClasses
     Eigen::Vector3d getCenter() { return coefctr; }
 
     //! Get the basis expansion center
-    Eigen::Matrix3d getRotation() { return coefrot; }
+    RowMatrix3d getRotation() { return coefrot; }
   };
   
   using BasisPtr = std::shared_ptr<Basis>;

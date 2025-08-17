@@ -136,7 +136,7 @@ namespace BasisClasses
     //! location for the expansion
     CoefClasses::CoefStrPtr createFromReader
     (PR::PRptr reader, Eigen::Vector3d center=Eigen::Vector3d::Zero(),
-     Eigen::Matrix3d rot=Eigen::Matrix3d::Identity());
+     RowMatrix3d rot=RowMatrix3d::Identity());
     
     
     //! Generate coeffients from an array and optional center location
@@ -147,7 +147,7 @@ namespace BasisClasses
     //! center vector.  This is called once to initialize the accumulation.
     void initFromArray
     (Eigen::Vector3d center=Eigen::Vector3d::Zero(),
-     Eigen::Matrix3d rot=Eigen::Matrix3d::Identity());
+     RowMatrix3d rot=RowMatrix3d::Identity());
     
     
     //! Initialize accumulating coefficients from arrays.  This is

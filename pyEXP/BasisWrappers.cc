@@ -293,13 +293,13 @@ void BasisFactoryClasses(py::module &m)
 
     virtual CoefClasses::CoefStrPtr
     createFromReader(PR::PRptr reader, Eigen::Vector3d ctr,
-		     Eigen::Matrix3d rot) override {
+		     RowMatrix3d rot) override {
       PYBIND11_OVERRIDE_PURE(CoefClasses::CoefStrPtr, Basis, createFromReader, reader, ctr, rot);
     }
 
 
     virtual void initFromArray
-    (Eigen::Vector3d ctr, Eigen::Matrix3d rot) {
+    (Eigen::Vector3d ctr, RowMatrix3d rot) {
       PYBIND11_OVERRIDE_PURE(void, Basis, initFromArray, ctr, rot);
     }
 
@@ -886,14 +886,7 @@ void BasisFactoryClasses(py::module &m)
          This is an experimental feature
          )"
       )
-    .def("createFromArray",
-	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& ps,
-	    double time, Eigen::Vector3d center, Eigen::Matrix3d rot,
-	    bool roundrobin, bool posvelrows)
-	 {
-	   return A.createFromArray(mass, ps, time, center, rot,
-				    roundrobin, posvelrows);
-	 },
+    .def("createFromArray", &BasisClasses::Basis::createFromArray,
 	 R"(
          Generate the coefficients from a mass and position array or,
 	 phase-space array, time, and an optional expansion center location. 
@@ -933,13 +926,13 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = Eigen::Vector3d::Zero(),
-	 py::arg("rotation") = Eigen::Matrix3d::Identity(),
+	 py::arg("rotation") = RowMatrix3d::Identity(),
 	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
     .def("createFromArray",
 	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& ps,
 	    double time, Eigen::Vector3d center, bool roundrobin, bool posvelrows)
 	 {
-	   return A.createFromArray(mass, ps, time, center, Eigen::Matrix3d::Identity(),
+	   return A.createFromArray(mass, ps, time, center, RowMatrix3d::Identity(),
 				    roundrobin, posvelrows);
 	 },
 	 R"(
@@ -979,11 +972,7 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = Eigen::Vector3d::Zero(),
 	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
-    .def("makeFromArray",
-	 [](BasisClasses::Basis& A, double time)
-	 {
-	   return A.makeFromArray(time);
-	 },
+    .def("makeFromArray", &BasisClasses::Basis::makeFromArray,
 	 R"(
          Make the coefficients
 
@@ -1172,6 +1161,8 @@ void BasisFactoryClasses(py::module &m)
              the ParticleReader instance
          center : list, default=[0, 0, 0]
 	     an optional expansion center location
+         rotation : numpy.ndarray, default=Identity
+             rotation matrix to apply to the phase-space coordinates
 
          Returns
          -------
@@ -1180,15 +1171,8 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("reader"), 
 	 py::arg("center") = Eigen::Vector3d::Zero(),
-	 py::arg("rotation") = Eigen::Matrix3d::Identity())
-    .def("createFromArray",
-	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
-	    double time, Eigen::Vector3d center, Eigen::Matrix3d rot,
-	    bool roundrobin, bool posvelrows)
-	 {
-	   return A.createFromArray(mass, pos, time, center, rot,
-				    roundrobin, posvelrows);
-	 },
+	 py::arg("rotation") = RowMatrix3d::Identity())
+    .def("createFromArray", &BasisClasses::BiorthBasis::createFromArray,
 	 R"(
          Generate the coefficients from a mass and position array,
 	 time, and an optional expansion center location. 
@@ -1222,13 +1206,13 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = Eigen::Vector3d::Zero(),
-	 py::arg("rotation") = Eigen::Matrix3d::Identity(),	 
+	 py::arg("rotation") = RowMatrix3d::Identity(),
 	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
     .def("createFromArray",
 	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
 	    double time, Eigen::Vector3d center, bool roundrobin, bool posvelrows)
 	 {
-	   return A.createFromArray(mass, pos, time, center, Eigen::Matrix3d::Identity(),
+	   return A.createFromArray(mass, pos, time, center, RowMatrix3d::Identity(),
 				    roundrobin, posvelrows);
 	 },
 	 R"(
@@ -1267,12 +1251,7 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
 	 py::arg("center") = Eigen::Vector3d::Zero(),
 	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
-    .def("initFromArray",
-	 [](BasisClasses::BiorthBasis& A,
-	    Eigen::Vector3d ctr, Eigen::Matrix3d rot)
-	 {
-	   return A.initFromArray(ctr, rot);
-	 },
+    .def("initFromArray", &BasisClasses::BiorthBasis::initFromArray,
 	 R"(
          Initialize coefficient accumulation
 
@@ -1280,6 +1259,9 @@ void BasisFactoryClasses(py::module &m)
          ----------
          center : list, default=[0, 0, 0]
              vector of center positions
+         rotation : numpy.ndarray
+             the rotation matrix for the basis functions
+             (default is identity matrix)
 
          Returns
          -------
@@ -1297,11 +1279,12 @@ void BasisFactoryClasses(py::module &m)
          phase-space sets that can not be stored in physical memory.
          )",
 	 py::arg("center") = Eigen::Vector3d::Zero(),
-	 py::arg("rotation") = Eigen::Matrix3d::Identity())
+	 py::arg("rotation") = RowMatrix3d::Identity())
     .def("addFromArray",
-	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos)
+	 [](BasisClasses::BiorthBasis& A,
+	    Eigen::VectorXd& mass, RowMatrixXd& pos)
 	 {
-	   return A.addFromArray(mass, pos);
+	   A.addFromArray(mass, pos);
 	 },
 	 R"(
          Add particle contributions to coefficients
@@ -2204,6 +2187,9 @@ void BasisFactoryClasses(py::module &m)
              the ParticleReader instance
          center : list, default=[0, 0, 0]
 	     an optional expansion center location
+         rotation : numpy.ndarray
+             the rotation matrix for the basis functions
+             (default is identity matrix)
 
          Returns
          -------
@@ -2212,13 +2198,8 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("reader"), 
 	 py::arg("center") = Eigen::Vector3d::Zero(),
-	 py::arg("rotation") = Eigen::Matrix3d::Identity())
-    .def("initFromArray",
-	 [](BasisClasses::FieldBasis& A,
-	    Eigen::Vector3d center, Eigen::MatrixXd rotation)
-	 {
-	   return A.initFromArray(center, rotation);
-	 },
+	 py::arg("rotation") = RowMatrix3d::Identity())
+    .def("initFromArray", &BasisClasses::FieldBasis::initFromArray,
 	 R"(
          Initialize coefficient accumulation
 
@@ -2245,11 +2226,11 @@ void BasisFactoryClasses(py::module &m)
          phase-space sets that can not be stored in physical memory.
          )",
 	 py::arg("center") = Eigen::Vector3d::Zero(),
-	 py::arg("rotation") = Eigen::Matrix3d::Identity())
+	 py::arg("rotation") = RowMatrix3d::Identity())
     .def("initFromArray",
 	 [](BasisClasses::FieldBasis& A, Eigen::Vector3d center)
 	 {
-	   return A.initFromArray(center, Eigen::Matrix3d::Identity());
+	   return A.initFromArray(center, RowMatrix3d::Identity());
 	 },
 	 R"(
          Initialize coefficient accumulation
@@ -2278,9 +2259,10 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("center") = Eigen::Vector3d::Zero())
     .def("addFromArray",
-	 [](BasisClasses::FieldBasis& A, Eigen::VectorXd& mass, RowMatrixXd& ps)
+	 [](BasisClasses::FieldBasis& A,
+	    Eigen::VectorXd& mass, RowMatrixXd& pos)
 	 {
-	   return A.addFromArray(mass, ps);
+	   return A.addFromArray(mass, pos);
 	 },
 	 R"(
          Add particle contributions to coefficients
@@ -2302,11 +2284,7 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
-    .def("makeFromArray",
-	 [](BasisClasses::FieldBasis& A, double time)
-	 {
-	   return A.makeFromArray(time);
-	 },
+    .def("makeFromArray", &BasisClasses::FieldBasis::makeFromArray,
 	 R"(
          Make the coefficients
 
