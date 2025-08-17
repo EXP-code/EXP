@@ -217,7 +217,7 @@ namespace TipsyReader
       // If this is the last process, read the remainder
       if (myid == numprocs-1) {
 	index_offset_map[ptype] = (numprocs-1) * psize;
-	psize = nsize - index_offset;
+	psize = nsize - index_offset_map[ptype];
       }}
 
       return psize;
