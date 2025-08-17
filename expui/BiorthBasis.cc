@@ -4016,9 +4016,6 @@ namespace BasisClasses
     Eigen::Map<Eigen::Vector3d> pp(p1.data(), 3), vv(v1.data(), 3);
     vv.setZero();
 
-    if (myid==0) std::cout << "Center: " << coefctr << std::endl
-			   << "Orient: " << coefrot << std::endl;
-
     if (PosVelRows) {
       if (p.rows()<3) {
 	std::ostringstream msg;
