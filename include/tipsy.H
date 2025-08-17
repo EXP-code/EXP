@@ -464,8 +464,6 @@ namespace TipsyReader
 	// Do the read
 	dark_particles.resize(psize);
 	read_dark();
-	// Stream position debug
-	std::streampos test = input.tellg();
 	N++;
 
 	// Set stream position to next group of particles
