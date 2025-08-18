@@ -811,7 +811,7 @@ void CoefficientClasses(py::module &m) {
           setCoefRotation : read-write access to the rotation matrix
           )")
     .def("setCoefRotation",
-	 static_cast<void (CoefStruct::*)(Eigen::Matrix3d&)>(&CoefStruct::setRotation),
+	 static_cast<void (CoefStruct::*)(RowMatrix3d&)>(&CoefStruct::setRotation),
           py::arg("mat"),
           R"(
           Set the rotation matrix

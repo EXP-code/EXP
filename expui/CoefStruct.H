@@ -7,6 +7,8 @@
 
 namespace CoefClasses
 {
+  using RowMatrix3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
+
   //! This is a general struct for any dimensionality
   class CoefStruct
   {
@@ -27,10 +29,10 @@ namespace CoefClasses
     Eigen::VectorXcd store;
     
     //! Center data
-    Eigen::Vector3d ctr= Eigen::Vector3d::Zero();
+    Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
 
     //! Orientation data
-    Eigen::Matrix3d rot= Eigen::Matrix3d::Identity();
+    RowMatrix3d rot = RowMatrix3d::Identity();
 
     //! Destructor
     virtual ~CoefStruct() {}
@@ -72,10 +74,10 @@ namespace CoefClasses
     Eigen::Vector3d getCenter() { return ctr; }
 
     //! Set new rotation matrix
-    void setRotation(Eigen::Matrix3d& ROT) { rot = ROT; }
+    void setRotation(RowMatrix3d& ROT) { rot = ROT; }
 
     //! Read-only access to orientation
-    Eigen::Matrix3d getRotation() { return rot; }
+    RowMatrix3d getRotation() { return rot; }
 
     //! Set coefficient time (no copy)
     void setTime(double& STORE)

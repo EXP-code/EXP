@@ -1557,6 +1557,9 @@ void Cylinder::dump_coefs_h5(const std::string& file)
   //
   cur->ctr = component->getCenter(Component::Local | Component::Centered);
 
+  // Add the orientation
+  cur->rot = component->getRotation();
+
   // Check if file exists
   //
   if (std::filesystem::exists(file)) {

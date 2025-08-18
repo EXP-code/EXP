@@ -192,6 +192,8 @@ class Component
   friend class OrbTrace;
   friend class ComponentContainer;
 
+  using RowMatrix3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
+
 private:
 
   //! Parallel distribute and particle io
@@ -767,9 +769,9 @@ public:
   }
 
   //! Get rotation matrix
-  Eigen::Matrix3d getRotation()
+  RowMatrix3d getRotation()
   {
-    Eigen::Matrix3d ret = Eigen::Matrix3d::Identity();
+    RowMatrix3d ret = RowMatrix3d::Identity();
     if ( (EJ & Orient::AXIS) and !EJdryrun) ret = orient->transformBody();
     return ret;
   }

@@ -88,7 +88,8 @@ Log file contents:
 */
 class Orient
 {
-  typedef pair<double, Eigen::VectorXd> DV;
+  using DV = pair<double, Eigen::VectorXd>;
+  using RowMatrix3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
   
 private:
   EL3 t;
@@ -96,7 +97,7 @@ private:
   deque<DV> sumsA, sumsC;
   int keep, current;
   double damp;
-  Eigen::Matrix3d body, orig;
+  RowMatrix3d body, orig;
   Eigen::Vector3d axis, center, axis1, center1, center0, cenvel0;
   Eigen::Vector3d pseudo = Eigen::Vector3d::Zero();
   Eigen::Vector3d omega  = Eigen::Vector3d::Zero();
@@ -162,10 +163,10 @@ public:
   void accumulate(double time, Component* c);
   
   //! Return transformation to new body axes
-  Eigen::Matrix3d& transformBody(void) {return body;};
+  RowMatrix3d& transformBody(void) {return body;};
   
   //! Return transformation to original coordinates
-  Eigen::Matrix3d& transformOrig(void) {return orig;};
+  RowMatrix3d& transformOrig(void) {return orig;};
   
   //! Return current axis
   Eigen::Vector3d& currentAxis(void) {return axis;};
