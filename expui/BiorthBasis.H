@@ -167,8 +167,30 @@ namespace BasisClasses
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system
     virtual std::vector<double> getAccel(double x, double y, double z) = 0;
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system for a collections of points
+    virtual RowMatrixXd getAccelArray(Eigen::VectorXd& x,
+				      Eigen::VectorXd& y,
+				      Eigen::VectorXd& z)
+    {
+      // Sanity check
+      if (x.size() != y.size() || x.size() != z.size())
+	throw std::runtime_error("BiorthBasis::getAccel: "
+				 "x, y, z vectors must be of the same size");
+      
+      RowMatrixXd ret(x.size(), 3);
+      std::vector<double> v(3);
+#pragma omp parallel for
+      for (int i=0; i<x.size(); ++i) {
+	v = getAccel(x(i), y(i), z(i));
+	for (int k=0; k<3; k++) ret(i, k) = v[k];
+      }
+
+      return ret;
+    }
   };
-  
+
   /**
      An abstract spherical basis to evaluate expansion coeffients and
      provide potential and density basis fields
