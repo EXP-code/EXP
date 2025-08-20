@@ -78,6 +78,18 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() = 0;
 
+    //@{
+    //! Compute acceleration helper
+    virtual void computeAccel(double x, double y, double z,
+			      std::vector<double>& vstore) = 0;
+
+    //! C++ local storage for getAccel
+    std::vector<double> vstore {0.0, 0.0, 0.0};
+
+    //! C++ local storage for getAccelArray
+    std::vector<std::vector<double>> vstore_array;
+    //@}
+
   public:
     
     //! Constructor from YAML node
@@ -166,7 +178,11 @@ namespace BasisClasses
 
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system
-    virtual std::vector<double> getAccel(double x, double y, double z) = 0;
+    virtual std::vector<double>& getAccel(double x, double y, double z)
+    {
+      computeAccel(x, y, z, vstore);
+      return vstore;
+    }
 
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system for a collections of points
@@ -176,15 +192,26 @@ namespace BasisClasses
     {
       // Sanity check
       if (x.size() != y.size() || x.size() != z.size())
-	throw std::runtime_error("BiorthBasis::getAccel: "
+	throw std::runtime_error("BiorthBasis::getAccelArray: "
 				 "x, y, z vectors must be of the same size");
       
+      int max_threads = 1;
+#if defined(_OPENMP)
+      max_threads = omp_get_max_threads();
+#endif
+      vstore_array.resize(max_threads);
+      for (auto & v : vstore_array) v.resize(3);			
+
       RowMatrixXd ret(x.size(), 3);
       std::vector<double> v(3);
+      int tid = 0;		// Default thread ID if no OpenMP
 #pragma omp parallel for
       for (int i=0; i<x.size(); ++i) {
-	v = getAccel(x(i), y(i), z(i));
-	for (int k=0; k<3; k++) ret(i, k) = v[k];
+#if defined(_OPENMP)
+	tid = omp_get_thread_num();
+#endif
+	computeAccel(x(i), y(i), z(i), vstore_array[tid]);
+	for (int k=0; k<3; k++) ret(i, k) = vstore_array[tid][k];
       }
 
       return ret;
@@ -279,6 +306,11 @@ namespace BasisClasses
 
     //@}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    virtual void computeAccel(double x, double y, double z, 
+			  std::vector<double>& vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -333,9 +365,6 @@ namespace BasisClasses
       return ret;
     }
 
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    virtual std::vector<double> getAccel(double x, double y, double z);
   };
 
   /**
@@ -520,6 +549,11 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() { return "m";}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z,
+		      std::vector<double>& vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -570,10 +604,6 @@ namespace BasisClasses
       std::cout << "---- FlatDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
-
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -675,6 +705,11 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() { return "m";}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z,
+		      std::vector<double>& vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -725,10 +760,6 @@ namespace BasisClasses
       std::cout << "CBDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
-
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -825,6 +856,11 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() { return "m";}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z,
+		      std::vector<double>& vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -885,10 +921,6 @@ namespace BasisClasses
       }
       return ret;
     }
-
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -983,6 +1015,11 @@ namespace BasisClasses
     std::tuple<double, double, double, double, double>
     eval(double x, double y, double z);
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z,
+		      std::vector<double>& vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -1035,10 +1072,6 @@ namespace BasisClasses
       if (worst > __EXP__::orthoTol) return false;
       return true;
     }
-
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -1117,6 +1150,12 @@ namespace BasisClasses
     //! Readable index name
     virtual const std::string harmonic()  { return "n";}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z, 
+		      std::vector<double>& vstore);
+
+
   public:
     
     //! Constructor from YAML node
@@ -1161,10 +1200,6 @@ namespace BasisClasses
       if (worst > __EXP__::orthoTol) return false;
       return true;
     }
-
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
