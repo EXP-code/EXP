@@ -408,7 +408,7 @@ void BasisFactoryClasses(py::module &m)
     }
 
     void computeAccel(double x, double y, double z,
-		      std::vector<double>& v) override
+		      Eigen::Ref<Eigen::Vector3d> v) override
     {
       PYBIND11_OVERRIDE_PURE(void, BiorthBasis, computeAccel, x, y, z, v);
     }
@@ -468,7 +468,7 @@ void BasisFactoryClasses(py::module &m)
     }
 
     void computeAccel(double x, double y, double z,
-		      std::vector<double>& v) override
+		      Eigen::Ref<Eigen::Vector3d> v) override
     {
       PYBIND11_OVERRIDE(void, Spherical, computeAccel, x, y, z, v);
     }
@@ -522,7 +522,7 @@ void BasisFactoryClasses(py::module &m)
     }
 
     void computeAccel(double x, double y, double z,
-		      std::vector<double>& v) override
+		      Eigen::Ref<Eigen::Vector3d> v) override
     {
       PYBIND11_OVERRIDE(void, Cylindrical, computeAccel, x, y, z, v);
     }
@@ -590,7 +590,7 @@ void BasisFactoryClasses(py::module &m)
     }
 
     void computeAccel(double x, double y, double z,
-		      std::vector<double>& v) override
+		      Eigen::Ref<Eigen::Vector3d> v) override
     {
       PYBIND11_OVERRIDE(void, FlatDisk, computeAccel, x, y, z, v);
     }
@@ -662,7 +662,7 @@ void BasisFactoryClasses(py::module &m)
     }
 
     void computeAccel(double x, double y, double z,
-		  std::vector<double>& v) override
+		      Eigen::Ref<Eigen::Vector3d> v) override
     {
       PYBIND11_OVERRIDE(void, CBDisk, computeAccel, x, y, z, v);
     }
@@ -736,7 +736,7 @@ void BasisFactoryClasses(py::module &m)
     }
 
     void computeAccel(double x, double y, double z,
-		      std::vector<double>& v) override
+		      Eigen::Ref<Eigen::Vector3d> v) override
     {
       PYBIND11_OVERRIDE(void, Slab, computeAccel, x, y, z, v);
     }
@@ -810,7 +810,7 @@ void BasisFactoryClasses(py::module &m)
     }
 
     void computeAccel(double x, double y, double z,
-		      std::vector<double>& v) override
+		      Eigen::Ref<Eigen::Vector3d> v) override
     {
       PYBIND11_OVERRIDE(void, Cube, computeAccel, x, y, z, v);
     }

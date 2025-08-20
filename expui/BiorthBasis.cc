@@ -693,7 +693,7 @@ namespace BasisClasses
   }
 
   void Spherical::computeAccel(double x, double y, double z,
-			       std::vector<double>& acc)
+			       Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get polar coordinates
     double R     = sqrt(x*x + y*y);
@@ -795,7 +795,7 @@ namespace BasisClasses
 
     // Return force not potential gradient
     //
-    acc = {tpotx, tpoty, potz};
+    acc << tpotx, tpoty, potz;
   }
 
 
@@ -1600,7 +1600,7 @@ namespace BasisClasses
   
   // Evaluate in cartesian coordinates
   void Cylindrical::computeAccel(double x, double y, double z,
-				 std::vector<double>& acc)
+				 Eigen::Ref<Eigen::Vector3d> acc)
   {
     double R = sqrt(x*x + y*y);
     double phi = atan2(y, x);
@@ -1614,7 +1614,7 @@ namespace BasisClasses
     double tpotx = tpotR*x/R - tpotp*y/R ;
     double tpoty = tpotR*y/R + tpotp*x/R ;
 
-    acc = {tpotx, tpoty, tpotz};
+    acc << tpotx, tpoty, tpotz;
   }
 
   // Evaluate in cylindrical coordinates
@@ -2182,7 +2182,7 @@ namespace BasisClasses
   }
 
   void FlatDisk::computeAccel(double x, double y, double z, 
-			      std::vector<double>& acc)
+			      Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -2206,7 +2206,7 @@ namespace BasisClasses
       rpot = -totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
       zpot = -totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
       
-      acc = {rpot, zpot, ppot};
+      acc << rpot, zpot, ppot;
     }
 
     // Get the basis fields
@@ -2270,7 +2270,7 @@ namespace BasisClasses
     double potx = rpot*x/R - ppot*y/R;
     double poty = rpot*y/R + ppot*x/R;
 
-    acc = {potx, poty, zpot};
+    acc << potx, poty, zpot;
   }
 
 
@@ -2958,7 +2958,7 @@ namespace BasisClasses
 
 
   void CBDisk::computeAccel(double x, double y, double z,
-			    std::vector<double>& acc)
+			    Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -3023,7 +3023,7 @@ namespace BasisClasses
     double potx = rpot*x/R - ppot*y/R;
     double poty = rpot*y/R + ppot*x/R;
 
-    acc = {potx, poty, zpot};
+    acc << potx, poty, zpot;
   }
 
 
@@ -3431,7 +3431,7 @@ namespace BasisClasses
 
 
   void Slab::computeAccel(double x, double y, double z,
-			  std::vector<double>& acc)
+			  Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Loop indices
     //
@@ -3504,7 +3504,7 @@ namespace BasisClasses
       }
     }
 
-    acc = {accx.real(), accy.real(), accz.real()};
+    acc << accx.real(), accy.real(), accz.real();
   }
 
 
@@ -3870,7 +3870,7 @@ namespace BasisClasses
   }
 
   void Cube::computeAccel(double x, double y, double z,
-			  std::vector<double>& acc)
+			  Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -3881,7 +3881,7 @@ namespace BasisClasses
     // Get the basis fields
     auto frc = ortho->get_force(expcoef, pos);
     
-    acc = {-frc(0).real(), -frc(1).real(), -frc(2).real()};
+    acc << -frc(0).real(), -frc(1).real(), -frc(2).real();
   }
 
   std::vector<double> Cube::cyl_eval(double R, double z, double phi)

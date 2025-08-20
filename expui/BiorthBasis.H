@@ -85,15 +85,15 @@ namespace BasisClasses
     virtual const std::string harmonic() = 0;
 
     //@{
-    //! Compute acceleration helper
+    //! Compute acceleration helper for each derived class
     virtual void computeAccel(double x, double y, double z,
-			      std::vector<double>& vstore) = 0;
+			      Eigen::Ref<Eigen::Vector3d> vstore) = 0;
 
-    //! C++ local storage for getAccel
-    std::vector<double> vstore {0.0, 0.0, 0.0};
+    //! C++ local storage for computeAccel
+    Eigen::Vector3d vstore;
 
     //! C++ local storage for getAccelArray
-    std::vector<std::vector<double>> vstore_array;
+    RowMatrixXd varray;
     //@}
 
   public:
@@ -184,7 +184,7 @@ namespace BasisClasses
 
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system
-    virtual std::vector<double>& getAccel(double x, double y, double z)
+    virtual Eigen::Vector3d& getAccel(double x, double y, double z)
     {
       computeAccel(x, y, z, vstore);
       return vstore;
@@ -192,35 +192,23 @@ namespace BasisClasses
 
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system for a collections of points
-    virtual RowMatrixXd getAccelArray(Eigen::VectorXd& x,
-				      Eigen::VectorXd& y,
-				      Eigen::VectorXd& z)
+    virtual RowMatrixXd& getAccelArray(Eigen::VectorXd& x,
+				       Eigen::VectorXd& y,
+				       Eigen::VectorXd& z)
     {
       // Sanity check
       if (x.size() != y.size() || x.size() != z.size())
 	throw std::runtime_error("BiorthBasis::getAccelArray: "
 				 "x, y, z vectors must be of the same size");
       
-      int max_threads = 1;
-#if defined(_OPENMP)
-      max_threads = omp_get_max_threads();
-#endif
-      vstore_array.resize(max_threads);
-      for (auto & v : vstore_array) v.resize(3);			
-
-      RowMatrixXd ret(x.size(), 3);
-      std::vector<double> v(3);
-      int tid = 0;		// Default thread ID if no OpenMP
+      // Resize the return array
+      varray.resize(x.size(), 3);
 #pragma omp parallel for
       for (int i=0; i<x.size(); ++i) {
-#if defined(_OPENMP)
-	tid = omp_get_thread_num();
-#endif
-	computeAccel(x(i), y(i), z(i), vstore_array[tid]);
-	for (int k=0; k<3; k++) ret(i, k) = vstore_array[tid][k];
+	computeAccel(x(i), y(i), z(i), varray.row(i));
       }
 
-      return ret;
+      return varray;
     }
   };
 
@@ -315,7 +303,7 @@ namespace BasisClasses
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system
     virtual void computeAccel(double x, double y, double z, 
-			  std::vector<double>& vstore);
+			      Eigen::Ref<Eigen::Vector3d> vstore);
 
   public:
     
@@ -558,7 +546,7 @@ namespace BasisClasses
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system
     void computeAccel(double x, double y, double z,
-		      std::vector<double>& vstore);
+		      Eigen::Ref<Eigen::Vector3d> vstore);
 
   public:
     
@@ -714,7 +702,7 @@ namespace BasisClasses
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system
     void computeAccel(double x, double y, double z,
-		      std::vector<double>& vstore);
+		      Eigen::Ref<Eigen::Vector3d> vstore);
 
   public:
     
@@ -865,7 +853,7 @@ namespace BasisClasses
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system
     void computeAccel(double x, double y, double z,
-		      std::vector<double>& vstore);
+		      Eigen::Ref<Eigen::Vector3d> vstore);
 
   public:
     
@@ -1024,7 +1012,7 @@ namespace BasisClasses
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system
     void computeAccel(double x, double y, double z,
-		      std::vector<double>& vstore);
+		      Eigen::Ref<Eigen::Vector3d> vstore);
 
   public:
     
@@ -1159,7 +1147,7 @@ namespace BasisClasses
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system
     void computeAccel(double x, double y, double z, 
-		      std::vector<double>& vstore);
+		      Eigen::Ref<Eigen::Vector3d> vstore);
 
 
   public:
