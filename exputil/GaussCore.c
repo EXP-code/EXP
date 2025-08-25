@@ -17,6 +17,7 @@
 
 #include <stdio.h>		/* for error messages */
 #include <stdlib.h>
+#include <stdbool.h>
 #include "GaussCore.h"
 
 #define GaussEPS 1.0e-12
