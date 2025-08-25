@@ -56,15 +56,13 @@ static int n1;
 void GaussMaster(int n, double alpha, double beta, int conflag,
 		 double abscis[], double weight[])
 {
-#define FALSE 0
-#define  TRUE 1
-    typedef int bool;
     int k, m;
     int below;
     double t, min, max, Glob;
     double delta, Qp;
     double temp;
     bool ok;
+
 #define junk1 &delta
 #define junk2 &Qp
     
@@ -170,7 +168,7 @@ void GaussMaster(int n, double alpha, double beta, int conflag,
 	     -Desirable improvement:
 	      include machine roundoff in equality tests.
 	  */
-	    ok= FALSE;
+	    ok= false;
 	    do {
 		if (Qp==0)  break;
 		delta/= -Qp;
@@ -182,7 +180,7 @@ void GaussMaster(int n, double alpha, double beta, int conflag,
 		    delta*= (1+t);
 		}
 		ok = (min <= temp) && (temp <= max);
-	    } while (FALSE);
+	    } while (false);
 
 	    if (ok) t=temp;		/* use Newton iterate... */
 	    else t= (min + max)/2;	/* ...or bisect to recover */
@@ -197,8 +195,6 @@ void GaussMaster(int n, double alpha, double beta, int conflag,
     }
 #undef junk1
 #undef junk2
-#undef  TRUE
-#undef FALSE
 }
 
 
