@@ -1134,6 +1134,25 @@ void CoefficientClasses(py::module &m) {
             list(float,...)
                 list of times
             )")
+    .def("setUnit",
+            &CoefClasses::Coefs::setUnit,
+            R"(
+            Set the units for the coefficient struction.
+
+            Parameters
+            ----------
+	    name : str
+               the name of physical quantity (G, Length, Mass, Time, etc)
+            unit : str
+               the unit string (scalar, mixed, kpc, Msun, Myr, km/s etc.).
+               This field is optional and can be empty.
+            value : float
+	       the default value of the multiples of the unit
+
+            Returns
+            -------
+            None
+            )", py::arg("name"), py::arg("unit")="", py::arg("value")=1.0)
     .def("WriteH5Coefs",
             &CoefClasses::Coefs::WriteH5Coefs,
             R"(
