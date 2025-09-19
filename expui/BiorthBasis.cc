@@ -328,6 +328,7 @@ namespace BasisClasses
     if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
     totalMass = 0.0;
     used = 0;
+    G = 1.0;
   }
   
   
@@ -340,6 +341,8 @@ namespace BasisClasses
     cf->scale  = scale;
     cf->time   = time;
     cf->normed = true;
+
+    G = cf->G;
 
     // Angular storage dimension
     int ldim = (lmax+1)*(lmax+2)/2;
@@ -395,6 +398,10 @@ namespace BasisClasses
     }
     
     CoefClasses::SphStruct* cf = dynamic_cast<CoefClasses::SphStruct*>(coef.get());
+
+    // Set gravitational constant
+    //
+    G = cf->G;
 
     // Cache the current coefficient structure
     //
@@ -594,7 +601,7 @@ namespace BasisClasses
     }
     
     double densfac = 1.0/(scale*scale*scale) * 0.25/M_PI;
-    double potlfac = 1.0/scale;
+    double potlfac = G/scale;
 
     return
       {den0 * densfac,		// 0
@@ -700,7 +707,7 @@ namespace BasisClasses
       }
     }
     
-    double potlfac = 1.0/scale;
+    double potlfac = G/scale;
 
     potr *= (-potlfac)/scale;
     pott *= (-potlfac);
@@ -746,7 +753,7 @@ namespace BasisClasses
     double tpotx = v[6]*x/R - v[8]*y/R ;
     double tpoty = v[6]*y/R + v[8]*x/R ;
     
-    return {v[0], v[1], v[2], v[3], v[4], v[5], tpotx, tpoty, v[7]};
+    return {v[0], v[1], v[2], v[3]*G, v[4]*G, v[5]*G, tpotx*G, tpoty*G, v[7]*G};
   }
   
   Spherical::BasisArray SphericalSL::getBasis
@@ -1486,6 +1493,12 @@ namespace BasisClasses
     double tdens0, tdens, tpotl0, tpotl, tpotR, tpotz, tpotp;
     
     sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
+
+    tpotl0 *= G;
+    tpotl  *= G;
+    tpotR  *= G;
+    tpotz  *= G;
+    tpotp  *= G;
     
     tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
 
@@ -1506,6 +1519,12 @@ namespace BasisClasses
     double tdens0, tdens, tpotl0, tpotl, tpotR, tpotz, tpotp;
 
     sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
+
+    tpotl0 *= G;
+    tpotl  *= G;
+    tpotR  *= G;
+    tpotz  *= G;
+    tpotp  *= G;
     
     tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
 
@@ -1532,7 +1551,7 @@ namespace BasisClasses
     double tpotx = tpotR*x/R - tpotp*y/R ;
     double tpoty = tpotR*y/R + tpotp*x/R ;
 
-    return {tpotx, tpoty, tpotz};
+    return {tpotx*G, tpoty*G, tpotz*G};
   }
 
   // Evaluate in cylindrical coordinates
@@ -1542,6 +1561,12 @@ namespace BasisClasses
 
     sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
     tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
+
+    tpotl0 *= G;
+    tpotl  *= G;
+    tpotR  *= G;
+    tpotz  *= G;
+    tpotp  *= G;
 
     if (midplane) {
       height = sl->accumulated_midplane_eval(R, -colh*hcyl, colh*hcyl, phi);
@@ -1577,6 +1602,8 @@ namespace BasisClasses
     cf->nmax   = nmax;
     cf->time   = time;
 
+    G = cf->G;
+
     Eigen::VectorXd cos1(nmax), sin1(nmax);
 
     // Initialize the values
@@ -1605,6 +1632,10 @@ namespace BasisClasses
       throw std::runtime_error("Cylindrical::set_coefs: you must pass a CoefClasses::CylStruct");
 
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
+
+    // Set gravitational constant
+    //
+    G = cf->G;
 
     // Cache the current coefficient structure
     //
@@ -1849,6 +1880,7 @@ namespace BasisClasses
     if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
     totalMass = 0.0;
     used = 0;
+    G = 1.0;
   }
   
   
@@ -1859,6 +1891,8 @@ namespace BasisClasses
     cf->mmax   = mmax;
     cf->nmax   = nmax;
     cf->time   = time;
+
+    G = cf->G;
 
     // Allocate the coefficient storage
     cf->store.resize((mmax+1)*nmax);
@@ -1906,6 +1940,10 @@ namespace BasisClasses
     
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
     auto & cc = *cf->coefs;
+
+    // Set gravitational constant
+    //
+    G = cf->G;
 
     // Cache the current coefficient structure
     //
@@ -2090,11 +2128,11 @@ namespace BasisClasses
 
     den0 *= -1.0;
     den1 *= -1.0;
-    pot0 *= -1.0;
-    pot1 *= -1.0;
-    rpot *= -1.0;
-    zpot *= -1.0;
-    ppot *= -1.0;
+    pot0 *= -G;
+    pot1 *= -G;
+    rpot *= -G;
+    zpot *= -G;
+    ppot *= -G;
 
     return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
   }
@@ -2650,6 +2688,7 @@ namespace BasisClasses
     if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
     totalMass = 0.0;
     used = 0;
+    G = 1.0;
   }
   
   
@@ -2660,6 +2699,8 @@ namespace BasisClasses
     cf->mmax   = mmax;
     cf->nmax   = nmax;
     cf->time   = time;
+
+    G = cf->G;
 
     // Allocate the coefficient storage
     cf->store.resize((mmax+1)*nmax);
@@ -2707,6 +2748,10 @@ namespace BasisClasses
     
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
     auto & cc = *cf->coefs;
+
+    // Set gravitational constant
+    //
+    G = cf->G;
 
     // Cache the current coefficient structure
     coefret = coef;
@@ -3135,6 +3180,7 @@ namespace BasisClasses
     expcoef.setZero();
     totalMass = 0.0;
     used = 0;
+    G = 1.0;
   }
   
   
@@ -3146,6 +3192,8 @@ namespace BasisClasses
     cf->nmaxy   = nmaxy;
     cf->nmaxz   = nmaxz;
     cf->time    = time;
+
+    G = cf->G;
 
     cf->allocate();
 
@@ -3179,6 +3227,10 @@ namespace BasisClasses
     
     auto cf = dynamic_cast<CoefClasses::SlabStruct*>(coef.get());
     expcoef = *cf->coefs;
+
+    // Set gravitational constant
+    //
+    G = cf->G;
 
     // Cache the current coefficient structure
     //
@@ -3648,6 +3700,7 @@ namespace BasisClasses
     expcoef.setZero();
     totalMass = 0.0;
     used = 0;
+    G = 1.0;
   }
   
   
@@ -3659,6 +3712,8 @@ namespace BasisClasses
     cf->nmaxy   = nmaxy;
     cf->nmaxz   = nmaxz;
     cf->time    = time;
+
+    G = cf->G;
 
     cf->allocate();
 
@@ -3692,6 +3747,10 @@ namespace BasisClasses
     
     auto cf = dynamic_cast<CoefClasses::CubeStruct*>(coef.get());
     expcoef = *cf->coefs;
+
+    // Set gravitational constant
+    //
+    G = cf->G;
 
     // Cache the cuurent coefficient structure
     //

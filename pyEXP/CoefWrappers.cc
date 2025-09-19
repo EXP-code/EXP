@@ -770,6 +770,26 @@ void CoefficientClasses(py::module &m) {
           --------
           setCenter : read-write access to the center data
           )")
+    .def("setGravConstant", &CoefStruct::setGravConstant,
+          py::arg("G"),
+          R"(
+          Set the gravitational constant
+  
+          Parameters
+          ----------
+          G  : float
+             gravitational constant, default is 1.0
+  
+          Returns
+          -------
+          None
+  
+          Notes
+          -----
+          The gravitational constant is used for field evaluation for
+          biorthogonal basis sets.  It will be set autoomatically when
+          reading EXP coefficient files.
+          )")
     .def("setCoefCenter",
           static_cast<void (CoefStruct::*)(std::vector<double>&)>(&CoefStruct::setCenter),
           py::arg("mat"),
@@ -1258,6 +1278,15 @@ void CoefficientClasses(py::module &m) {
          bool
              True if the data is identical, False otherwise.
          )")
+    .def("getUnits", &CoefClasses::Coefs::getUnits,
+         R"(
+         Get the units of the coefficient data
+
+         Returns
+         -------
+         list((str,str,float))
+             list of
+         )")
     .def_static("factory", &CoefClasses::Coefs::factory,
               R"(
               Deduce the type and read coefficients from a native or HDF5 file
@@ -1308,6 +1337,7 @@ void CoefficientClasses(py::module &m) {
                 addcoef : add coefficient structures to an existing coefficieint container
                 )",
 		py::arg("coef"), py::arg("name")="");
+
 
   py::class_<CoefClasses::SphCoefs, std::shared_ptr<CoefClasses::SphCoefs>, PySphCoefs, CoefClasses::Coefs>
     (m, "SphCoefs", "Container for spherical coefficients")
