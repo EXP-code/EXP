@@ -787,7 +787,7 @@ void CoefficientClasses(py::module &m) {
           Notes
           -----
           The gravitational constant is used for field evaluation for
-          biorthogonal basis sets.  It will be set autoomatically when
+          biorthogonal basis sets.  It will be set automatically when
           reading EXP coefficient files.
           )")
     .def("setCoefCenter",
