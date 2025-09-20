@@ -1312,7 +1312,7 @@ void CoefficientClasses(py::module &m) {
          Returns
          -------
          list((str,str,float))
-             list of
+             list of (name, unit, value) tuples, where each tuple contains the coefficient name (str), its unit (str), and its value (float).
          )")
     .def_static("factory", &CoefClasses::Coefs::factory,
               R"(
