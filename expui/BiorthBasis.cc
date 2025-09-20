@@ -753,7 +753,7 @@ namespace BasisClasses
     double tpotx = v[6]*x/R - v[8]*y/R ;
     double tpoty = v[6]*y/R + v[8]*x/R ;
     
-    return {v[0], v[1], v[2], v[3]*G, v[4]*G, v[5]*G, tpotx*G, tpoty*G, v[7]*G};
+    return {v[0], v[1], v[2], v[3], v[4], v[5], tpotx, tpoty, v[7]};
   }
   
   Spherical::BasisArray SphericalSL::getBasis
@@ -2053,9 +2053,9 @@ namespace BasisClasses
     if (R>ortho->getRtable() or fabs(z)>ortho->getRtable()) {
       double r2 = R*R + z*z;
       double r  = sqrt(r2);
-      pot0 = -totalMass/r;
-      rpot = -totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
-      zpot = -totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      pot0 = -G*totalMass/r;
+      rpot = -G*totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      zpot = -G*totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
       
       return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
     }
@@ -2158,8 +2158,8 @@ namespace BasisClasses
       double r2 = R*R + z*z;
       double r  = sqrt(r2);
 
-      rpot = -totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
-      zpot = -totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      rpot = -G*totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      zpot = -G*totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
       
       return {rpot, zpot, ppot};
     }
@@ -2218,9 +2218,9 @@ namespace BasisClasses
       }
     }
 
-    rpot *= -1.0;
-    zpot *= -1.0;
-    ppot *= -1.0;
+    rpot *= -G;
+    zpot *= -G;
+    ppot *= -G;
 
     double potx = rpot*x/R - ppot*y/R;
     double poty = rpot*y/R + ppot*x/R;
@@ -2910,10 +2910,10 @@ namespace BasisClasses
 
     den0 *= -1.0;
     den1 *= -1.0;
-    pot0 *= -1.0;
-    pot1 *= -1.0;
-    rpot *= -1.0;
-    ppot *= -1.0;
+    pot0 *= -G;
+    pot1 *= -G;
+    rpot *= -G;
+    ppot *= -G;
 
     return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
   }
@@ -2977,8 +2977,8 @@ namespace BasisClasses
       }
     }
 
-    rpot *= -1.0;
-    ppot *= -1.0;
+    rpot *= -G;
+    ppot *= -G;
 
 
     double potx = rpot*x/R - ppot*y/R;
@@ -3472,7 +3472,7 @@ namespace BasisClasses
       }
     }
 
-    return {accx.real(), accy.real(), accz.real()};
+    return {G*accx.real(), G*accy.real(), G*accz.real()};
   }
 
 
@@ -3483,7 +3483,7 @@ namespace BasisClasses
 
     auto [pot, den, frcx, frcy, frcz] = eval(x, y, z);
 
-    return {0, den, den, 0, pot, pot, frcx, frcy, frcz};
+    return {0, den, den, 0, pot*G, pot*G, frcx*G, frcy*G, frcz*G};
   }
 
   std::vector<double> Slab::cyl_eval(double R, double z, double phi)
@@ -3500,11 +3500,11 @@ namespace BasisClasses
     double potp = -frcx*sin(phi) + frcy*cos(phi);
     double potz =  frcz;
 
-    potR *= -1;
-    potp *= -1;
-    potz *= -1;
+    potR *= -G;
+    potp *= -G;
+    potz *= -G;
 
-    return {0, den, den, 0, pot, pot, potR, potz, potp};
+    return {0, den, den, 0, pot*G, pot*G, potR, potz, potp};
   }
 
   std::vector<double> Slab::sph_eval(double r, double costh, double phi)
@@ -3522,11 +3522,11 @@ namespace BasisClasses
     double pott =  frcx*cos(phi)*costh + frcy*sin(phi)*costh - frcz*sinth;
     double potp = -frcx*sin(phi)       + frcy*cos(phi);
 
-    potr *= -1;
-    pott *= -1;
-    potp *= -1;
+    potr *= -G;
+    pott *= -G;
+    potp *= -G;
     
-    return {0, den, den, 0, pot, pot, potr, pott, potp};
+    return {0, den, den, 0, pot*G, pot*G, potr, pott, potp};
   }
 
 
@@ -3841,7 +3841,7 @@ namespace BasisClasses
     double frcy = -frc(1).real();
     double frcz = -frc(2).real();
 
-    return {0, den1, den1, 0, pot1, pot1, frcx, frcy, frcz};
+    return {0, den1, den1, 0, pot1*G, pot1*G, frcx*G, frcy*G, frcz*G};
   }
 
   std::vector<double> Cube::getAccel(double x, double y, double z)
@@ -3855,7 +3855,7 @@ namespace BasisClasses
     // Get the basis fields
     auto frc = ortho->get_force(expcoef, pos);
     
-    return {-frc(0).real(), -frc(1).real(), -frc(2).real()};
+    return {-G*frc(0).real(), -G*frc(1).real(), -G*frc(2).real()};
   }
 
   std::vector<double> Cube::cyl_eval(double R, double z, double phi)
@@ -3873,7 +3873,7 @@ namespace BasisClasses
     double den1 = ortho->get_dens(expcoef, pos).real();
     double pot1 = ortho->get_pot (expcoef, pos).real();
 
-    auto frc = ortho->get_force(expcoef, pos);
+    auto frc = ortho->get_force(expcoef, pos)*G;
     
     double frcx = frc(0).real(), frcy = frc(1).real(), frcz = frc(2).real();
 
@@ -3902,7 +3902,7 @@ namespace BasisClasses
 
     // Get the basis fields
     double den1 = ortho->get_dens(expcoef, pos).real();
-    double pot1 = ortho->get_pot (expcoef, pos).real();
+    double pot1 = ortho->get_pot (expcoef, pos).real() * G;
 
     auto frc = ortho->get_force(expcoef, pos);
     
@@ -3914,9 +3914,9 @@ namespace BasisClasses
     double pott =  frcx*cos(phi)*costh + frcy*sin(phi)*costh - frcz*sinth;
     double potp = -frcx*sin(phi)       + frcy*cos(phi);
 
-    potr *= -1;
-    pott *= -1;
-    potp *= -1;
+    potr *= -G;
+    pott *= -G;
+    potp *= -G;
     
     return {0, den1, den1, 0, pot1, pot1, potr, pott, potp};
   }

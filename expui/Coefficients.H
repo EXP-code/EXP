@@ -37,11 +37,13 @@ namespace CoefClasses
 
     Unit(std::string n, std::string u, float v) : value(v)
     {
-      std::memset(name, 0, 16); std::memset(unit, 0, 16);
-      size_t arraySize = n.length() + 1, sz = strlen(name);
-      strncpy(name, n.c_str(), std::min(arraySize, sz));
-      arraySize = u.length() + 1; sz = strlen(unit);
-      strncpy(unit, u.c_str(), std::min(arraySize, sz));
+      // Constant string size
+      const size_t sz=16;
+      // Zero fill
+      std::memset(name, 0, sz); std::memset(unit, 0, sz);
+      // Copy strings to char arrays
+      strncpy(name, n.c_str(), std::min(n.length()+1, sz));
+      strncpy(unit, u.c_str(), std::min(u.length()+1, sz));
     }
 
   };
@@ -106,8 +108,8 @@ namespace CoefClasses
     //! Time offset for interpolation
     double deltaT;
 
-    //! Default units
-    std::vector<Unit> units {{"G", "", 1.0f}};
+    //! Default units (EXP native)
+    std::vector<Unit> units {{"G", "none", 1.0f}};
 
   public:
     

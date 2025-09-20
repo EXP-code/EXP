@@ -31,8 +31,32 @@ HighFive::CompoundType create_compound_Unit() {
 HIGHFIVE_REGISTER_TYPE(CoefClasses::Unit, create_compound_Unit)
 
 
+// Helper ostream manipulator for debugging Unit info
+std::ostream& operator<< (std::ostream& out,
+			  const std::vector<CoefClasses::Unit>& t)
+{
+  out << std::string(48, '-') << std::endl
+      << std::setw(16) << "Name"
+      << std::setw(16) << "Unit"
+      << std::setw(16) << "Value"
+      << std::endl
+      << std::setw(16) << std::string(10, '-')
+      << std::setw(16) << std::string(10, '-')
+      << std::setw(16) << std::string(10, '-')
+      << std::endl;
+  for (auto p : t)
+    out << std::setw(16) << p.name
+	<< std::setw(16) << p.unit
+	<< std::setw(16) << p.value
+	<< std::endl;
+  out << std::string(48, '-') << std::endl;
+  
+  return out;
+}
+
 namespace CoefClasses
 {
+
   void Coefs::copyfields(std::shared_ptr<Coefs> p)
   {
     // These variables will copy data, not pointers
@@ -44,13 +68,17 @@ namespace CoefClasses
     p->times    = times;
   }
 
-  void Coefs::setUnit(std::string name, std::string unit, float value)
+  void Coefs::setUnit(std::string Name, std::string Unit, float Value)
   {
     auto copy_s = [](std::string& s, char* c) -> void {
-      size_t arraySize = s.length() + 1, sz = strlen(c);
-      strncpy(c, s.c_str(), std::min(arraySize, sz));
+      const size_t sz = 16;
+      strncpy(c, s.c_str(), std::min(s.length()+1, sz));
     };
       
+    // Keep copy with original case
+    std::string name(Name);
+
+    // Convert to lower case for matching
     std::transform(name.begin(), name.end(), name.begin(),
 		   [](unsigned char c){ return std::tolower(c); });
 
@@ -61,14 +89,14 @@ namespace CoefClasses
 		     [](unsigned char c){ return std::tolower(c); });
 
       if (name.find(p_name) == 0) {
-	copy_s(unit, &p.unit[0]);
-	p.value = value;
+	copy_s(Unit, &p.unit[0]);
+	p.value = Value;
 	return;
       }
     }
 
     // No matches
-    units.push_back({name, unit, value});
+    units.push_back({Name, Unit, Value});
   }
 
   //! Get units
@@ -94,6 +122,7 @@ namespace CoefClasses
   void Coefs::WriteH5Units(HighFive::File& file)
   {
     HighFive::DataSet dataset = file.createDataSet("Units", units);
+    std::cout << units;
   }
 
   void Coefs::ReadH5Units(HighFive::File& file)
