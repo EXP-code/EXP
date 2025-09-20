@@ -113,9 +113,9 @@ namespace CoefClasses
   {
     for (auto p : units) {
       std::string G(p.name);
-      if (G.find("G")==0) return p.value;
+      if (G == "G") return p.value;
     }
-
+    // Default if "G" is removed or not set for some unforseen reason
     return 1.0;
   }
 

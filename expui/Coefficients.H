@@ -5,9 +5,10 @@
 #include <stdexcept> 
 
 // Needed by member functions for writing parameters and stanzas
-#include <highfive/highfive.hpp>
+#include <highfive/H5File.hpp>
+#include <highfive/H5Group.hpp>
 
-#include <Eigen/Eigen>	      // Store coefficient matrices and 2d grids
+#include <Eigen/Eigen>	    // Store coefficient matrices and 2d grids
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids?
 
 // YAML support
@@ -16,6 +17,7 @@
 // The EXP native coefficient classes
 #include <CoefStruct.H>
 
+// All coefficient classes are in this namespace
 namespace CoefClasses
 { 
   //! An index key
