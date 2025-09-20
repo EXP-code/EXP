@@ -1141,7 +1141,7 @@ void CoefficientClasses(py::module &m) {
 
             Parameters
             ----------
-	    name : str
+            name : str
                the name of physical quantity (G, Length, Mass, Time, etc)
             unit : str
                the unit string (scalar, mixed, kpc, Msun, Myr, km/s etc.).
