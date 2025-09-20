@@ -1137,7 +1137,7 @@ void CoefficientClasses(py::module &m) {
     .def("setUnit",
             &CoefClasses::Coefs::setUnit,
             R"(
-            Set the units for the coefficient struction.
+            Set the units for the coefficient structure.
 
             Parameters
             ----------
