@@ -28,7 +28,8 @@ namespace CoefClasses
   using E3d = Eigen::Tensor<std::complex<double>, 3>;
 
   // A struct for a single unit metadatum
-  struct Unit {
+  struct Unit
+  {
     char name[16];		//! The name of the physical value in ascii
     char unit[16];		//! The unit type in ascii
     float value;			//! The value as a float

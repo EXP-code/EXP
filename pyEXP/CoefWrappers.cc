@@ -1154,8 +1154,15 @@ void CoefficientClasses(py::module &m) {
             None
             )", py::arg("name"), py::arg("unit")="", py::arg("value")=1.0)
     .def("WriteH5Coefs",
-            &CoefClasses::Coefs::WriteH5Coefs,
-            R"(
+	 [](CoefClasses::Coefs& self, const std::string& filename) {
+	   if (self.getUnits().size()==1) {
+	     std::cout << "Coefs::WriteH5Coefs: please set units for your coefficient set using the `setUnit()` member," << std::endl
+		       << "                     one for each unit.  We suggest explicitly setting 'G', 'Length', 'Mass'," << std::endl
+		       << "                     'Time', and optionally 'Velocity' before writing HDF5 coefficients" << std::endl;
+	   }
+	   self.WriteH5Coefs(filename);
+	 },
+	 R"(
             Write the coefficients into an EXP HDF5 coefficient file with the given prefix name.
 
             Parameters
@@ -1173,7 +1180,8 @@ void CoefficientClasses(py::module &m) {
             coefficient file already exists.  This is a safety
             feature.  If you'd like a new version of this file, delete
             the old before this call.
-            )",py::arg("filename"))
+            )",
+	 py::arg("filename"))
     .def("ExtendH5Coefs",
             &CoefClasses::Coefs::ExtendH5Coefs,
             R"(

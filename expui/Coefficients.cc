@@ -1,3 +1,6 @@
+
+
+
 #include <filesystem>
 #include <iterator>
 #include <iostream>
@@ -128,8 +131,10 @@ namespace CoefClasses
   void Coefs::ReadH5Units(HighFive::File& file)
   {
     if (file.exist("Units")) {
-    HighFive::DataSet dataset = file.getDataSet("Units");
-    units = dataset.read<std::vector<Unit>>();
+      HighFive::DataSet dataset = file.getDataSet("Units");
+      units = dataset.read<std::vector<Unit>>();
+      std::cout << "Coefs::ReadH5Units: read units from HDF5 file:" << std::endl;
+      std::cout << units;
     }
   }
 
@@ -2560,6 +2565,8 @@ namespace CoefClasses
       HighFive::Attribute geom = h5file.getAttribute("geometry");
       geom.read(geometry);
       
+      // Now try to deduce the coefficient type
+      //
       try {
 	// Is the set a biorthogonal basis (has the forceID attribute)
 	// or general basis (fieldID attribute)?
@@ -2597,6 +2604,10 @@ namespace CoefClasses
 	throw std::runtime_error(msg + err.what());
       }
 	
+      // Attempt to red units
+      //
+      coefs->ReadH5Units(h5file);
+
       return coefs;
       
     } catch (HighFive::Exception& err) {
@@ -2791,6 +2802,10 @@ namespace CoefClasses
       //
       HighFive::File file(prefix, HighFive::File::ReadWrite);
       
+      // Attempt to read units
+      //
+      ReadH5Units(file);
+
       // Get the dataset
       HighFive::DataSet dataset = file.getDataSet("count");
       
