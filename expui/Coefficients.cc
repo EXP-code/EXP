@@ -88,7 +88,7 @@ namespace CoefClasses
       std::transform(p_name.begin(), p_name.end(), p_name.begin(),
 		     [](unsigned char c){ return std::tolower(c); });
 
-      if (name.find(p_name) == 0) {
+      if (name == p_name) {
 	copy_s(Unit, &p.unit[0]);
 	p.value = Value;
 	return;
