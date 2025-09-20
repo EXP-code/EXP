@@ -1147,7 +1147,7 @@ void CoefficientClasses(py::module &m) {
                the unit string (scalar, mixed, kpc, Msun, Myr, km/s etc.).
                This field is optional and can be empty.
             value : float
-	       the default value of the multiples of the unit
+               the default value of the multiples of the unit
 
             Returns
             -------
