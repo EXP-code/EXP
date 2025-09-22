@@ -328,6 +328,7 @@ namespace BasisClasses
     if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
     totalMass = 0.0;
     used = 0;
+    G = 1.0;
   }
   
   
@@ -340,6 +341,8 @@ namespace BasisClasses
     cf->scale  = scale;
     cf->time   = time;
     cf->normed = true;
+
+    G = cf->G;
 
     // Angular storage dimension
     int ldim = (lmax+1)*(lmax+2)/2;
@@ -395,6 +398,10 @@ namespace BasisClasses
     }
     
     CoefClasses::SphStruct* cf = dynamic_cast<CoefClasses::SphStruct*>(coef.get());
+
+    // Set gravitational constant
+    //
+    G = cf->G;
 
     // Cache the current coefficient structure
     //
@@ -594,7 +601,7 @@ namespace BasisClasses
     }
     
     double densfac = 1.0/(scale*scale*scale) * 0.25/M_PI;
-    double potlfac = 1.0/scale;
+    double potlfac = G/scale;	// Grav constant G is 1 by default
 
     return
       {den0 * densfac,		// 0
@@ -700,7 +707,7 @@ namespace BasisClasses
       }
     }
     
-    double potlfac = 1.0/scale;
+    double potlfac = G/scale;	// Grav constant G is 1 by default
 
     potr *= (-potlfac)/scale;
     pott *= (-potlfac);
@@ -1486,6 +1493,12 @@ namespace BasisClasses
     double tdens0, tdens, tpotl0, tpotl, tpotR, tpotz, tpotp;
     
     sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
+
+    tpotl0 *= G;		// Apply gravitational constant to
+    tpotl  *= G;		// potential and forces
+    tpotR  *= G;
+    tpotz  *= G;
+    tpotp  *= G;
     
     tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
 
@@ -1506,6 +1519,12 @@ namespace BasisClasses
     double tdens0, tdens, tpotl0, tpotl, tpotR, tpotz, tpotp;
 
     sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
+
+    tpotl0 *= G;		// Apply G to potential and forces
+    tpotl  *= G;
+    tpotR  *= G;
+    tpotz  *= G;
+    tpotp  *= G;
     
     tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
 
@@ -1532,7 +1551,8 @@ namespace BasisClasses
     double tpotx = tpotR*x/R - tpotp*y/R ;
     double tpoty = tpotR*y/R + tpotp*x/R ;
 
-    return {tpotx, tpoty, tpotz};
+    // Apply G to forces on return
+    return {tpotx*G, tpoty*G, tpotz*G};
   }
 
   // Evaluate in cylindrical coordinates
@@ -1542,6 +1562,12 @@ namespace BasisClasses
 
     sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
     tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
+
+    tpotl0 *= G;		// Apply G to potential and forces
+    tpotl  *= G;
+    tpotR  *= G;
+    tpotz  *= G;
+    tpotp  *= G;
 
     if (midplane) {
       height = sl->accumulated_midplane_eval(R, -colh*hcyl, colh*hcyl, phi);
@@ -1577,6 +1603,8 @@ namespace BasisClasses
     cf->nmax   = nmax;
     cf->time   = time;
 
+    G = cf->G;
+
     Eigen::VectorXd cos1(nmax), sin1(nmax);
 
     // Initialize the values
@@ -1605,6 +1633,10 @@ namespace BasisClasses
       throw std::runtime_error("Cylindrical::set_coefs: you must pass a CoefClasses::CylStruct");
 
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
+
+    // Set gravitational constant
+    //
+    G = cf->G;
 
     // Cache the current coefficient structure
     //
@@ -1849,6 +1881,7 @@ namespace BasisClasses
     if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
     totalMass = 0.0;
     used = 0;
+    G = 1.0;
   }
   
   
@@ -1859,6 +1892,8 @@ namespace BasisClasses
     cf->mmax   = mmax;
     cf->nmax   = nmax;
     cf->time   = time;
+
+    G = cf->G;
 
     // Allocate the coefficient storage
     cf->store.resize((mmax+1)*nmax);
@@ -1906,6 +1941,10 @@ namespace BasisClasses
     
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
     auto & cc = *cf->coefs;
+
+    // Set gravitational constant
+    //
+    G = cf->G;
 
     // Cache the current coefficient structure
     //
@@ -2015,9 +2054,10 @@ namespace BasisClasses
     if (R>ortho->getRtable() or fabs(z)>ortho->getRtable()) {
       double r2 = R*R + z*z;
       double r  = sqrt(r2);
-      pot0 = -totalMass/r;
-      rpot = -totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
-      zpot = -totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      // Apply G to potential and forces
+      pot0 = -G*totalMass/r;
+      rpot = -G*totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      zpot = -G*totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
       
       return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
     }
@@ -2090,11 +2130,11 @@ namespace BasisClasses
 
     den0 *= -1.0;
     den1 *= -1.0;
-    pot0 *= -1.0;
-    pot1 *= -1.0;
-    rpot *= -1.0;
-    zpot *= -1.0;
-    ppot *= -1.0;
+    pot0 *= -G;			// Apply G to potential and forces
+    pot1 *= -G;
+    rpot *= -G;
+    zpot *= -G;
+    ppot *= -G;
 
     return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
   }
@@ -2120,8 +2160,9 @@ namespace BasisClasses
       double r2 = R*R + z*z;
       double r  = sqrt(r2);
 
-      rpot = -totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
-      zpot = -totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      // Apply G to forces
+      rpot = -G*totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      zpot = -G*totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
       
       return {rpot, zpot, ppot};
     }
@@ -2180,9 +2221,9 @@ namespace BasisClasses
       }
     }
 
-    rpot *= -1.0;
-    zpot *= -1.0;
-    ppot *= -1.0;
+    rpot *= -G;			// Apply G to forces
+    zpot *= -G;
+    ppot *= -G;
 
     double potx = rpot*x/R - ppot*y/R;
     double poty = rpot*y/R + ppot*x/R;
@@ -2650,6 +2691,7 @@ namespace BasisClasses
     if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
     totalMass = 0.0;
     used = 0;
+    G = 1.0;
   }
   
   
@@ -2660,6 +2702,8 @@ namespace BasisClasses
     cf->mmax   = mmax;
     cf->nmax   = nmax;
     cf->time   = time;
+
+    G = cf->G;
 
     // Allocate the coefficient storage
     cf->store.resize((mmax+1)*nmax);
@@ -2707,6 +2751,10 @@ namespace BasisClasses
     
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
     auto & cc = *cf->coefs;
+
+    // Set gravitational constant
+    //
+    G = cf->G;
 
     // Cache the current coefficient structure
     coefret = coef;
@@ -2865,10 +2913,10 @@ namespace BasisClasses
 
     den0 *= -1.0;
     den1 *= -1.0;
-    pot0 *= -1.0;
-    pot1 *= -1.0;
-    rpot *= -1.0;
-    ppot *= -1.0;
+    pot0 *= -G;			// Apply G to potential and forces
+    pot1 *= -G;
+    rpot *= -G;
+    ppot *= -G;
 
     return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
   }
@@ -2932,9 +2980,9 @@ namespace BasisClasses
       }
     }
 
-    rpot *= -1.0;
-    ppot *= -1.0;
-
+    // Apply G to forces
+    rpot *= -G;
+    ppot *= -G;
 
     double potx = rpot*x/R - ppot*y/R;
     double poty = rpot*y/R + ppot*x/R;
@@ -3135,6 +3183,7 @@ namespace BasisClasses
     expcoef.setZero();
     totalMass = 0.0;
     used = 0;
+    G = 1.0;
   }
   
   
@@ -3146,6 +3195,8 @@ namespace BasisClasses
     cf->nmaxy   = nmaxy;
     cf->nmaxz   = nmaxz;
     cf->time    = time;
+
+    G = cf->G;
 
     cf->allocate();
 
@@ -3179,6 +3230,10 @@ namespace BasisClasses
     
     auto cf = dynamic_cast<CoefClasses::SlabStruct*>(coef.get());
     expcoef = *cf->coefs;
+
+    // Set gravitational constant
+    //
+    G = cf->G;
 
     // Cache the current coefficient structure
     //
@@ -3420,7 +3475,8 @@ namespace BasisClasses
       }
     }
 
-    return {accx.real(), accy.real(), accz.real()};
+    // Apply G to forces on return
+    return {G*accx.real(), G*accy.real(), G*accz.real()};
   }
 
 
@@ -3431,7 +3487,8 @@ namespace BasisClasses
 
     auto [pot, den, frcx, frcy, frcz] = eval(x, y, z);
 
-    return {0, den, den, 0, pot, pot, frcx, frcy, frcz};
+    // Apply G to potential and forces on return
+    return {0, den, den, 0, pot*G, pot*G, frcx*G, frcy*G, frcz*G};
   }
 
   std::vector<double> Slab::cyl_eval(double R, double z, double phi)
@@ -3448,11 +3505,12 @@ namespace BasisClasses
     double potp = -frcx*sin(phi) + frcy*cos(phi);
     double potz =  frcz;
 
-    potR *= -1;
-    potp *= -1;
-    potz *= -1;
+    potR *= -G;			// Apply G to forces
+    potp *= -G;
+    potz *= -G;
 
-    return {0, den, den, 0, pot, pot, potR, potz, potp};
+    // Apply Go to potential on return
+    return {0, den, den, 0, pot*G, pot*G, potR, potz, potp};
   }
 
   std::vector<double> Slab::sph_eval(double r, double costh, double phi)
@@ -3470,11 +3528,12 @@ namespace BasisClasses
     double pott =  frcx*cos(phi)*costh + frcy*sin(phi)*costh - frcz*sinth;
     double potp = -frcx*sin(phi)       + frcy*cos(phi);
 
-    potr *= -1;
-    pott *= -1;
-    potp *= -1;
+    potr *= -G;			// Apply G to forces
+    pott *= -G;
+    potp *= -G;
     
-    return {0, den, den, 0, pot, pot, potr, pott, potp};
+    // Apply G to potential on return
+    return {0, den, den, 0, pot*G, pot*G, potr, pott, potp};
   }
 
 
@@ -3648,6 +3707,7 @@ namespace BasisClasses
     expcoef.setZero();
     totalMass = 0.0;
     used = 0;
+    G = 1.0;
   }
   
   
@@ -3659,6 +3719,8 @@ namespace BasisClasses
     cf->nmaxy   = nmaxy;
     cf->nmaxz   = nmaxz;
     cf->time    = time;
+
+    G = cf->G;
 
     cf->allocate();
 
@@ -3692,6 +3754,10 @@ namespace BasisClasses
     
     auto cf = dynamic_cast<CoefClasses::CubeStruct*>(coef.get());
     expcoef = *cf->coefs;
+
+    // Set gravitational constant
+    //
+    G = cf->G;
 
     // Cache the cuurent coefficient structure
     //
@@ -3782,7 +3848,8 @@ namespace BasisClasses
     double frcy = -frc(1).real();
     double frcz = -frc(2).real();
 
-    return {0, den1, den1, 0, pot1, pot1, frcx, frcy, frcz};
+    // Apply G to potential and forces on return
+    return {0, den1, den1, 0, pot1*G, pot1*G, frcx*G, frcy*G, frcz*G};
   }
 
   std::vector<double> Cube::getAccel(double x, double y, double z)
@@ -3796,7 +3863,8 @@ namespace BasisClasses
     // Get the basis fields
     auto frc = ortho->get_force(expcoef, pos);
     
-    return {-frc(0).real(), -frc(1).real(), -frc(2).real()};
+    // Apply G to forces on return
+    return {-G*frc(0).real(), -G*frc(1).real(), -G*frc(2).real()};
   }
 
   std::vector<double> Cube::cyl_eval(double R, double z, double phi)
@@ -3812,10 +3880,12 @@ namespace BasisClasses
 
     // Get the basis fields
     double den1 = ortho->get_dens(expcoef, pos).real();
-    double pot1 = ortho->get_pot (expcoef, pos).real();
+    double pot1 = ortho->get_pot (expcoef, pos).real() * G;
 
-    auto frc = ortho->get_force(expcoef, pos);
+    auto frc = ortho->get_force(expcoef, pos) * G;
     
+    // Gravitational constant G applied to potenial and forces above
+
     double frcx = frc(0).real(), frcy = frc(1).real(), frcz = frc(2).real();
 
     double potR =  frcx*cos(phi) + frcy*sin(phi);
@@ -3843,9 +3913,11 @@ namespace BasisClasses
 
     // Get the basis fields
     double den1 = ortho->get_dens(expcoef, pos).real();
-    double pot1 = ortho->get_pot (expcoef, pos).real();
+    double pot1 = ortho->get_pot (expcoef, pos).real() * G;
 
-    auto frc = ortho->get_force(expcoef, pos);
+    auto frc = ortho->get_force(expcoef, pos) * G;
+
+    // Gravitational constant G applied to potential and forces above
     
     double frcx = frc(0).real();
     double frcy = frc(1).real();
@@ -3855,9 +3927,9 @@ namespace BasisClasses
     double pott =  frcx*cos(phi)*costh + frcy*sin(phi)*costh - frcz*sinth;
     double potp = -frcx*sin(phi)       + frcy*cos(phi);
 
-    potr *= -1;
-    pott *= -1;
-    potp *= -1;
+    potr *= -1.0;
+    pott *= -1.0;
+    potp *= -1.0;
     
     return {0, den1, den1, 0, pot1, pot1, potr, pott, potp};
   }

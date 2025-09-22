@@ -770,6 +770,26 @@ void CoefficientClasses(py::module &m) {
           --------
           setCenter : read-write access to the center data
           )")
+    .def("setGravConstant", &CoefStruct::setGravConstant,
+          py::arg("G"),
+          R"(
+          Set the gravitational constant
+  
+          Parameters
+          ----------
+          G  : float
+             gravitational constant, default is 1.0
+  
+          Returns
+          -------
+          None
+  
+          Notes
+          -----
+          The gravitational constant is used for field evaluation for
+          biorthogonal basis sets.  It will be set automatically when
+          reading EXP coefficient files.
+          )")
     .def("setCoefCenter",
           static_cast<void (CoefStruct::*)(std::vector<double>&)>(&CoefStruct::setCenter),
           py::arg("mat"),
@@ -1114,9 +1134,35 @@ void CoefficientClasses(py::module &m) {
             list(float,...)
                 list of times
             )")
-    .def("WriteH5Coefs",
-            &CoefClasses::Coefs::WriteH5Coefs,
+    .def("setUnit",
+            &CoefClasses::Coefs::setUnit,
             R"(
+            Set the units for the coefficient structure.
+
+            Parameters
+            ----------
+            name : str
+               the name of physical quantity (G, Length, Mass, Time, etc)
+            unit : str
+               the unit string (scalar, mixed, kpc, Msun, Myr, km/s etc.).
+               This field is optional and can be empty.
+            value : float
+               the default value of the multiples of the unit
+
+            Returns
+            -------
+            None
+            )", py::arg("name"), py::arg("unit")="", py::arg("value")=1.0)
+    .def("WriteH5Coefs",
+	 [](CoefClasses::Coefs& self, const std::string& filename) {
+	   if (self.getUnits().size()==1) {
+	     std::cout << "Coefs::WriteH5Coefs: please set units for your coefficient set using the `setUnit()` member," << std::endl
+		       << "                     one for each unit.  We suggest explicitly setting 'G', 'Length', 'Mass'," << std::endl
+		       << "                     'Time', and optionally 'Velocity' before writing HDF5 coefficients" << std::endl;
+	   }
+	   self.WriteH5Coefs(filename);
+	 },
+	 R"(
             Write the coefficients into an EXP HDF5 coefficient file with the given prefix name.
 
             Parameters
@@ -1134,7 +1180,8 @@ void CoefficientClasses(py::module &m) {
             coefficient file already exists.  This is a safety
             feature.  If you'd like a new version of this file, delete
             the old before this call.
-            )",py::arg("filename"))
+            )",
+	 py::arg("filename"))
     .def("ExtendH5Coefs",
             &CoefClasses::Coefs::ExtendH5Coefs,
             R"(
@@ -1258,6 +1305,15 @@ void CoefficientClasses(py::module &m) {
          bool
              True if the data is identical, False otherwise.
          )")
+    .def("getUnits", &CoefClasses::Coefs::getUnits,
+         R"(
+         Get the units of the coefficient data
+
+         Returns
+         -------
+         list((str,str,float))
+             list of (name, unit, value) tuples, where each tuple contains the coefficient name (str), its unit (str), and its value (float).
+         )")
     .def_static("factory", &CoefClasses::Coefs::factory,
               R"(
               Deduce the type and read coefficients from a native or HDF5 file
@@ -1308,6 +1364,7 @@ void CoefficientClasses(py::module &m) {
                 addcoef : add coefficient structures to an existing coefficieint container
                 )",
 		py::arg("coef"), py::arg("name")="");
+
 
   py::class_<CoefClasses::SphCoefs, std::shared_ptr<CoefClasses::SphCoefs>, PySphCoefs, CoefClasses::Coefs>
     (m, "SphCoefs", "Container for spherical coefficients")

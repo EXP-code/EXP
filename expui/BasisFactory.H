@@ -136,6 +136,9 @@ namespace BasisClasses
     //! Get the current pseudo acceleration value
     Eigen::Vector3d currentAccel(double time);
 
+    //! Gravitational constant
+    double G = 1.0;
+
   public:
 
     //! The current pseudo acceleration

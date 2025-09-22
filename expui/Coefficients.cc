@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iomanip>
 #include <complex>
+#include <cstring>
 
 #include <config_exp.h>
 #include <localmpi.H>
@@ -17,9 +18,45 @@
 
 #include <Coefficients.H>
 
+// Create a helper function to describe the compound type
+HighFive::CompoundType create_compound_Unit() {
+  return {
+    {"name",  HighFive::AtomicType<char[16]>()},
+    {"unit",  HighFive::AtomicType<char[16]>()},
+    {"value", HighFive::AtomicType<float>()}
+  };
+}
+
+// Register the type with HighFive.
+HIGHFIVE_REGISTER_TYPE(CoefClasses::Unit, create_compound_Unit)
+
+
+// Helper ostream manipulator for debugging Unit info
+std::ostream& operator<< (std::ostream& out,
+			  const std::vector<CoefClasses::Unit>& t)
+{
+  out << std::string(48, '-') << std::endl
+      << std::setw(16) << "Name"
+      << std::setw(16) << "Unit"
+      << std::setw(16) << "Value"
+      << std::endl
+      << std::setw(16) << std::string(10, '-')
+      << std::setw(16) << std::string(10, '-')
+      << std::setw(16) << std::string(10, '-')
+      << std::endl;
+  for (auto p : t)
+    out << std::setw(16) << p.name
+	<< std::setw(16) << p.unit
+	<< std::setw(16) << p.value
+	<< std::endl;
+  out << std::string(48, '-') << std::endl;
+  
+  return out;
+}
+
 namespace CoefClasses
 {
-  
+
   void Coefs::copyfields(std::shared_ptr<Coefs> p)
   {
     // These variables will copy data, not pointers
@@ -29,6 +66,73 @@ namespace CoefClasses
     p->name     = name;
     p->verbose  = verbose;
     p->times    = times;
+  }
+
+  void Coefs::setUnit(std::string Name, std::string Unit, float Value)
+  {
+    auto copy_s = [](std::string& s, char* c) -> void {
+      const size_t sz = 16;
+      strncpy(c, s.c_str(), std::min(s.length()+1, sz));
+    };
+      
+    // Keep copy with original case
+    std::string name(Name);
+
+    // Convert to lower case for matching
+    std::transform(name.begin(), name.end(), name.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+
+    for (auto & p : units) {
+      std::string p_name(p.name);
+
+      std::transform(p_name.begin(), p_name.end(), p_name.begin(),
+		     [](unsigned char c){ return std::tolower(c); });
+
+      if (name == p_name) {
+	copy_s(Unit, &p.unit[0]);
+	p.value = Value;
+	return;
+      }
+    }
+
+    // No matches
+    units.push_back({Name, Unit, Value});
+  }
+
+  //! Get units
+  std::vector<std::tuple<std::string, std::string, float>> Coefs::getUnits()
+  {
+    std::vector<std::tuple<std::string, std::string, float>> ret;
+    for (auto p : units) ret.push_back({p.name, p.unit, p.value});
+    return ret;
+  }
+
+
+  //! Get gravitational constant
+  double Coefs::getGravConstant()
+  {
+    for (auto p : units) {
+      std::string G(p.name);
+      if (G == "G") return p.value;
+    }
+    // Default if "G" is removed or not set for some unforseen reason
+    return 1.0;
+  }
+
+  void Coefs::WriteH5Units(HighFive::File& file)
+  {
+    HighFive::DataSet dataset = file.createDataSet("Units", units);
+    std::cout << units;
+  }
+
+  void Coefs::ReadH5Units(HighFive::File& file)
+  {
+    if (file.exist("Units")) {
+      HighFive::DataSet dataset = file.getDataSet("Units");
+      units = dataset.read<std::vector<Unit>>();
+      std::cout << "Coefs::ReadH5Units: read units from HDF5 file:" << std::endl;
+      std::cout << units;
+    }
   }
 
   std::tuple<Eigen::VectorXcd&, bool> Coefs::interpolate(double time)
@@ -82,6 +186,10 @@ namespace CoefClasses
     unsigned count;
     double scale;
     
+    // Check for units
+    ReadH5Units(file);
+    double G = getGravConstant();
+
     file.getAttribute("name"    ).read(name    );
     file.getAttribute("lmax"    ).read(Lmax    );
     file.getAttribute("nmax"    ).read(Nmax    );
@@ -149,6 +257,7 @@ namespace CoefClasses
       coef->scale = scale;
       coef->geom  = geometry;
       coef->id    = forceID;
+      coef->setGravConstant(G);
 
       coef->allocate();
       *coef->coefs = in;
@@ -173,8 +282,10 @@ namespace CoefClasses
       ret->coefs[v.first] =
 	std::dynamic_pointer_cast<SphStruct>(v.second->deepcopy());
 
-    ret->Lmax = Lmax;
-    ret->Nmax = Nmax;
+    ret->Lmax  = Lmax;
+    ret->Nmax  = Nmax;
+    ret->units = units;
+
 
     return ret;
   }
@@ -195,6 +306,7 @@ namespace CoefClasses
     ret->Mmax  = Mmax;
     ret->Nmax  = Nmax;
     ret->angle = angle;
+    ret->units = units;
 
     return ret;
   }
@@ -215,6 +327,7 @@ namespace CoefClasses
     ret->NmaxX  = NmaxX;
     ret->NmaxY  = NmaxY;
     ret->NmaxZ  = NmaxZ;
+    ret->units  = units;
 
     return ret;
   }
@@ -235,6 +348,7 @@ namespace CoefClasses
     ret->NmaxX  = NmaxX;
     ret->NmaxY  = NmaxY;
     ret->NmaxZ  = NmaxZ;
+    ret->units  = units;
 
     return ret;
   }
@@ -287,6 +401,10 @@ namespace CoefClasses
     unsigned count;
     double scale;
     
+    // Check for units
+    ReadH5Units(file);
+    double G = getGravConstant();
+
     file.getAttribute("name"    ).read(name    );
     file.getAttribute("nfld"    ).read(Nfld    );
     file.getAttribute("lmax"    ).read(Lmax    );
@@ -338,6 +456,7 @@ namespace CoefClasses
       coef->scale = scale;
       coef->geom  = geometry;
       coef->id    = fieldID;
+      coef->setGravConstant(G);
 
       coef->allocate();
       coef->store = in;
@@ -378,6 +497,10 @@ namespace CoefClasses
     unsigned count;
     double scale;
     
+    // Check for units
+    ReadH5Units(file);
+    double G = getGravConstant();
+
     file.getAttribute("name"    ).read(name    );
     file.getAttribute("nfld"    ).read(Nfld    );
     file.getAttribute("mmax"    ).read(Mmax    );
@@ -429,6 +552,7 @@ namespace CoefClasses
       coef->scale = scale;
       coef->geom  = geometry;
       coef->id    = fieldID;
+      coef->setGravConstant(G);
 
       coef->allocate();
       coef->store = in;
@@ -634,6 +758,8 @@ namespace CoefClasses
   
   void SphCoefs::WriteH5Params(HighFive::File& file)
   {
+    WriteH5Units(file);
+
     double scale = coefs.begin()->second->scale;
     
     std::string forceID(coefs.begin()->second->id);
@@ -812,6 +938,10 @@ namespace CoefClasses
     unsigned count;
     std::string config;
     
+    ReadH5Units(file);
+    double G = getGravConstant();
+
+
     file.getAttribute("name"   ).read(name  );
     file.getAttribute("mmax"   ).read(Mmax  );
     file.getAttribute("nmax"   ).read(Nmax  );
@@ -876,6 +1006,7 @@ namespace CoefClasses
 
       coef->assign(in, Mmax, Nmax);
       coef->time = Time;
+      coef->setGravConstant(G);
       
       coefs[roundTime(Time)] = coef;
     }
@@ -1031,6 +1162,8 @@ namespace CoefClasses
   
   void CylCoefs::WriteH5Params(HighFive::File& file)
   {
+    WriteH5Units(file);
+
     std::string forceID(coefs.begin()->second->id);
 
     file.createAttribute<int>("mmax", HighFive::DataSpace::From(Mmax)).write(Mmax);
@@ -1206,6 +1339,10 @@ namespace CoefClasses
     unsigned count;
     std::string config;
     
+    // Check for units
+    ReadH5Units(file);
+    double G = getGravConstant();
+
     file.getAttribute("name"   ).read(name  );
     file.getAttribute("nmaxx"  ).read(NmaxX );
     file.getAttribute("nmaxy"  ).read(NmaxY );
@@ -1246,6 +1383,7 @@ namespace CoefClasses
       
       coef->assign(dat);
       coef->time = Time;
+      coef->setGravConstant(G);
       
       coefs[roundTime(Time)] = coef;
     }
@@ -1353,6 +1491,8 @@ namespace CoefClasses
 
   void SlabCoefs::WriteH5Params(HighFive::File& file)
   {
+    WriteH5Units(file);
+
     std::string forceID(coefs.begin()->second->id);
 
     file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(NmaxX)).write(NmaxX);
@@ -1558,6 +1698,10 @@ namespace CoefClasses
     unsigned count;
     std::string config;
     
+    // Check for units
+    ReadH5Units(file);
+    double G = getGravConstant();
+
     file.getAttribute("name"   ).read(name  );
     file.getAttribute("nmaxx"  ).read(NmaxX );
     file.getAttribute("nmaxy"  ).read(NmaxY );
@@ -1598,7 +1742,8 @@ namespace CoefClasses
       
       coef->assign(dat);
       coef->time = Time;
-      
+      coef->setGravConstant(G);
+    
       coefs[roundTime(Time)] = coef;
     }
 
@@ -1705,6 +1850,8 @@ namespace CoefClasses
 
   void CubeCoefs::WriteH5Params(HighFive::File& file)
   {
+    WriteH5Units(file);
+
     std::string forceID(coefs.begin()->second->id);
 
     file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(NmaxX)).write(NmaxX);
@@ -1978,6 +2125,7 @@ namespace CoefClasses
       // Pack the data into the coefficient variable
       //
       auto coef = std::make_shared<TrajStruct>();
+
       coef->traj  = traj;
       coef->rank  = rank;
       coef->time  = times[n];
@@ -2055,6 +2203,8 @@ namespace CoefClasses
   
   void TrajectoryData::WriteH5Params(HighFive::File& file)
   {
+    WriteH5Units(file);
+
     int traj = coefs.begin()->second->traj;
     int rank = coefs.begin()->second->rank;
     
@@ -2412,6 +2562,8 @@ namespace CoefClasses
       HighFive::Attribute geom = h5file.getAttribute("geometry");
       geom.read(geometry);
       
+      // Now try to deduce the coefficient type
+      //
       try {
 	// Is the set a biorthogonal basis (has the forceID attribute)
 	// or general basis (fieldID attribute)?
@@ -2449,6 +2601,10 @@ namespace CoefClasses
 	throw std::runtime_error(msg + err.what());
       }
 	
+      // Attempt to red units
+      //
+      coefs->ReadH5Units(h5file);
+
       return coefs;
       
     } catch (HighFive::Exception& err) {
@@ -2643,6 +2799,10 @@ namespace CoefClasses
       //
       HighFive::File file(prefix, HighFive::File::ReadWrite);
       
+      // Attempt to read units
+      //
+      ReadH5Units(file);
+
       // Get the dataset
       HighFive::DataSet dataset = file.getDataSet("count");
       
@@ -2893,6 +3053,8 @@ namespace CoefClasses
     
     double scale = coefs.begin()->second->scale;
 
+    WriteH5Units(file);
+
     // Write the remaining parameters
     //
     file.createAttribute<int>   ("nfld",  HighFive::DataSpace::From(Nfld)  ).write(Nfld);
@@ -3011,6 +3173,8 @@ namespace CoefClasses
     std::string fieldID("polar velocity orthgonal function coefficients");
     file.createAttribute<std::string>("fieldID", HighFive::DataSpace::From(fieldID)).write(fieldID);
     
+    WriteH5Units(file);
+
     double scale = coefs.begin()->second->scale;
 
     // Write the remaining parameters

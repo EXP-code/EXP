@@ -23,6 +23,9 @@ namespace CoefClasses
     //! Time stamp
     double time;
     
+    //! Gravitational constant
+    double G = 1.0;
+
     //! Coefficient data
     Eigen::VectorXcd store;
     
@@ -81,6 +84,9 @@ namespace CoefClasses
 
     //! Read-only access to center (no copy)
     double getTime() { return time; }
+
+    //! Set gravitational constant
+    void setGravConstant(double val) { G = val; }
 
   };
   
