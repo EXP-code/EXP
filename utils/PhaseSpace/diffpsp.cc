@@ -576,8 +576,8 @@ main(int argc, char **argv)
 		<< "-- I2max: " << I2max << std::endl
 		<< std::string(40, '-')  << std::endl;
   } else {
-    if (I1min>0) I1min = Emin;
-    if (I1max>0) I1max = Emax;
+    if (I1min<0) I1min = Emin;
+    if (I1max<0) I1max = Emax;
     if (I2min<0) I2min = std::max<double>(KTOL, KMIN);
     if (I2max<0) I2max = std::min<double>(1.0 - KTOL, KMAX);
 
