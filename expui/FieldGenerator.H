@@ -36,6 +36,9 @@ namespace Field
 
   public:
     
+    //! Null constructor
+    FieldGenerator() = default;
+
     //! Constructor for a rectangular grid
     FieldGenerator(const std::vector<double> &time,
 		   const std::vector<double> &pmin,
@@ -116,7 +119,7 @@ namespace Field
 		std::vector<double> center={0.0, 0.0, 0.0});
 
     //! Compute spherical log histogram from particles
-    std::tuple<Eigen::VectorXf, Eigen::VectorXf>
+    std::tuple<Eigen::VectorXf, Eigen::VectorXf, Eigen::VectorXf>
     histo1dlog(PR::PRptr reader, double rmin, double rmax, int nbins,
 		std::vector<double> center={0.0, 0.0, 0.0});
 

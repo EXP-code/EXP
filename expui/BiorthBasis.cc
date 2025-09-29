@@ -294,7 +294,7 @@ namespace BasisClasses
        0, 1, cachename);
     
     // Test basis for consistency
-    orthoTest(200);
+    if (myid==0) orthoTest(200);
   }
   
   void Bessel::initialize()
@@ -320,7 +320,7 @@ namespace BasisClasses
     bess = std::make_shared<BiorthBess>(rmax, lmax, nmax, rnum);
 
     // Test basis for consistency
-    orthoTest(200);
+    if (myid==0) orthoTest(200);
   }
   
   void Spherical::reset_coefs(void)
@@ -395,6 +395,10 @@ namespace BasisClasses
     }
     
     CoefClasses::SphStruct* cf = dynamic_cast<CoefClasses::SphStruct*>(coef.get());
+
+    // Cache the current coefficient structure
+    //
+    coefret = coef;
 
     // Assign internal coefficient table (doubles) from the complex struct
     //
@@ -507,10 +511,7 @@ namespace BasisClasses
     // Get thread id
     int tid = omp_get_thread_num();
 
-    double fac1, cosm, sinm;
-    double sinth = -sqrt(fabs(1.0 - costh*costh));
-    
-    fac1 = factorial(0, 0);
+    double fac1 = factorial(0, 0);
     
     get_dens (dend[tid], r/scale);
     get_pot  (potd[tid], r/scale);
@@ -567,8 +568,8 @@ namespace BasisClasses
 	  moffset++;
 	}
 	else {
-	  cosm = cos(phi*m);
-	  sinm = sin(phi*m);
+	  double cosm = cos(phi*m);
+	  double sinm = sin(phi*m);
 	  
 	  double sumR0=0.0, sumP0=0.0, sumD0=0.0;
 	  double sumR1=0.0, sumP1=0.0, sumD1=0.0;
@@ -610,6 +611,112 @@ namespace BasisClasses
     // Return force not potential gradient
   }
 
+  std::vector<double>
+  Spherical::getAccel(double x, double y, double z)
+  {
+    // Get polar coordinates
+    double R     = sqrt(x*x + y*y);
+    double r     = sqrt(R*R + z*z);
+    double costh = z/r;
+    double sinth = R/r;
+    double phi   = atan2(y, x);
+
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    
+    double fac1 = factorial(0, 0);
+    
+    get_pot  (potd[tid], r/scale);
+    get_force(dpot[tid], r/scale);
+    
+    legendre_R(lmax, costh, legs[tid], dlegs[tid]);
+    
+    double pot0, potr;
+
+    if (NO_L0) {
+      pot0 = 0.0;
+      potr = 0.0;
+    } else {
+      pot0 = fac1 * expcoef.row(0).dot(potd[tid].row(0));
+      potr = fac1 * expcoef.row(0).dot(dpot[tid].row(0));
+    }
+
+    double den1 = 0.0;
+    double pot1 = 0.0;
+    double pott = 0.0;
+    double potp = 0.0;
+    
+    // L loop
+    for (int l=1, loffset=1; l<=lmax; loffset+=(2*l+1), l++) {
+      
+      // Check for even l
+      if (EVEN_L and l%2) continue;
+      
+      // No l=1
+      if (NO_L1 and l==1) continue;
+      
+      // M loop
+      for (int m=0, moffset=0; m<=l; m++) {
+	
+	if (M0_only and m) continue;
+	if (EVEN_M and m%2) continue;
+	
+	fac1 = factorial(l, m);
+	if (m==0) {
+	  double sumR=0.0, sumP=0.0, sumD=0.0;
+	  for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	    sumR += expcoef(loffset+moffset, n) * dend[tid](l, n);
+	    sumP += expcoef(loffset+moffset, n) * potd[tid](l, n);
+	    sumD += expcoef(loffset+moffset, n) * dpot[tid](l, n);
+	  }
+	  
+	  pot1 += fac1*legs[tid] (l, m) * sumP;
+	  potr += fac1*legs[tid] (l, m) * sumD;
+	  pott += fac1*dlegs[tid](l, m) * sumP;
+	  
+	  moffset++;
+	}
+	else {
+	  double cosm = cos(phi*m);
+	  double sinm = sin(phi*m);
+	  
+	  double sumR0=0.0, sumP0=0.0, sumD0=0.0;
+	  double sumR1=0.0, sumP1=0.0, sumD1=0.0;
+	  for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	    sumP0 += expcoef(loffset+moffset+0, n) * potd[tid](l, n);
+	    sumD0 += expcoef(loffset+moffset+0, n) * dpot[tid](l, n);
+	    sumP1 += expcoef(loffset+moffset+1, n) * potd[tid](l, n);
+	    sumD1 += expcoef(loffset+moffset+1, n) * dpot[tid](l, n);
+	  }
+	  
+	  pot1 += fac1 * legs[tid] (l, m) *  ( sumP0*cosm + sumP1*sinm );
+	  potr += fac1 * legs[tid] (l, m) *  ( sumD0*cosm + sumD1*sinm );
+	  pott += fac1 * dlegs[tid](l, m) *  ( sumP0*cosm + sumP1*sinm );
+	  potp += fac1 * legs[tid] (l, m) *  (-sumP0*sinm + sumP1*cosm ) * m;
+	  
+	  moffset +=2;
+	}
+      }
+    }
+    
+    double potlfac = 1.0/scale;
+
+    potr *= (-potlfac)/scale;
+    pott *= (-potlfac);
+    potp *= (-potlfac);
+
+    double potR = potr*sinth + pott*costh;
+    double potz = potr*costh - pott*sinth;
+  
+    double tpotx = potR*x/R - potp*y/R ;
+    double tpoty = potR*y/R + potp*x/R ;
+
+    // Return force not potential gradient
+    //
+    return {tpotx, tpoty, potz};
+  }
+
 
   std::vector<double>
   Spherical::cyl_eval(double R, double z, double phi)
@@ -631,7 +738,7 @@ namespace BasisClasses
   Spherical::crt_eval
   (double x, double y, double z)
   {
-    double R = sqrt(x*x + y*y);
+    double R = sqrt(x*x + y*y) + 1.0e-18;
     double phi = atan2(y, x);
 
     auto v = cyl_eval(R, z, phi);
@@ -642,7 +749,6 @@ namespace BasisClasses
     return {v[0], v[1], v[2], v[3], v[4], v[5], tpotx, tpoty, v[7]};
   }
   
-
   Spherical::BasisArray SphericalSL::getBasis
   (double logxmin, double logxmax, int numgrid)
   {
@@ -1380,7 +1486,7 @@ namespace BasisClasses
 
     // Orthogonality sanity check
     //
-    orthoTest();
+    if (myid==0) orthoTest();
 
     // Set cylindrical coordindates
     //
@@ -1429,6 +1535,24 @@ namespace BasisClasses
        tpotl0, tpotl - tpotl0, tpotl, tpotx, tpoty, tpotz};
   }
   
+  // Evaluate in cartesian coordinates
+  std::vector<double> Cylindrical::getAccel(double x, double y, double z)
+  {
+    double R = sqrt(x*x + y*y);
+    double phi = atan2(y, x);
+
+    double tdens0, tdens, tpotl0, tpotl, tpotR, tpotz, tpotp;
+
+    sl->accumulated_eval(R, z, phi, tpotl0, tpotl, tpotR, tpotz, tpotp);
+    
+    tdens = sl->accumulated_dens_eval(R, z, phi, tdens0);
+
+    double tpotx = tpotR*x/R - tpotp*y/R ;
+    double tpoty = tpotR*y/R + tpotp*x/R ;
+
+    return {tpotx, tpoty, tpotz};
+  }
+
   // Evaluate in cylindrical coordinates
   std::vector<double> Cylindrical::cyl_eval(double R, double z, double phi)
   {
@@ -1500,6 +1624,10 @@ namespace BasisClasses
 
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
 
+    // Cache the current coefficient structure
+    //
+    coefret = coef;
+
     for (int m=0; m<=mmax; m++) { // Set to zero on m=0 call only--------+
       sl->set_coefs(m, (*cf->coefs).row(m).real(), (*cf->coefs).row(m).imag(), m==0);
     }
@@ -1567,7 +1695,6 @@ namespace BasisClasses
     "nmaxfid",
     "rcylmin",
     "rcylmax",
-    "acyltbl",
     "numx",
     "numy",
     "numr",
@@ -1685,9 +1812,7 @@ namespace BasisClasses
     
     // Set characteristic radius defaults
     //
-    if (not conf["acyltbl"]) conf["acyltbl"] = 0.6;
     if (not conf["scale"])   conf["scale"]   = 1.0;
-
 
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
@@ -1707,7 +1832,7 @@ namespace BasisClasses
     
     // Orthogonality sanity check
     //
-    orthoTest();
+    if (myid==0) orthoTest();
 
     // Get max threads
     //
@@ -1753,9 +1878,12 @@ namespace BasisClasses
     cf->nmax   = nmax;
     cf->time   = time;
 
-    cf->store((2*mmax+1)*nmax);
+    // Allocate the coefficient storage
+    cf->store.resize((mmax+1)*nmax);
+
+    // Make the coefficient map
     cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
-      (cf->store.data(), 2*mmax+1, nmax);
+      (cf->store.data(), mmax+1, nmax);
 
     for (int m=0, m0=0; m<=mmax; m++) {
       for (int n=0; n<nmax; n++) {
@@ -1797,6 +1925,10 @@ namespace BasisClasses
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
     auto & cc = *cf->coefs;
 
+    // Cache the current coefficient structure
+    //
+    coefret = coef;
+
     // Assign internal coefficient table (doubles) from the complex struct
     //
     for (int m=0, m0=0; m<=mmax; m++) {
@@ -1824,15 +1956,15 @@ namespace BasisClasses
   {
     // Normalization factors
     //
-    constexpr double norm0 = 2.0*M_PI * 0.5*M_2_SQRTPI/M_SQRT2;
-    constexpr double norm1 = 2.0*M_PI * 0.5*M_2_SQRTPI;
+    constexpr double norm0 = 1.0;
+    constexpr double norm1 = M_SQRT2;
 
     //======================
     // Compute coefficients 
     //======================
     
     double R2 = x*x + y*y;
-    double R  = sqrt(R);
+    double R  = sqrt(R2);
     
     // Get thread id
     int tid = omp_get_thread_num();
@@ -1892,8 +2024,8 @@ namespace BasisClasses
     int tid = omp_get_thread_num();
 
     // Fixed values
-    constexpr double norm0 = 0.5*M_2_SQRTPI/M_SQRT2;
-    constexpr double norm1 = 0.5*M_2_SQRTPI;
+    constexpr double norm0 = 1.0;
+    constexpr double norm1 = M_SQRT2;
 
     double den0=0, den1=0, pot0=0, pot1=0, rpot=0, zpot=0, ppot=0;
 
@@ -1985,6 +2117,97 @@ namespace BasisClasses
     return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
   }
 
+  std::vector<double> FlatDisk::getAccel(double x, double y, double z)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    // Fixed values
+    constexpr double norm0 = 0.5*M_2_SQRTPI/M_SQRT2;
+    constexpr double norm1 = 0.5*M_2_SQRTPI;
+
+    // Compute polar coordinates
+    double R   = std::sqrt(x*x + y*y);
+    double phi = std::atan2(y, x);
+    
+
+    double rpot=0, zpot=0, ppot=0;
+
+    // Off grid evaluation
+    if (R>ortho->getRtable() or fabs(z)>ortho->getRtable()) {
+      double r2 = R*R + z*z;
+      double r  = sqrt(r2);
+
+      rpot = -totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      zpot = -totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
+      
+      return {rpot, zpot, ppot};
+    }
+
+    // Get the basis fields
+    //
+    ortho->get_pot    (potd[tid],  R, z);
+    ortho->get_rforce (potR[tid],  R, z);
+    ortho->get_zforce (potZ[tid],  R, z);
+    
+    // m loop
+    //
+    for (int m=0, moffset=0; m<=mmax; m++) {
+      
+      if (m==0 and NO_M0)        { moffset++;    continue; }
+      if (m==1 and NO_M1)        { moffset += 2; continue; }
+      if (EVEN_M and m/2*2 != m) { moffset += 2; continue; }
+      if (m>0 and M0_only)       break;
+
+      if (m==0) {
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  rpot += expcoef(0, n) * potR[tid](0, n) * norm0;
+	  zpot += expcoef(0, n) * potZ[tid](0, n) * norm0;
+	}
+	
+	moffset++;
+      } else {
+	double cosm = cos(phi*m), sinm = sin(phi*m);
+	double vc, vs;
+
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * potd[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potd[tid](m, n);
+	}
+	
+	ppot += (-vc*sinm + vs*cosm) * m * norm1;
+
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * potR[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potR[tid](m, n);
+	}
+
+	rpot += (vc*cosm + vs*sinm) * norm1;
+	
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * potZ[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potZ[tid](m, n);
+	}
+
+	zpot += (vc*cosm + vs*sinm) * norm1;
+
+	moffset +=2;
+      }
+    }
+
+    rpot *= -1.0;
+    zpot *= -1.0;
+    ppot *= -1.0;
+
+    double potx = rpot*x/R - ppot*y/R;
+    double poty = rpot*y/R + ppot*x/R;
+
+    return {potx, poty, zpot};
+  }
+
 
   std::vector<double> FlatDisk::sph_eval(double r, double costh, double phi)
   {
@@ -2012,8 +2235,8 @@ namespace BasisClasses
 
     auto v = cyl_eval(R, z, phi);
 
-    double potx = v[4]*x/R - v[8]*y/R;
-    double poty = v[4]*y/R + v[8]*x/R;
+    double potx = v[6]*x/R - v[8]*y/R;
+    double poty = v[6]*y/R + v[8]*x/R;
 
     return {v[0], v[1], v[2], v[3], v[4], v[5], potx, poty, v[7]};
   }
@@ -2157,7 +2380,7 @@ namespace BasisClasses
 
     // Orthogonality sanity check
     //
-    orthoTest();
+    if (myid==0) orthoTest();
 
     // Get max threads
     //
@@ -2456,9 +2679,12 @@ namespace BasisClasses
     cf->nmax   = nmax;
     cf->time   = time;
 
-    cf->store((2*mmax+1)*nmax);
+    // Allocate the coefficient storage
+    cf->store.resize((mmax+1)*nmax);
+
+    // Make the coefficient map
     cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
-      (cf->store.data(), 2*mmax+1, nmax);
+      (cf->store.data(), mmax+1, nmax);
 
     for (int m=0, m0=0; m<=mmax; m++) {
       for (int n=0; n<nmax; n++) {
@@ -2500,6 +2726,9 @@ namespace BasisClasses
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
     auto & cc = *cf->coefs;
 
+    // Cache the current coefficient structure
+    coefret = coef;
+
     // Assign internal coefficient table (doubles) from the complex struct
     //
     for (int m=0, m0=0; m<=mmax; m++) {
@@ -2535,7 +2764,7 @@ namespace BasisClasses
     //======================
     
     double R2 = x*x + y*y;
-    double R  = sqrt(R);
+    double R  = sqrt(R2);
     
     // Get thread id
     int tid = omp_get_thread_num();
@@ -2585,7 +2814,7 @@ namespace BasisClasses
     }
   }
   
-  std::vector<double>CBDisk::cyl_eval(double R, double z, double phi)
+  std::vector<double> CBDisk::cyl_eval(double R, double z, double phi)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -2663,6 +2892,75 @@ namespace BasisClasses
   }
 
 
+  std::vector<double> CBDisk::getAccel(double x, double y, double z)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    // Fixed values
+    constexpr double norm0 = 1.0;
+    constexpr double norm1 = M_SQRT2;
+
+    double R   = std::sqrt(x*x + y*y);
+    double phi = std::atan2(y, x);
+
+    double rpot=0, zpot=0, ppot=0;
+
+    // Get the basis fields
+    //
+    get_pot   (potd[tid], R);
+    get_force (potR[tid], R);
+    
+    // m loop
+    //
+    for (int m=0, moffset=0; m<=mmax; m++) {
+      
+      if (m==0 and NO_M0)        { moffset++;    continue; }
+      if (m==1 and NO_M1)        { moffset += 2; continue; }
+      if (EVEN_M and m/2*2 != m) { moffset += 2; continue; }
+      if (m>0 and M0_only)       break;
+
+      if (m==0) {
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  rpot += expcoef(0, n) * potR[tid](0, n) * norm0;
+	}
+	
+	moffset++;
+      } else {
+	double cosm = cos(phi*m), sinm = sin(phi*m);
+	double vc, vs;
+
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * potd[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potd[tid](m, n);
+	}
+	
+	ppot += (-vc*sinm + vs*cosm) * m * norm1;
+
+	vc = vs = 0.0;
+	for (int n=std::max<int>(0, N1); n<=std::min<int>(nmax-1, N2); n++) {
+	  vc += expcoef(moffset+0, n) * potR[tid](m, n);
+	  vs += expcoef(moffset+1, n) * potR[tid](m, n);
+	}
+
+	rpot += (vc*cosm + vs*sinm) * norm1;
+	
+	moffset +=2;
+      }
+    }
+
+    rpot *= -1.0;
+    ppot *= -1.0;
+
+
+    double potx = rpot*x/R - ppot*y/R;
+    double poty = rpot*y/R + ppot*x/R;
+
+    return {potx, poty, zpot};
+  }
+
+
   std::vector<double> CBDisk::sph_eval(double r, double costh, double phi)
   {
     // Cylindrical coords
@@ -2689,8 +2987,8 @@ namespace BasisClasses
 
     auto v = cyl_eval(R, z, phi);
 
-    double potx = v[4]*x/R - v[8]*y/R;
-    double poty = v[4]*y/R + v[8]*x/R;
+    double potx = v[6]*x/R - v[8]*y/R;
+    double poty = v[6]*y/R + v[8]*x/R;
 
     return {v[0], v[1], v[2], v[3], v[4], v[5], potx, poty, v[7]};
   }
@@ -2828,7 +3126,7 @@ namespace BasisClasses
 
     // Orthogonality sanity check
     //
-    if (check) orthoTest();
+    if (check and myid==0) orthoTest();
 
     // Get max threads
     //
@@ -2899,6 +3197,10 @@ namespace BasisClasses
     
     auto cf = dynamic_cast<CoefClasses::SlabStruct*>(coef.get());
     expcoef = *cf->coefs;
+
+    // Cache the current coefficient structure
+    //
+    coefret = coef;
 
     coefctr = {0.0, 0.0, 0.0};
   }
@@ -3061,6 +3363,83 @@ namespace BasisClasses
     return {potl.real(), dens.real(), accx.real(), accy.real(), accz.real()};
   }
 
+
+  std::vector<double>
+  Slab::getAccel(double x, double y, double z)
+  {
+    // Loop indices
+    //
+    int ix, iy, iz;
+
+    // Working values
+    //
+    std::complex<double> facx, facy, fac, facf;
+
+    // Return values
+    //
+    std::complex<double> accx(0.0), accy(0.0), accz(0.0);
+    
+    // Recursion multipliers
+    //
+    std::complex<double> stepx = exp(kfac*x);
+    std::complex<double> stepy = exp(kfac*y);
+
+    // Initial values (note sign change)
+    //
+    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x);
+    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y);
+    
+    Eigen::VectorXd vpot(nmaxz), vfrc(nmaxz);
+
+    for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
+      
+      // Compute wavenumber; recall that the coefficients are stored
+      // as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+      //
+      int ii = ix - nmaxx;
+      int iix = abs(ii);
+      
+      for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
+	
+	int jj = iy - nmaxy;
+	int iiy = abs(jj);
+	
+	if (iix > nmaxx) {
+	  std::cerr << "Out of bounds: ii=" << ii << std::endl;
+	}
+	if (iiy > nmaxy) {
+	  std::cerr << "Out of bounds: jj=" << jj << std::endl;
+	}
+	
+	if (iix>=iiy) {
+	  ortho->get_pot  (vpot, z, iix, iiy);
+	  ortho->get_force(vfrc, z, iix, iiy);
+	}
+	else {
+	  ortho->get_pot  (vpot, z, iiy, iix);
+	  ortho->get_force(vfrc, z, iiy, iix);
+	}
+
+	
+	for (int iz=0; iz<imz; iz++) {
+	  
+	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz);
+	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz);
+	  
+	  // Limit to minimum wave number
+	  //
+	  if (abs(ii)<nminx || abs(jj)<nminy) continue;
+	  
+	  accx += -kfac*static_cast<double>(ii)*fac;
+	  accy += -kfac*static_cast<double>(jj)*fac;
+	  accz += -facf;
+	  
+	}
+      }
+    }
+
+    return {accx.real(), accy.real(), accz.real()};
+  }
 
 
   std::vector<double> Slab::crt_eval(double x, double y, double z)
@@ -3266,7 +3645,7 @@ namespace BasisClasses
     
     // Orthogonality sanity check
     //
-    if (check) orthoTest();
+    if (check and myid==0) orthoTest();
 
     // Get max threads
     //
@@ -3331,6 +3710,10 @@ namespace BasisClasses
     
     auto cf = dynamic_cast<CoefClasses::CubeStruct*>(coef.get());
     expcoef = *cf->coefs;
+
+    // Cache the cuurent coefficient structure
+    //
+    coefret = coef;
 
     coefctr = {0.0, 0.0, 0.0};
   }
@@ -3418,6 +3801,20 @@ namespace BasisClasses
     double frcz = -frc(2).real();
 
     return {0, den1, den1, 0, pot1, pot1, frcx, frcy, frcz};
+  }
+
+  std::vector<double> Cube::getAccel(double x, double y, double z)
+  {
+    // Get thread id
+    int tid = omp_get_thread_num();
+
+    // Position vector
+    Eigen::Vector3d pos {x, y, z};
+
+    // Get the basis fields
+    auto frc = ortho->get_force(expcoef, pos);
+    
+    return {-frc(0).real(), -frc(1).real(), -frc(2).real()};
   }
 
   std::vector<double> Cube::cyl_eval(double R, double z, double phi)
@@ -3714,6 +4111,7 @@ namespace BasisClasses
     // Get expansion center
     //
     auto ctr = basis->getCenter();
+    if (basis->usingNonInertial()) ctr = {0, 0, 0};
 
     // Get fields
     //
@@ -3722,8 +4120,32 @@ namespace BasisClasses
       auto v = basis->getFields(ps(n, 0) - ctr[0],
 				ps(n, 1) - ctr[1],
 				ps(n, 2) - ctr[2]);
-      // First 6 fields are density and potential, follewed by acceleration
+      // First 6 fields are density and potential, followed by acceleration
       for (int k=0; k<3; k++) accel(n, k) += v[6+k] - basis->pseudo(k);
+    }
+
+    // true for deep debugging
+    //  |
+    //  v
+    if (false and basis->usingNonInertial()) {
+
+      auto coefs = basis->getCoefficients();
+      auto time  = coefs->time;
+      auto ctr   = coefs->ctr;
+
+      std::ofstream tmp;
+      if (time <= 0.0) tmp.open("pseudo.dat");
+      else             tmp.open("pseudo.dat", ios::app);
+
+      if (tmp)
+	tmp << std::setw(16) << std::setprecision(5) << time
+	    << std::setw(16) << std::setprecision(5) << ctr[0]
+	    << std::setw(16) << std::setprecision(5) << ctr[1]
+	    << std::setw(16) << std::setprecision(5) << ctr[2]
+	    << std::setw(16) << std::setprecision(5) << basis->pseudo(0)
+	    << std::setw(16) << std::setprecision(5) << basis->pseudo(1)
+	    << std::setw(16) << std::setprecision(5) << basis->pseudo(2)
+	    << std::endl;
     }
 
     return accel;
@@ -3752,13 +4174,12 @@ namespace BasisClasses
       throw std::runtime_error(sout.str());
     }
     
-    auto it1 = std::lower_bound(times.begin(), times.end(), t);
-    auto it2 = it1 + 1;
+    auto it2 = std::lower_bound(times.begin(), times.end(), t);
+    auto it1 = it2;
 
-    if (it2 == times.end()) {
-      it2--;
-      it1 = it2 - 1;
-    }
+    if (it2 == times.end()) throw std::runtime_error("Basis::AllTimeAccel::evalcoefs: time t=" + std::to_string(t) + " out of bounds");
+    else if (it2 == times.begin()) it2++;
+    else it1--;
 
     double a = (*it2 - t)/(*it2 - *it1);
     double b = (t - *it1)/(*it2 - *it1);
@@ -3816,13 +4237,13 @@ namespace BasisClasses
 	throw std::runtime_error(sout.str());
       }
       
-      auto it1 = std::lower_bound(times.begin(), times.end(), t);
-      auto it2 = it1 + 1;
-      
-      if (it2 == times.end()) {
-	it2--;
-	it1 = it2 - 1;
-      }
+      auto it2 = std::lower_bound(times.begin(), times.end(), t);
+      auto it1 = it2;
+
+      if (it2 == times.end())
+	throw std::runtime_error("Basis::SingleTimeAccel::evalcoefs: time t=" + std::to_string(t) + " out of bounds");
+      else if (it2 == times.begin()) it2++;
+      else it1--;
       
       double a = (*it2 - t)/(*it2 - *it1);
       double b = (t - *it1)/(*it2 - *it1);
@@ -3869,25 +4290,93 @@ namespace BasisClasses
   {
     int rows = ps.rows();
 
-    // Drift 1/2
-    for (int n=0; n<rows; n++) {
-      for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
-    }
+    // Leap frog (set to false for RK4 test)
+    //
+    if (true) {
 
-    // Kick
-    accel.setZero();
-    for (auto mod : bfe) {
-      accel = F(t, ps, accel, mod);
-    }
-    for (int n=0; n<rows; n++) {
-      for (int k=0; k<3; k++) ps(n, 3+k) += accel(n, k)*h;
-    }
-    
-    // Drift 1/2
-    for (int n=0; n<rows; n++) {
-      for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
-    }
+      // Drift 1/2
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
+      }
 
+      // Kick
+      accel.setZero();
+      for (auto mod : bfe) F(t, ps, accel, mod);
+
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) ps(n, 3+k) += accel(n, k)*h;
+      }
+      
+      // Drift 1/2
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) ps(n, k) += ps(n, 3+k)*0.5*h;
+      }
+    }
+    // RK4
+    else {
+      // Make and clear variables
+      std::vector<Eigen::MatrixXd> kf(4);
+      for (int i=0; i<4; i++) kf[i].resize(rows, 6);
+
+      // Step 1
+      //
+      accel.setZero();
+      for (auto mod : bfe) F(t, ps, accel, mod); 
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) {
+	  kf[0](n, 0+k) = ps(n, 3+k);
+	  kf[0](n, 3+k) = accel(n, k);
+	}
+      }
+
+      // Step 2
+      //
+      Eigen::MatrixXd ps1 = ps + kf[0]*0.5*h; // state vector update
+
+      accel.setZero();
+      for (auto mod : bfe) F(t+0.5*h, ps1, accel, mod); 
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) {
+	  kf[1](n, 0+k) = ps1(n, 3+k);
+	  kf[1](n, 3+k) = accel(n, k);
+	}
+      }
+
+      // Step 3
+      //
+      ps1 = ps + kf[1]*0.5*h;	// state vector update
+
+      accel.setZero();
+      for (auto mod : bfe) F(t+0.5*h, ps1, accel, mod); 
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) {
+	  kf[2](n, 0+k) = ps1(n, 3+k);
+	  kf[2](n, 3+k) = accel(n, k);
+	}
+      }
+
+      // Step 4
+      ps1 = ps + kf[2]*h;	// state vector update
+
+      accel.setZero();
+      for (auto mod : bfe) F(t+h, ps1, accel, mod); 
+      for (int n=0; n<rows; n++) {
+	for (int k=0; k<3; k++) {
+	  kf[3](n, 0+k) = ps1(n, 3+k);
+	  kf[3](n, 3+k) = accel(n, k);
+	}
+      }
+
+      // The final lhs
+      //
+      Eigen::MatrixXd acc = (kf[0] + 2.0*kf[1] + 2.0*kf[2] + kf[3])/6.0;
+
+      for (int n=0; n<rows; n++) { // Copy back acceleration for this step
+	for (int k=0; k<3; k++) accel(n, k) = acc(n, 3+k);
+      }
+
+      ps += acc*h;
+    }
 
     return std::tuple<double, Eigen::MatrixXd>(t+h, ps);
   }

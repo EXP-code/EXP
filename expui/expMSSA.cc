@@ -1522,8 +1522,8 @@ namespace MSSA {
 	HighFive::Group recon = file.createGroup("reconstruction");
 
 	recon.createAttribute<int>   ("ncomp",  HighFive::DataSpace::From(ncomp) ).write(ncomp);
-	recon.createAttribute<double>("totVar", HighFive::DataSpace::From(totVar)).write(totVar);
-	recon.createAttribute<double>("totPow", HighFive::DataSpace::From(totVar)).write(totPow);
+	recon.createAttribute<bool>("totVar", HighFive::DataSpace::From(totVar)).write(totVar);
+	recon.createAttribute<bool>("totPow", HighFive::DataSpace::From(totPow)).write(totPow);
 
 	for (int n=0; n<keylist.size(); n++) {
 	  std::ostringstream scnt;
@@ -1961,13 +1961,22 @@ namespace MSSA {
     // Detrending style (totVar and totPow are only useful, so far, for
     // noise computation)
     //
-    if (params["totVar"])
-      type = TrendType::totVar;
-    else if (params["totPow"])
-      type = TrendType::totPow;
-    else
-      type = TrendType::perChannel;
+    if (params["totVar"]) totVar = params["totVar"].as<bool>();
+    if (params["totPow"]) totPow = params["totPow"].as<bool>();
 
+    if (totPow==true) {
+      if (totVar==true) {
+        std::cerr << "expMSSA: both totVar and totPow are set to true."
+                  << "Using totPow." << std::endl;
+        totVar = false;
+      }
+      type = TrendType::totPow;
+    } else if (totVar==true) {
+      type = TrendType::totVar;
+    } else {
+      // if nothing set go default
+      type = TrendType::perChannel;
+    }
 
     // Set the SVD strategy for mSSA
     //

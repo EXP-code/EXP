@@ -30,7 +30,9 @@ UserBar::UserBar(const YAML::Node &conf) : ExternalForce(conf)
   ctr_name = "";		// Default component for com
   angm_name = "";		// Default component for angular momentum
   
-  initialize();
+  initialize();			// Assign parameters
+
+  cuda_aware = true;		// Cuda routine is implemented
 
   if (ctr_name.size()>0) {
 				// Look for the fiducial component
@@ -175,10 +177,6 @@ void UserBar::determine_acceleration_and_potential(void)
 				// Write to bar state file, if true
   bool update = false;
 
-#if HAVE_LIBCUDA==1		// Cuda compatibility
-  getParticlesCuda(cC);
-#endif
-
   if (c1) {
     c1->get_angmom();	// Tell component to compute angular momentum
     // cout << "Lz=" << c1->angmom[2] << endl; // debug
@@ -289,7 +287,6 @@ void UserBar::determine_acceleration_and_potential(void)
 	    << endl;
       }
     }
-
     Iz = 0.2*mass*(a1*a1 + a2*a2);
     Lz = Iz * omega;
 
@@ -390,7 +387,16 @@ void UserBar::determine_acceleration_and_potential(void)
     }
   }
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  if (use_cuda) {
+    determine_acceleration_and_potential_cuda();
+  } else {
+    getParticlesCuda(cC);	// Cuda override
+    exp_thread_fork(false);
+  }
+#else
   exp_thread_fork(false);
+#endif
 
   if (myid==0 && update) 
     {

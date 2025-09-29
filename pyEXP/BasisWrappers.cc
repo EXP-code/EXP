@@ -199,6 +199,18 @@ void BasisFactoryClasses(py::module &m)
     a fixed potential model.  AccelFunc can be inherited by a native Python
     class and the evalcoefs() may be implemented in Python and passed to
     IntegrateOrbits in the same way as a native C++ class.
+
+    Non-inertial frames of reference
+    --------------------------------
+    Each component of a multiple component simulation may have its own expansion
+    center. Orbit integration in the frame of reference of the expansion is
+    accomplished by defining a moving frame of reference using the setNonInertial()
+    call with either an array of n times and center positions (as an nx3 array)
+    or by initializing with an EXP orient file.
+
+    We provide a member function, setNonInertialAccel(t), to estimate the frame
+    acceleration at a given time.  This may be useful for user-defined acceleration
+    routines.  This is automatically called default C++ evalcoefs() routine.
     )";
 
   using namespace BasisClasses;
@@ -414,6 +426,12 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(void, BiorthBasis, set_coefs, coefs);
     }
 
+    std::vector<double> getAccel(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE_PURE(std::vector<double>, BiorthBasis,
+			     getAccel, x, y, z);
+    }
+
   };
 
   class PySpherical : public Spherical
@@ -456,6 +474,10 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<double> getFields(double x, double y, double z) override {
       PYBIND11_OVERRIDE(std::vector<double>, Spherical, getFields, x, y, z);
+    }
+
+    std::vector<double> getAccel(double x, double y, double z) override {
+      PYBIND11_OVERRIDE(std::vector<double>, Spherical, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
@@ -504,6 +526,10 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<double> getFields(double x, double y, double z) override {
       PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getFields, x, y, z);
+    }
+
+    std::vector<double> getAccel(double x, double y, double z) override {
+      PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
@@ -566,6 +592,11 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getFields, x, y, z);
+    }
+
+    std::vector<double> getAccel(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -631,6 +662,11 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, CBDisk, getFields, x, y, z);
+    }
+
+    std::vector<double> getAccel(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, CBDisk, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -701,6 +737,11 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, Slab, getFields, x, y, z);
     }
 
+    std::vector<double> getAccel(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Slab, getAccel, x, y, z);
+    }
+
     void accumulate(double x, double y, double z, double mass) override
     {
       PYBIND11_OVERRIDE(void, Slab, accumulate, x, y, z, mass);
@@ -767,6 +808,11 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, Cube, getFields, x, y, z);
+    }
+
+    std::vector<double> getAccel(double x, double y, double z) override
+    {
+      PYBIND11_OVERRIDE(std::vector<double>, Cube, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -945,9 +991,104 @@ void BasisFactoryClasses(py::module &m)
          -------
          list: str
            list of basis function labels
-      )"
-    );
+         )"
+	 )
+    .def("setInertial", &BasisClasses::Basis::setInertial,
+	 R"(
+         Reset to inertial coordinates
 
+         Parameters
+         ----------
+         None
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         setNonInertial : set non-inertial data
+         setNonInertialAccel : set the non-inertial acceleration
+         )"
+	 )
+    .def("setNonInertial",
+	 [](BasisClasses::Basis& A,
+	    int N, const Eigen::VectorXd& times, const Eigen::MatrixXd& pos) {
+	   A.setNonInertial(N, times, pos);
+	 },
+	 R"(
+         Initialize for pseudo-force computation with a time series of positions
+         using (1) a time vector and (2) a center position matrix with rows of three
+         vectors
+
+         Parameters
+         ----------
+         N : int
+           number of previous positions to use for quadratic fit
+         times : list or numpy.ndarray
+           list of time points
+         pos : numpy.ndarray
+           an array with N rows and 3 columns of center positions
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         setNonInertial : set non-inertial data from an Orient file
+         setNonInertialAccel : set the non-inertial acceration
+         )",
+	 py::arg("N"), py::arg("times"), py::arg("pos")
+         )
+    .def("setNonInertial",
+	 [](BasisClasses::Basis& A, int N, const std::string orient)
+	 {
+	   A.setNonInertial(N, orient);
+	 },
+	 R"(
+         Initialize for pseudo-force computation with a time series of positions
+         using a EXP orient file
+
+         Parameters
+         ----------
+         N : int
+           number of previous positions to use for quadratic fit
+         orient : str
+           name of the orient file
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         setNonInertial : set non-inertial data from a time series of values
+         setNonInertialAccel : set the non-inertial acceration
+         )",
+	 py::arg("N"), py::arg("orient")
+         )
+    .def("setNonInertialAccel", &BasisClasses::Basis::setNonInertialAccel,
+	 R"(
+         Set the pseudo acceleration for the non-inertial data at a given time
+
+         Parameters
+         ----------
+         time : float
+           evaluation time
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         setNonInertial : set non-inertial data from a time series of values
+         setNonInertial : set non-inertial data from an EXP orient file
+         )",
+	 py::arg("time")
+         );
+    
   py::class_<BasisClasses::BiorthBasis, std::shared_ptr<BasisClasses::BiorthBasis>, PyBiorthBasis, BasisClasses::Basis>
     (m, "BiorthBasis")
     .def(py::init<const std::string&>(),
@@ -1110,7 +1251,31 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          getFieldsCoefs : get fields for each coefficient set
-         __call__       : same getFields() but provides field labels in a tuple
+         __call__       : same as getFields() but provides field labels in a tuple
+         )",
+	 py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("getAccel", &BasisClasses::BiorthBasis::getAccel,
+	 R"(
+         Return the acceleration for a given cartesian position
+
+         Parameters
+         ----------
+         x : float
+             x-axis position
+         y : float
+             y-axis position
+         z : float
+             z-axis position
+
+         Returns
+         -------
+         fields: numpy.ndarray
+
+         See also
+         --------
+         getFields      : returns density, potential and acceleration
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same as getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
     .def("getFieldsCoefs", &BasisClasses::BiorthBasis::getFieldsCoefs,

@@ -27,14 +27,17 @@
  *
  ***************************************************************************/
 
-#include <cmath>
 #include <cstdlib>
+#include <cmath>
 
+#include <filesystem>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <vector>
+
+#include <H5Cpp.h>
 
 #include <ParticleReader.H>
 #include <MakeModel.H>
@@ -75,7 +78,7 @@ main(int argc, char **argv)
 
   options.add_options()
     ("h,help", "This help message")
-    ("F,filetype", "input file type (one of: PSPout, PSPspl, GadgetNative, GadgetHDF5)",
+    ("F,filetype", "input file type (one of: PSPout, PSPspl, GadgetNative, GadgetHDF5, PSPhdf5)",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("RMIN", "Minimum model radius",
      cxxopts::value<double>(RMIN)->default_value("0.0"))
@@ -138,23 +141,52 @@ main(int argc, char **argv)
   // Per file weight
   //
   double weight = 1.0/INFILE.size();
+  int nfiles = INFILE.size();
+  
+  std::string path;
+
+  if (fileType=="PSPhdf5") {
+    path = CURDIR + INFILE[0];
+    std::filesystem::path dir_path = path;
+    if (std::filesystem::is_directory(dir_path)) {
+      INFILE.clear();
+      try {
+        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
+	  if (std::filesystem::is_regular_file(entry)) {
+	    std::string file = entry.path().string();
+	    if (H5::H5File::isHdf5(file)) INFILE.push_back(file);
+	  }
+        }
+      } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "pspmono error: " << e.what() << std::endl;
+      }
+    }
+
+    nfiles = 1;
+  }
 
   // Loop through files
   // 
-  for (size_t n=0; n<INFILE.size(); n++) {
+  for (size_t n=0; n<nfiles; n++) {
 
     PR::PRptr psp;
     double time;
 
     try {
-      psp = PR::ParticleReader::createReader(fileType, {INFILE[n]}, myid, true);
+      if (fileType=="PSPhdf5")
+	psp = PR::ParticleReader::createReader(fileType, INFILE, myid, true);
+      else
+	psp = PR::ParticleReader::createReader(fileType, {INFILE[n]}, myid, true);
 
       psp->SelectType(COMP);
 
       time = psp->CurrentTime();
 
       if (myid==0) {
-	std::cout << "File: " << INFILE[n] << std::endl;
+	if (fileType=="PSPhdf5")
+	  std::cout << "Path: " << path << std::endl;
+	else
+	  std::cout << "File: " << INFILE[n] << std::endl;
 	std::cout << "Found dump at time: " << time << std::endl;
       }
     }

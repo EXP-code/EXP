@@ -232,6 +232,12 @@ protected:
   //! Flag self_consitency
   bool self_consistent;
 
+  //! Freeze monopole
+  bool FIX_L0;
+
+  //! Frozen monopole coefficients
+  Eigen::VectorXd C0;
+
   //! Flag fixed monopole
   bool NO_L0;
 

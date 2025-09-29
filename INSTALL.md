@@ -1,3 +1,7 @@
+See the installation guide in the documentation for the most up-to-date instructions on
+how to install EXP:
+https://exp-docs.readthedocs.io/en/latest/intro/install.html
+
 # Configuring and building EXP
 
 EXP uses CMake for building a configuration.
