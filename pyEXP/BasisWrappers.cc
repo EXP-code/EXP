@@ -2262,7 +2262,7 @@ void BasisFactoryClasses(py::module &m)
 	 [](BasisClasses::FieldBasis& A,
 	    Eigen::VectorXd& mass, RowMatrixXd& pos)
 	 {
-	   return A.addFromArray(mass, pos);
+	   A.addFromArray(mass, pos);
 	 },
 	 R"(
          Add particle contributions to coefficients
