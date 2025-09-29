@@ -13,47 +13,59 @@ typedef std::shared_ptr<BiorthCyl> CylPtr;
 #include <cudaUtil.cuH>
 #endif
 
-/** Computes the potential, acceleration and density using an empirical
-    function analysis for a flat Bessel basis and a target density
+/** @class FlatDisk
 
-    Parameters
+    @brief Computes the potential, acceleration and density using an
+    empirical function analysis for a flat Bessel basis and a target
+    density
 
-    \param rcylmin is the minimum value in the table for the 
+    @details **YAML configuration**
+
+    @param rcylmin is the minimum value in the table for the 
     radial basis functions (default is 0.0)
 
-    \param rcylmax is the maximum value in the table for the 
+    @param rcylmax is the maximum value in the table for the 
     radial basis functions in acyltbl units (default is 10.0)
 
-    \param scale is the expansion factor to get the physical scale from
+    @param scale is the expansion factor to get the physical scale from
     the internal scale (default is 0.01)
 
-    \param mmax is the maximum azimuthal order
+    @param mmax is the maximum azimuthal order
 
-    \param numx is the number of grid points in the scaled radial direction
+    @param numx is the number of grid points in the scaled radial direction
 
-    \param numy is the number of grid points in the scaled vertical direction
+    @param numy is the number of grid points in the scaled vertical direction
 
-    \param knots is the number of quadrature points for EmpCyl2d
+    @param knots is the number of quadrature points for EmpCyl2d
 
-    \param logr scales the EmpCyl2d grid logarithmically
+    @param logr scales the EmpCyl2d grid logarithmically
 
-    \param model name for conditioning the new basis using EmpCyl2d (default: expon)
+    @param model name for conditioning the new basis using EmpCyl2d
+    (default: expon)
 
-    \param biorth is the biorthogonal basis set used by EmpCyl2d for conditioning (default: bess)
+    @param biorth is the biorthogonal basis set used by EmpCyl2d for
+    conditioning (default: bess)
 
-    \param background sets a fixed monopole potential and force for the model.  Used for stability analysis of disks with active and inactive tapers, following Zang
+    @param background sets a fixed monopole potential and force for
+    the model.  Used for stability analysis of disks with active and
+    inactive tapers, following Zang
 
-    \param nmaxfid is the maximum radial order for the basis used by EmpCyl2d for conditioning
+    @param nmaxfid is the maximum radial order for the basis used by
+    EmpCyl2d for conditioning
 
-    \param numr is the number of grid points in the radial direction for the numerical basis in EmpCyl2d
+    @param numr is the number of grid points in the radial direction
+    for the numerical basis in EmpCyl2d
 
-    \param NQDHT is the number of grid points for the numerical Hankel transform
+    @param NQDHT is the number of grid points for the numerical Hankel transform
 
-    \param diskconf is a YAML configuration for the target disk model in EmpCyl2d
+    @param diskconf is a YAML configuration for the target disk model
+    in EmpCyl2d
 
-    \param cachename is the name of the cache file for the newly constructed basis
+    @param cachename is the name of the cache file for the newly
+    constructed basis
 
-    \param dumpbasis provides the user with a ascii table of the basis potential-density pairs
+    @param dumpbasis provides the user with a ascii table of the basis
+    potential-density pairs
 */
 class FlatDisk : public PolarBasis 
 {
