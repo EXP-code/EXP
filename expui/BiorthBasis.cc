@@ -93,6 +93,87 @@ namespace BasisClasses
     return labels;
   }
 
+  std::shared_ptr<BiorthBasis> BiorthBasis::factory_string(const std::string& conf)
+  {
+    YAML::Node node;
+    
+    try {
+      // Read the YAML from a string
+      //
+      node = YAML::Load(conf);
+    }
+    catch (const std::runtime_error& error) {
+      std::cout << "BiorthBasis::factory constructor: found a problem in the YAML config"
+		<< std::endl;
+      throw;
+    }
+
+    // Complete the initialization
+    //
+    return factory_initialize(node);
+  }
+
+  std::shared_ptr<BiorthBasis> BiorthBasis::factory(const YAML::Node& conf)
+  {
+    return factory_initialize(conf);
+  }
+
+  std::shared_ptr<BiorthBasis> BiorthBasis::factory_initialize(const YAML::Node& conf)
+  {
+    std::shared_ptr<BiorthBasis> basis;
+    std::string name;
+    
+    // Load parameters from YAML configuration node
+    try {
+      name = conf["id"].as<std::string>();
+    } 
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing force id in BiorthBasis::factory"
+			     << std::string(60, '-') << std::endl
+			     << conf                 << std::endl
+			     << std::string(60, '-') << std::endl;
+      
+      throw std::runtime_error("BiorthBasis::factory: error parsing YAML");
+    }
+    
+    try {
+      if ( !name.compare("sphereSL") ) {
+	basis = std::make_shared<SphericalSL>(conf);
+      }
+      else if ( !name.compare("bessel") ) {
+	basis = std::make_shared<Bessel>(conf);
+      }
+      else if ( !name.compare("cylinder") ) {
+	basis = std::make_shared<Cylindrical>(conf);
+      }
+      else if ( !name.compare("flatdisk") ) {
+	basis = std::make_shared<FlatDisk>(conf);
+      }
+      else if ( !name.compare("CBDisk") ) {
+	basis = std::make_shared<CBDisk>(conf);
+      }
+      else if ( !name.compare("slabSL") ) {
+	basis = std::make_shared<Slab>(conf);
+      }
+      else if ( !name.compare("cube") ) {
+	basis = std::make_shared<Cube>(conf);
+      }
+      else {
+	std::string msg("I don't know about the basis named: ");
+	msg += name;
+	msg += ". Known types are currently 'sphereSL', 'bessel', 'cylinder', 'flatdisk', 'CBDisk', 'slabSL', and 'cube'";
+	throw std::runtime_error(msg);
+      }
+    }
+    catch (std::exception& e) {
+      std::cout << "Error in BiorthBasis::factory constructor: " << e.what() << std::endl;
+      throw;			// Rethrow the exception?
+    }
+    
+    return basis;
+  }
+
+
   Spherical::Spherical(const YAML::Node& CONF, const std::string& forceID) :
     BiorthBasis(CONF, forceID)
   {
@@ -611,8 +692,8 @@ namespace BasisClasses
     // Return force not potential gradient
   }
 
-  std::vector<double>
-  Spherical::getAccel(double x, double y, double z)
+  void Spherical::computeAccel(double x, double y, double z,
+			       Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get polar coordinates
     double R     = sqrt(x*x + y*y);
@@ -714,7 +795,7 @@ namespace BasisClasses
 
     // Return force not potential gradient
     //
-    return {tpotx, tpoty, potz};
+    acc << tpotx, tpoty, potz;
   }
 
 
@@ -1518,7 +1599,8 @@ namespace BasisClasses
   }
   
   // Evaluate in cartesian coordinates
-  std::vector<double> Cylindrical::getAccel(double x, double y, double z)
+  void Cylindrical::computeAccel(double x, double y, double z,
+				 Eigen::Ref<Eigen::Vector3d> acc)
   {
     double R = sqrt(x*x + y*y);
     double phi = atan2(y, x);
@@ -1532,7 +1614,7 @@ namespace BasisClasses
     double tpotx = tpotR*x/R - tpotp*y/R ;
     double tpoty = tpotR*y/R + tpotp*x/R ;
 
-    return {tpotx, tpoty, tpotz};
+    acc << tpotx, tpoty, tpotz;
   }
 
   // Evaluate in cylindrical coordinates
@@ -2099,7 +2181,8 @@ namespace BasisClasses
     return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
   }
 
-  std::vector<double> FlatDisk::getAccel(double x, double y, double z)
+  void FlatDisk::computeAccel(double x, double y, double z, 
+			      Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -2123,7 +2206,7 @@ namespace BasisClasses
       rpot = -totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
       zpot = -totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
       
-      return {rpot, zpot, ppot};
+      acc << rpot, zpot, ppot;
     }
 
     // Get the basis fields
@@ -2187,7 +2270,7 @@ namespace BasisClasses
     double potx = rpot*x/R - ppot*y/R;
     double poty = rpot*y/R + ppot*x/R;
 
-    return {potx, poty, zpot};
+    acc << potx, poty, zpot;
   }
 
 
@@ -2874,7 +2957,8 @@ namespace BasisClasses
   }
 
 
-  std::vector<double> CBDisk::getAccel(double x, double y, double z)
+  void CBDisk::computeAccel(double x, double y, double z,
+			    Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -2939,7 +3023,7 @@ namespace BasisClasses
     double potx = rpot*x/R - ppot*y/R;
     double poty = rpot*y/R + ppot*x/R;
 
-    return {potx, poty, zpot};
+    acc << potx, poty, zpot;
   }
 
 
@@ -3346,8 +3430,8 @@ namespace BasisClasses
   }
 
 
-  std::vector<double>
-  Slab::getAccel(double x, double y, double z)
+  void Slab::computeAccel(double x, double y, double z,
+			  Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Loop indices
     //
@@ -3420,7 +3504,7 @@ namespace BasisClasses
       }
     }
 
-    return {accx.real(), accy.real(), accz.real()};
+    acc << accx.real(), accy.real(), accz.real();
   }
 
 
@@ -3785,7 +3869,8 @@ namespace BasisClasses
     return {0, den1, den1, 0, pot1, pot1, frcx, frcy, frcz};
   }
 
-  std::vector<double> Cube::getAccel(double x, double y, double z)
+  void Cube::computeAccel(double x, double y, double z,
+			  Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -3796,7 +3881,7 @@ namespace BasisClasses
     // Get the basis fields
     auto frc = ortho->get_force(expcoef, pos);
     
-    return {-frc(0).real(), -frc(1).real(), -frc(2).real()};
+    acc << -frc(0).real(), -frc(1).real(), -frc(2).real();
   }
 
   std::vector<double> Cube::cyl_eval(double R, double z, double phi)

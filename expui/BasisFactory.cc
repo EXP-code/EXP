@@ -137,7 +137,7 @@ namespace BasisClasses
       node = YAML::Load(conf);
     }
     catch (const std::runtime_error& error) {
-      std::cout << "Basis constructor: found a problem in the YAML config"
+      std::cout << "Basis::factory constructor: found a problem in the YAML config"
 		<< std::endl;
       throw;
     }
@@ -163,12 +163,12 @@ namespace BasisClasses
       name = conf["id"].as<std::string>();
     } 
     catch (YAML::Exception & error) {
-      if (myid==0) std::cout << "Error parsing force id in BasisFactory"
+      if (myid==0) std::cout << "Error parsing force id in Basis::factory"
 			     << std::string(60, '-') << std::endl
 			     << conf                 << std::endl
 			     << std::string(60, '-') << std::endl;
       
-      throw std::runtime_error("BasisFactory: error parsing YAML");
+      throw std::runtime_error("Basis::factory: error parsing YAML");
     }
     
     try {
@@ -202,12 +202,12 @@ namespace BasisClasses
       else {
 	std::string msg("I don't know about the basis named: ");
 	msg += name;
-	msg += ". Known types are currently 'sphereSL', 'cylinder', 'flatdisk', 'slabSL', 'field', and 'velocity'";
+	msg += ". Known types are currently 'sphereSL', 'cylinder', 'flatdisk', 'CBDisk', 'slabSL', 'cube', 'field', and 'velocity'";
 	throw std::runtime_error(msg);
       }
     }
     catch (std::exception& e) {
-      std::cout << "Error in BasisFactory constructor: " << e.what() << std::endl;
+      std::cout << "Error in Basis::factory constructor: " << e.what() << std::endl;
       throw;			// Rethrow the exception?
     }
     

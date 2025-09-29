@@ -394,7 +394,8 @@ void BasisFactoryClasses(py::module &m)
 			crt_eval, x, y, z);
     }
     
-    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override
+    {
       PYBIND11_OVERRIDE_PURE(void, BiorthBasis, load_coefs, coefs, time);
     }
     
@@ -404,6 +405,12 @@ void BasisFactoryClasses(py::module &m)
 
     const std::string harmonic() override {
       PYBIND11_OVERRIDE_PURE(std::string, BiorthBasis, harmonic);
+    }
+
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE_PURE(void, BiorthBasis, computeAccel, x, y, z, v);
     }
 
   public:
@@ -424,12 +431,6 @@ void BasisFactoryClasses(py::module &m)
 
     void set_coefs(CoefClasses::CoefStrPtr coefs) override {
       PYBIND11_OVERRIDE_PURE(void, BiorthBasis, set_coefs, coefs);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override
-    {
-      PYBIND11_OVERRIDE_PURE(std::vector<double>, BiorthBasis,
-			     getAccel, x, y, z);
     }
 
   };
@@ -466,6 +467,11 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(void, Spherical, get_force, tab, x);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, Spherical, computeAccel, x, y, z, v);
+    }
 
   public:
 
@@ -474,10 +480,6 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<double> getFields(double x, double y, double z) override {
       PYBIND11_OVERRIDE(std::vector<double>, Spherical, getFields, x, y, z);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override {
-      PYBIND11_OVERRIDE(std::vector<double>, Spherical, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
@@ -519,6 +521,13 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, Cylindrical, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, Cylindrical, computeAccel, x, y, z, v);
+    }
+
+
   public:
 
     // Inherit the constructors
@@ -526,10 +535,6 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<double> getFields(double x, double y, double z) override {
       PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getFields, x, y, z);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override {
-      PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
@@ -584,6 +589,13 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, FlatDisk, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, FlatDisk, computeAccel, x, y, z, v);
+    }
+
+
   public:
 
     // Inherit the constructors
@@ -592,11 +604,6 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getFields, x, y, z);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override
-    {
-      PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -654,6 +661,12 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, CBDisk, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, CBDisk, computeAccel, x, y, z, v);
+    }
+
   public:
 
     // Inherit the constructors
@@ -662,11 +675,6 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, CBDisk, getFields, x, y, z);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override
-    {
-      PYBIND11_OVERRIDE(std::vector<double>, CBDisk, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -727,6 +735,12 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, Slab, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, Slab, computeAccel, x, y, z, v);
+    }
+
   public:
 
     // Inherit the constructors
@@ -735,11 +749,6 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, Slab, getFields, x, y, z);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override
-    {
-      PYBIND11_OVERRIDE(std::vector<double>, Slab, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -800,6 +809,12 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, Cube, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, Cube, computeAccel, x, y, z, v);
+    }
+
   public:
 
     // Inherit the constructors
@@ -808,11 +823,6 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, Cube, getFields, x, y, z);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override
-    {
-      PYBIND11_OVERRIDE(std::vector<double>, Cube, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -1270,6 +1280,30 @@ void BasisFactoryClasses(py::module &m)
          Returns
          -------
          fields: numpy.ndarray
+
+         See also
+         --------
+         getFields      : returns density, potential and acceleration
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same as getFields() but provides field labels in a tuple
+         )",
+	 py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("getAccelArray", &BasisClasses::BiorthBasis::getAccelArray,
+	 R"(
+         Return the acceleration for a given cartesian position
+
+         Parameters
+         ----------
+         x : ndarray
+             x-axis positions
+         y : ndarray
+             y-axis positions
+         z : ndarray
+             z-axis positions
+
+         Returns
+         -------
+         accel: numpy.ndarray
 
          See also
          --------
