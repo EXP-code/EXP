@@ -984,15 +984,24 @@ namespace Field
     double rf = 4.0*pi/3.0*(d3 - 1.0);
     for (int i=0; i<nbins; i++) {
       double sig = 0.0;
-      for (int k=0; k<3; k++) {
-	vc1(i, k) /= ret[i];
-	vc2(i, k) /= ret[i];
-	sig += vc2(i, k) - vc1(i, k)*vc1(i, k);
+      if (ret[i] > 0) {
+        for (int k=0; k<3; k++) {
+          vc1(i, k) /= ret[i];
+          vc2(i, k) /= ret[i];
+          sig += vc2(i, k) - vc1(i, k)*vc1(i, k);
+        }
+        rad[i] = exp(lrmin + del*(0.5 + i));
+        ret[i] /= exp(3.0*(lrmin + del*i)) * rf;
+        vel[i] = sqrt(fabs(sig));
+      } else {
+        for (int k=0; k<3; k++) {
+          vc1(i, k) = 0.0;
+          vc2(i, k) = 0.0;
+        }
+        rad[i] = exp(lrmin + del*(0.5 + i));
+        ret[i] = 0.0;
+        vel[i] = 0.0;
       }
-
-      rad[i] = exp(lrmin + del*(0.5 + i));
-      ret[i] /= exp(3.0*(lrmin + del*i)) * rf;
-      vel[i] = sqrt(fabs(sig));
     }
     
     return {rad, ret, vel};
