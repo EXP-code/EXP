@@ -173,4 +173,74 @@ void UtilityClasses(py::module &m) {
           Return the version.  
   
           This is the same version information reported by the EXP N-body code.)");
+
+  m.def("setMPI",
+    [](bool verbose) {
+      MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+      MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+      MPI_Get_processor_name(processor_name, &proc_namelen);
+
+      workers = numprocs - 1;
+
+      if (workers) {
+	MPI_Comm_group(MPI_COMM_WORLD, &world_group);
+	std::vector<int> nworkers (workers);
+	
+	for (int n=1; n<numprocs; n++) nworkers[n-1] = n;
+	MPI_Group_incl(world_group, workers, &nworkers[0], &worker_group);
+	MPI_Comm_create(MPI_COMM_WORLD, worker_group, &MPI_COMM_WORKER);
+      }
+
+      if (verbose) {
+	if (myid==0)
+	  std::cout << std::string(80, '%') << std::endl
+		    << std::setfill('%') << std::setw(80) << std::left
+		    << "%%%%% Node, process, and communicator assignment " 
+		    << std::endl << std::string(80, '%') << std::endl
+		    << std::setfill(' ')
+		    << std::right << std::setw(8)  << "Node #"
+		    << " | " << std::setw(20) << "Hostname"
+		    << " | " << std::setw(8)  << "PID"
+		    << " | " << std::setw(10) << "Status"
+		    << std::endl << std::string(80, '%') << std::endl << std::left;
+	
+	for (int n=0; n<numprocs; n++) {
+
+	  if (n == myid) {
+
+	    std::cout << std::right << std::setw(8)  << myid 
+		      << " | " << std::setw(20) << processor_name 
+		      << " | " << std::setw(8)  << getpid();
+	  
+	    if (n) {
+	      int m; MPI_Group_rank ( worker_group, &m );
+	      std::cout << " | " << std::setw(10) << "WORKER " << m << std::endl;
+	    } else {
+	      std::cout << " | " << std::setw(10) << "ROOT" << std::endl;
+	    }
+	  }
+	  MPI_Barrier(MPI_COMM_WORLD);
+	}
+      }
+    },
+    R"(
+      Initialize EXP's C++ MPI communicators and variables from pyEXP
+  
+      Sets all of the internal MPI-specific library values necessary
+      to use the full complement of the EXP C++ classes from Python
+      scripts.  For example, this is needed for ParticleReader, which
+      does not provide its own MPI initialization. The BasisFactory,
+      Basis, ParticleReader, and FieldGenerator classes can do this
+      automatically.
+
+      Parameters
+      ----------
+      verbose : bool
+         Print the node and process assignments.  Default: false.
+
+      Returns
+      -------
+      None
+
+   )", py::arg("verbose") = false);
 }
