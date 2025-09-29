@@ -2907,7 +2907,9 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 		<< std::setw( 5) << iflag[i]
 		<< std::endl;
   
-      if (VERBOSE && iflag[i] != 0) {
+
+  if (VERBOSE && iflag[i] != 0) {
+
 
 	if (iflag[i] > -10) {
 	  cout << std::setw(14) << "x"

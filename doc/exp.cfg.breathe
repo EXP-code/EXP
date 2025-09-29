@@ -943,25 +943,7 @@ WARN_LOGFILE           = debug.txt
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = ./intro.doc \
-                         ./news.doc \
-                         ./mainpage.doc \
-                         ./overview.doc \
-                         ./quick.doc \
-                         ./config.doc \
-                         ./bodies.doc \
-                         ./multistep.doc \
-                         ./adaptive.doc \
-                         ./global.doc \
-                         ./ics.doc \
-                         ./modules.doc \
-                         ./check.doc \
-                         ./utilities.doc \
-                         ./verbose.doc \
-                         ./dsmc.doc \
-                         ./cuda.doc \
-                         ./faq.doc \
-                         ../include \
+INPUT                  = ../include \
                          ../src \
                          ../src/user \
 			 ../exputil \
@@ -1008,9 +990,7 @@ INPUT_FILE_ENCODING    =
 # provided as doxygen C comment), *.py, *.pyw, *.f90, *.f95, *.f03, *.f08,
 # *.f18, *.f, *.for, *.vhd, *.vhdl, *.ucf, *.qsf and *.ice.
 
-FILE_PATTERNS          = *.doc \
-                         *.dox \
-                         *.py \
+FILE_PATTERNS          = *.py \
                          *.h \
                          *.H
 
@@ -1950,7 +1930,7 @@ EXTRA_SEARCH_MAPPINGS  =
 # If the GENERATE_LATEX tag is set to YES, doxygen will generate LaTeX output.
 # The default value is: YES.
 
-GENERATE_LATEX         = YES
+GENERATE_LATEX         = NO
 
 # The LATEX_OUTPUT tag is used to specify where the LaTeX docs will be put. If a
 # relative path is entered the value of OUTPUT_DIRECTORY will be put in front of
@@ -2234,7 +2214,7 @@ MAN_LINKS              = NO
 # captures the structure of the code including all documentation.
 # The default value is: NO.
 
-GENERATE_XML           = NO
+GENERATE_XML           = YES
 
 # The XML_OUTPUT tag is used to specify where the XML pages will be put. If a
 # relative path is entered the value of OUTPUT_DIRECTORY will be put in front of
