@@ -298,8 +298,8 @@ void BasisFactoryClasses(py::module &m)
     }
 
 
-    virtual void initFromArray
-    (Eigen::Vector3d ctr, RowMatrix3d rot) {
+    void initFromArray
+    (Eigen::Vector3d ctr, RowMatrix3d rot) override {
       PYBIND11_OVERRIDE_PURE(void, Basis, initFromArray, ctr, rot);
     }
 
