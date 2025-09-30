@@ -358,7 +358,8 @@ namespace BasisClasses
     {
       auto [ret, worst, lworst] = orthoCompute(orthoCheck(knots));
       // For the CTest log
-      std::cout << "---- Spherical::orthoTest: worst=" << worst << std::endl;
+      if (myid==0)
+	std::cout << "---- Spherical::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
 
@@ -598,7 +599,8 @@ namespace BasisClasses
     {
       auto [ret, worst, lworst] = orthoCompute(orthoCheck());
       // For the CTest log
-      std::cout << "---- FlatDisk::orthoTest: worst=" << worst << std::endl;
+      if (myid==0)
+	std::cout << "---- FlatDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
 
@@ -754,7 +756,8 @@ namespace BasisClasses
     {
       auto [ret, worst, lworst] = orthoCompute(orthoCheck());
       // For the CTest log
-      std::cout << "CBDisk::orthoTest: worst=" << worst << std::endl;
+      if (myid==0)
+	std::cout << "CBDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
 
@@ -783,7 +786,7 @@ namespace BasisClasses
     int rnum, pnum, tnum;
     double rmin, rmax, rcylmin, rcylmax;
     double acyl, hcyl;
-    bool expcond, logarithmic, density, EVEN_M;
+    bool expcond, logarithmic, density, EVEN_M, sech2 = false;
     
     std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;
     std::vector<Eigen::MatrixXd> legs, dlegs, d2legs;
@@ -911,11 +914,9 @@ namespace BasisClasses
     bool orthoTest()
     {
       auto [ret, worst, lworst] = orthoCompute(sl->orthoCheck());
-      if (myid==0) {
-	// For the CTest log
-	std::cout << "---- Cylindrical::orthoTest: worst=" << worst
-		  << std::endl;
-      }
+      // For the CTest log
+      if (myid==0)
+	std::cout << "---- Cylindrical::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
 
@@ -1064,8 +1065,10 @@ namespace BasisClasses
 	  }
 	}
       }
-	
+
+      if (myid==0)
       std::cout << "---- Slab::orthoTest: worst=" << worst << std::endl;
+
       if (worst > __EXP__::orthoTol) return false;
       return true;
     }
@@ -1193,7 +1196,9 @@ namespace BasisClasses
 	}
       }
 	
-      std::cout << "---- Cube::orthoTest: worst=" << worst << std::endl;
+      if (myid==0)
+	std::cout << "---- Cube::orthoTest: worst=" << worst << std::endl;
+
       if (worst > __EXP__::orthoTol) return false;
       return true;
     }

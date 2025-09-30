@@ -100,7 +100,7 @@ main(int argc, char **argv)
   double       KMIN;
   double       KMAX;
   double       Sig1, Sig2;
-  double       I1min=-1, I1max=-1, I2min=-1, I2max=-1;
+  double       I1min, I1max, I2min, I2max;
   int          NLIMIT;
   int          NSKIP;
   int          NREPORT;
@@ -554,16 +554,16 @@ main(int argc, char **argv)
     Emax *= 1.0 + KTOL;
 
     orb.new_orbit(Emin, 1.0 - KTOL);
-    if (I1min<0) I1min = orb.get_action(0);
+    if (vm.count("I1min")==0) I1min = orb.get_action(0);
 
     orb.new_orbit(Emin, KTOL);
-    if (I2min<0) I2min = orb.get_action(1);
+    if (vm.count("I2min")==0) I2min = orb.get_action(1);
 
     orb.new_orbit(Emax, KTOL);
-    if (I1max<0) I1max = orb.get_action(0);
+    if (vm.count("I1max")==0) I1max = orb.get_action(0);
 
     orb.new_orbit(Emax, 1.0 - KTOL);
-    if (I2max<0) I2max = orb.get_action(1);
+    if (vm.count("I2max")==0) I2max = orb.get_action(1);
 
     if (myid==0)
       std::cout << std::endl
@@ -576,10 +576,10 @@ main(int argc, char **argv)
 		<< "-- I2max: " << I2max << std::endl
 		<< std::string(40, '-')  << std::endl;
   } else {
-    if (I1min>0) I1min = Emin;
-    if (I1max>0) I1max = Emax;
-    if (I2min<0) I2min = std::max<double>(KTOL, KMIN);
-    if (I2max<0) I2max = std::min<double>(1.0 - KTOL, KMAX);
+    if (vm.count("I1min")==0) I1min = Emin;
+    if (vm.count("I1max")==0) I1max = Emax;
+    if (vm.count("I2min")==0) I2min = std::max<double>(KTOL, KMIN);
+    if (vm.count("I2max")==0) I2max = std::min<double>(1.0 - KTOL, KMAX);
 
     if (myid==0)
       std::cout << std::endl
@@ -633,6 +633,7 @@ main(int argc, char **argv)
   int npath1 = 1;
   if (fileType != "PSPhdf5") {
     npath1 = INFILE1.size();
+    npath2 = INFILE2.size();
   }
 
   // Iterate through file list

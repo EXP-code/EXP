@@ -546,7 +546,7 @@ void OutHDF5::RunGadget4(const std::string& path)
 #endif
 
     std::ostringstream sout;
-    sout << "PartType" << count++;
+    sout << "PartType" << count;
 
     auto pgroup = file->createGroup(sout.str());
 
@@ -554,6 +554,8 @@ void OutHDF5::RunGadget4(const std::string& path)
       c->write_HDF5<float >(pgroup, multim[count], ids);
     else
       c->write_HDF5<double>(pgroup, multim[count], ids);
+
+    count++;
   }
 }
 
@@ -759,7 +761,7 @@ void OutHDF5::RunPSP(const std::string& path)
 #endif
 
       std::ostringstream sout;
-      sout << "PartType" << count++;
+      sout << "PartType" << count;
 
       H5::Group group = file.createGroup(sout.str());
 
@@ -767,6 +769,8 @@ void OutHDF5::RunPSP(const std::string& path)
 	c->write_H5<float>(group);
       else
 	c->write_H5<double>(group);
+
+      count++;
     }
   } catch (H5::Exception& error) {
     throw std::runtime_error(std::string("OutHDF5: error writing HDF5 file ") + error.getDetailMsg());
@@ -810,4 +814,5 @@ void OutHDF5::checkParticleMasses()
       multim.push_back(false);
     }
   }
+  // END: component loop
 }
