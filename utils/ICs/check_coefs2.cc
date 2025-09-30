@@ -1,4 +1,5 @@
-#define DEBUG  // Enables debugging-related code, such as signal handlers and floating-point exception traps.
+//#define DEBUG  // Enables debugging-related code, such as signal handlers and floating-point exception traps.
+// DEBUG should be defined at compile time by passing -DDEBUG during the make step
 
 /*
   Check coefficient expansion for cylindrical basis and compare to a
