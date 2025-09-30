@@ -3956,7 +3956,7 @@ namespace BasisClasses
   
   // Generate coeffients from a particle reader
   CoefClasses::CoefStrPtr BiorthBasis::createFromReader
-  (PR::PRptr reader, std::vector<double> ctr)
+  (PR::PRptr reader, Eigen::Vector3d ctr, RowMatrix3d rot)
   {
     CoefClasses::CoefStrPtr coef;
 
@@ -3975,36 +3975,47 @@ namespace BasisClasses
       throw std::runtime_error(sout.str());
     }
       
-    // Is center non-zero?
+    // Add the expansion center metadata and register for this instance
     //
-    bool addCenter = false;
-    for (auto v : ctr) {
-      if (v != 0.0) addCenter = true;
-    }
+    coefctr   = ctr;
+    coef->ctr = ctr;
 
-    // Add the expansion center metadata
+    // Add the rotation matrix metadata and register for this instance
     //
-    if (addCenter) coef->ctr = ctr;
+    coefrot   = rot;
+    coef->rot = rot;
 
-    std::vector<double> pp(3), vv(3);
+    std::vector<double> p1(3), v1(3);
+    
+    // Map the vector rather than copy
+    //
+    Eigen::Map<Eigen::Vector3d> pp(p1.data(), 3), vv(v1.data(), 3);
+    vv.setZero();
 
     reset_coefs();
     for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
 
       bool use = false;
       
+      // Translate and rotate the position vector
+      //
+      for (int k=0; k<3; k++) p1[k] = p->pos[k];
+      pp = coefrot * (pp - coefctr);
+
       if (ftor) {
-	pp.assign(p->pos, p->pos+3);
-	vv.assign(p->vel, p->vel+3);
-	use = ftor(p->mass, pp, vv, p->indx);
+	// Rotate the velocity vector
+	//
+	for (int k=0; k<3; k++) v1[k] = p->vel[k];
+	vv = coefrot * vv;
+	
+	use = ftor(p->mass, p1, v1, p->indx);
       } else {
 	use = true;
       }
 
-      if (use) accumulate(p->pos[0]-ctr[0],
-			  p->pos[1]-ctr[1],
-			  p->pos[2]-ctr[2],
-			  p->mass);
+      if (use) {
+	accumulate(pp(0), pp(1), pp(2), p->mass);
+      }
     }
     make_coefs();
     load_coefs(coef, reader->CurrentTime());
@@ -4012,7 +4023,7 @@ namespace BasisClasses
   }
 
   // Generate coefficients from a phase-space table
-  void BiorthBasis::initFromArray(std::vector<double> ctr)
+  void BiorthBasis::initFromArray(Eigen::Vector3d ctr, RowMatrix3d rot)
   {
     if (name.compare("sphereSL") == 0)
       coefret = std::make_shared<CoefClasses::SphStruct>();
@@ -4027,20 +4038,14 @@ namespace BasisClasses
       throw std::runtime_error(sout.str());
     }
       
-    // Is center non-zero?
-    //
-    bool addCenter = false;
-    for (auto v : ctr) {
-      if (v != 0.0) addCenter = true;
-    }
-
-    // Add the expansion center metadata
-    //
-    if (addCenter) coefret->ctr = ctr;
-    
-    // Register the center
+    // Add the expansion center metadata and register
     //
     coefctr = ctr;
+    coefret->ctr = ctr;
+
+    // Add the rotation metadata and register
+    coefrot = rot;
+    coefret->rot = rot;
 
     // Clean up for accumulation
     //
@@ -4069,6 +4074,7 @@ namespace BasisClasses
     int cols = p.cols(); 
 
     bool ambiguous = false;
+    bool haveVel   = false;
 
     if (cols==3 or cols==6) {
       if (rows != 3 and rows != 6) PosVelRows = false;
@@ -4089,7 +4095,11 @@ namespace BasisClasses
 		<< "if this assumption is wrong." << std::endl;
     }
 
-    std::vector<double> p1(3), v1(3, 0);
+    // Map the vector rather than copy
+    //
+    std::vector<double> p1(3), v1(3);
+    Eigen::Map<Eigen::Vector3d> pp(p1.data(), 3), vv(v1.data(), 3);
+    vv.setZero();
 
     if (PosVelRows) {
       if (p.rows()<3) {
@@ -4099,22 +4109,32 @@ namespace BasisClasses
 	throw std::runtime_error(msg.str());
       }
 
-      for (int n=0; n<p.cols(); n++) {
+      if (p.rows() == 6) haveVel = true;
 
+      for (int n=0; n<p.cols(); n++) {
+	
 	if (n % numprocs==myid or not RoundRobin) {
 
+	  for (int k=0; k<3; k++) {
+	    pp(k) = p(k, n);
+	    if (haveVel) vv(k) = p(k+3, n);
+	  }
+	  
+	  pp = coefrot * (pp - coefctr);
+
 	  bool use = true;
+
 	  if (ftor) {
-	    for (int k=0; k<3; k++) p1[k] = p(k, n);
+	    if (haveVel) vv = coefrot * vv;
 	    use = ftor(m(n), p1, v1, coefindx);
 	  } else {
 	    use = true;
 	  }
 	  coefindx++;
 	  
-	  if (use) accumulate(p(0, n)-coefctr[0],
-			      p(1, n)-coefctr[1],
-			      p(2, n)-coefctr[2], m(n));
+	  if (use) {
+	    accumulate(pp(0), pp(1), pp(2), m(n));
+	  }
 	}
       }
       
@@ -4127,22 +4147,32 @@ namespace BasisClasses
 	throw std::runtime_error(msg.str());
       }
 
+      if (p.cols() == 6) haveVel = true;
+
+
       for (int n=0; n<p.rows(); n++) {
 
 	if (n % numprocs==myid or not RoundRobin) {
 
+	  for (int k=0; k<3; k++) {
+	    pp(k) = p(n, k);
+	    if (haveVel) vv(k) = p(n, k+3);
+	  }
+	  
+	  pp = coefrot * (pp - coefctr);
+
 	  bool use = true;
 	  if (ftor) {
-	    for (int k=0; k<3; k++) p1[k] = p(n, k);
+	    if (haveVel) vv = coefrot * vv;
 	    use = ftor(m(n), p1, v1, coefindx);
 	  } else {
 	    use = true;
 	  }
 	  coefindx++;
 	  
-	  if (use) accumulate(p(n, 0)-coefctr[0],
-			      p(n, 1)-coefctr[1],
-			      p(n, 2)-coefctr[2], m(n));
+	  if (use) {
+	    accumulate(pp(0), pp(1), pp(2), m(n));
+	  }
 	}
       }
     }
@@ -4159,10 +4189,10 @@ namespace BasisClasses
   // Generate coefficients from a phase-space table
   //
   CoefClasses::CoefStrPtr BiorthBasis::createFromArray
-  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
-   bool RoundRobin, bool PosVelRows)
+  (Eigen::VectorXd& m, RowMatrixXd& p, double time, Eigen::Vector3d ctr,
+   RowMatrix3d rot, bool RoundRobin, bool PosVelRows)
   {
-    initFromArray(ctr);
+    initFromArray(ctr, rot);
     addFromArray(m, p, RoundRobin, PosVelRows);
     return makeFromArray(time);
   }
@@ -4180,13 +4210,20 @@ namespace BasisClasses
     auto ctr = basis->getCenter();
     if (basis->usingNonInertial()) ctr = {0, 0, 0};
 
+    // Get rotation matrix
+    //
+    auto rot = basis->getRotation();
+
     // Get fields
     //
     int rows = accel.rows();
     for (int n=0; n<rows; n++) {
-      auto v = basis->getFields(ps(n, 0) - ctr[0],
-				ps(n, 1) - ctr[1],
-				ps(n, 2) - ctr[2]);
+      Eigen::Vector3d pp;
+      for (int k=0; k<3; k++) pp(k) = ps(n, k) - ctr(k);
+      pp = rot * pp;
+
+      auto v = basis->getFields(pp(0), pp(1), pp(2));
+
       // First 6 fields are density and potential, followed by acceleration
       for (int k=0; k<3; k++) accel(n, k) += v[6+k] - basis->pseudo(k);
     }
@@ -4271,11 +4308,18 @@ namespace BasisClasses
 
     // Interpolate center
     //
-    if (coefsA->ctr.size() and coefsB->ctr.size()) {
-      newcoef->ctr.resize(3);
-      for (int k=0; k<3; k++)
-	newcoef->ctr[k] = a * coefsA->ctr[k] + b * coefsB->ctr[k];
-    }
+    newcoef->ctr = a * coefsA->ctr + b * coefsB->ctr;
+
+    // Interpolate rotation matrix followed by unitarization
+    //
+    RowMatrix3d newrot = a * coefsA->rot + b * coefsB->rot;
+
+    // Closest unitary matrix in the Frobenius norm sense
+    //
+    Eigen::BDCSVD<RowMatrix3d> svd
+      (newrot, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+    newcoef->rot = svd.matrixU() * svd.matrixV().adjoint();
 
     // Install coefficients
     //

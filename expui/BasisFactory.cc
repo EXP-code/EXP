@@ -275,10 +275,10 @@ namespace BasisClasses
   // Generate coefficients from a phase-space table
   //
   CoefClasses::CoefStrPtr Basis::createFromArray
-  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
-   bool roundrobin, bool posvelrows)
+  (Eigen::VectorXd& m, RowMatrixXd& p, double time, Eigen::Vector3d ctr,
+   RowMatrix3d rot, bool roundrobin, bool posvelrows)
   {
-    initFromArray(ctr);
+    initFromArray(ctr, rot);
     addFromArray(m, p, roundrobin, posvelrows);
     return makeFromArray(time);
   }

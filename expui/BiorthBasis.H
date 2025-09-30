@@ -112,13 +112,15 @@ namespace BasisClasses
     //! Generate coeffients from a particle reader and optional center
     //! location for the expansion
     CoefClasses::CoefStrPtr createFromReader
-    (PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
+    (PR::PRptr reader, Eigen::Vector3d center=Eigen::Vector3d::Zero(),
+     RowMatrix3d rot=RowMatrix3d::Identity());
     
     //! Generate coeffients from an array and optional center location
     //! for the expansion
     CoefClasses::CoefStrPtr createFromArray
     (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
-     std::vector<double> center={0.0, 0.0, 0.0},
+     Eigen::Vector3d center=Eigen::Vector3d::Zero(),
+     RowMatrix3d rot=RowMatrix3d::Identity(),
      bool roundrobin=true, bool posvelrows=false);
     
     //! Generate coeffients from an array and optional center location
@@ -128,7 +130,8 @@ namespace BasisClasses
     //! Initialize accumulating coefficients from arrays with an optional
     //! center vector.  This is called once to initialize the accumulation.
     void initFromArray
-    (std::vector<double> center={0.0, 0.0, 0.0});
+    (Eigen::Vector3d center=Eigen::Vector3d::Zero(),
+     RowMatrix3d rot=RowMatrix3d::Identity());
     
     //! Initialize accumulating coefficients from arrays.  This is
     //! called once to initialize the accumulation.
