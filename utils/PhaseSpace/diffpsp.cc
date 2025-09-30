@@ -633,7 +633,6 @@ main(int argc, char **argv)
   int npath1 = 1;
   if (fileType != "PSPhdf5") {
     npath1 = INFILE1.size();
-    npath2 = INFILE2.size();
   }
 
   // Iterate through file list
