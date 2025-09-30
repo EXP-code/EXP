@@ -27,6 +27,7 @@ main(int ac, char **av)
   //=====================
 
   int          N;		// Number of particles
+  int          Nrepl;		// Number of particle replicates per orbit
   double       mu, nu, Ri, Ro;	// Taper paramters
   double       Rmin, Rmax;      // Radial range
   double       sigma;		// Velocity dispersion
@@ -59,6 +60,8 @@ main(int ac, char **av)
      cxxopts::value<double>(sigma)->default_value("1.0"))
     ("s,seed",    "Random number seed. Default: use /dev/random",
      cxxopts::value<unsigned>(seed))
+    ("q,Nrepl",   "Number of particle replicates per orbit",
+     cxxopts::value<int>(Nrepl)->default_value("1"))
     ("f,file",    "Output body file",
      cxxopts::value<std::string>(bodyfile)->default_value("zang.bods"))
     ;
@@ -84,6 +87,10 @@ main(int ac, char **av)
     seed = std::random_device{}();
   }
 
+  // Set particle number consitent with even replicants
+  if (Nrepl<1) Nrepl = 1;
+  if (Nrepl>1) N = (N/Nrepl)*Nrepl;
+
   // Make sure N>0
   if (N<=0) {
     std::cerr << av[0] << ": you must requiest at least one body"
@@ -107,6 +114,11 @@ main(int ac, char **av)
 						   1.0, Rmin, Rmax);
   model->setup_df(sigma);
 
+  // Replicant logic
+  //
+  int Number = N/Nrepl;
+  double dPhi = 2.0*M_PI/Nrepl;
+
   // Progress bar
   //
   std::shared_ptr<progress::progress_display> progress;
@@ -115,7 +127,7 @@ main(int ac, char **av)
   {
     nomp = omp_get_num_threads();
     if (omp_get_thread_num()==0) {
-      progress = std::make_shared<progress::progress_display>(N/nomp);
+      progress = std::make_shared<progress::progress_display>(Number/nomp);
     }
   }
 
@@ -190,7 +202,7 @@ main(int ac, char **av)
   // Generation loop with OpenMP
   //
 #pragma omp parallel for reduction(+:over)
-  for (int n=0; n<N; n++) {
+  for (int n=0; n<Number; n++) {
     // Thread id
     int tid = omp_get_thread_num();
 
@@ -224,23 +236,27 @@ main(int ac, char **av)
 
     if (w1 > M_PI) vr *= -1.0;	// Branch of radial motion
 
-    // Convert from polar to Cartesian
-    //
-    pos[n][0] = r*cos(phi);
-    pos[n][1] = r*sin(phi);
-    pos[n][2] = 0.0;
+    for (int nn=0; nn<Nrepl; nn++) {
+      int indx = n*Nrepl + nn;
+      double Phi = phi + dPhi*nn;
+      // Convert from polar to Cartesian
+      //
+      pos[indx][0] = r*cos(Phi);
+      pos[indx][1] = r*sin(Phi);
+      pos[indx][2] = 0.0;
 
-    vel[n][0] = vr*cos(phi) - vt*sin(phi);
-    vel[n][1] = vr*sin(phi) + vt*cos(phi);
-    vel[n][2] = 0.0;
+      vel[indx][0] = vr*cos(Phi) - vt*sin(Phi);
+      vel[indx][1] = vr*sin(Phi) + vt*cos(Phi);
+      vel[indx][2] = 0.0;
 
-    // Accumulate mean position and velocity
-    //
-    for (int k=0; k<3; k++) {
-      zeropos[tid][k] += pos[n][k];
-      zerovel[tid][k] += vel[n][k];
+      // Accumulate mean position and velocity
+      //
+      for (int k=0; k<3; k++) {
+	zeropos[tid][k] += pos[indx][k];
+	zerovel[tid][k] += vel[indx][k];
+      }
     }
-
+      
     // Print progress bar
     if (tid==0) ++(*progress);
   }

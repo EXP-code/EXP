@@ -283,8 +283,16 @@ namespace BasisClasses
     return makeFromArray(time);
   }
 
-  void Basis::setNonInertial(int N, Eigen::VectorXd& t, Eigen::MatrixXd& pos)
+  void Basis::setNonInertial(int N, const Eigen::VectorXd& t, const Eigen::MatrixXd& pos)
   {
+    // Sanity checks
+    if (t.size() < 1)
+      throw std::runtime_error("Basis: setNonInertial: no times in time array");
+
+    if (t.size() != pos.rows())
+      throw std::runtime_error("Basis::setNonInertial: size mismatch in time and position arrays");
+
+    // Set the data
     Naccel  = N;
     t_accel = t;
     p_accel = pos;
@@ -351,16 +359,31 @@ namespace BasisClasses
   {
     Eigen::Vector3d ret;
 
-    if (time < t_accel(0) || time > t_accel(t_accel.size()-1)) {
-      std::cout << "ERROR: " << time << " is outside of range of the non-inertial DB"
-		<< std::endl;
-      ret.setZero();
-      return ret;
+    auto n = t_accel.size();
+
+    // Allow a little bit of buffer in the allowable on-grid range but
+    // otherwise force termination
+    //
+    if ( time < t_accel(0  ) - 0.5*(t_accel(1  ) - t_accel(0  ))  ||
+	 time > t_accel(n-1) + 0.5*(t_accel(n-1) - t_accel(n-2)) ) {
+      
+      std::ostringstream msg;
+      msg << "Basis::currentAccel: " << time
+	  << " is outside the range of the non-inertial DB ["
+	  << t_accel(0) << ", " << t_accel(n-1) << "]";
+
+      throw std::runtime_error(msg.str());
     }
+    // Do the quadratic interpolation
+    //
     else {
       int imin = 0;
-      int imax = std::lower_bound(t_accel.data(), t_accel.data()+t_accel.size(), time) - t_accel.data();
-      if (imax > Naccel) imin = imax - Naccel;
+      int imax = std::lower_bound(t_accel.data(), t_accel.data()+n, time) - t_accel.data();
+
+      // Get a range around the current time of approx size Naccel
+      //
+      imax = std::min<int>(n-1, imax + Naccel/2);
+      imin = std::max<int>(imax - Naccel, 0);
 
       int num = imax - imin + 1;
       Eigen::VectorXd t(num);

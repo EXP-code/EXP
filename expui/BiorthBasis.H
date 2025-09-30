@@ -163,6 +163,10 @@ namespace BasisClasses
 
     //! Clear the particle selector callback
     void clrSelector() { ftor = nullptr; }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    virtual std::vector<double> getAccel(double x, double y, double z) = 0;
   };
   
   /**
@@ -303,10 +307,14 @@ namespace BasisClasses
     {
       auto [ret, worst, lworst] = orthoCompute(orthoCheck(knots));
       // For the CTest log
-      std::cout << "---- Spherical::orthoTest: worst=" << worst << std::endl;
+      if (myid==0)
+	std::cout << "---- Spherical::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    virtual std::vector<double> getAccel(double x, double y, double z);
   };
 
   /**
@@ -538,9 +546,14 @@ namespace BasisClasses
     {
       auto [ret, worst, lworst] = orthoCompute(orthoCheck());
       // For the CTest log
-      std::cout << "---- FlatDisk::orthoTest: worst=" << worst << std::endl;
+      if (myid==0)
+	std::cout << "---- FlatDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -689,9 +702,14 @@ namespace BasisClasses
     {
       auto [ret, worst, lworst] = orthoCompute(orthoCheck());
       // For the CTest log
-      std::cout << "CBDisk::orthoTest: worst=" << worst << std::endl;
+      if (myid==0)
+	std::cout << "CBDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -718,7 +736,7 @@ namespace BasisClasses
     int rnum, pnum, tnum;
     double rmin, rmax, rcylmin, rcylmax;
     double acyl, hcyl;
-    bool expcond, logarithmic, density, EVEN_M;
+    bool expcond, logarithmic, density, EVEN_M, sech2 = false;
     
     std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;
     std::vector<Eigen::MatrixXd> legs, dlegs, d2legs;
@@ -842,9 +860,15 @@ namespace BasisClasses
     {
       auto [ret, worst, lworst] = orthoCompute(sl->orthoCheck());
       // For the CTest log
-      std::cout << "---- Cylindrical::orthoTest: worst=" << worst << std::endl;
+      if (myid==0)
+	std::cout << "---- Cylindrical::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    std::vector<double> getAccel(double x, double y, double z);
+
   };
   
   /**
@@ -985,11 +1009,17 @@ namespace BasisClasses
 	  }
 	}
       }
-	
+
+      if (myid==0)
       std::cout << "---- Slab::orthoTest: worst=" << worst << std::endl;
+
       if (worst > __EXP__::orthoTol) return false;
       return true;
     }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -1108,10 +1138,16 @@ namespace BasisClasses
 	}
       }
 	
-      std::cout << "---- Cube::orthoTest: worst=" << worst << std::endl;
+      if (myid==0)
+	std::cout << "---- Cube::orthoTest: worst=" << worst << std::endl;
+
       if (worst > __EXP__::orthoTol) return false;
       return true;
     }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    std::vector<double> getAccel(double x, double y, double z);
 
   };
   

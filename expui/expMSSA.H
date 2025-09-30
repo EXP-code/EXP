@@ -84,8 +84,8 @@ namespace MSSA
     //! Number of components in the reconstruction
     int ncomp;
 
-    //! Normalization values
-    double totVar, totPow;
+    //! Normalization options
+    bool totVar, totPow;
 
     //! Toggle for detrending
     bool useMean;

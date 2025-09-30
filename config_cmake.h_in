@@ -19,6 +19,9 @@
 /* Defined if you have HDF5 support */
 #cmakedefine HAVE_HDF5 @HAVE_HDF5@
 
+/* Defined if Python3 runtime exists */
+#cmakedefine HAVE_PYTHON3 1
+
 /* Define to 1 if you have the `cuda' library. */
 #cmakedefine HAVE_LIBCUDA 1
 

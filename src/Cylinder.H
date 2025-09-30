@@ -35,6 +35,8 @@ class MixtureBasis;
 
     @param hcyl is the scale height
 
+    @param sech2 if true, use hcyl as sech^2(z/(2*hcyl))
+
     @param lmax is the maximum spherical harmonic index for EOF construction
 
     @param mmax is the maximum azimuthal order for the resulting basis
@@ -110,7 +112,7 @@ class Cylinder : public Basis
 {
 private:
 
-  bool precond, EVEN_M, subsamp;
+  bool precond, EVEN_M, subsamp, sech2 = false;
   int rnum, pnum, tnum;
   double ashift;
   unsigned int vflag;

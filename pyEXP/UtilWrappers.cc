@@ -155,4 +155,22 @@ void UtilityClasses(py::module &m) {
         Report on the version and git commit.  
 
         This is the same version information reported by the EXP N-body code.)");
+  m.def("Version",
+    []() {
+      std::string version_str = VERSION;
+      std::istringstream iss(version_str);
+      std::string token;
+      int parts[3] = {0, 0, 0};
+      int i = 0;
+
+      while (std::getline(iss, token, '.') && i < 3) {
+          parts[i++] = std::stoi(token);
+      }
+
+      return std::make_tuple(parts[0], parts[1], parts[2]);
+  },
+    R"(
+          Return the version.  
+  
+          This is the same version information reported by the EXP N-body code.)");
 }

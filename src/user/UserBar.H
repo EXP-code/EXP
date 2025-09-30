@@ -24,12 +24,17 @@ class UserBar : public ExternalForce
 {
 private:
   
-  string angm_name, ctr_name;
+  std::string angm_name, ctr_name;
   Component *c0, *c1;
 
   void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
+
+#if HAVE_LIBCUDA==1
+  //! Cuda implementation
+  void determine_acceleration_and_potential_cuda();
+#endif
 
   double length, bratio, cratio, amplitude, Ton, Toff, DeltaT, Fcorot;
   bool fixed, soft;

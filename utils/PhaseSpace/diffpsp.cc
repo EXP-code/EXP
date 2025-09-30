@@ -47,6 +47,8 @@
 
 #include <Eigen/Eigen>
 
+#include <H5Cpp.h>
+
 #include <ParticleReader.H>
 #include <Centering.H>
 #include <massmodel.H>
@@ -54,6 +56,7 @@
 #include <EXPini.H>		// Enhanced option parsing
 #include <libvars.H>		// EXP library globals
 #include <interp.H>
+#include "KDE2d.H"		// Kernel density estimation
 
 void p_rec(std::ofstream& out, double E, double K, double V)
 {
@@ -96,7 +99,8 @@ main(int argc, char **argv)
   double       EMAX;
   double       KMIN;
   double       KMAX;
-  double       I1min=-1, I1max=-1, I2min=-1, I2max=-1;
+  double       Sig1, Sig2;
+  double       I1min, I1max, I2min, I2max;
   int          NLIMIT;
   int          NSKIP;
   int          NREPORT;
@@ -151,6 +155,8 @@ main(int argc, char **argv)
     "   OUTFILE.rp       Pericentric radius             [2d]\n"         \
     "   OUTFILE.O1       Radial frequency               [2d]\n"         \
     "   OUTFILE.O2       Azimuthal frequency            [2d]\n"         \
+    "   OUTFILE.F1       Two dimensional DF info (1)    [2d]\n"		\
+    "   OUTFILE.F2       Two dimensional DF info (2)    [2d]\n"		\
     "   OUTFILE.DR       Run mass, J, Delta J (R)       [1d]\n"		\
     "   OUTFILE.df1      One dimensional DF info (1)    [1d]\n"		\
     "   OUTFILE.df2      One dimensional DF info (2)    [1d]\n"		\
@@ -171,7 +177,7 @@ main(int argc, char **argv)
     ("jaco", "Compute phase-space Jacobian for DF computation")
     ("Emass", "Create energy bins approximately uniform in mass using potential from the mass model")
     ("actions", "Print output in action space rather than E-kappa space.  The default is Energy-Kappa.")
-    ("F,filetype", "input file type (one of: PSPout, PSPspl, GadgetNative, GadgetHDF5)",
+    ("F,filetype", "input file type (one of: PSPout, PSPspl, PSPhdf5, GadgetNative, GadgetHDF5)",
      cxxopts::value<std::string>(fileType)->default_value("PSPout"))
     ("I1min", "Minimum grid value for E (or I1 for actions)",
      cxxopts::value<double>(I1min))
@@ -241,6 +247,10 @@ main(int argc, char **argv)
      cxxopts::value<double>(DIVERGE_RFAC)->default_value("1.0"))
     ("Kpow", "Create kappa bins with power scaling",
      cxxopts::value<double>(KPOWER)->default_value("1.0"))
+    ("Sig1", "Bin smoothing in Dimension 1 (must be > 0)",
+     cxxopts::value<double>(Sig1)->default_value("0.0"))
+    ("Sig2", "Bin smoothing in Dimension 2 (must be > 0)",
+     cxxopts::value<double>(Sig2)->default_value("0.0"))
     ("INFILE1", "Fiducial phase-space file",
      cxxopts::value<std::vector<std::string>>(INFILE1))
     ("INFILE2", "Evolved phase-space file",
@@ -321,8 +331,30 @@ main(int argc, char **argv)
   // Check for existence of files in INFILE1 and INFILE2 lists
   //
   unsigned bad = 0;
-  for (auto file : INFILE1) {
-    if (not std::filesystem::exists(std::filesystem::path(file))) bad++;
+  std::string path1, path2;
+  if (fileType == "PSPhdf5") {
+    path1 = CURDIR + INFILE1[0];
+    std::filesystem::path dir_path = path1;
+    if (std::filesystem::is_directory(dir_path)) {
+      INFILE1.clear();
+      try {
+        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
+	  if (std::filesystem::is_regular_file(entry)) {
+	    std::string file = entry.path().string();
+	    if (H5::H5File::isHdf5(file)) INFILE1.push_back(file);
+	  }
+        }
+      } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "diffpsp error: " << e.what() << std::endl;
+      }
+
+      if (INFILE1.size()==0) bad++;
+    }
+  }
+  else {
+    for (auto file : INFILE1) {
+      if (not std::filesystem::exists(std::filesystem::path(file))) bad++;
+    }
   }
 
   if (bad) {
@@ -333,8 +365,29 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  for (auto file : INFILE2) {
-    if (not std::filesystem::exists(std::filesystem::path(file))) bad++;
+  if (fileType == "PSPhdf5") {
+    path2 = CURDIR + INFILE2[0];
+    std::filesystem::path dir_path = path2;
+    if (std::filesystem::is_directory(dir_path)) {
+      INFILE2.clear();
+      try {
+        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
+	  if (std::filesystem::is_regular_file(entry)) {
+	    std::string file = entry.path().string();
+	    if (H5::H5File::isHdf5(file)) INFILE2.push_back(file);
+	  }
+        }
+      } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "diffpsp error: " << e.what() << std::endl;
+      }
+
+      if (INFILE2.size()==0) bad++;
+    }
+  }
+  else {
+    for (auto file : INFILE2) {
+      if (not std::filesystem::exists(std::filesystem::path(file))) bad++;
+    }
   }
 
   if (bad) {
@@ -405,7 +458,7 @@ main(int argc, char **argv)
   // Open output file
   //
     
-  const int nfiles = 19;
+  const int nfiles = 21;
   const char *suffix[] = {
     ".DM", 			// Mass per bin (E, K)		#0
     ".DE", 			// Delta E(E, K)		#1
@@ -418,14 +471,16 @@ main(int argc, char **argv)
     ".DF", 			// Delta DF (E, K)              #8
     ".ra", 			// Apocentric radius (E, K)     #9
     ".rp", 			// Pericentric radius (E, K)    #10
-    ".O1", 			// Apocentric radius (E, K)     #11
-    ".O2", 			// Pericentric radius (E, K)    #12
-    ".Df", 			// Delta DF/F (E, K)            #13
-    ".DN", 			// Counts per (E, K) bin        #14
-    ".DR", 			// Run mass, J, Delta J (R)	#15
-    ".chk",			// Orbital element check	#16
-    ".df1",			// One dimensional DF info	#17
-    ".df2"			// One dimensional DF info	#18
+    ".O1", 			// Radial frequency (E, K)      #11
+    ".O2", 			// Azimuthal frequency (E, K)   #12
+    ".F1", 			// DF for PS 1 (E, K)           #13
+    ".F2", 			// DF for PS 2 (E, K)           #14
+    ".Df", 			// Delta DF/F (E, K)            #15
+    ".DN", 			// Counts per (E, K) bin        #16
+    ".DR", 			// Run mass, J, Delta J (R)	#17
+    ".chk",			// Orbital element check	#18
+    ".df1",			// One dimensional DF info	#19
+    ".df2"			// One dimensional DF info	#20
   };
   std::vector<string> filename(nfiles);
   for (int i=0; i<nfiles; i++) filename[i] = OUTFILE + suffix[i];
@@ -499,21 +554,21 @@ main(int argc, char **argv)
     Emax *= 1.0 + KTOL;
 
     orb.new_orbit(Emin, 1.0 - KTOL);
-    if (I1min<0) I1min = orb.get_action(0);
+    if (vm.count("I1min")==0) I1min = orb.get_action(0);
 
     orb.new_orbit(Emin, KTOL);
-    if (I2min<0) I2min = orb.get_action(1);
+    if (vm.count("I2min")==0) I2min = orb.get_action(1);
 
     orb.new_orbit(Emax, KTOL);
-    if (I1max<0) I1max = orb.get_action(0);
+    if (vm.count("I1max")==0) I1max = orb.get_action(0);
 
     orb.new_orbit(Emax, 1.0 - KTOL);
-    if (I2max<0) I2max = orb.get_action(1);
+    if (vm.count("I2max")==0) I2max = orb.get_action(1);
 
     if (myid==0)
       std::cout << std::endl
 		<< std::string(40, '-')  << std::endl
-		<< "---- Action limits"  << std::endl
+		<< "---- Range limits"  << std::endl
 		<< std::string(40, '-')  << std::endl
 		<< "-- I1min: " << I1min << std::endl
 		<< "-- I1max: " << I1max << std::endl
@@ -521,10 +576,21 @@ main(int argc, char **argv)
 		<< "-- I2max: " << I2max << std::endl
 		<< std::string(40, '-')  << std::endl;
   } else {
-    if (I1min<0) I1min = Emin;
-    if (I1max<0) I1max = Emax;
-    if (I2min<0) I2min = std::max<double>(KTOL, KMIN);
-    if (I2max<0) I2max = std::min<double>(1.0 - KTOL, KMAX);
+    if (vm.count("I1min")==0) I1min = Emin;
+    if (vm.count("I1max")==0) I1max = Emax;
+    if (vm.count("I2min")==0) I2min = std::max<double>(KTOL, KMIN);
+    if (vm.count("I2max")==0) I2max = std::min<double>(1.0 - KTOL, KMAX);
+
+    if (myid==0)
+      std::cout << std::endl
+		<< std::string(40, '-')  << std::endl
+		<< "---- Range limits"  << std::endl
+		<< std::string(40, '-')  << std::endl
+		<< "-- Emin: " << I1min << std::endl
+		<< "-- Emax: " << I1max << std::endl
+		<< "-- Kmin: " << I2min << std::endl
+		<< "-- Kmax: " << I2max << std::endl
+		<< std::string(40, '-')  << std::endl;
   }
 
   double d1 = (I1max - I1min) / NUM1;
@@ -562,15 +628,27 @@ main(int argc, char **argv)
   //
   double initl_time, final_time;
 
+  // Number of paths
+  //
+  int npath1 = 1, npath2 = 1;
+  if (fileType != "PSPhdf5") {
+    npath1 = INFILE1.size();
+    npath2 = INFILE2.size();
+  }
 
   // Iterate through file list
   //
-  for (size_t n=0; n<INFILE1.size(); n++) {
+  for (size_t n=0; n<npath1; n++) {
 
     PR::PRptr psp1, psp2;
 
     try {
-      psp1 = PR::ParticleReader::createReader(fileType, {INFILE1[n]}, myid, true);
+
+      if (fileType == "PSPhdf5") {
+	psp1 = PR::ParticleReader::createReader(fileType, INFILE1, myid, true);
+      } else {
+	psp1 = PR::ParticleReader::createReader(fileType, {INFILE1[n]}, myid, true);
+      }
   
       initl_time = psp1->CurrentTime();
 
@@ -578,7 +656,10 @@ main(int argc, char **argv)
 
       if (myid==0) {
 	std::cout << std::endl << std::string(40, '-') << std::endl;
-	std::cout << "File 1: " << INFILE1[n] << std::endl;
+	if (fileType == "PSPhdf5")
+	  std::cout << "Path 1: " << path1 << std::endl;
+	else
+	  std::cout << "File 1: " << CURDIR + INFILE1[n] << std::endl;
 	std::cout << "Found dump at time: " << initl_time << std::endl;
       }
     }
@@ -593,14 +674,22 @@ main(int argc, char **argv)
     }
     
     try {
-      psp2 = PR::ParticleReader::createReader(fileType, {INFILE2[n]}, myid, true);
+      if (fileType == "PSPhdf5") {
+	std::string path = CURDIR + INFILE2[0];
+	psp2 = PR::ParticleReader::createReader(fileType, INFILE2, myid, true);
+      } else {
+	psp2 = PR::ParticleReader::createReader(fileType, {INFILE2[n]}, myid, true);
+      }
   
       final_time = psp2->CurrentTime();
 
       psp2->SelectType(COMP);
 
       if (myid==0) {
-	std::cout << "File 2: " << INFILE2[n] << endl;
+	if (fileType == "PSPhdf5")
+	  std::cout << "Path 2: " << path2 << endl;
+	else
+	  std::cout << "File 2: " << INFILE2[n] << endl;
 	std::cout << "Found dump at time: " << final_time << std::endl;
 	std::cout << std::string(40, '-') << std::endl;
       }
@@ -1243,11 +1332,31 @@ main(int argc, char **argv)
     double mfac = d1*d2;
     
     if (meshgrid)
-      for (int k=0; k<15; k++) out[k] << std::setw(8) << NUM1
+      for (int k=0; k<17; k++) out[k] << std::setw(8) << NUM1
 				      << std::setw(8) << NUM2
 				      << std::endl;
     bool relJ = false;
     if (vm.count("relJ")) relJ = true;
+
+    // Smooth arrays
+    //
+    if (Sig1 > 0.0 and Sig2 > 0.0) {
+
+      KDE::KDE2d kde(NUM1, NUM2,
+		     I1min, I1max, I2min, I2max, Sig1, Sig2);
+
+      histoM  = kde(histoM);
+      histoC  = kde(histoC);
+      histoE  = kde(histoE);
+      histoJ  = kde(histoJ);
+      histoR  = kde(histoR);
+      histoI  = kde(histoI);
+      histoT  = kde(histoT);
+      histoF  = kde(histoF);
+      histo1  = kde(histo1);
+      histo2  = kde(histo2);
+      histoDF = kde(histoDF);
+    }
 
     for (int j=0; j<NUM2; j++) {
 
@@ -1305,16 +1414,20 @@ main(int argc, char **argv)
 	}
 	  
 	if (totMass>0.0) {
-	  p_rec(out[8], I1, I2, histoF(i, j)*jfac/totMass);
+	  p_rec(out[8 ], I1, I2, histoF(i, j)*jfac/totMass);
+	  p_rec(out[13], I1, I2, histo1(i, j)*jfac/totMass);
+	  p_rec(out[14], I1, I2, histo2(i, j)*jfac/totMass);
 	}
 	else {
-	  p_rec(out[8], I1, I2, 0.0);
+	  p_rec(out[8 ], I1, I2, 0.0);
+	  p_rec(out[13], I1, I2, 0.0);
+	  p_rec(out[14], I1, I2, 0.0);
 	}
 
-	p_rec(out[13], I1, I2, histoDF(i, j));
-	p_rec(out[14], I1, I2, histoC (i, j));
+	p_rec(out[15], I1, I2, histoDF(i, j));
+	p_rec(out[16], I1, I2, histoC (i, j));
       }
-      if (not meshgrid) for (int k=0; k<15; k++) out[k] << endl;
+      if (not meshgrid) for (int k=0; k<17; k++) out[k] << endl;
     }
     
     if (CUMULATE) {
@@ -1357,36 +1470,36 @@ main(int argc, char **argv)
     };
     
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[15] << "#";
-      else      out[15] << "+";
-      out[15] << setw(fieldsz-1) << left << setfill('-') << '-';
+      if (j==0) out[17] << "#";
+      else      out[17] << "+";
+      out[17] << setw(fieldsz-1) << left << setfill('-') << '-';
     }
-    out[15] << endl << setfill(' ');
+    out[17] << endl << setfill(' ');
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[15] << "# ";
-      else      out[15] << "+ ";
-      out[15] << setw(fieldsz-2) << left << rlabels[j];
+      if (j==0) out[17] << "# ";
+      else      out[17] << "+ ";
+      out[17] << setw(fieldsz-2) << left << rlabels[j];
     }
-    out[15] << endl;
+    out[17] << endl;
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[15] << "# ";
-      else      out[15] << "+ ";
-      out[15] << setw(fieldsz-2) << left << j+1;
+      if (j==0) out[17] << "# ";
+      else      out[17] << "+ ";
+      out[17] << setw(fieldsz-2) << left << j+1;
     }
-    out[15] << endl;
+    out[17] << endl;
     for (int j=0; j<nrlabs; j++) {
-      if (j==0) out[15] << "#";
-      else      out[15] << "+";
-      out[15] << setw(fieldsz-1) << left << setfill('-') << '-';
+      if (j==0) out[17] << "#";
+      else      out[17] << "+";
+      out[17] << setw(fieldsz-1) << left << setfill('-') << '-';
     }
-    out[15] << endl << setfill(' ');
+    out[17] << endl << setfill(' ');
     
     for (int i=0; i<NUMR; i++) {
       
       double rr = rhmin + dR*(0.5+i);
       if (LOGR) rr = exp(rr);
       
-      out[16] << setw(fieldsz) << rr 
+      out[18] << setw(fieldsz) << rr 
 	      << setw(fieldsz) << histoP[i]
 	      << setw(fieldsz) << histoL[i]
 	      << setw(fieldsz) << histPr[i]
@@ -1411,39 +1524,39 @@ main(int argc, char **argv)
       for (int l=0; l<2; l++) {
 
 	for (int j=0; j<nrlabs; j++) {
-	  if (j==0) out[17+l] << "#";
-	  else      out[17+l] << "+";
-	  out[17+l] << setw(fieldsz-1) << left << setfill('-') << '-';
+	  if (j==0) out[19+l] << "#";
+	  else      out[19+l] << "+";
+	  out[19+l] << setw(fieldsz-1) << left << setfill('-') << '-';
 	}
 
-	out[17+l] << endl << setfill(' ');
+	out[19+l] << endl << setfill(' ');
 	
 	for (int j=0; j<nrlabs; j++) {
-	  if (j==0) out[17+l] << "# ";
-	  else      out[17+l] << "+ ";
-	  out[17+l] << setw(fieldsz-2) << left << labels[l][j];
+	  if (j==0) out[19+l] << "# ";
+	  else      out[19+l] << "+ ";
+	  out[19+l] << setw(fieldsz-2) << left << labels[l][j];
 	}
 	
-	out[17+l] << endl;
+	out[19+l] << endl;
 	for (int j=0; j<nrlabs; j++) {
-	  if (j==0) out[17+l] << "# ";
-	  else      out[17+l] << "+ ";
-	  out[17+l] << setw(fieldsz-2) << left << j+1;
+	  if (j==0) out[19+l] << "# ";
+	  else      out[19+l] << "+ ";
+	  out[19+l] << setw(fieldsz-2) << left << j+1;
 	}
-	out[17+l] << endl;
+	out[19+l] << endl;
 
 	for (int j=0; j<nrlabs; j++) {
-	  if (j==0) out[17+l] << "#";
-	  else      out[17+l] << "+";
-	  out[17+l] << setw(fieldsz-1) << left << setfill('-') << '-';
+	  if (j==0) out[19+l] << "#";
+	  else      out[19+l] << "+";
+	  out[19+l] << setw(fieldsz-1) << left << setfill('-') << '-';
 	}
-	out[17+l] << endl << setfill(' ');
+	out[19+l] << endl << setfill(' ');
 	
 	for (int j=0; j<histo1_1d[l].size(); j++) {
-	  if (l==0) out[17+l] << setw(fieldsz) << left << I1min + d1*j;
-	  else      out[17+l] << setw(fieldsz) << left << I2min + d2*j;
+	  if (l==0) out[19+l] << setw(fieldsz) << left << I1min + d1*j;
+	  else      out[19+l] << setw(fieldsz) << left << I2min + d2*j;
 	  
-	  out[17+l] << setw(fieldsz) << left << histo1_1d[l][j]
+	  out[19+l] << setw(fieldsz) << left << histo1_1d[l][j]
 		    << setw(fieldsz) << left << histo2_1d[l][j]
 		    << setw(fieldsz) << left << histoF_1d[l][j]
 		    << setw(fieldsz) << left << histoDF_1d[l][j]
