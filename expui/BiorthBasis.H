@@ -40,6 +40,12 @@ namespace BasisClasses
   {
     friend class Field::FieldGenerator;
 
+  private:
+
+    //! Helper for factory
+    static std::shared_ptr<BiorthBasis>
+    factory_initialize(const YAML::Node& node);
+
   protected:
     
     /** @name Utility functions */
@@ -78,6 +84,18 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() = 0;
 
+    //@{
+    //! Compute acceleration helper for each derived class
+    virtual void computeAccel(double x, double y, double z,
+			      Eigen::Ref<Eigen::Vector3d> vstore) = 0;
+
+    //! C++ local storage for computeAccel
+    Eigen::Vector3d vstore;
+
+    //! C++ local storage for getAccelArray
+    RowMatrixXd varray;
+    //@}
+
   public:
     
     //! Constructor from YAML node
@@ -94,13 +112,15 @@ namespace BasisClasses
     //! Generate coeffients from a particle reader and optional center
     //! location for the expansion
     CoefClasses::CoefStrPtr createFromReader
-    (PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
+    (PR::PRptr reader, Eigen::Vector3d center=Eigen::Vector3d::Zero(),
+     RowMatrix3d rot=RowMatrix3d::Identity());
     
     //! Generate coeffients from an array and optional center location
     //! for the expansion
     CoefClasses::CoefStrPtr createFromArray
     (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
-     std::vector<double> center={0.0, 0.0, 0.0},
+     Eigen::Vector3d center=Eigen::Vector3d::Zero(),
+     RowMatrix3d rot=RowMatrix3d::Identity(),
      bool roundrobin=true, bool posvelrows=false);
     
     //! Generate coeffients from an array and optional center location
@@ -110,7 +130,8 @@ namespace BasisClasses
     //! Initialize accumulating coefficients from arrays with an optional
     //! center vector.  This is called once to initialize the accumulation.
     void initFromArray
-    (std::vector<double> center={0.0, 0.0, 0.0});
+    (Eigen::Vector3d center=Eigen::Vector3d::Zero(),
+     RowMatrix3d rot=RowMatrix3d::Identity());
     
     //! Initialize accumulating coefficients from arrays.  This is
     //! called once to initialize the accumulation.
@@ -154,8 +175,8 @@ namespace BasisClasses
     //@{
     //! The coefficient factory.  Creates a shared pointer to derived
     //! instance of the desired type and returns it.
-    // static std::shared_ptr<Basis> factory(const YAML::Node&  conf);
-    // static std::shared_ptr<Basis> factory_string(const std::string& conf);
+    static std::shared_ptr<BiorthBasis> factory(const YAML::Node&  conf);
+    static std::shared_ptr<BiorthBasis> factory_string(const std::string& conf);
     //@}
     
     //! Set the particle selector callback
@@ -166,9 +187,34 @@ namespace BasisClasses
 
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system
-    virtual std::vector<double> getAccel(double x, double y, double z) = 0;
+    virtual Eigen::Vector3d& getAccel(double x, double y, double z)
+    {
+      computeAccel(x, y, z, vstore);
+      return vstore;
+    }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system for a collections of points
+    virtual RowMatrixXd& getAccelArray(Eigen::VectorXd& x,
+				       Eigen::VectorXd& y,
+				       Eigen::VectorXd& z)
+    {
+      // Sanity check
+      if (x.size() != y.size() || x.size() != z.size())
+	throw std::runtime_error("BiorthBasis::getAccelArray: "
+				 "x, y, z vectors must be of the same size");
+      
+      // Resize the return array
+      varray.resize(x.size(), 3);
+#pragma omp parallel for
+      for (int i=0; i<x.size(); ++i) {
+	computeAccel(x(i), y(i), z(i), varray.row(i));
+      }
+
+      return varray;
+    }
   };
-  
+
   /**
      An abstract spherical basis to evaluate expansion coeffients and
      provide potential and density basis fields
@@ -257,6 +303,11 @@ namespace BasisClasses
 
     //@}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    virtual void computeAccel(double x, double y, double z, 
+			      Eigen::Ref<Eigen::Vector3d> vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -312,9 +363,6 @@ namespace BasisClasses
       return ret;
     }
 
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    virtual std::vector<double> getAccel(double x, double y, double z);
   };
 
   /**
@@ -499,6 +547,11 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() { return "m";}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -550,10 +603,6 @@ namespace BasisClasses
 	std::cout << "---- FlatDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
-
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -655,6 +704,11 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() { return "m";}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -706,10 +760,6 @@ namespace BasisClasses
 	std::cout << "CBDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
-
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -806,6 +856,11 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() { return "m";}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -864,10 +919,6 @@ namespace BasisClasses
 	std::cout << "---- Cylindrical::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
-
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -962,6 +1013,11 @@ namespace BasisClasses
     std::tuple<double, double, double, double, double>
     eval(double x, double y, double z);
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -1016,10 +1072,6 @@ namespace BasisClasses
       if (worst > __EXP__::orthoTol) return false;
       return true;
     }
-
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -1098,6 +1150,12 @@ namespace BasisClasses
     //! Readable index name
     virtual const std::string harmonic()  { return "n";}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z, 
+		      Eigen::Ref<Eigen::Vector3d> vstore);
+
+
   public:
     
     //! Constructor from YAML node
@@ -1144,10 +1202,6 @@ namespace BasisClasses
       if (worst > __EXP__::orthoTol) return false;
       return true;
     }
-
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
 
   };
   

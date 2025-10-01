@@ -13,16 +13,16 @@ typedef std::shared_ptr<SLGridSph> SLGridSphPtr;
 #include <cudaUtil.cuH>
 #endif
 
-/** Computes the potential, acceleration and density using the Sturm
+/** @class Sphere
+    @brief Computes the potential, acceleration and density using the Sturm
     Liouville direct solution
 
-    \param rmin is the minimum value in the table for the 
-    radial basis functions (default is 0.001)
+    @details **YAML configuration**
 
-    \param rmapping is the halo scale length (default is 0.067*rmax).  This
+    @param rmapping is the halo scale length (default is 0.067*rmax).  This
     is used to for the coordinate mapping  (see below).
 
-    \param cmap should be 1 for algebraic coordinate scaling, 2 for log
+    @param cmap should be 1 for algebraic coordinate scaling, 2 for log
     coordinate scaling, 0 for no scaling as follows: 
     \f[ 
     x = {r/r_s-1 \over r/r_s+1} 
@@ -37,12 +37,34 @@ typedef std::shared_ptr<SLGridSph> SLGridSphPtr;
     better choice.  Logarithmic scaling will insist that the
     <code>rmin>0</code>.
 
-    \param numr is the number radial coordinate knots in the table 
-    (default is 1000)
+    @param numr is the number radial coordinate knots in the table 
+    (default: 2000)
 
-    \param diverge sets the power law extrapolation of a cusp profile
+    @param nums is the number of bins in the empirical mass array
+    (default: 2000)
 
-    \param dfac is the inverse slope of the power law
+    @param noff is the offset into the empirical mass array for
+    computing upper and lower grid boundaries (default: 32)
+
+    @param diverge set to true means assume a cuspy profile
+
+    @param dfac is the power of the "divergent" cusp
+
+    @param modelname is the file containing the input background model profile
+
+    @param cachename is the name for the SL grid cache file
+
+    @param dtime is the interval between basis recomputations (<=0 for never)
+
+    @param diverge sets the power law extrapolation of a cusp profile
+
+    @param dfac is the inverse slope of the power law
+
+    @param logr set to true uses a logarithmic spacing for the
+    empirical radial grid (default: false)
+
+    @param plummer set to true uses a Plummer-model fit to the
+    empirical mass array to make basis model (default: true)
 */
 class Sphere : public SphericalBasis 
 {
@@ -119,16 +141,6 @@ public:
       @param c0 is the instantiating caller (Component)
       @param conf passes any parameters to basis instance (rsphSL, rmin and numr
       @param m allows the spherical basis to be used for multiple center expansions 
-      
-      Input line parameters include:
-      @param rmapping is the radius for coordinate scaling
-      @param numr is the number of radial grid points
-      @param cmap set to true for scaling coordinates from the semi-infinite to finite segment
-      @param diverge set to true means assume a cuspy profile
-      @param dfac is the power of the "divergent" cusp
-      @param modelname is the file containing the input background model profile
-      @param cachename is the name for the SL grid cache file
-      @param dtime is the interval between basis recomputations (<=0 for never)
   */
   Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m=0);
 

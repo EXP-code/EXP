@@ -3,6 +3,7 @@
 
 #include <ParticleReader.H>
 #include <functional>
+#include <cstdint>
 
 namespace Utility
 {

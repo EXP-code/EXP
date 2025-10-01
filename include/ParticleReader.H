@@ -456,7 +456,7 @@ namespace PR
   public:
     
     //! Default constructor
-    PSP(bool verbose) : VERBOSE(verbose) { init(); }
+    PSP(bool verbose) : VERBOSE(verbose), ParticleReader() { init(); }
     
     //! Destructor
     virtual ~PSP() { if (in.is_open()) in.close(); }
@@ -573,7 +573,7 @@ namespace PR
 
   public:
 
-    enum class TipsyType { native, xdr, bonsai };
+    enum class TipsyType { native, xdr, bonsai1, bonsai };
 
   private:
     //! List of files

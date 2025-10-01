@@ -362,7 +362,6 @@ void ParticleFerry::BufferSend()
   MPI_Send(&buf[0],    totchar, MPI_CHAR, _to, 3, MPI_COMM_WORLD);
 #ifdef DEBUG
   cout << "ParticleFerry: process " << myid  << " send, tot=" << itotcount << endl;
-  bufferKeyCheck();
 #endif
   ibufcount = bufpos = 0;	// Reset counter and position
 }
@@ -378,6 +377,5 @@ void ParticleFerry::BufferRecv()
   MPI_Recv(&buf[0],    bufpos, MPI_CHAR, _from, 3, MPI_COMM_WORLD, &s);
 #ifdef DEBUG
   cout << "ParticleFerry: process " << myid  << " recv, tot=" << itotcount-1+ibufcount << endl;
-  bufferKeyCheck();
 #endif
 }

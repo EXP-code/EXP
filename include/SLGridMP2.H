@@ -94,6 +94,18 @@ private:
   //! Cache versioning
   inline static const std::string Version = "1.0";
 
+  //@{
+  /** Rmin heuristic for grid construction to prevent underflow issues
+      in Sturm-Liouville solver: sledge */
+
+  //! Use entire grid for l<Lswitch
+  static int Lswitch;
+  
+  //! For l>=Lswitch:
+  //! rmin=rmap/rfac, rmax=rmap*rfac with rfac=pow(10, Lalpha/l)
+  static double Lalpha;
+  //@}
+
 public:
 
   //! Flag for MPI enabled (default: 0=off)
