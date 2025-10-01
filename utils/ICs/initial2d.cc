@@ -495,7 +495,7 @@ main(int ac, char **av)
   std::cout << "Processor " << myid << ": n_particlesH=" << n_particlesH
 	    << std::endl
 	    << "Processor " << myid << ": n_particlesD=" << n_particlesD
-	    << std::endl
+	    << std::endl;
 #endif
 
   if (nhalo + ndisk <= 0) {
