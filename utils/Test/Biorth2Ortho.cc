@@ -1,4 +1,5 @@
 #include <Biorth2Ortho.H>
+#include <EXPmath.H>
 
 Biorth2Ortho::Biorth2Ortho(std::shared_ptr<AxiSymBiorth> b,
 			   int Lmax, int Nmax, int Ngrid,
@@ -74,7 +75,7 @@ void Biorth2Ortho::generate()
 	  Real x = xmin + dx*i;
 	  if (laguerre) {
 	    double r = biorth->rb_to_r(x);
-	    Wtbl[l](n, i) = std::assoc_laguerre(n, 2, r/scl)*exp(-0.5*r/scl);
+	    Wtbl[l](n, i) = EXPmath::assoc_laguerre(n, 2, r/scl)*exp(-0.5*r/scl);
 	  }
 	  else if (alternate) {
 	    if (n % 2 == 0)
@@ -131,7 +132,7 @@ void Biorth2Ortho::generate()
 
 	    Real f;
 	    if (laguerre) {
-	      f = std::assoc_laguerre(k, 2, r/scl)*exp(-0.5*r/scl);
+	      f = EXPmath::assoc_laguerre(k, 2, r/scl)*exp(-0.5*r/scl);
 	    }
 	    else if (alternate) {
 	      if (k % 2 == 0)
