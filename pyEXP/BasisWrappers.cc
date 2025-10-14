@@ -1316,6 +1316,32 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
+    .def("makeFromFunction", &BasisClasses::BiorthBasis::makeFromFunction,
+	 R"(
+         Make coefficients from a density function callback
+
+         Parameters
+         ----------
+         func : function
+		the density function callback with the signature:
+		func(ndarray pos, float time) -> float
+	 params : dict
+		dictionary of parameters to pass to the function.  For
+         time : float
+             snapshot time (default=0.0)
+
+         Returns
+         -------
+         CoefStruct
+             the coefficient structure created from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray  : add contribution for particles
+         )",
+	 py::arg("func"), py::arg("params"), py::arg("time")
+	 )
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
          Return the field evaluations for a given cartesian position. The
@@ -1738,6 +1764,8 @@ void BasisFactoryClasses(py::module &m)
         Parameters
         ----------
         I : int
+	  double hold = norm * mass * mcos * vc[id](mm, nn);
+
             the spherical coefficient array index
 
         Returns

@@ -144,6 +144,16 @@ namespace BasisClasses
     CoefClasses::CoefStrPtr makeFromArray(double time=0.0);
     //@}
     
+    //! Create and the coefficients from a function callback with the
+    //! provided time value
+    virtual CoefClasses::CoefStrPtr makeFromFunction
+    (std::function<double(double x, double y, double z, double time)> func,
+     std::map<std::string, double>& params, double time=0.0)
+    {
+      throw std::runtime_error("Error: BiorthBasis::makeFromFunction is not implemented");
+      return nullptr;
+    }
+    
     //! Accumulate new coefficients
     virtual void accumulate(double x, double y, double z, double mass) = 0;
     
@@ -362,6 +372,12 @@ namespace BasisClasses
 	std::cout << "---- Spherical::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
+
+    //! Create and the coefficients from a function callback with the
+    //! provided time value
+    virtual CoefClasses::CoefStrPtr makeFromFunction
+    (std::function<double(double x, double y, double z, double time)> func,
+     std::map<std::string, double>& params, double time=0.0);
 
   };
 
@@ -919,6 +935,12 @@ namespace BasisClasses
 	std::cout << "---- Cylindrical::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
+
+    //! Create and the coefficients from a function callback with the
+    //! provided time value
+    virtual CoefClasses::CoefStrPtr makeFromFunction
+    (std::function<double(double x, double y, double z, double time)> func,
+     std::map<std::string, double>& params, double time=0.0);
 
   };
   

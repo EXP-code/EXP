@@ -12,6 +12,9 @@
 #include <memory>
 #include <Eigen/Eigen>
 
+// Sturm-Liouville basis support
+#include <SLGridMP2.H>
+
 
 class Biorth
 {
@@ -276,6 +279,61 @@ public:
 
   inline double rb_min(void) {return 0.0;}
   inline double rb_max(void) {return rmax;}
+
+};
+
+
+class Sturm : public AxiSymBiorth
+{
+
+private:
+  
+  std::shared_ptr<SLGridSph> ortho;
+
+  int nmax;
+  int lmax;
+  double xmin, xmax;
+
+public:
+
+  //! Constructor
+  Sturm(std::shared_ptr<SphericalModelTable> mod, 
+	int LMAX=10, int NMAX=10, int NUMR=200,
+	string cache_file = ".slgrid_sph_cache", double scale=1.0);
+
+  //! Destructor
+  ~Sturm(void);
+
+				// Required functions
+
+  double potl(const int nn, const int l, const double x);
+
+  double dens(const int nn, const int l, const double x);
+
+  double krnl(const int nn, const int l) { return 1.0; }
+  double norm(const int nn, const int l) { return 1.0; }
+
+  void potl(const int nn, const int l, const double r, Eigen::VectorXd& t);
+
+  void dens(const int nn, const int l, const double r, Eigen::VectorXd& t);
+
+				// Supplemental functions
+
+  double potlR(const int nn, const int l, const double r);
+  double densR(const int nn, const int l, const double r);
+  double potlRZ(const int nn, const int l, const double r,
+		       const double z);
+  
+  double rb_to_r(double const x);
+  double r_to_rb(double const r);
+  double d_r_to_rb(double const r);
+
+  double rb_min(void) {return xmin; }
+  double rb_max(void) {return xmax; }
+
+private:
+
+  Sturm () {}
 
 };
 
