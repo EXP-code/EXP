@@ -42,7 +42,7 @@
 #include <Eigen/Eigen>
 
 #include <localmpi.H>
-#include <progress_display.H>
+#include <Progress.H>
 #include <cxxopts.H>
 #include <Timer.H>
 
