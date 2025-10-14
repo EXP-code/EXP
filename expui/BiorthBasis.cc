@@ -4656,7 +4656,7 @@ namespace BasisClasses
     //
     double rmapping = rmap;
     if (params.find("rmapping") == params.end())
-      std::cout << "BiorthBasis::makeFromFunction: using default rmapping="
+      std::cout << "---- BiorthBasis::makeFromFunction: using default rmapping="
 		<< rmapping << std::endl;
     else
       rmapping = params["rmapping"];
@@ -4679,7 +4679,7 @@ namespace BasisClasses
     auto x_to_r = [&](double x) -> double
     {
       if (x<-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<-1");
-      if (x< 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>+1");
+      if (x> 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>+1");
       
       return (1.0 + x)/(1.0 - x) * rmapping;
     };
@@ -4688,7 +4688,7 @@ namespace BasisClasses
     auto d_x_to_r = [&](double x) -> double
     {
       if (x<-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<-1");
-      if (x< 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>+1");
+      if (x> 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>+1");
       
       return 0.5*(1.0 - x)*(1.0 - x)/rmapping;
     };
@@ -4782,7 +4782,7 @@ namespace BasisClasses
     //
     double rmapping = rmap;
     if (params.find("rmapping") == params.end())
-      std::cout << "BiorthBasis::makeFromFunction: using default rmapping="
+      std::cout << "---- BiorthBasis::makeFromFunction: using default rmapping="
 		<< rmapping << std::endl;
     else
       rmapping = params["rmapping"];
