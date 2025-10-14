@@ -4838,8 +4838,6 @@ namespace BasisClasses
       double x = R*cos(phi);
       double y = R*sin(phi);
 
-      if (R/ASCL>Rtable) continue;
-
       double fac = (xmax - xmin)*(ymax - ymin) * lw.weight(i)*lw.weight(j) *
 	2.0*M_PI/knots * func(x, y, z, time) * R;
 
