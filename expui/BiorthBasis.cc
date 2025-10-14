@@ -4839,7 +4839,8 @@ namespace BasisClasses
       double y = R*sin(phi);
 
       double fac = (xmax - xmin)*(ymax - ymin) * lw.weight(i)*lw.weight(j) *
-	2.0*M_PI/knots * func(x, y, z, time) * R;
+	2.0*M_PI/knots * func(x, y, z, time) * R /
+	sl->d_xi_to_r(xx) * sl->d_y_to_z(yy);
 
       for (int mm=0; mm<=Mmax; mm++) {
 
