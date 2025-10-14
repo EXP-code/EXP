@@ -1317,6 +1317,7 @@ void BasisFactoryClasses(py::module &m)
          )",
 	 py::arg("mass"), py::arg("pos"))
     .def("makeFromFunction", &BasisClasses::BiorthBasis::makeFromFunction,
+	 py::call_guard<py::gil_scoped_release>(),
 	 R"(
          Make coefficients from a density function callback
 
