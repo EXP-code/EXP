@@ -17,7 +17,7 @@
 #include <highfive/eigen.hpp>
 
 // EXP framework
-#include <progress_display.H>
+#include <Progress.H>
 #include <localmpi.H>
 #include <biorth.H>
 
