@@ -32,7 +32,7 @@ void Biorth2Ortho::generate()
 {
   // Progress bar
   //
-  std::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
 
   // Only root process instantiates progress bar
   //
@@ -40,7 +40,7 @@ void Biorth2Ortho::generate()
     std::cout << std::endl
 	      << "Computing new basis functions and transformation matrices"
 	      << std::endl;
-    progress = std::make_shared<boost::progress_display>(lmax+1);
+    progress = std::make_shared<progress::progress_display>(lmax+1);
   }
 
   // Resize transformation matrices
@@ -236,13 +236,13 @@ void Biorth2Ortho::output(const std::string& PREFIX)
 
   // Progress bar
   //
-  std::shared_ptr<boost::progress_display> progress;
+  std::shared_ptr<progress::progress_display> progress;
 
   if (prog_bar) {
     std::cout << std::endl
 	      << "Making general output file with orthogonality tests"
 	      << std::endl;
-    progress = std::make_shared<boost::progress_display>(lmax+1);
+    progress = std::make_shared<progress::progress_display>(lmax+1);
   }
 
   std::ostringstream fname;
@@ -350,7 +350,7 @@ void Biorth2Ortho::output(const std::string& PREFIX)
     std::cout << std::endl
 	      << "Writing basis functions and diagnostic differences"
 	      << std::endl;
-    progress = std::make_shared<boost::progress_display>(lmax+1);
+    progress = std::make_shared<progress::progress_display>(lmax+1);
   }
 
   // Output new basis functions
