@@ -4841,7 +4841,7 @@ namespace BasisClasses
       if (R/ASCL>Rtable) continue;
 
       double fac = (xmax - xmin)*(ymax - ymin) * lw.weight(i)*lw.weight(j) *
-	2.0*M_PI/knots * func(x, y, z, time);
+	2.0*M_PI/knots * func(x, y, z, time) * R;
 
       for (int mm=0; mm<=Mmax; mm++) {
 
