@@ -4743,6 +4743,8 @@ namespace BasisClasses
 
       legendre_R(Lmax, costh, legs[tid]);
 
+      double fval = func(x, y, z, time);
+
       for (int L=0, l=0; L<=Lmax; L++) {
 	  
 	for (int M=0; M<=L; M++, l++) {
@@ -4754,13 +4756,10 @@ namespace BasisClasses
 
 	    for (int k=0; k<knots; k++) {
 	      if (M==0) {
-		mat(l, n) += prefac * legs[tid](L, M) * potd[tid](L, n) *
-		  func(x, y, z, time);
+		mat(l, n) += prefac * legs[tid](L, M) * potd[tid](L, n) * fval;
 	      }
 	      else {
-		double fac = prefac * legs[tid](L, M) * potd[tid](L, n) *
-		  func(x, y, z, time);
-		
+		double fac = prefac * legs[tid](L, M) * potd[tid](L, n) * fval;
 		mat(l, n) += std::complex<double>(cos(phi*M), sin(phi*M)) * fac;
 	      }
 	    }
@@ -4841,7 +4840,8 @@ namespace BasisClasses
 
       if (R/ASCL>Rtable) continue;
 
-      double fac = (xmax - xmin)*(ymax - ymin) * 2.0*M_PI/knots * lw.weight(i)*lw.weight(j);
+      double fac = (xmax - xmin)*(ymax - ymin) * lw.weight(i)*lw.weight(j) *
+	2.0*M_PI/knots * func(x, y, z, time);
 
       for (int mm=0; mm<=Mmax; mm++) {
 
@@ -4853,7 +4853,7 @@ namespace BasisClasses
 	  double pC, pS;
 	  sl->getPotSC(mm, nn, R, z, pC, pS);
 
-	  mat(mm, nn) += std::complex<double>(pC*mcos, pS*msin) * func(x, y, z, time) * fac;
+	  mat(mm, nn) += std::complex<double>(pC*mcos, pS*msin) * fac;
 	}
       }
     }
