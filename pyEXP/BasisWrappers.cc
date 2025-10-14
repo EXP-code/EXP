@@ -1324,10 +1324,11 @@ void BasisFactoryClasses(py::module &m)
          Parameters
          ----------
          func : function
-		the density function callback with the signature:
-		func(float x, float y, float time) -> float
-	 params : dict
-		dictionary of parameters to pass to the function.  For
+                the density function callback with the signature:
+                func(float x, float y, float time) -> float
+         params : dict
+                dictionary of parameters to pass to the function.  Default is
+                empty.
          time : float
              snapshot time (default=0.0)
 
@@ -1341,7 +1342,7 @@ void BasisFactoryClasses(py::module &m)
          initFromArray : initialize for coefficient contributions
          addFromArray  : add contribution for particles
          )",
-	 py::arg("func"), py::arg("params"), py::arg("time")
+	 py::arg("func"), py::arg("params")=std::map<std::string, double>(), py::arg("time")=0.0
 	 )
     .def("computeQuadrature", &BasisClasses::BiorthBasis::computeQuadrature,
 	 py::call_guard<py::gil_scoped_release>(),
@@ -1351,10 +1352,11 @@ void BasisFactoryClasses(py::module &m)
          Parameters
          ----------
          func : function
-		the integrand with all signature 
-		func(x, y, z) -> float
-	 params : dict
-		dictionary of parameters to pass to the function.  For
+                the integrand with all signature 
+                func(x, y, z) -> float
+         params : dict
+                dictionary of parameters to pass to the function.  Default is
+                empty.
 
          Returns
          -------
@@ -1362,7 +1364,7 @@ void BasisFactoryClasses(py::module &m)
              the quadrature value
 
          )",
-	 py::arg("func"), py::arg("params")
+	 py::arg("func"), py::arg("params")=std::map<std::string, double>()
 	 )
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
