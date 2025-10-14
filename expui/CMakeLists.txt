@@ -58,6 +58,10 @@ add_executable(testread   testread.cc)
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} expui exputil ${common_LINKLIB})
   target_include_directories(${program} PUBLIC ${common_INCLUDE})
-  target_compile_options(${program} PUBLIC ${OpenMP_CXX_FLAGS})
+  # TODO: Should find a proper solution for this, but for now, don't add OpenMP compile
+  # options if compiling on macOS with Clang
+  if(NOT (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang"))
+    target_compile_options(${program} PUBLIC ${OpenMP_CXX_FLAGS})
+  endif()
   install(TARGETS ${program} DESTINATION bin)
 endforeach()
