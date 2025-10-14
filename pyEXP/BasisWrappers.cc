@@ -1325,7 +1325,7 @@ void BasisFactoryClasses(py::module &m)
          ----------
          func : function
 		the density function callback with the signature:
-		func(ndarray pos, float time) -> float
+		func(float x, float y, float time) -> float
 	 params : dict
 		dictionary of parameters to pass to the function.  For
          time : float
@@ -1342,6 +1342,27 @@ void BasisFactoryClasses(py::module &m)
          addFromArray  : add contribution for particles
          )",
 	 py::arg("func"), py::arg("params"), py::arg("time")
+	 )
+    .def("computeQuadrature", &BasisClasses::BiorthBasis::computeQuadrature,
+	 py::call_guard<py::gil_scoped_release>(),
+	 R"(
+	 Compute the quadrature of a function of the basis domain
+
+         Parameters
+         ----------
+         func : function
+		the integrand with all signature 
+		func(x, y, z) -> float
+	 params : dict
+		dictionary of parameters to pass to the function.  For
+
+         Returns
+         -------
+         float
+             the quadrature value
+
+         )",
+	 py::arg("func"), py::arg("params")
 	 )
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
