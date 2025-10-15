@@ -4678,8 +4678,8 @@ namespace BasisClasses
 
     auto x_to_r = [&](double x) -> double
     {
-      if (x<-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<-1");
-      if (x> 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>+1");
+      if (x <-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<-1");
+      if (x > 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>+1");
       
       return (1.0 + x)/(1.0 - x) * rmapping;
     };
@@ -4687,8 +4687,8 @@ namespace BasisClasses
 
     auto d_x_to_r = [&](double x) -> double
     {
-      if (x<-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<-1");
-      if (x> 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>+1");
+      if (x <-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<-1");
+      if (x > 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>+1");
       
       return 0.5*(1.0 - x)*(1.0 - x)/rmapping;
     };
@@ -4709,14 +4709,17 @@ namespace BasisClasses
     
     LegeQuad lw(knots);
     
-    Eigen::MatrixXcd mat((Lmax+1)*(Lmax+2)/2, Nmax);
-    mat.setZero();
-    
     // Number of possible threads
     int nthrds = omp_get_max_threads();
     std::vector<Eigen::MatrixXd> potd(nthrds), legs(nthrds);
 
     for (auto & v : legs ) v.resize(Lmax+1, Lmax+1);
+
+    std::vector<Eigen::MatrixXcd> mat(nthrds);
+    for (auto & v : mat) {
+      v.resize((Lmax+1)*(Lmax+2)/2, Nmax);
+      v.setZero();
+    }
 
 #pragma omp parallel for
     for (int ijk=0; ijk<knots*knots*knots; ijk++) {
@@ -4729,11 +4732,11 @@ namespace BasisClasses
       int j = (ijk  - i*knots*knots)/knots;
       int k = ijk - i*knots*knots - j*knots;
       
-      double xx =  ximin + (ximax - ximin)*lw.knot(j);
-      double rr =  x_to_r(xx);
-      double costh = -1.0 + 2.0*lw.knot(k);
+      double xx    =  ximin + (ximax - ximin)*lw.knot(i);
+      double rr    =  x_to_r(xx);
+      double costh = -1.0 + 2.0*lw.knot(j);
       double sinth = sqrt(std::abs(1.0 - costh*costh));
-      double phi = 2.0*M_PI/knots*k;
+      double phi   = 2.0*M_PI/knots*k;
       
       double x = rr*sinth*cos(phi);
       double y = rr*sinth*sin(phi);
@@ -4744,7 +4747,7 @@ namespace BasisClasses
       legendre_R(Lmax, costh, legs[tid]);
 
       double fval = func(x, y, z, time) * (ximax - ximin) * rr*rr *
-	(ximax - ximin) * 2.0 * 2.0*M_PI/knots / d_x_to_r(xx);
+	d_x_to_r(xx) * 2.0 * lw.weight(i) * lw.weight(j) * 2.0*M_PI/knots;
 
       for (int L=0, l=0; L<=Lmax; L++) {
 	  
@@ -4755,21 +4758,23 @@ namespace BasisClasses
 
 	  for (int n=0; n<Nmax; n++) {
 
-	    for (int k=0; k<knots; k++) {
-	      if (M==0) {
-		mat(l, n) += prefac * legs[tid](L, M) * potd[tid](L, n) * fval;
-	      }
-	      else {
-		double fac = prefac * legs[tid](L, M) * potd[tid](L, n) * fval;
-		mat(l, n) += std::complex<double>(cos(phi*M), sin(phi*M)) * fac;
-	      }
+	    if (M==0) {
+	      mat[tid](l, n) += prefac * legs[tid](L, M) * potd[tid](L, n) * fval;
+	    }
+	    else {
+	      double fac = prefac * legs[tid](L, M) * potd[tid](L, n) * fval;
+	      mat[tid](l, n) += std::complex<double>(cos(phi*M), sin(phi*M)) * fac;
 	    }
 	  }
 	}
       }
-
-      scof->assign(mat, Lmax, Nmax);
     }
+
+    // Sum up results from all threads
+    for (int n=1; n<nthrds; n++) mat[0] += mat[n];
+
+    // Assign to CoefStruct
+    scof->assign(mat[0], Lmax, Nmax);
 
     return scof;
   }
@@ -4782,7 +4787,7 @@ namespace BasisClasses
     //
     double rmapping = rmap;
     if (params.find("rmapping") == params.end())
-      std::cout << "---- BiorthBasis::makeFromFunction: using default rmapping="
+      std::cout << "---- BiorthBasis::computeQuadrature: using default rmapping="
 		<< rmapping << std::endl;
     else
       rmapping = params["rmapping"];
@@ -4797,15 +4802,15 @@ namespace BasisClasses
     //
     auto r_to_x = [&](double r) -> double
     {
-      if (r<0.0) throw std::runtime_error("BiorthBasis::makeFromFunction: r<0");
+      if (r<0.0) throw std::runtime_error("BiorthBasis::computeQuadrature: r<0");
       return (r/rmapping-1.0)/(r/rmapping+1.0);
     };
     
 
     auto x_to_r = [&](double x) -> double
     {
-      if (x<-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<-1");
-      if (x< 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>+1");
+      if (x<-1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x<-1");
+      if (x> 1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x>+1");
       
       return (1.0 + x)/(1.0 - x) * rmapping;
     };
@@ -4813,8 +4818,8 @@ namespace BasisClasses
 
     auto d_x_to_r = [&](double x) -> double
     {
-      if (x<-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<-1");
-      if (x< 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>+1");
+      if (x<-1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x<-1");
+      if (x> 1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x>+1");
       
       return 0.5*(1.0 - x)*(1.0 - x)/rmapping;
     };
@@ -4847,9 +4852,9 @@ namespace BasisClasses
       int j = (ijk  - i*knots*knots)/knots;
       int k = ijk - i*knots*knots - j*knots;
       
-      double xx =  ximin + (ximax - ximin)*lw.knot(j);
+      double xx =  ximin + (ximax - ximin)*lw.knot(i);
       double rr =  x_to_r(xx);
-      double costh = -1.0 + 2.0*lw.knot(k);
+      double costh = -1.0 + 2.0*lw.knot(j);
       double sinth = sqrt(std::abs(1.0 - costh*costh));
       double phi = 2.0*M_PI/knots*k;
       
@@ -4858,7 +4863,7 @@ namespace BasisClasses
       double z = rr*costh;
       
       double fval = func(x, y, z) * (ximax - ximin) * rr*rr *
-	(ximax - ximin) * 2.0 * 2.0*M_PI/knots / d_x_to_r(xx);
+	d_x_to_r(xx) * 2.0 * lw.weight(i) * lw.weight(j) * 2.0*M_PI/knots;
 
 #pragma omp critical
       ret += fval;
@@ -4904,12 +4909,15 @@ namespace BasisClasses
 
     LegeQuad lw(knots);
 
-    Eigen::MatrixXcd mat(Mmax+1, Nmax);
-    mat.setZero();
-      
     // Number of possible threads
     //
     int nthrds = omp_get_max_threads();
+
+    std::vector<Eigen::MatrixXcd> mat(nthrds);
+    for (auto & v : mat) {
+      v.resize(Mmax+1, Nmax);
+      v.setZero();
+    }
 
 #pragma omp parallel for
     for (int ijk=0; ijk<knots*knots*knots; ijk++) {
@@ -4946,13 +4954,16 @@ namespace BasisClasses
 	  double pC, pS;
 	  sl->getPotSC(mm, nn, R, z, pC, pS);
 
-#pragma omp critical
-	  mat(mm, nn) += std::complex<double>(pC*mcos, pS*msin) * fac;
+	  mat[tid](mm, nn) += std::complex<double>(pC*mcos, pS*msin) * fac;
 	}
       }
     }
 
-    scof->assign(mat, Mmax, Nmax);    
+    // Sum up results from all threads
+    for (int n=1; n<nthrds; n++) mat[0] += mat[n];
+
+    // Assign to CoefStruct
+    scof->assign(mat[0], Mmax, Nmax);    
     
     return scof;
   }
