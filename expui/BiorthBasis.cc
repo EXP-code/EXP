@@ -4746,7 +4746,7 @@ namespace BasisClasses
 
       legendre_R(Lmax, costh, legs[tid]);
 
-      double fval = func(x, y, z, time) * (ximax - ximin) * rr*rr *
+      double fval = func(x, y, z, time) * (ximax - ximin) * rr*rr /
 	d_x_to_r(xx) * 2.0 * lw.weight(i) * lw.weight(j) * 2.0*M_PI/knots;
 
       for (int L=0, l=0; L<=Lmax; L++) {
@@ -4826,7 +4826,7 @@ namespace BasisClasses
     
     double ximin = r_to_x(rmin);
     double ximax = r_to_x(rmax);
-    
+
     int Lmax = lmax;
     int Nmax = nmax;
 
@@ -4836,10 +4836,11 @@ namespace BasisClasses
     
     LegeQuad lw(knots);
     
-    double ret = 0.0;
-    
     // Number of possible threads
     int nthrds = omp_get_max_threads();
+
+    // Storage for multithreading
+    std::vector<double> ret(nthrds);
 
 #pragma omp parallel for
     for (int ijk=0; ijk<knots*knots*knots; ijk++) {
@@ -4862,14 +4863,15 @@ namespace BasisClasses
       double y = rr*sinth*sin(phi);
       double z = rr*costh;
       
-      double fval = func(x, y, z) * (ximax - ximin) * rr*rr *
+      double fval = func(x, y, z) * (ximax - ximin) * rr*rr /
 	d_x_to_r(xx) * 2.0 * lw.weight(i) * lw.weight(j) * 2.0*M_PI/knots;
 
-#pragma omp critical
-      ret += fval;
+      ret[tid] += fval;
     }
 
-    return ret;
+    for (int n=1; n<nthrds; n++) ret[0] += ret[n];
+
+    return ret[0];
   }
 
   CoefClasses::CoefStrPtr Cylindrical::makeFromFunction
