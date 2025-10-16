@@ -145,10 +145,11 @@ namespace BasisClasses
     //@}
     
     //! Create and the coefficients from a function callback with the
-    //! provided time value
+    //! provided time value.  Set potential=true if function is a
+    //! potential field.  Density is assumed if false (default).
     virtual CoefClasses::CoefStrPtr makeFromFunction
     (std::function<double(double x, double y, double z, double time)> func,
-     std::map<std::string, double>& params, double time=0.0)
+     std::map<std::string, double>& params, double time=0.0, bool potential=false)
     {
       throw std::runtime_error("Error: BiorthBasis::makeFromFunction is not implemented");
       return nullptr;
@@ -384,10 +385,11 @@ namespace BasisClasses
     }
 
     //! Create and the coefficients from a function callback with the
-    //! provided time value
+    //! provided time value.  Set potential=true if function is a
+    //! potential field.  Density is assumed if false (default).
     virtual CoefClasses::CoefStrPtr makeFromFunction
     (std::function<double(double x, double y, double z, double time)> func,
-     std::map<std::string, double>& params, double time=0.0);
+     std::map<std::string, double>& params, double time=0.0, bool potential=false);
 
 
     //! Compute a quadrature over the basis domain using function
@@ -954,10 +956,11 @@ namespace BasisClasses
     }
 
     //! Create and the coefficients from a function callback with the
-    //! provided time value
+    //! provided time value.  Set potential=true if function is a
+    //! potential field.  Density is assumed if false (default).
     virtual CoefClasses::CoefStrPtr makeFromFunction
     (std::function<double(double x, double y, double z, double time)> func,
-     std::map<std::string, double>& params, double time=0.0);
+     std::map<std::string, double>& params, double time=0.0, bool potential=false);
 
     //! Compute a quadrature over the basis domain using function
     //! callback for the integrand

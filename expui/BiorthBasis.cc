@@ -4650,7 +4650,7 @@ namespace BasisClasses
 
   CoefClasses::CoefStrPtr Spherical::makeFromFunction
   (std::function<double(double, double, double, double time)> func,
-   std::map<std::string, double>& params, double time)
+   std::map<std::string, double>& params, double time, bool potential)
   {
     // Get mapping constant
     //
@@ -4742,7 +4742,10 @@ namespace BasisClasses
       double y = rr*sinth*sin(phi);
       double z = rr*costh;
       
-      get_pot(potd[tid], rr);
+      if (potential)
+	get_pot (potd[tid], rr);
+      else
+	get_dens(potd[tid], rr);
 
       legendre_R(Lmax, costh, legs[tid]);
 
@@ -4876,7 +4879,7 @@ namespace BasisClasses
 
   CoefClasses::CoefStrPtr Cylindrical::makeFromFunction
   (std::function<double(double, double, double, double time)> func,
-   std::map<std::string, double>& params, double time)
+   std::map<std::string, double>& params, double time, bool potential)
   {
     CoefClasses::CoefStrPtr coefs;
 
@@ -4954,7 +4957,10 @@ namespace BasisClasses
 	for (int nn=0; nn<Nmax; nn++) {
 
 	  double pC, pS;
-	  sl->getPotSC(mm, nn, R, z, pC, pS);
+	  if (potential)
+	    sl->getDensSC(mm, nn, R, z, pC, pS);
+	  else
+	    sl->getPotSC(mm, nn, R, z, pC, pS);
 
 	  mat[tid](mm, nn) += std::complex<double>(pC*mcos, pS*msin) * fac;
 	}

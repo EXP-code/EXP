@@ -148,7 +148,10 @@ void BasisFactoryClasses(py::module &m)
     you to scale your phase-space processing to snapshots of any size.
     For reference, the createFromReader() method uses a producer-consumer
     pattern internally to provide scalability.  These three methods allow
-    you to provide the same pattern in your own pipeline.
+    you to provide the same pattern in your own pipeline. Finally, the
+    makeFromFunction() creates coefficients from a user-supplied
+    density or potential field function.
+
 
     Coordinate systems
     -------------------
@@ -1330,7 +1333,10 @@ void BasisFactoryClasses(py::module &m)
                 dictionary of parameters to pass to the function.  Default is
                 empty.
          time : float
-             snapshot time (default=0.0)
+                snapshot time (default=0.0)
+         potential : bool
+		if True, function is assumed to be a potential field.  Default
+                is False, and the function is assumed to be a density field.
 
          Returns
          -------
@@ -1342,7 +1348,8 @@ void BasisFactoryClasses(py::module &m)
          initFromArray : initialize for coefficient contributions
          addFromArray  : add contribution for particles
          )",
-	 py::arg("func"), py::arg("params")=std::map<std::string, double>(), py::arg("time")=0.0
+	 py::arg("func"), py::arg("params")=std::map<std::string, double>(),
+	 py::arg("time")=0.0, py::arg("potential")=false
 	 )
     .def("computeQuadrature", &BasisClasses::BiorthBasis::computeQuadrature,
 	 py::call_guard<py::gil_scoped_release>(),
