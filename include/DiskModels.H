@@ -277,4 +277,26 @@ public:
 
 };
 
+//! Enforce an axsisymmetric model by using the x-axis only from a
+//! user-defined Python model
+class AxiSymPyModel : public EmpCylSL::AxiDisk
+{
+private:
+
+  std::shared_ptr<DiskDensityFunc> pyDens;
+
+public:
+
+  AxiSymPyModel(std::string& pyname)
+  {
+    pyDens = std::make_shared<DiskDensityFunc>(pyname);
+  }
+
+  double operator()(double R, double z, double phi=0.)
+  {
+    return (*pyDens)(R, z, 0.0);
+  }
+
+};
+
 #endif

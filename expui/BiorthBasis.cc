@@ -1539,6 +1539,9 @@ namespace BasisClasses
 	
 	if (dmodel.compare("MN")==0) // Miyamoto-Nagai
 	  model = std::make_shared<MNdisk>(1.0, H);
+	else if (DTYPE == DiskType::python) {
+	  model = std::make_shared<AxiSymPyModel>(pyname);
+	}
 	else			// Default to exponential
 	  model = std::make_shared<Exponential>(1.0, H);
 
