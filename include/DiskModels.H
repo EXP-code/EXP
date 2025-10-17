@@ -284,17 +284,18 @@ class AxiSymPyModel : public EmpCylSL::AxiDisk
 private:
 
   std::shared_ptr<DiskDensityFunc> pyDens;
+  double scale;
 
 public:
 
-  AxiSymPyModel(std::string& pyname)
+  AxiSymPyModel(std::string& pyname, double a) : scale(a)
   {
     pyDens = std::make_shared<DiskDensityFunc>(pyname);
   }
 
   double operator()(double R, double z, double phi=0.)
   {
-    return (*pyDens)(R, z, 0.0);
+    return (*pyDens)(R*scale, z*scale, 0.0);
   }
 
 };
