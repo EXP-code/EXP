@@ -4678,24 +4678,24 @@ namespace BasisClasses
 
     auto x_to_r = [&](double x) -> double
     {
-      if (x <-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<-1");
-      if (x > 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>+1");
-      
       return (1.0 + x)/(1.0 - x) * rmapping;
     };
     
 
     auto d_x_to_r = [&](double x) -> double
     {
-      if (x <-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<-1");
-      if (x > 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>+1");
-      
       return 0.5*(1.0 - x)*(1.0 - x)/rmapping;
     };
     
     double ximin = r_to_x(rmin);
     double ximax = r_to_x(rmax);
     
+    if (ximin <=-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<=-1");
+    if (ximin >= 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>=+1");
+      
+    if (ximax <=-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<=-1");
+    if (ximax >= 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>=+1");
+      
     int Lmax = lmax;
     int Nmax = nmax;
 
@@ -4812,23 +4812,22 @@ namespace BasisClasses
 
     auto x_to_r = [&](double x) -> double
     {
-      if (x<-1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x<-1");
-      if (x> 1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x>+1");
-      
       return (1.0 + x)/(1.0 - x) * rmapping;
     };
     
 
     auto d_x_to_r = [&](double x) -> double
     {
-      if (x<-1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x<-1");
-      if (x> 1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x>+1");
-      
       return 0.5*(1.0 - x)*(1.0 - x)/rmapping;
     };
     
     double ximin = r_to_x(rmin);
     double ximax = r_to_x(rmax);
+
+    if (ximin<=-1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x<=-1");
+    if (ximax>= 1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x>=+1");
+    if (ximax<=-1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x<=-1");
+    if (ximax>= 1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x>=+1");
 
     int Lmax = lmax;
     int Nmax = nmax;
