@@ -4743,9 +4743,9 @@ namespace BasisClasses
       double z = rr*costh;
       
       if (potential)
-	get_pot (potd[tid], rr);
-      else
 	get_dens(potd[tid], rr);
+      else
+	get_pot (potd[tid], rr);
 
       legendre_R(Lmax, costh, legs[tid]);
 
@@ -4826,6 +4826,7 @@ namespace BasisClasses
 
     if (ximin<=-1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x<=-1");
     if (ximax>= 1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x>=+1");
+
     if (ximax<=-1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x<=-1");
     if (ximax>= 1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x>=+1");
 
