@@ -9,6 +9,7 @@ project(
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Compiler flags.  Not all tested thoroughly...
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")

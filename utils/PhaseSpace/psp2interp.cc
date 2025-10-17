@@ -25,12 +25,6 @@ using namespace std;
 #include <Grid2D.H>
 #include <PSP.H>
 
-//
-// MPI variables
-//
-int numprocs, proc_namelen;
-char processor_name[MPI_MAX_PROCESSOR_NAME];
-
 int
 main(int ac, char **av)
 {
