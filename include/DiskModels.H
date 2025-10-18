@@ -288,7 +288,7 @@ private:
 
 public:
 
-  AxiSymPyModel(std::string& pyname, double a) : scale(a)
+  AxiSymPyModel(const std::string& pyname, double a) : scale(a)
   {
     pyDens = std::make_shared<DiskDensityFunc>(pyname);
   }
