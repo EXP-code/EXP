@@ -96,6 +96,15 @@ namespace BasisClasses
     RowMatrixXd varray;
     //@}
 
+    //! Coefficient variance computation enabled
+    bool pcavar = false;
+
+    //@{
+    //! Sample counts and masses for covariance computation
+    Eigen::VectorXi sampleCounts;
+    Eigen::VectorXd sampleMasses;
+    //@}
+
   public:
     
     //! Constructor from YAML node
@@ -213,6 +222,23 @@ namespace BasisClasses
 
       return varray;
     }
+
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    using CoefCovarType = std::tuple<Eigen::VectorXd, Eigen::MatrixXd>;
+    virtual std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance()
+    {
+      throw std::runtime_error("BiorthBasis::getCoefCovariance: Not implemented for this basis");
+    }
+
+    //! Get sample counts for the covariance computation
+    virtual std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples()
+    {
+      return std::make_tuple(sampleCounts, sampleMasses);
+    }
+
   };
 
   /**
@@ -308,6 +334,16 @@ namespace BasisClasses
     virtual void computeAccel(double x, double y, double z, 
 			      Eigen::Ref<Eigen::Vector3d> vstore);
 
+    //@{
+    //! Covariance structures.  First index is T, second is harmonic
+    //! (l,m).
+    std::vector<std::vector<Eigen::VectorXd>> meanV;
+    std::vector<std::vector<Eigen::MatrixXd>> covrV;
+    void init_covariance();
+    void zero_covariance();
+    int sampT = 100;
+    //@}
+
   public:
     
     //! Constructor from YAML node
@@ -363,6 +399,10 @@ namespace BasisClasses
       return ret;
     }
 
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance();
   };
 
   /**
@@ -920,6 +960,19 @@ namespace BasisClasses
       return ret;
     }
 
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance()
+    {
+      return sl->getCoefCovariance();
+    }
+
+    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples()
+    {
+      return sl->getCovarSamples();
+    }
   };
   
   /**

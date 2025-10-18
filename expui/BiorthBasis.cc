@@ -26,6 +26,7 @@ namespace BasisClasses
     "pcavtk",
     "pcaeof",
     "subsamp",
+    "sampT",
     "snr",
     "samplesz",
     "vtkfreq",
@@ -262,6 +263,8 @@ namespace BasisClasses
       if (conf["EVEN_L"])    EVEN_L    = conf["EVEN_L"].as<bool>();
       if (conf["EVEN_M"])    EVEN_M    = conf["EVEN_M"].as<bool>();
       if (conf["M0_ONLY"])   M0_only   = conf["M0_ONLY"].as<bool>();
+      if (conf["pcavar"])    pcavar    = conf["pcavar"].as<bool>();
+      if (conf["sampT"])     sampT     = conf["sampT"].as<int>();
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -312,11 +315,39 @@ namespace BasisClasses
 
     used = 0;
 
+    // Initialize covariance
+    //
+    if (pcavar) init_covariance();
+
     // Set spherical coordindates
     //
     coordinates = Coord::Spherical;
   }
   
+  void Spherical::init_covariance()
+  {
+    if (pcavar) {
+      meanV.resize(sampT);
+      for (auto& v : meanV) v.resize(nmax);
+      covrV.resize(sampT);
+      for (auto& v : covrV) v.resize(nmax);
+      sampleCounts.resize(sampT);
+      sampleMasses.resize(sampT);
+      zero_covariance();
+    }
+  }
+
+  void Spherical::zero_covariance()
+  {
+    for (int T=0; T<sampT; T++) {
+      for (auto& v : meanV[T]) v.setZero();
+      for (auto& v : covrV[T]) v.setZero();
+    }
+
+    sampleCounts.setZero();
+    sampleMasses.setZero();
+  }
+
   void SphericalSL::initialize()
   {
 
@@ -409,6 +440,7 @@ namespace BasisClasses
     if (expcoef.rows()>0 && expcoef.cols()>0) expcoef.setZero();
     totalMass = 0.0;
     used = 0;
+    if (pcavar) zero_covariance();
   }
   
   
@@ -535,6 +567,14 @@ namespace BasisClasses
     
     legendre_R(lmax, costh, legs[tid]);
     
+    // Sample index for pcavar
+    int T = 0;
+    if (pcavar) {
+      T = used % sampT;
+      sampleCounts(T) += 1;
+      sampleMasses(T) += mass;
+    }
+    
     // L loop
     for (int l=0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
       
@@ -549,6 +589,16 @@ namespace BasisClasses
 	  for (int n=0; n<nmax; n++) {
 	    fac4 = potd[tid](l, n)*fac;
 	    expcoef(loffset+moffset, n) += fac4 * norm * mass;
+
+	    if (pcavar) {
+	      for (int n=0; n<nmax; n++) {
+		meanV[T][l](n) += fac4 * norm * mass;
+		for (int o=0; o<nmax; o++)
+		  covrV[T][l](n, o)  += fac4 * norm *
+		    fac * potd[tid](l, o) * norm * mass;
+	      }
+	    }
+
 	  }
 	  
 	  moffset++;
@@ -561,6 +611,15 @@ namespace BasisClasses
 	    fac4 = potd[tid](l, n);
 	    expcoef(loffset+moffset  , n) += fac1 * fac4 * norm * mass;
 	    expcoef(loffset+moffset+1, n) += fac2 * fac4 * norm * mass;
+
+	    if (pcavar) {
+	      for (int n=0; n<nmax; n++) {
+		meanV[T][l](n) += fac * fac4 * norm * mass;
+		for (int o=0; o<nmax; o++)
+		  covrV[T][l](n, o)  += fac * fac4 * norm *
+		    fac * potd[tid](l, o) * norm * mass;
+	      }
+	    }
 	  }
 	  
 	  moffset+=2;
@@ -898,6 +957,28 @@ namespace BasisClasses
 	}
       }
     }
+    
+    return ret;
+  }
+
+  
+  /** Return a vector of tuples of basis functions and the covariance
+      matrix for subsamples of particles */
+  std::vector<std::vector<BiorthBasis::CoefCovarType>>
+  Spherical::getCoefCovariance()
+  {
+    std::vector<std::vector<BiorthBasis::CoefCovarType>> ret;
+   if (pcavar) {
+     ret.resize(sampT);
+     for (int T=0; T<sampT; T++) {
+       int ltot = (lmax+1)*(lmax+2)/2;
+       ret[T].resize(ltot);
+       for (int l=0; l<ltot; l++) {
+	 std::get<0>(ret[T][l]) = meanV[T][l];
+	 std::get<1>(ret[T][l]) = covrV[T][l];
+       }
+     }
+   }
     
     return ret;
   }
@@ -1350,9 +1431,9 @@ namespace BasisClasses
 
       if (conf["aratio"    ])      aratio = conf["aratio"    ].as<double>();
       if (conf["hratio"    ])      hratio = conf["hratio"    ].as<double>();
-      if (conf["dweight"   ])      dweight = conf["dweight"   ].as<double>();
-      if (conf["Mfac"   ])         Mfac = conf["Mfac"   ].as<double>();
-      if (conf["HERNA"   ])        HERNA = conf["HERNA"   ].as<double>();
+      if (conf["dweight"   ])      dweight = conf["dweight"  ].as<double>();
+      if (conf["Mfac"      ])      Mfac   = conf["Mfac"      ].as<double>();
+      if (conf["HERNA"     ])      HERNA  = conf["HERNA"     ].as<double>();
       if (conf["rwidth"    ])      rwidth = conf["rwidth"    ].as<double>();
       if (conf["ashift"    ])      ashift = conf["ashift"    ].as<double>();
       if (conf["rfactor"   ])     rfactor = conf["rfactor"   ].as<double>();
@@ -1362,6 +1443,7 @@ namespace BasisClasses
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
       if (conf["pyname"    ])      pyname = conf["pyname"    ].as<std::string>();
+      if (conf["pcavar"]    )      pcavar = conf["pcavar"    ].as<bool>();
 
       // Deprecation warning
       if (conf["density"   ]) {

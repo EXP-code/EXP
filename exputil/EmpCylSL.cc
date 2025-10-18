@@ -4812,6 +4812,44 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 }
 
 
+/** Return a vector of tuples of basis functions and the
+    covariance matrix for subsamples of particles */
+std::vector<std::vector<EmpCylSL::CoefCovarType>>
+EmpCylSL::getCoefCovariance()
+{
+  std::vector<std::vector<std::tuple<Eigen::VectorXd, Eigen::MatrixXd>>> ret;
+
+  if (PCAVAR) {
+    ret.resize(sampT);
+    for (unsigned T=0; T<sampT; T++) {
+      ret[T].resize(MMAX+1);
+      for (int M=0; M<=MMAX; M++)  {
+	std::get<0>(ret[T][M]) = covV[0][T][M];
+	std::get<1>(ret[T][M]) = covM[0][T][M];
+      }
+    }
+  }
+
+  return ret;
+}
+
+std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+EmpCylSL::getCovarSamples()
+{
+  std::tuple<Eigen::VectorXi, Eigen::VectorXd> ret;
+
+  if (PCAVAR) {
+    std::get<0>(ret).resize(sampT);
+    std::get<1>(ret).resize(sampT);
+    for (int T=0; T<sampT; T++) {
+      std::get<0>(ret)(T) = numbT[T];
+      std::get<1>(ret)(T) = massT[T];
+    }
+  }
+  
+  return ret;
+}
+
 void EmpCylSL::get_trimmed
 (double snr,
  std::vector<Eigen::VectorXd>& ac_cos, std::vector<Eigen::VectorXd>& ac_sin,
