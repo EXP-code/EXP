@@ -277,7 +277,7 @@ public:
 
 };
 
-//! Enforce an axsisymmetric model by using the x-axis only from a
+//! Enforce an axisymmetric model by using the x-axis only from a
 //! user-defined Python model
 class AxiSymPyModel : public EmpCylSL::AxiDisk
 {
