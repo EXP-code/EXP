@@ -5006,7 +5006,7 @@ namespace BasisClasses
   CovarianceReader::CovarianceReader(const std::string& filename, int stride)
   {
     try {
-      // Create a new hdf5 file
+      // Open an existing hdf5 file for reading
       //
       HighFive::File file(filename, HighFive::File::ReadOnly);
       
