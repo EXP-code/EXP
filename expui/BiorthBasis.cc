@@ -331,6 +331,7 @@ namespace BasisClasses
     // Set spherical coordindates
     //
     coordinates = Coord::Spherical;
+    BasisID = "Spherical";
   }
   
   void Spherical::init_covariance()
