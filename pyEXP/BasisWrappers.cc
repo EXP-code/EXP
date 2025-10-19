@@ -435,6 +435,19 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(void, BiorthBasis, set_coefs, coefs);
     }
 
+    using CCelement = std::tuple<Eigen::VectorXd, Eigen::MatrixXd>;
+    using CCreturn  = std::vector<std::vector<CCelement>>;
+
+    CCreturn getCoefCovariance(void) override {
+      PYBIND11_OVERRIDE(CCreturn, BiorthBasis, getCoefCovariance,);
+    }
+
+    using Selement = std::tuple<Eigen::VectorXi, Eigen::VectorXd>;
+
+    Selement getCovarSamples() override {
+      PYBIND11_OVERRIDE(Selement, BiorthBasis, getCovarSamples,);
+    }
+
   };
 
   class PySpherical : public Spherical
@@ -1316,6 +1329,44 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
+    .def("getCoefCovariance", &BasisClasses::BiorthBasis::getCoefCovariance,
+         R"(
+	 Return the coefficient vectors and covariance matrices for a partition
+         of the accumulated particles.  The number of partitions is set by the
+         configuration parameters 'sampT' and defaults to 100.
+
+         Parameters
+         ----------
+         None
+
+         Returns
+         -------
+         arrays: a 2-dimensional array of tuples of numpy.ndarray representing the
+                 coefficient vectors and coefficient variance matrices
+
+         See also
+         --------
+         getCovarSamples : get counts and mass in each partition
+         )")
+    .def("getCovarSamples", &BasisClasses::BiorthBasis::getCovarSamples,
+         R"(
+	 Return a vector of counts and mass used to compute the partitioned 
+         vectors and covariance.  The rank of the vectors is set by 'sampT'
+
+         Parameters
+         ----------
+         None
+
+         Returns
+         -------
+         arrays: a tuple of arrays containing the counts and mass in each
+                 partitioned sample
+
+         See also
+         --------
+         getCoefCovariance : get the coefficient vectors and covariance matrices
+                             for the partitioned phase space.
+         )")
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
          Return the field evaluations for a given cartesian position. The
@@ -1616,6 +1667,7 @@ void BasisFactoryClasses(py::module &m)
       )",
       py::arg("cachefile"));
 
+
     py::class_<BasisClasses::Spherical, std::shared_ptr<BasisClasses::Spherical>, PySpherical, BasisClasses::BiorthBasis>(m, "Spherical")
       .def(py::init<const std::string&, const std::string&>(),
 	 R"(
@@ -1702,6 +1754,7 @@ void BasisFactoryClasses(py::module &m)
             cache parameters
         )",
 	py::arg("cachefile"))
+
       .def_static("I", [](int l, int m)
       {
 	if (l<0) throw std::runtime_error("l must be greater than 0");
@@ -1725,6 +1778,7 @@ void BasisFactoryClasses(py::module &m)
             index array packing index
       )",
 	py::arg("l"), py::arg("m"))
+
       .def_static("invI", [](int I)
       {
 	if (I<0) std::runtime_error("I must be an interger greater than or equal to 0");
@@ -1744,8 +1798,7 @@ void BasisFactoryClasses(py::module &m)
         -------
         (l, m) : tuple
             the harmonic indices (l, m).
-      )", py::arg("I"));
-
+        )", py::arg("I"));
   
     py::class_<BasisClasses::SphericalSL, std::shared_ptr<BasisClasses::SphericalSL>, BasisClasses::Spherical>(m, "SphericalSL")
       .def(py::init<const std::string&>(),
