@@ -2727,7 +2727,7 @@ void BasisFactoryClasses(py::module &m)
       tuple(numpy.ndarray, numpy.ndarray)
           sample counts and masses for the covariance computation
       )",
-      py::arg("time")=0)
+      py::arg("time")=0.0)
    .def("basisIDname", &BasisClasses::CovarianceReader::basisIDname,
      R"(
      Get the basis ID name
