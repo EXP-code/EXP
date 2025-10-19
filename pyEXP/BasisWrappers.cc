@@ -1347,7 +1347,7 @@ void BasisFactoryClasses(py::module &m)
 
          Shape and Indexing
          ------------------
-         - Coefficient vectors are moduli of the originall complex coefficient vectors
+         - Coefficient vectors are moduli of the original complex coefficient vectors
          - The first list index is the number of time samples.
          - The second list index is the angular elements.  For spherical bases, all (l, m) pairs
            are in triangular index order with l in [0,...,lmax] and m in [0,...,l] for a total of
