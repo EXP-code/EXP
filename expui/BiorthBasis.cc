@@ -4917,8 +4917,8 @@ namespace BasisClasses
       // Check for version string
       std::string path = "CovarianceFileVersion"; 
 
-      // Check for valid HDF file
-      if (file.exist(path)) {
+      // Check for valid HDF file by attribute
+      if (file.hasAttribute(path)) {
 	extendCoefCovariance(fname, time);
 	return;
       }
