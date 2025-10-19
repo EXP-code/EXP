@@ -1361,8 +1361,9 @@ void BasisFactoryClasses(py::module &m)
 
          Returns
          -------
-         arrays: a tuple of arrays containing the counts and mass in each
-                 partitioned sample
+         arrays: tuple(ndarray, ndarray)
+              a tuple of arrays containing the counts and mass in each
+              partitioned sample
 
          See also
          --------
