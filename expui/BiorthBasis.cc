@@ -5103,10 +5103,10 @@ namespace BasisClasses
 	  // Pack the coefficient data
 	  for (size_t l=0, c=0; l<ltot; l++) {
 	    for (size_t n1=0; n1<nmax; n1++) {
-	      for (size_t n2=n1; n1<nmax; n1++, c++) {
+	      for (size_t n2=n1; n2<nmax; n2++, c++) {
 		std::get<1>(elem[l])(n1, n2) = data(c);
 		if (n1 != n2)
-		  std::get<1>(elem[l])(n1, n2) = std::get<1>(elem[l])(n2, n1);
+		  std::get<1>(elem[l])(n2, n1) = std::get<1>(elem[l])(n1, n2);
 	      }
 	    }
 	  }
