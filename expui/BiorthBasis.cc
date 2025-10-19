@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <set>
 
 #include <YamlCheck.H>
 #include <EXPException.H>
@@ -374,7 +373,7 @@ namespace BasisClasses
   {
     // Identifier
     //
-    BasisID = "sphereSL";
+    BasisID = "SphereSL";
 
     // Assign some defaults
     //
@@ -438,7 +437,7 @@ namespace BasisClasses
   {
     // Identifier
     //
-    BasisID = "bessel";
+    BasisID = "Bessel";
 
     try {
       if (conf["rnum"])
@@ -1026,8 +1025,8 @@ namespace BasisClasses
        int ltot = (lmax+1)*(lmax+2)/2;
        ret[T].resize(ltot);
        for (int l=0; l<ltot; l++) {
-	 std::get<0>(ret[T][l]) = meanV[T][l];
-	 std::get<1>(ret[T][l]) = covrV[T][l];
+	 std::get<0>(ret[T][l]) = std::move(meanV[T][l]);
+	 std::get<1>(ret[T][l]) = std::move(covrV[T][l]);
        }
      }
    }
@@ -5027,7 +5026,7 @@ namespace BasisClasses
       int lmax, nmax, ltot;
 
       // Current implemented spherical types
-      const std::set<std::string> sphereType = {"Spherical", "SphereSL", "bessel"};
+      const std::set<std::string> sphereType = {"Spherical", "SphereSL", "Bessel"};
 
       // Currently implemented cylindrical types
       const std::set<std::string> cylinderType = {"Cylindrical"};

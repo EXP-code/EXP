@@ -3,6 +3,8 @@
 
 #include <functional>
 #include <tuple>
+#include <map>
+#include <set>
 
 #include <Eigen/Eigen>
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids

@@ -2675,7 +2675,8 @@ void BasisFactoryClasses(py::module &m)
      Returns
      -------
       list(list(tuple(numpy.ndarray, numpy.ndarray)))
-	    list of covariance matrices for each subsample
+	    list of partitioned coefficients and their covariance matrices for
+            each subsample
     )",
     py::arg("index")=0)
   .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXd, Eigen::MatrixXd>>>
@@ -2691,7 +2692,8 @@ void BasisFactoryClasses(py::module &m)
      Returns
      -------
       list(list(tuple(numpy.ndarray, numpy.ndarray)))
-	    list of covariance matrices for each subsample
+	    list of partitioned coefficients and their covariance matrices for
+            each subsample
     )",
     py::arg("time")=0.0)
    .def("getCovarSamples", static_cast<std::tuple<Eigen::VectorXi, Eigen::VectorXd>
