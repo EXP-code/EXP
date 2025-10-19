@@ -2706,7 +2706,7 @@ void BasisFactoryClasses(py::module &m)
 	    list of partitioned coefficients and their covariance matrices for
             each subsample
     )",
-    py::arg("time")=0.0)
+    py::arg("time"))
    .def("getCovarSamples", static_cast<std::tuple<Eigen::VectorXi, Eigen::VectorXd>
 	(BasisClasses::CovarianceReader::*)(unsigned)>(&BasisClasses::CovarianceReader::getCovarSamples),
       R"(
