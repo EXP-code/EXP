@@ -1347,6 +1347,18 @@ void BasisFactoryClasses(py::module &m)
              where coef_vector and coef_covariance_matrix are numpy.ndarray.
              Each coef_covariance_matrix is of shape (angular_dimension, angular_dimension).
 
+         Shape and Indexing
+         ------------------
+         - Coefficient vectors are returned in the real basis, with separate cosine and sine
+           components for m>0. The total angular dimension is (lmax+1)^2, corresponding to
+           all (l, m) pairs with -l ≤ m ≤ l for each l = 0, ..., lmax.
+         - Each covariance matrix is of shape (nmax, nmax), where nmax is the number of basis
+           functions (typically (lmax+1)^2).
+         - The ordering of harmonic indices within the outer list is such that for each l from
+           0 to lmax, m runs from -l to l, with cosine and sine components for m>0 stored
+           separately (e.g., [Y_{l,0}, Y_{l,1}^{cos}, Y_{l,1}^{sin}, ..., Y_{l,l}^{cos}, Y_{l,l}^{sin}]).
+           This allows consumers to unambiguously map (l, m) to positions in the coefficient vector
+           and covariance matrix.
          See also
          --------
          getCovarSamples     : get counts and mass in each partition
