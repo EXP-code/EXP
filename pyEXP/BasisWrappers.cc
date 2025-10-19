@@ -2628,4 +2628,113 @@ void BasisFactoryClasses(py::module &m)
 	py::arg("tinit"), py::arg("tfinal"), py::arg("h"),
 	py::arg("ps"), py::arg("basiscoef"), py::arg("func"),
 	py::arg("nout")=0);
+
+  py::class_<BasisClasses::CovarianceReader, std::shared_ptr<BasisClasses::CovarianceReader>>
+    (m, "CovarianceReader")
+    .def(py::init<const std::string&, int>(),
+       R"(
+       Read a covariance database from an HDF5 file
+
+       Parameters
+       ----------
+       filename : str
+                The HDF5 filename
+       stride   : int, default=1
+                The stride for reading datasets
+
+       Returns
+       -------
+       CovarianceRearder
+            the new instance
+
+       )", py::arg("filename"), py::arg("stride")=1)
+    .def("Times", &BasisClasses::CovarianceReader::Times,
+       R"(
+       Get the list of evaluation times
+
+       Parameters
+       ----------
+       None
+
+       Returns
+       -------
+       times : list(float)
+            a list of evaluation times
+      )")
+  .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXd, Eigen::MatrixXd>>>
+       (CovarianceReader::*)(unsigned)>(&BasisClasses::CovarianceReader::getCoefCovariance),
+     R"(
+     Get the covariance matrices for the basis coefficients
+
+     Parameters
+     ----------
+     index : int
+             the time index
+     Returns
+     -------
+      list(list(tuple(numpy.ndarray, numpy.ndarray)))
+	    list of covariance matrices for each subsample
+    )",
+    py::arg("index")=0)
+  .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXd, Eigen::MatrixXd>>>
+       (CovarianceReader::*)(double)>(&BasisClasses::CovarianceReader::getCoefCovariance),
+     R"(
+     Get the covariance matrices for the basis coefficients
+
+     Parameters
+     ----------
+     time  : float
+             the evaluation time
+
+     Returns
+     -------
+      list(list(tuple(numpy.ndarray, numpy.ndarray)))
+	    list of covariance matrices for each subsample
+    )",
+    py::arg("time")=0.0)
+   .def("getCovarSamples", static_cast<std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+	(CovarianceReader::*)(unsigned)>(&BasisClasses::CovarianceReader::getCovarSamples),
+      R"(
+      Get sample counts for the covariance computation
+
+      Parameters
+      ----------
+      index : unsigned int
+              the time index
+
+      Returns
+      -------
+      tuple(numpy.ndarray, numpy.ndarray)
+          sample counts and masses for the covariance computation
+      )",
+      py::arg("index")=0)
+   .def("getCovarSamples", static_cast<std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+	(CovarianceReader::*)(double)>(&BasisClasses::CovarianceReader::getCovarSamples),
+      R"(
+      Get sample counts for the covariance computation
+
+      Parameters
+      ----------
+      time  : float
+              the evaluation time
+
+      Returns
+      -------
+      tuple(numpy.ndarray, numpy.ndarray)
+          sample counts and masses for the covariance computation
+      )",
+      py::arg("time")=0)
+   .def("basisIDname", &BasisClasses::CovarianceReader::basisIDname,
+     R"(
+     Get the basis ID name
+
+     Parameters
+     ----------
+     None
+
+     Returns
+     -------
+     BasisID : str
+               the basis ID name
+     )");
 }

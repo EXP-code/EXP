@@ -4,6 +4,7 @@
 #include <EXPException.H>
 #include <BiorthBasis.H>
 #include <DiskModels.H>
+#include <config_exp.h>
 #include <exputils.H>
 #include <gaussQ.H>
 
@@ -4996,6 +4997,124 @@ namespace BasisClasses
       //
       dataset.write(count);
       
+    } catch (HighFive::Exception& err) {
+      std::cerr << err.what() << std::endl;
+    }
+  }
+
+  // Read covariance data
+  CovarianceReader::CovarianceReader(const std::string& filename, int stride)
+  {
+    try {
+      // Create a new hdf5 file
+      //
+      HighFive::File file(filename, HighFive::File::ReadOnly);
+      
+      // Write the Version string
+      //
+      std::string version;
+      file.getAttribute("CovarianceFileVersion").read(version);
+      if (version != std::string("1.0")) {
+	throw std::runtime_error("CovarianceReader: unsupported file version, "
+				 + version);
+      }
+
+      // Read the basis identifier string
+      //
+      file.getAttribute("BasisID").read(basisID);
+      
+      int lmax, nmax, ltot;
+
+      if (basisID == "Spherical") {
+	file.getAttribute("lmax").read(lmax);
+	file.getAttribute("nmax").read(nmax);
+	ltot = (lmax+1)*(lmax+2)/2;
+      } else if (basisID == "Cylindrical") {
+	file.getAttribute("mmax").read(lmax);
+	file.getAttribute("nmax").read(nmax);
+	ltot = lmax + 1;
+      } else {
+	throw std::runtime_error("CovarianceReader: unknown basis type, " + basisID);
+      }
+
+      // Group count variable
+      //
+      unsigned count = 0;
+      file.getDataSet("count").read(count);
+
+      // Open the snapshot group
+      //
+      auto snaps = file.getGroup("snapshots");
+      
+      for (unsigned n=0; n<count; n+=stride) {
+
+	std::ostringstream sout;
+	sout << std::setw(8) << std::setfill('0') << std::right << n;
+      
+	auto stanza = snaps.getGroup(sout.str());
+      
+	double Time;
+	stanza.getAttribute("Time").read(Time);
+
+	int itime = static_cast<int>(Time * fixedPointPrecision + 0.5);
+	timeMap[itime] = times.size();
+	times.push_back(Time);
+
+	// Get sample properties
+	//
+	sampleCounts.push_back(Eigen::VectorXi());
+	file.getDataSet("sampleCounts").read(sampleCounts.back());
+	
+	sampleMasses.push_back(Eigen::VectorXd());
+	file.getDataSet("sampleMasses").read(sampleMasses.back());
+
+	size_t nT = sampleCounts.back().size();
+	for (int T=0; T<nT; T++) {
+	  // Group name
+	  std::ostringstream sT;
+	  sT << std::setw(8) << std::setfill('0') << std::right << T;
+      
+	  // Get the group
+	  HighFive::Group sample = stanza.getGroup(sT.str());
+
+	  // Storage
+	  Eigen::VectorXd data;
+
+	  // Repack the data
+	  std::vector<CoefCovarType> elem(ltot);
+	  for (auto & e : elem) {
+	    std::get<0>(e).resize(nmax);
+	    std::get<1>(e).resize(nmax, nmax);
+	  }
+
+	  // Get the flattened coefficient array
+	  data = sample.getDataSet("coefficients").read<Eigen::VectorXd>();
+	  
+	  // Pack the coefficient data
+	  for (size_t l=0, c=0; l<ltot; l++) {
+	    for (size_t n=0; n<nmax; n++, c++) {
+	      std::get<0>(elem[l])(n) = data(c);
+	    }
+	  }
+
+	  // Get the flattened covariance array
+	  data = sample.getDataSet("covariance").read<Eigen::VectorXd>();
+	  
+	  // Pack the coefficient data
+	  for (size_t l=0, c=0; l<ltot; l++) {
+	    for (size_t n1=0; n1<nmax; n1++) {
+	      for (size_t n2=n1; n1<nmax; n1++, c++) {
+		std::get<1>(elem[l])(n1, n2) = data(c);
+		if (n1 != n2)
+		  std::get<1>(elem[l])(n1, n2) = std::get<1>(elem[l])(n2, n1);
+	      }
+	    }
+	  }
+	}
+	// END: sample loop
+
+      }
+      // END: snapshot loop
     } catch (HighFive::Exception& err) {
       std::cerr << err.what() << std::endl;
     }
