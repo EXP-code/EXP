@@ -5040,7 +5040,7 @@ namespace BasisClasses
 	file.getAttribute("nmax").read(nmax);
 	ltot = lmax + 1;
       } else {
-	throw std::runtime_error("CovarianceReader: unknown or unimplemented covariance for basis type, " + basisID);
+	throw std::runtime_error(std::string("CovarianceReader: unknown or unimplemented covariance for basis type, ") + basisID);
       }
 
       // Group count variable
