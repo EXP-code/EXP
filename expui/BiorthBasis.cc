@@ -4918,8 +4918,8 @@ namespace BasisClasses
       // Check for version string
       std::string path = "CovarianceFileVersion"; 
 
-      // Check for valid HDF file
-      if (file.exist(path)) {
+      // Check for valid HDF file by attribute
+      if (file.hasAttribute(path)) {
 	extendCoefCovariance(fname, time);
 	return;
       }
@@ -5007,7 +5007,7 @@ namespace BasisClasses
   CovarianceReader::CovarianceReader(const std::string& filename, int stride)
   {
     try {
-      // Create a new hdf5 file
+      // Open an existing hdf5 file for reading
       //
       HighFive::File file(filename, HighFive::File::ReadOnly);
       
