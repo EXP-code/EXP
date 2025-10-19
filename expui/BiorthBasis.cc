@@ -294,16 +294,24 @@ namespace BasisClasses
     for (auto & v : dpt2) v.resize(lmax+1, nmax);
     for (auto & v : dend) v.resize(lmax+1, nmax);
 
+    // Wasteful but simple factorial table.  Could be done with a
+    // triangular indexing scheme...
+    //
     for (auto & v : legs  ) v.resize(lmax+1, lmax+1);
     for (auto & v : dlegs ) v.resize(lmax+1, lmax+1);
     for (auto & v : d2legs) v.resize(lmax+1, lmax+1);
 
-    expcoef.resize((lmax+1)*(lmax+2)/2, nmax);
+    // Allocate coefficient storage; stores real and imaginary parts as reals
+    //
+    expcoef.resize((lmax+1)*(lmax+1), nmax);
     expcoef.setZero();
       
     work.resize(nmax);
       
-    factorial.resize(lmax+1, lmax+1); // Wasteful but simple
+    // Wasteful but simple factorial table.  Could be done with a
+    // triangular indexing scheme...
+    //
+    factorial.resize(lmax+1, lmax+1);
       
     for (int l=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {
@@ -327,6 +335,7 @@ namespace BasisClasses
   void Spherical::init_covariance()
   {
     if (pcavar) {
+      // Triangular for l,m>=0
       int Ltot = (lmax+1)*(lmax+2)/2;
 	
       meanV.resize(sampT);
@@ -472,7 +481,7 @@ namespace BasisClasses
     cf->time   = time;
     cf->normed = true;
 
-    // Angular storage dimension
+    // Angular storage dimension; triangular number for complex coefs
     int ldim = (lmax+1)*(lmax+2)/2;
 
     // Allocate the coefficient storage
@@ -594,13 +603,13 @@ namespace BasisClasses
     }
     
     // L loop
-    for (int l=0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
+    for (int l=0, loffset=0, L=0; l<=lmax; loffset+=(2*l+1), l++) {
       
       Eigen::VectorXd workE;
       int esize = (l+1)*nmax;
       
       // M loop
-      for (int m=0, moffset=0, moffE=0; m<=l; m++) {
+      for (int m=0, moffset=0, moffE=0; m<=l; m++, L++) {
 	
 	if (m==0) {
 	  fac = factorial(l, m) * legs[tid](l, m);
@@ -609,9 +618,9 @@ namespace BasisClasses
 	    expcoef(loffset+moffset, n) += fac4 * norm * mass;
 
 	    if (pcavar) {
-	      meanV[T][loffset+moffset](n) += fac4 * norm * mass;
+	      meanV[T][L](n) += fac4 * norm * mass;
 	      for (int o=0; o<nmax; o++)
-		covrV[T][loffset+moffset](n, o)  += fac4 * norm *
+		covrV[T][L](n, o)  += fac4 * norm *
 		  fac * potd[tid](l, o) * norm * mass;
 	    }
 	  }
@@ -628,9 +637,9 @@ namespace BasisClasses
 	    expcoef(loffset+moffset+1, n) += fac2 * fac4 * norm * mass;
 
 	    if (pcavar) {
-	      meanV[T][loffset+moffset](n) += fac * fac4 * norm * mass;
+	      meanV[T][L](n) += fac * fac4 * norm * mass;
 	      for (int o=0; o<nmax; o++)
-		covrV[T][loffset+moffset](n, o)  += fac * fac4 * norm *
+		covrV[T][L](n, o)  += fac * fac4 * norm *
 		  fac * potd[tid](l, o) * norm * mass;
 	    }
 	  }
@@ -647,7 +656,8 @@ namespace BasisClasses
     // MPI reduction of coefficients
     if (use_mpi) {
       
-      int Ltot = (lmax+1)*(lmax+2)/2;
+      // Square of total number of angular coefficients in real form
+      int Ltot = (lmax+1)*(lmax+1);
 
       MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
 		    MPI_SUM, MPI_COMM_WORLD);
@@ -661,6 +671,9 @@ namespace BasisClasses
       
       if (pcavar) {
 
+	// Triangular number of angular coefficients in complex from
+	int ltot = (lmax+1)*(lmax+2)/2;
+
 	MPI_Allreduce(MPI_IN_PLACE, sampleCounts.data(), sampleCounts.size(),
 		      MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 	
@@ -669,7 +682,7 @@ namespace BasisClasses
 
 	for (int T=0; T<sampT; T++) {
 
-	  for (int l=0; l<Ltot; l++) {
+	  for (int l=0; l<ltot; l++) {
 	    
 	    MPI_Allreduce(MPI_IN_PLACE, meanV[T][l].data(), meanV[T][l].size(),
 			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -4903,7 +4916,7 @@ namespace BasisClasses
       // Check for version string
       std::string path = "CovarianceFileVersion"; 
 
-      // If exists, use extension method
+      // Check for valid HDF file
       if (file.exist(path)) {
 	extendCoefCovariance(fname, time);
 	return;
