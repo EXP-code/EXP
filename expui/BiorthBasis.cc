@@ -330,12 +330,23 @@ namespace BasisClasses
   void Spherical::init_covariance()
   {
     if (pcavar) {
+      int Ltot = (lmax+1)*(lmax+2)/2;
+	
       meanV.resize(sampT);
-      for (auto& v : meanV) v.resize(nmax);
+      for (auto& v : meanV) {
+	v.resize(Ltot);
+	for (auto& vec : v) vec.resize(nmax);
+      }
+
       covrV.resize(sampT);
-      for (auto& v : covrV) v.resize(nmax);
+      for (auto& v : covrV) {
+	v.resize(Ltot);
+	for (auto& mat : v) mat.resize(nmax, nmax);
+      }
+
       sampleCounts.resize(sampT);
       sampleMasses.resize(sampT);
+      
       zero_covariance();
     }
   }
