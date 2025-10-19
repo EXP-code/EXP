@@ -1386,7 +1386,7 @@ void BasisFactoryClasses(py::module &m)
          Parameters
          ----------
          compname : str
-                    the output HDF5 file name
+                    the component/basis name segment used in the output HDF5 filename
          runtag   : str
                     the run identifier tag
          time     : float
