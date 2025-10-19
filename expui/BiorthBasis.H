@@ -8,6 +8,9 @@
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 #include <yaml-cpp/yaml.h>
 
+#include <highfive/highfive.hpp> // HDF5 interface
+#include <highfive/eigen.hpp>
+
 #include <DiskDensityFunc.H>
 #include <ParticleReader.H>
 #include <Coefficients.H>

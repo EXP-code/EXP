@@ -11,9 +11,6 @@
 #include <cfenv>
 #endif
 
-#include <highfive/highfive.hpp>
-#include <highfive/eigen.hpp>
-
 namespace BasisClasses
 {
   const std::set<std::string>
@@ -612,12 +609,10 @@ namespace BasisClasses
 	    expcoef(loffset+moffset, n) += fac4 * norm * mass;
 
 	    if (pcavar) {
-	      for (int n=0; n<nmax; n++) {
-		meanV[T][l](n) += fac4 * norm * mass;
-		for (int o=0; o<nmax; o++)
-		  covrV[T][l](n, o)  += fac4 * norm *
-		    fac * potd[tid](l, o) * norm * mass;
-	      }
+	      meanV[T][l](n) += fac4 * norm * mass;
+	      for (int o=0; o<nmax; o++)
+		covrV[T][l](n, o)  += fac4 * norm *
+		  fac * potd[tid](l, o) * norm * mass;
 	    }
 	  }
 	  
@@ -633,12 +628,10 @@ namespace BasisClasses
 	    expcoef(loffset+moffset+1, n) += fac2 * fac4 * norm * mass;
 
 	    if (pcavar) {
-	      for (int n=0; n<nmax; n++) {
-		meanV[T][l](n) += fac * fac4 * norm * mass;
-		for (int o=0; o<nmax; o++)
-		  covrV[T][l](n, o)  += fac * fac4 * norm *
-		    fac * potd[tid](l, o) * norm * mass;
-	      }
+	      meanV[T][l](n) += fac * fac4 * norm * mass;
+	      for (int o=0; o<nmax; o++)
+		covrV[T][l](n, o)  += fac * fac4 * norm *
+		  fac * potd[tid](l, o) * norm * mass;
 	    }
 	  }
 	  
@@ -666,21 +659,21 @@ namespace BasisClasses
       
       if (pcavar) {
 
-	MPI_Allreduce(MPI_IN_PLACE, &sampleCounts, 1, MPI_INT,
-		      MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(MPI_IN_PLACE, sampleCounts.data(), sampleCounts.size(),
+		      MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 	
-	MPI_Allreduce(MPI_IN_PLACE, &sampleMasses, 1, MPI_DOUBLE,
-		      MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(MPI_IN_PLACE, sampleMasses.data(), sampleMasses.size(),
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 	for (int T=0; T<sampT; T++) {
 
 	  for (int l=0; l<(lmax+1)*(lmax+1); l++) {
 	    
-	    MPI_Allreduce(MPI_IN_PLACE, meanV[T][l].data(), nmax, MPI_DOUBLE,
-			  MPI_SUM, MPI_COMM_WORLD);
+	    MPI_Allreduce(MPI_IN_PLACE, meanV[T][l].data(), meanV[T][l].size(),
+			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-	    MPI_Allreduce(MPI_IN_PLACE, covrV[T][l].data(), nmax, MPI_DOUBLE,
-			  MPI_SUM, MPI_COMM_WORLD);
+	    MPI_Allreduce(MPI_IN_PLACE, covrV[T][l].data(), covrV[T][l].size(),
+			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	  }
 	}
       }
@@ -4832,7 +4825,7 @@ namespace BasisClasses
 
     // Add the samples
     //
-    for (size_t T=0; T<sampleCounts.size(); T) {
+    for (size_t T=0; T<sampleCounts.size(); T++) {
 
       // Group name
       std::ostringstream sT;
