@@ -2646,7 +2646,7 @@ void BasisFactoryClasses(py::module &m)
 
        Returns
        -------
-       CovarianceRearder
+       CovarianceReader
             the new instance
 
        )", py::arg("filename"), py::arg("stride")=1)
