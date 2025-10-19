@@ -1331,19 +1331,21 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("mass"), py::arg("pos"))
     .def("getCoefCovariance", &BasisClasses::BiorthBasis::getCoefCovariance,
          R"(
-	 Return the coefficient vectors and covariance matrices for a partition
-         of the accumulated particles.  The number of partitions is set by the
-         configuration parameters 'sampT' and defaults to 100.
+	 Return the coefficient vectors and covariance matrices for each partition
+         of the accumulated particles. The number of partitions is set by the
+         configuration parameter 'sampT' (default: 100).
 
-         Parameters
-         ----------
-         None
+         The coefficients are returned in the [specify: real basis (separate cos/sin for m>0; total angular dimension (lmax+1)^2) or complex triangular packing (l,m≥0; angular dimension (lmax+1)(lmax+2)/2)].
+         Each coefficient vector has shape (angular_dimension,), and each covariance matrix has shape (angular_dimension, angular_dimension).
+         The ordering of harmonic indices within the coefficient vector and covariance matrix is [specify: e.g., for real basis, (l, m) ordered with m from -l to l for each l from 0 to lmax; for complex packing, (l, m) with m from 0 to l for each l from 0 to lmax].
+         This allows consumers to unambiguously map (l, m) to positions in the arrays.
 
          Returns
          -------
          arrays: list[list[tuple[np.ndarray, np.ndarray]]]
-                 Each element is a tuple (coef_vector, coef_covariance_matrix),
-                 where coef_vector and coef_covariance_matrix are numpy.ndarray.
+             Each element is a tuple (coef_vector, coef_covariance_matrix),
+             where coef_vector and coef_covariance_matrix are numpy.ndarray.
+             Each coef_covariance_matrix is of shape (angular_dimension, angular_dimension).
 
          See also
          --------
