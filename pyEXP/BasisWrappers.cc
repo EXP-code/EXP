@@ -1346,7 +1346,9 @@ void BasisFactoryClasses(py::module &m)
 
          See also
          --------
-         getCovarSamples : get counts and mass in each partition
+         getCovarSamples     : get counts and mass in each partition
+         writeCoefCovariance : write the coefficient vectors, covariance
+                               matrices, and metadata to an HDF5 file.
          )")
     .def("getCovarSamples", &BasisClasses::BiorthBasis::getCovarSamples,
          R"(
@@ -1364,9 +1366,42 @@ void BasisFactoryClasses(py::module &m)
 
          See also
          --------
+         getCoefCovariance   : get the coefficient vectors and covariance matrices
+                               for the partitioned phase space.
+         writeCoefCovariance : write the coefficient vectors, covariance
+                               matrices, and metadata to an HDF5 file.
+         )")
+    .def("writeCoefCovariance", &BasisClasses::BiorthBasis::writeCoefCovariance,
+         R"(
+	 Write the partitioned coefficient vectors and covariance matrices
+         to a specified HDF5 file.  The number of partitions is set by the
+         configuration parameter 'sampT' and defaults to 100.
+
+         On first call, the file is created, metadata is written, and the
+         coefficient vectors and covariance matrices are stored.  On subsequent
+         calls, the file is updated with new covariance datasets.
+
+         The file will be called 'coefcovar.<compname>.<runtag>.h5'.
+
+         Parameters
+         ----------
+         compname : str
+                    the output HDF5 file name
+         runtag   : str
+                    the run identifier tag
+         time     : float
+                    the snapshot time
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
          getCoefCovariance : get the coefficient vectors and covariance matrices
                              for the partitioned phase space.
-         )")
+         getCovarSamples   : get counts and mass in each partition
+	 )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
          Return the field evaluations for a given cartesian position. The

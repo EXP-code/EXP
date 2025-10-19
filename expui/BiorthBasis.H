@@ -105,8 +105,23 @@ namespace BasisClasses
     Eigen::VectorXd sampleMasses;
     //@}
 
+    //! Write H5 covariance; returns updated group count
+    virtual unsigned writeCovarH5(HighFive::Group& group, unsigned count, double time);
+    
+    //! Write H5 parameters for coefficient covariance
+    virtual void writeCovarH5Params(HighFive::File& file) {}
+
+    //! Add coefficient covariance data to an HDF5 file
+    virtual void extendCoefCovariance(const std::string& filename, double time);
+
+    //! Variance file versioning
+    inline static const std::string CovarianceFileVersion = "1.0";
+
   public:
     
+    //! Basis identifier string
+    std::string BasisID = "BiorthBasis";
+
     //! Constructor from YAML node
     BiorthBasis(const YAML::Node& conf,
 		const std::string& name="BiorthBasis") : Basis(conf, name) {}
@@ -239,6 +254,11 @@ namespace BasisClasses
       return std::make_tuple(sampleCounts, sampleMasses);
     }
 
+    //! Write coefficient covariance data to an HDF5 file
+    void writeCoefCovariance(const std::string& compname,
+			     const std::string& runtag,
+			     double time=0.0);
+
   };
 
   /**
@@ -341,6 +361,7 @@ namespace BasisClasses
     std::vector<std::vector<Eigen::MatrixXd>> covrV;
     void init_covariance();
     void zero_covariance();
+    void writeCovarH5Params(HighFive::File& file);
     int sampT = 100;
     //@}
 
@@ -900,6 +921,9 @@ namespace BasisClasses
     //! coordinate system
     void computeAccel(double x, double y, double z,
 		      Eigen::Ref<Eigen::Vector3d> vstore);
+
+    //! Needed for covariance writing
+    void writeCovarH5Params(HighFive::File& file);
 
   public:
     

@@ -11,6 +11,9 @@
 #include <cfenv>
 #endif
 
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
+
 namespace BasisClasses
 {
   const std::set<std::string>
@@ -350,6 +353,9 @@ namespace BasisClasses
 
   void SphericalSL::initialize()
   {
+    // Identifier
+    //
+    BasisID = "sphereSL";
 
     // Assign some defaults
     //
@@ -411,6 +417,10 @@ namespace BasisClasses
   
   void Bessel::initialize()
   {
+    // Identifier
+    //
+    BasisID = "bessel";
+
     try {
       if (conf["rnum"])
 	rnum = conf["rnum"].as<int>();
@@ -598,7 +608,6 @@ namespace BasisClasses
 		    fac * potd[tid](l, o) * norm * mass;
 	      }
 	    }
-
 	  }
 	  
 	  moffset++;
@@ -631,6 +640,7 @@ namespace BasisClasses
   
   void Spherical::make_coefs()
   {
+    // MPI reduction of coefficients
     if (use_mpi) {
       
       MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
@@ -641,6 +651,27 @@ namespace BasisClasses
 	MPI_Allreduce(MPI_IN_PLACE, work.data(), nmax, MPI_DOUBLE,
 		      MPI_SUM, MPI_COMM_WORLD);
 	expcoef.row(l) = work;
+      }
+      
+      if (pcavar) {
+
+	MPI_Allreduce(MPI_IN_PLACE, &sampleCounts, 1, MPI_INT,
+		      MPI_SUM, MPI_COMM_WORLD);
+	
+	MPI_Allreduce(MPI_IN_PLACE, &sampleMasses, 1, MPI_DOUBLE,
+		      MPI_SUM, MPI_COMM_WORLD);
+
+	for (int T=0; T<sampT; T++) {
+
+	  for (int l=0; l<(lmax+1)*(lmax+1); l++) {
+	    
+	    MPI_Allreduce(MPI_IN_PLACE, meanV[T][l].data(), nmax, MPI_DOUBLE,
+			  MPI_SUM, MPI_COMM_WORLD);
+
+	    MPI_Allreduce(MPI_IN_PLACE, covrV[T][l].data(), nmax, MPI_DOUBLE,
+			  MPI_SUM, MPI_COMM_WORLD);
+	  }
+	}
       }
     }
   }
@@ -1319,6 +1350,10 @@ namespace BasisClasses
 
   void Cylindrical::initialize()
   {
+    // Basis identifier
+    //
+    BasisID = "Cylindrical";
+
     // Assign some defaults
     //
     rcylmin     = 0.001;
@@ -1911,6 +1946,9 @@ namespace BasisClasses
 
   void FlatDisk::initialize()
   {
+    // Basis identifier
+    //
+    BasisID = "FlatDisk";
 
     // Assign some defaults
     //
@@ -2490,6 +2528,9 @@ namespace BasisClasses
 
   void CBDisk::initialize()
   {
+    // Basis identifier
+    //
+    BasisID = "CBDisk";
 
     // Assign some defaults
     //
@@ -3225,6 +3266,10 @@ namespace BasisClasses
 
   void Slab::initialize()
   {
+    // Basis identifier
+    //
+    BasisID = "Slab";
+
     nminx = 0;
     nminy = 0;
 
@@ -3754,6 +3799,10 @@ namespace BasisClasses
 
   void Cube::initialize()
   {
+    // Basis identifier
+    //
+    BasisID = "Cube";
+
     nminx = std::numeric_limits<int>::max();
     nminy = std::numeric_limits<int>::max();
     nminz = std::numeric_limits<int>::max();
@@ -4728,6 +4777,209 @@ namespace BasisClasses
       for (int k=0; k<6; k++) ret(n, k, nout-1) = ps(n, k);
 
     return {times, ret};
+  }
+
+  void Spherical::writeCovarH5Params(HighFive::File& file)
+  {
+    file.createAttribute<int>("lmax", HighFive::DataSpace::From(lmax)).write(lmax);
+    file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+    file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
+    file.createAttribute<double>("rmin", HighFive::DataSpace::From(rmin)).write(rmin);
+    file.createAttribute<double>("rmax", HighFive::DataSpace::From(rmax)).write(rmax);
+  }
+  
+  void Cylindrical::writeCovarH5Params(HighFive::File& file)
+  {
+    file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
+    file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+    file.createAttribute<double>("scale", HighFive::DataSpace::From(rscl)).write(rscl);
+    file.createAttribute<double>("rmin", HighFive::DataSpace::From(rmin)).write(rmin);
+    file.createAttribute<double>("rmax", HighFive::DataSpace::From(rmax)).write(rmax);
+    file.createAttribute<double>("acyl", HighFive::DataSpace::From(rmin)).write(acyl);
+    file.createAttribute<double>("hcyl", HighFive::DataSpace::From(rmax)).write(hcyl);
+  }
+  
+  unsigned BiorthBasis::writeCovarH5(HighFive::Group& snaps, unsigned count, double time)
+  {
+    std::ostringstream stim;
+    stim << std::setw(8) << std::setfill('0') << std::right << count++;
+      
+    // Make a new group for this time
+    //
+    HighFive::Group stanza = snaps.createGroup(stim.str());
+      
+    // Add a time attribute
+    //
+    stanza.createAttribute<double>("Time", HighFive::DataSpace::From(time)).write(time);
+      
+    // Add the sample statistics
+    //
+    HighFive::DataSet s1data = stanza.createDataSet("sampleCounts", sampleCounts);
+    HighFive::DataSet s2data = stanza.createDataSet("sampleMasses", sampleMasses);
+
+    auto covar = getCoefCovariance();
+
+    // Add the samples
+    //
+    for (size_t T=0; T<sampleCounts.size(); T) {
+
+      // Group name
+      std::ostringstream sT;
+      sT << std::setw(8) << std::setfill('0') << std::right << T;
+      
+      // Make a new group
+      HighFive::Group sample = stanza.createGroup(sT.str());
+
+      // Pack the coefficient data
+      size_t lmax = covar[T].size();
+      size_t nmax = std::get<0>(covar[T][0]).rows();
+
+      Eigen::VectorXd data(lmax*nmax);
+      for (size_t l=0, c=0; l<lmax; l++) {
+	for (size_t n=0; n<nmax; n++, c++) {
+	  data(c) = std::get<0>(covar[T][l])(n);
+	}
+      }
+
+      HighFive::DataSet coefdata = sample.createDataSet("coefficients", data);
+
+      // Pack the covariance data in a upper triangular format
+      //
+      size_t diagonalSize = nmax*(nmax + 1)/2;
+      data.resize(lmax*diagonalSize);
+      for (size_t l=0, c=0; l<lmax; l++) {
+	for (size_t n1=0; n1<nmax; n1++) {
+	  for (size_t n2=n1; n2<nmax; n2++, c++) {
+	    data(c) = std::get<1>(covar[T][l])(n1, n2);
+	  }
+	}
+      }
+
+      HighFive::DataSet covdata = sample.createDataSet("covariance", data);
+    }
+    // END: sample loop
+
+    return count;
+  }
+  
+  void BiorthBasis::writeCoefCovariance(const std::string& compname, const std::string& runtag, double time)
+  {
+    // Check check that variance computation is on
+    //
+    if (not pcavar) {
+      std::cout << "BiorthBasis::writeCoefCovariance: covariance computation is disabled.  "
+		<< "Set 'pcavar: true' to enable." << std::endl;
+      return;
+    }
+
+    // Only root process writes
+    //
+    if (myid) return;
+
+    // Check that there is something to write
+    //
+    int totalCount = 0;
+    for (auto c : sampleCounts) totalCount += c;
+    if (totalCount==0) {
+      std::cout << "BiorthBasis::writeCoefCovariance: no data" << std::endl;
+      return;
+    }
+
+    // The H5 filename
+    std::string fname = "coefcovar." + compname + "." + runtag + ".h5";
+
+    // Check if file exists?
+    //
+    try {
+      // Open the HDF5 file in read-only mode
+      HighFive::File file(fname, HighFive::File::ReadOnly);
+
+      // Check for version string
+      std::string path = "CovarianceFileVersion"; 
+
+      // If exists, use extension method
+      if (file.exist(path)) {
+	extendCoefCovariance(fname, time);
+	return;
+      }
+
+    } catch (const HighFive::Exception& err) {
+        // Handle HighFive specific errors (e.g., file not found)
+        std::cerr << "HighFive Error: " << err.what() << std::endl;
+    } catch (const std::exception& err) {
+        // Handle other general exceptions
+        std::cerr << "Error: " << err.what() << std::endl;
+    }
+
+    // Write coefficients
+    //
+    try {
+      // Create a new hdf5 file
+      //
+      HighFive::File file(fname,
+			  HighFive::File::ReadWrite |
+			  HighFive::File::Create);
+      
+      // Write the Version string
+      //
+      file.createAttribute<std::string>("CovarianceFileVersion", HighFive::DataSpace::From(CovarianceFileVersion)).write(CovarianceFileVersion);
+
+      // We write the basis identifier string
+      //
+      file.createAttribute<std::string>("BasisID", HighFive::DataSpace::From(BasisID)).write(BasisID);
+      
+      // Write the specific parameters
+      //
+      writeCovarH5Params(file);
+      
+      // Group count variable
+      //
+      unsigned count = 0;
+      HighFive::DataSet dataset = file.createDataSet("count", count);
+      
+      // Create a new group for coefficient snapshots
+      //
+      HighFive::Group group = file.createGroup("snapshots");
+      
+      // Write the coefficients
+      //
+      count = writeCovarH5(group, count, time);
+      
+      // Update the count
+      //
+      dataset.write(count);
+      
+    } catch (HighFive::Exception& err) {
+      std::cerr << err.what() << std::endl;
+    }
+  }
+  
+  void BiorthBasis::extendCoefCovariance(const std::string& fname, double time)
+  {
+    try {
+      // Open an hdf5 file
+      //
+      HighFive::File file(fname, HighFive::File::ReadWrite);
+      
+      // Get the dataset
+      HighFive::DataSet dataset = file.getDataSet("count");
+      
+      unsigned count;
+      dataset.read(count);
+      
+      HighFive::Group group = file.getGroup("snapshots");
+      
+      // Write the coefficients
+      //
+      count = writeCovarH5(group, count, time);
+      
+      // Update the count
+      //
+      dataset.write(count);
+      
+    } catch (HighFive::Exception& err) {
+      std::cerr << err.what() << std::endl;
+    }
   }
 
 }
