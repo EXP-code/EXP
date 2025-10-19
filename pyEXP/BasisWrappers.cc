@@ -1331,34 +1331,31 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("mass"), py::arg("pos"))
     .def("getCoefCovariance", &BasisClasses::BiorthBasis::getCoefCovariance,
          R"(
-	 Return the coefficient vectors and covariance matrices for each partition
-         of the accumulated particles. The number of partitions is set by the
-         configuration parameter 'sampT' (default: 100).
+	 Return the coefficient vectors and covariance matrices for each partition of the
+         accumulated particles. The number of partitions is set by the configuration
+         parameter 'sampT' (default: 100).
 
-         The coefficients are returned in the [specify: real basis (separate cos/sin for m>0; total angular dimension (lmax+1)^2) or complex triangular packing (l,m≥0; angular dimension (lmax+1)(lmax+2)/2)].
-         Each coefficient vector has shape (angular_dimension,), and each covariance matrix has shape (angular_dimension, angular_dimension).
-         The ordering of harmonic indices within the coefficient vector and covariance matrix is [specify: e.g., for real basis, (l, m) ordered with m from -l to l for each l from 0 to lmax; for complex packing, (l, m) with m from 0 to l for each l from 0 to lmax].
-         This allows consumers to unambiguously map (l, m) to positions in the arrays.
+         The first dimension are the time samples.  The second dimension is the angular
+         index. The coefficients are the moduli of the original complex coefficient vectors.
 
          Returns
          -------
          arrays: list[list[tuple[np.ndarray, np.ndarray]]]
              Each element is a tuple (coef_vector, coef_covariance_matrix),
              where coef_vector and coef_covariance_matrix are numpy.ndarray.
-             Each coef_covariance_matrix is of shape (angular_dimension, angular_dimension).
+             Each coef_covariance_matrix is of shape (nmax, nmax)
 
          Shape and Indexing
          ------------------
-         - Coefficient vectors are returned in the real basis, with separate cosine and sine
-           components for m>0. The total angular dimension is (lmax+1)^2, corresponding to
-           all (l, m) pairs with -l ≤ m ≤ l for each l = 0, ..., lmax.
+         - Coefficient vectors are moduli of the originall complex coefficient vectors
+         - The first list index is the number of time samples.
+         - The second list index is the angular elements.  For spherical bases, all (l, m) pairs
+           are in triangular index order with l in [0,...,lmax] and m in [0,...,l] for a total of
+           (lmax+1)*(lmax+2)/2 entries.  For cylindrical bases, there are (mmax+1) harmonic
+           entries entries for each value m in [0,...,mmax].
          - Each covariance matrix is of shape (nmax, nmax), where nmax is the number of basis
-           functions (typically (lmax+1)^2).
-         - The ordering of harmonic indices within the outer list is such that for each l from
-           0 to lmax, m runs from -l to l, with cosine and sine components for m>0 stored
-           separately (e.g., [Y_{l,0}, Y_{l,1}^{cos}, Y_{l,1}^{sin}, ..., Y_{l,l}^{cos}, Y_{l,l}^{sin}]).
-           This allows consumers to unambiguously map (l, m) to positions in the coefficient vector
-           and covariance matrix.
+           functions
+
          See also
          --------
          getCovarSamples     : get counts and mass in each partition

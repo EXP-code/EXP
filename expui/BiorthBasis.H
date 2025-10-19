@@ -1000,6 +1000,8 @@ namespace BasisClasses
     std::tuple<Eigen::VectorXi, Eigen::VectorXd>
     getCovarSamples()
     {
+      // Copy to base class members
+      std::tie(sampleCounts, sampleMasses) = sl->getCovarSamples();
       return sl->getCovarSamples();
     }
   };
