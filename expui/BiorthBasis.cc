@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <set>
 
 #include <YamlCheck.H>
 #include <EXPException.H>
@@ -5025,16 +5026,22 @@ namespace BasisClasses
       
       int lmax, nmax, ltot;
 
-      if (basisID == "Spherical") {
+      // Current implemented spherical types
+      const std::set<std::string> sphereType = {"Spherical", "SphereSL", "bessel"};
+
+      // Currently implemented cylindrical types
+      const std::set<std::string> cylinderType = {"Cylindrical"};
+
+      if (sphereType.find(basisID) != sphereType.end()) {
 	file.getAttribute("lmax").read(lmax);
 	file.getAttribute("nmax").read(nmax);
 	ltot = (lmax+1)*(lmax+2)/2;
-      } else if (basisID == "Cylindrical") {
+      } else if (cylinderType.find(basisID) != cylinderType.end()) {
 	file.getAttribute("mmax").read(lmax);
 	file.getAttribute("nmax").read(nmax);
 	ltot = lmax + 1;
       } else {
-	throw std::runtime_error("CovarianceReader: unknown basis type, " + basisID);
+	throw std::runtime_error("CovarianceReader: unknown or unimplemented covariance for basis type, " + basisID);
       }
 
       // Group count variable
