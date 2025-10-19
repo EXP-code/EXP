@@ -4899,7 +4899,7 @@ namespace BasisClasses
     // Check that there is something to write
     //
     int totalCount = 0;
-    for (auto c : sampleCounts) totalCount += c;
+    for (int i = 0; i < sampleCounts.size(); ++i) totalCount += sampleCounts(i);
     if (totalCount==0) {
       std::cout << "BiorthBasis::writeCoefCovariance: no data" << std::endl;
       return;
