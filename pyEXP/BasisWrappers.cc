@@ -1353,7 +1353,7 @@ void BasisFactoryClasses(py::module &m)
     .def("getCovarSamples", &BasisClasses::BiorthBasis::getCovarSamples,
          R"(
 	 Return a vector of counts and mass used to compute the partitioned 
-         vectors and covariance.  The rank of the vectors is set by 'sampT'
+         vectors and covariance.  The length of both returned vectors equals 'sampT'
 
          Parameters
          ----------
@@ -1386,7 +1386,7 @@ void BasisFactoryClasses(py::module &m)
          Parameters
          ----------
          compname : str
-                    the output HDF5 file name
+                    the component/basis name segment used in the output HDF5 filename
          runtag   : str
                     the run identifier tag
          time     : float
