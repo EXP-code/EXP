@@ -671,7 +671,7 @@ namespace BasisClasses
       
       if (pcavar) {
 
-	// Triangular number of angular coefficients in complex from
+	// Triangular number of angular coefficients in complex form
 	int ltot = (lmax+1)*(lmax+2)/2;
 
 	MPI_Allreduce(MPI_IN_PLACE, sampleCounts.data(), sampleCounts.size(),
