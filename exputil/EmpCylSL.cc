@@ -4817,7 +4817,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 std::vector<std::vector<EmpCylSL::CoefCovarType>>
 EmpCylSL::getCoefCovariance()
 {
-  std::vector<std::vector<std::tuple<Eigen::VectorXd, Eigen::MatrixXd>>> ret;
+  std::vector<std::vector<EmpCylSL::CoefCovarType>> ret;
 
   if (PCAVAR) {
     ret.resize(sampT);
