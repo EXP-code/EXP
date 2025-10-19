@@ -4806,8 +4806,8 @@ namespace BasisClasses
     file.createAttribute<double>("scale", HighFive::DataSpace::From(rscl)).write(rscl);
     file.createAttribute<double>("rmin", HighFive::DataSpace::From(rmin)).write(rmin);
     file.createAttribute<double>("rmax", HighFive::DataSpace::From(rmax)).write(rmax);
-    file.createAttribute<double>("acyl", HighFive::DataSpace::From(rmin)).write(acyl);
-    file.createAttribute<double>("hcyl", HighFive::DataSpace::From(rmax)).write(hcyl);
+    file.createAttribute<double>("acyl", HighFive::DataSpace::From(acyl)).write(acyl);
+    file.createAttribute<double>("hcyl", HighFive::DataSpace::From(hcyl)).write(hcyl);
   }
   
   unsigned BiorthBasis::writeCovarH5(HighFive::Group& snaps, unsigned count, double time)
