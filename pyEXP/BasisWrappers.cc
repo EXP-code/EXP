@@ -1341,8 +1341,9 @@ void BasisFactoryClasses(py::module &m)
 
          Returns
          -------
-         arrays: a 2-dimensional array of tuples of numpy.ndarray representing the
-                 coefficient vectors and coefficient variance matrices
+         arrays: list[list[tuple[np.ndarray, np.ndarray]]]
+                 Each element is a tuple (coef_vector, coef_covariance_matrix),
+                 where coef_vector and coef_covariance_matrix are numpy.ndarray.
 
          See also
          --------
