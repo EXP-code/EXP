@@ -4847,7 +4847,7 @@ namespace BasisClasses
 
       HighFive::DataSet coefdata = sample.createDataSet("coefficients", data);
 
-      // Pack the covariance data in a upper triangular format
+      // Pack the covariance data in an upper triangular format
       //
       size_t diagonalSize = nmax*(nmax + 1)/2;
       data.resize(lmax*diagonalSize);
