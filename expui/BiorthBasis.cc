@@ -5063,10 +5063,10 @@ namespace BasisClasses
 	// Get sample properties
 	//
 	sampleCounts.push_back(Eigen::VectorXi());
-	file.getDataSet("sampleCounts").read(sampleCounts.back());
+	stanza.getDataSet("sampleCounts").read(sampleCounts.back());
 	
 	sampleMasses.push_back(Eigen::VectorXd());
-	file.getDataSet("sampleMasses").read(sampleMasses.back());
+	stanza.getDataSet("sampleMasses").read(sampleMasses.back());
 
 	size_t nT = sampleCounts.back().size();
 	for (int T=0; T<nT; T++) {

@@ -2664,7 +2664,7 @@ void BasisFactoryClasses(py::module &m)
             a list of evaluation times
       )")
   .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXd, Eigen::MatrixXd>>>
-       (CovarianceReader::*)(unsigned)>(&BasisClasses::CovarianceReader::getCoefCovariance),
+       (BasisClasses::CovarianceReader::*)(unsigned)>(&BasisClasses::CovarianceReader::getCoefCovariance),
      R"(
      Get the covariance matrices for the basis coefficients
 
@@ -2679,7 +2679,7 @@ void BasisFactoryClasses(py::module &m)
     )",
     py::arg("index")=0)
   .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXd, Eigen::MatrixXd>>>
-       (CovarianceReader::*)(double)>(&BasisClasses::CovarianceReader::getCoefCovariance),
+       (BasisClasses::CovarianceReader::*)(double)>(&BasisClasses::CovarianceReader::getCoefCovariance),
      R"(
      Get the covariance matrices for the basis coefficients
 
@@ -2695,7 +2695,7 @@ void BasisFactoryClasses(py::module &m)
     )",
     py::arg("time")=0.0)
    .def("getCovarSamples", static_cast<std::tuple<Eigen::VectorXi, Eigen::VectorXd>
-	(CovarianceReader::*)(unsigned)>(&BasisClasses::CovarianceReader::getCovarSamples),
+	(BasisClasses::CovarianceReader::*)(unsigned)>(&BasisClasses::CovarianceReader::getCovarSamples),
       R"(
       Get sample counts for the covariance computation
 
@@ -2711,7 +2711,7 @@ void BasisFactoryClasses(py::module &m)
       )",
       py::arg("index")=0)
    .def("getCovarSamples", static_cast<std::tuple<Eigen::VectorXi, Eigen::VectorXd>
-	(CovarianceReader::*)(double)>(&BasisClasses::CovarianceReader::getCovarSamples),
+	(BasisClasses::CovarianceReader::*)(double)>(&BasisClasses::CovarianceReader::getCovarSamples),
       R"(
       Get sample counts for the covariance computation
 
