@@ -4885,7 +4885,7 @@ namespace BasisClasses
   
   void BiorthBasis::writeCoefCovariance(const std::string& compname, const std::string& runtag, double time)
   {
-    // Check check that variance computation is on
+    // Check that variance computation is on
     //
     if (not pcavar) {
       std::cout << "BiorthBasis::writeCoefCovariance: covariance computation is disabled.  "
