@@ -5016,8 +5016,7 @@ namespace BasisClasses
       std::string version;
       file.getAttribute("CovarianceFileVersion").read(version);
       if (version != std::string("1.0")) {
-	throw std::runtime_error("CovarianceReader: unsupported file version, "
-				 + version);
+	throw std::runtime_error(std::string("CovarianceReader: unsupported file version, ") + version);
       }
 
       // Read the basis identifier string
