@@ -1414,7 +1414,7 @@ void BasisFactoryClasses(py::module &m)
 
          See also
          --------
-         getAccelArray  : return the acceleration vectors given position vecto
+         getAccelArray  : return the acceleration vectors given position vectors
          getFields      : returns density, potential and acceleration
          getFieldsCoefs : get fields for each coefficient set
          __call__       : same as getFields() but provides field labels in a tuple
