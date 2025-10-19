@@ -298,12 +298,12 @@ namespace BasisClasses
     for (auto & v : dlegs ) v.resize(lmax+1, lmax+1);
     for (auto & v : d2legs) v.resize(lmax+1, lmax+1);
 
-    expcoef.resize((lmax+1)*(lmax+1), nmax);
+    expcoef.resize((lmax+1)*(lmax+2)/2, nmax);
     expcoef.setZero();
       
     work.resize(nmax);
       
-    factorial.resize(lmax+1, lmax+1);
+    factorial.resize(lmax+1, lmax+1); // Wasteful but simple
       
     for (int l=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {
@@ -476,7 +476,7 @@ namespace BasisClasses
     int ldim = (lmax+1)*(lmax+2)/2;
 
     // Allocate the coefficient storage
-    cf->store.resize((lmax+1)*(lmax+2)/2*nmax);
+    cf->store.resize(ldim*nmax);
 
     // Make the coefficient map
     cf->coefs = std::make_shared<CoefClasses::SphStruct::coefType>
@@ -609,9 +609,9 @@ namespace BasisClasses
 	    expcoef(loffset+moffset, n) += fac4 * norm * mass;
 
 	    if (pcavar) {
-	      meanV[T][l](n) += fac4 * norm * mass;
+	      meanV[T][loffset+moffset](n) += fac4 * norm * mass;
 	      for (int o=0; o<nmax; o++)
-		covrV[T][l](n, o)  += fac4 * norm *
+		covrV[T][loffset+moffset](n, o)  += fac4 * norm *
 		  fac * potd[tid](l, o) * norm * mass;
 	    }
 	  }
@@ -628,9 +628,9 @@ namespace BasisClasses
 	    expcoef(loffset+moffset+1, n) += fac2 * fac4 * norm * mass;
 
 	    if (pcavar) {
-	      meanV[T][l](n) += fac * fac4 * norm * mass;
+	      meanV[T][loffset+moffset](n) += fac * fac4 * norm * mass;
 	      for (int o=0; o<nmax; o++)
-		covrV[T][l](n, o)  += fac * fac4 * norm *
+		covrV[T][loffset+moffset](n, o)  += fac * fac4 * norm *
 		  fac * potd[tid](l, o) * norm * mass;
 	    }
 	  }
@@ -647,10 +647,12 @@ namespace BasisClasses
     // MPI reduction of coefficients
     if (use_mpi) {
       
+      int Ltot = (lmax+1)*(lmax+2)/2;
+
       MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
 		    MPI_SUM, MPI_COMM_WORLD);
       
-      for (int l=0; l<(lmax+1)*(lmax+1); l++) {
+      for (int l=0; l<Ltot; l++) {
 	work = expcoef.row(l);
 	MPI_Allreduce(MPI_IN_PLACE, work.data(), nmax, MPI_DOUBLE,
 		      MPI_SUM, MPI_COMM_WORLD);
@@ -667,7 +669,7 @@ namespace BasisClasses
 
 	for (int T=0; T<sampT; T++) {
 
-	  for (int l=0; l<(lmax+1)*(lmax+1); l++) {
+	  for (int l=0; l<Ltot; l++) {
 	    
 	    MPI_Allreduce(MPI_IN_PLACE, meanV[T][l].data(), meanV[T][l].size(),
 			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
