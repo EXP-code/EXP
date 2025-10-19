@@ -5068,7 +5068,11 @@ namespace BasisClasses
 	sampleMasses.push_back(Eigen::VectorXd());
 	stanza.getDataSet("sampleMasses").read(sampleMasses.back());
 
-	size_t nT = sampleCounts.back().size();
+	int nT = sampleCounts.back().size();
+
+	// Allocate vector for current time
+	covarData.push_back(std::vector<std::vector<CoefCovarType>>(nT));
+
 	for (int T=0; T<nT; T++) {
 	  // Group name
 	  std::ostringstream sT;
@@ -5110,6 +5114,9 @@ namespace BasisClasses
 	      }
 	    }
 	  }
+
+	  // Add the data
+	  covarData.back()[T] = std::move(elem);
 	}
 	// END: sample loop
 
