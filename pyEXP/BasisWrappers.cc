@@ -2689,7 +2689,7 @@ void BasisFactoryClasses(py::module &m)
 	    list of partitioned coefficients and their covariance matrices for
             each subsample
     )",
-    py::arg("index")=0)
+    py::arg("index"))
   .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXd, Eigen::MatrixXd>>>
        (BasisClasses::CovarianceReader::*)(double)>(&BasisClasses::CovarianceReader::getCoefCovariance),
      R"(
@@ -2722,7 +2722,7 @@ void BasisFactoryClasses(py::module &m)
       tuple(numpy.ndarray, numpy.ndarray)
           sample counts and masses for the covariance computation
       )",
-      py::arg("index")=0)
+      py::arg("index"))
    .def("getCovarSamples", static_cast<std::tuple<Eigen::VectorXi, Eigen::VectorXd>
 	(BasisClasses::CovarianceReader::*)(double)>(&BasisClasses::CovarianceReader::getCovarSamples),
       R"(
@@ -2738,7 +2738,7 @@ void BasisFactoryClasses(py::module &m)
       tuple(numpy.ndarray, numpy.ndarray)
           sample counts and masses for the covariance computation
       )",
-      py::arg("time")=0.0)
+      py::arg("time"))
    .def("basisIDname", &BasisClasses::CovarianceReader::basisIDname,
      R"(
      Get the basis ID name
