@@ -328,7 +328,7 @@ namespace BasisClasses
     //
     if (pcavar) init_covariance();
 
-    // Set spherical coordindates
+    // Set spherical coordinates
     //
     coordinates = Coord::Spherical;
     BasisID = "Spherical";
