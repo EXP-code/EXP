@@ -110,6 +110,14 @@ namespace BasisClasses
     Eigen::VectorXd sampleMasses;
     //@}
 
+    //! Round time key to emulated fixed-point arithmetic
+    double roundTime(double time)
+    {
+      // Eight decimal places should be enough here...
+      const double multiplier = 1.0e+08;  // std::pow(10.0, 8);
+      return std::floor(time * multiplier + 0.5) / multiplier;
+    }
+
     //! Write H5 covariance; returns updated group count
     virtual unsigned writeCovarH5(HighFive::Group& group, unsigned count, double time);
     
@@ -174,13 +182,14 @@ namespace BasisClasses
     //@}
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass) = 0;
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0) = 0;
     
     //! Accumulate new coefficients
-    virtual void accumulate(double mass,
-			    double x, double y, double z,
-			    double u, double v, double w)
-    { accumulate(x, y, z, mass); }
+    virtual void accumulate(double x, double y, double z,
+			    double u, double v, double w,
+			    double mass, unsigned long indx = 0)
+    { accumulate(x, y, z, mass, indx); }
     
     //! Get mass on grid
     double getMass(void) { return totalMass; }
@@ -263,6 +272,9 @@ namespace BasisClasses
     void writeCoefCovariance(const std::string& compname,
 			     const std::string& runtag,
 			     double time=0.0);
+
+    //! Make covariance after accumulation
+    virtual void makeCoefCovariance(void) {}
 
   };
 
@@ -398,7 +410,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     int getLmax() { return lmax; }
@@ -643,7 +656,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     int getMmax() { return mmax; }
@@ -800,7 +814,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     int getMmax() { return mmax; }
@@ -958,7 +973,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     int getMmax() { return mmax; }
@@ -1004,6 +1020,7 @@ namespace BasisClasses
       std::tie(sampleCounts, sampleMasses) = sl->getCovarSamples();
       return {sampleCounts, sampleMasses};
     }
+
   };
   
   /**
@@ -1120,7 +1137,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     Eigen::Vector3i getNmax() { return {nmaxx, nmaxy, nmaxz}; }
@@ -1258,7 +1276,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     Eigen::Vector3i getNmax() { return {nmaxx, nmaxy, nmaxz}; }
@@ -1302,7 +1321,7 @@ namespace BasisClasses
     std::vector<Eigen::VectorXd> sampleMasses;
     std::vector<std::vector<std::vector<CoefCovarType>>> covarData;
 
-    const double fixedPointPrecision = 1.0e04;
+    const double fixedPointPrecision = 1.0e08;
     std::map<int, unsigned> timeMap;
     unsigned timeIndex(double time)
     {

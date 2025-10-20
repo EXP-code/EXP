@@ -265,7 +265,7 @@ namespace BasisClasses
       if (conf["EVEN_M"])    EVEN_M    = conf["EVEN_M"].as<bool>();
       if (conf["M0_ONLY"])   M0_only   = conf["M0_ONLY"].as<bool>();
       if (conf["pcavar"])    pcavar    = conf["pcavar"].as<bool>();
-      if (conf["sampT"])     sampT     = conf["sampT"].as<int>();
+      if (conf["subsamp"])   sampT     = conf["subsamp"].as<int>();
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -568,7 +568,8 @@ namespace BasisClasses
       coefctr = {0.0, 0.0, 0.0};
   }
 
-  void Spherical::accumulate(double x, double y, double z, double mass)
+  void Spherical::accumulate(double x, double y, double z, double mass,
+			     unsigned long indx)
   {
     double fac, fac1, fac2, fac4;
     double norm = -4.0*M_PI;
@@ -1444,6 +1445,8 @@ namespace BasisClasses
     if (unmatched.size())
       throw YamlConfigError("Basis::Basis::Cylindrical", "parameter", unmatched, __FILE__, __LINE__);
     
+    int sampT = 0;
+
     // Assign values from YAML
     //
     try {
@@ -1495,6 +1498,7 @@ namespace BasisClasses
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
       if (conf["pyname"    ])      pyname = conf["pyname"    ].as<std::string>();
       if (conf["pcavar"]    )      pcavar = conf["pcavar"    ].as<bool>();
+      if (conf["subsamp"]   )      sampT  = conf["subsamp"   ].as<int>();
 
       // Deprecation warning
       if (conf["density"   ]) {
@@ -1544,6 +1548,7 @@ namespace BasisClasses
     EmpCylSL::CMAPZ       = cmapZ;
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
+    EmpCylSL::PCAVAR      = pcavar;
     
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
@@ -1566,7 +1571,11 @@ namespace BasisClasses
     //
     if (mlim>=0)  sl->set_mlim(mlim);
     if (EVEN_M)   sl->setEven(EVEN_M);
-      
+    if (sampT>0)  {
+      sl->setSampT(sampT);
+      sl->init_pca();
+    }
+    
     // Cache override for old Eigen cache
     //
     if (oldcache) sl->AllowOldCache();
@@ -1790,11 +1799,12 @@ namespace BasisClasses
     }
   }
   
-  void Cylindrical::accumulate(double x, double y, double z, double mass)
+  void Cylindrical::accumulate(double x, double y, double z, double mass,
+			       unsigned long indx)
   {
     double R   = sqrt(x*x + y*y);
     double phi = atan2(y, x);
-    sl->accumulate(R, z, phi, mass, 0, 0);
+    sl->accumulate(R, z, phi, mass, indx, 0, 0, pcavar);
   }
   
   void Cylindrical::reset_coefs(void)
@@ -1857,7 +1867,7 @@ namespace BasisClasses
 
   void Cylindrical::make_coefs(void)
   {
-    sl->make_coefficients();
+    sl->make_coefficients(pcavar);
   }
   
   
@@ -2170,7 +2180,8 @@ namespace BasisClasses
       coefctr = {0.0, 0.0, 0.0};
   }
 
-  void FlatDisk::accumulate(double x, double y, double z, double mass)
+  void FlatDisk::accumulate(double x, double y, double z, double mass,
+			    unsigned long indx)
   {
     // Normalization factors
     //
@@ -2974,7 +2985,8 @@ namespace BasisClasses
       coefctr = {0.0, 0.0, 0.0};
   }
 
-  void CBDisk::accumulate(double x, double y, double z, double mass)
+  void CBDisk::accumulate(double x, double y, double z, double mass,
+			  unsigned long int idx)
   {
     // Normalization factors
     //
@@ -3432,7 +3444,8 @@ namespace BasisClasses
     coefctr = {0.0, 0.0, 0.0};
   }
 
-  void Slab::accumulate(double x, double y, double z, double mass)
+  void Slab::accumulate(double x, double y, double z, double mass,
+			unsigned long int idx)
   {
     // Truncate to slab with sides in [0,1]
     if (x<0.0)
@@ -3949,7 +3962,8 @@ namespace BasisClasses
     coefctr = {0.0, 0.0, 0.0};
   }
 
-  void Cube::accumulate(double x, double y, double z, double mass)
+  void Cube::accumulate(double x, double y, double z, double mass,
+			unsigned long int indx)
   {
     // Truncate to cube with sides in [0,1]
     if (x<0.0)
@@ -4179,7 +4193,7 @@ namespace BasisClasses
       }
 
       if (use) {
-	accumulate(pp(0), pp(1), pp(2), p->mass);
+	accumulate(pp(0), pp(1), pp(2), p->mass, p->indx);
       }
     }
     make_coefs();
@@ -4298,7 +4312,7 @@ namespace BasisClasses
 	  coefindx++;
 	  
 	  if (use) {
-	    accumulate(pp(0), pp(1), pp(2), m(n));
+	    accumulate(pp(0), pp(1), pp(2), m(n), n);
 	  }
 	}
       }
@@ -4336,7 +4350,7 @@ namespace BasisClasses
 	  coefindx++;
 	  
 	  if (use) {
-	    accumulate(pp(0), pp(1), pp(2), m(n));
+	    accumulate(pp(0), pp(1), pp(2), m(n), n);
 	  }
 	}
       }
@@ -4826,6 +4840,7 @@ namespace BasisClasses
       
     // Add a time attribute
     //
+    time = roundTime(time);
     stanza.createAttribute<double>("Time", HighFive::DataSpace::From(time)).write(time);
       
     // Add the sample statistics
@@ -4903,14 +4918,22 @@ namespace BasisClasses
       return;
     }
 
+    // Round time
+    //
+    time = roundTime(time);
+
     // The H5 filename
+    //
     std::string fname = "coefcovar." + compname + "." + runtag + ".h5";
 
     // Check if file exists?
     //
     try {
-      // Open the HDF5 file in read-only mode
-      HighFive::File file(fname, HighFive::File::ReadOnly);
+      // Open the HDF5 file in read-write mode, creating if it doesn't
+      // exist
+      HighFive::File file(fname,
+			  HighFive::File::ReadWrite |
+			  HighFive::File::Create);
 
       // Check for version string
       std::string path = "CovarianceFileVersion"; 
@@ -4921,23 +4944,6 @@ namespace BasisClasses
 	return;
       }
 
-    } catch (const HighFive::Exception& err) {
-        // Handle HighFive specific errors (e.g., file not found)
-        std::cerr << "HighFive Error: " << err.what() << std::endl;
-    } catch (const std::exception& err) {
-        // Handle other general exceptions
-        std::cerr << "Error: " << err.what() << std::endl;
-    }
-
-    // Write coefficients
-    //
-    try {
-      // Create a new hdf5 file
-      //
-      HighFive::File file(fname,
-			  HighFive::File::ReadWrite |
-			  HighFive::File::Create);
-      
       // Write the Version string
       //
       file.createAttribute<std::string>("CovarianceFileVersion", HighFive::DataSpace::From(CovarianceFileVersion)).write(CovarianceFileVersion);
@@ -4967,8 +4973,14 @@ namespace BasisClasses
       //
       dataset.write(count);
       
-    } catch (HighFive::Exception& err) {
-      std::cerr << err.what() << std::endl;
+    } catch (const HighFive::Exception& err) {
+      // Handle HighFive specific errors (e.g., file not found)
+      throw std::runtime_error
+	(std::string("BiorthBasis::writeCoefCovariance HighFive Error: ") + err.what());
+    } catch (const std::exception& err) {
+      // Handle other general exceptions
+      throw std::runtime_error
+	(std::string("BiorthBasis::writeCoefCovariance Error: ") + err.what());
     }
   }
   
@@ -4996,7 +5008,8 @@ namespace BasisClasses
       dataset.write(count);
       
     } catch (HighFive::Exception& err) {
-      std::cerr << err.what() << std::endl;
+      throw std::runtime_error
+	(std::string("BiorthBasis::extendCoefCovariance: HighFive error: ") + err.what());
     }
   }
 

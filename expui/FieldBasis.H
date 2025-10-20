@@ -156,12 +156,13 @@ namespace BasisClasses
     (Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin=true, bool posvelrows=false);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double mass,
-			    double x, double y, double z,
-			    double u, double v, double w);
+    virtual void accumulate(double x, double y, double z,
+			    double u, double v, double w,
+			    double mass, unsigned long int indx = 0);
 			    
     [[deprecated("not relevant for this class")]]
-    virtual void accumulate(double x, double y, double z, double mass)
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0)
     {
     }
 

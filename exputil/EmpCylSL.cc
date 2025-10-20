@@ -1923,7 +1923,7 @@ void EmpCylSL::setup_accumulation(int mlevel)
       }
     }
 
-    if (PCAVAR and sampT>0) {
+    if (PCAVAR and sampT>1) {
       for (int nth=0; nth<nthrds; nth++) {
 	for (unsigned T=0; T<sampT; T++) {
 	  numbT1[nth][T] = 0;
@@ -1946,7 +1946,7 @@ void EmpCylSL::setup_accumulation(int mlevel)
     if (m>0) accum_sin[m].setZero();
   }
 
-  if ( (PCAVAR or PCAEOF) and mlevel==0 and sampT>0) {
+  if ( (PCAVAR or PCAEOF) and mlevel==0 and sampT>1) {
 
     for (int nth=0; nth<nthrds; nth++) {
 
@@ -2026,7 +2026,7 @@ void EmpCylSL::init_pca()
     for (int nth=0; nth<nthrds;nth++) {
       if (PCAEOF) {
 	tvar[nth].resize(MMAX + 1);
-	for (auto & v : tvar[nth]) v.resize(rank3, rank3);
+	for (auto & v : tvar[nth]) v.resize(NORDER, NORDER);
       }
 
       if (PCAVAR) {
@@ -2042,8 +2042,8 @@ void EmpCylSL::init_pca()
 	  covV[nth][T].resize(MMAX+1);
 	  covM[nth][T].resize(MMAX+1);
 	  for (int mm=0; mm<=MMAX; mm++) {
-	    covV[nth][T][mm].resize(rank3);
-	    covM[nth][T][mm].resize(rank3, rank3);
+	    covV[nth][T][mm].resize(NORDER);
+	    covM[nth][T][mm].resize(NORDER, NORDER);
 	  }
 	}
       }

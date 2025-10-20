@@ -279,8 +279,8 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(FCReturn, Basis, getFieldsCoefs, x, y, z, coefs);
     }
     
-    void accumulate(double x, double y, double z, double mass) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, accumulate, mass, x, y, z, mass);
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, accumulate, mass, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override {
@@ -360,9 +360,10 @@ void BasisFactoryClasses(py::module &m)
     }
 
     void accumulate(double m, double x, double y, double z,
-		    double u, double v, double w) override
+		    double u, double v, double w,
+		    unsigned long int indx) override
     {
-      PYBIND11_OVERRIDE(void, FieldBasis, accumulate, m, x, y, z, u, v, w);
+      PYBIND11_OVERRIDE(void, FieldBasis, accumulate, m, x, y, z, u, v, w, indx);
     }
     
     void reset_coefs(void) override {
@@ -419,8 +420,8 @@ void BasisFactoryClasses(py::module &m)
     // Inherit the constructors
     using BasisClasses::BiorthBasis::BiorthBasis;
 
-    void accumulate(double x, double y, double z, double mass) override {
-      PYBIND11_OVERRIDE_PURE(void, BiorthBasis, accumulate, x, y, z, mass);
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override {
+      PYBIND11_OVERRIDE_PURE(void, BiorthBasis, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override {
@@ -497,8 +498,8 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, Spherical, getFields, x, y, z);
     }
 
-    void accumulate(double x, double y, double z, double mass) override {
-      PYBIND11_OVERRIDE(void, Spherical, accumulate, x, y, z, mass);
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override {
+      PYBIND11_OVERRIDE(void, Spherical, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override {
@@ -552,8 +553,8 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getFields, x, y, z);
     }
 
-    void accumulate(double x, double y, double z, double mass) override {
-      PYBIND11_OVERRIDE(void, Cylindrical, accumulate, x, y, z, mass);
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override {
+      PYBIND11_OVERRIDE(void, Cylindrical, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override {
@@ -621,9 +622,9 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getFields, x, y, z);
     }
 
-    void accumulate(double x, double y, double z, double mass) override
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override
     {
-      PYBIND11_OVERRIDE(void, FlatDisk, accumulate, x, y, z, mass);
+      PYBIND11_OVERRIDE(void, FlatDisk, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override
@@ -692,9 +693,9 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, CBDisk, getFields, x, y, z);
     }
 
-    void accumulate(double x, double y, double z, double mass) override
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override
     {
-      PYBIND11_OVERRIDE(void, CBDisk, accumulate, x, y, z, mass);
+      PYBIND11_OVERRIDE(void, CBDisk, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override
@@ -766,9 +767,9 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, Slab, getFields, x, y, z);
     }
 
-    void accumulate(double x, double y, double z, double mass) override
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override
     {
-      PYBIND11_OVERRIDE(void, Slab, accumulate, x, y, z, mass);
+      PYBIND11_OVERRIDE(void, Slab, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override
@@ -840,9 +841,9 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, Cube, getFields, x, y, z);
     }
 
-    void accumulate(double x, double y, double z, double mass) override
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override
     {
-      PYBIND11_OVERRIDE(void, Cube, accumulate, x, y, z, mass);
+      PYBIND11_OVERRIDE(void, Cube, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override
@@ -1557,9 +1558,9 @@ void BasisFactoryClasses(py::module &m)
          -------
          None
          )")
-    .def("accumulate", [](BasisClasses::BiorthBasis& A, double x, double y, double z, double mass)
+    .def("accumulate", [](BasisClasses::BiorthBasis& A, double x, double y, double z, double mass, unsigned long int indx)
     {
-      return A.accumulate(x, y, z, mass);
+      return A.accumulate(x, y, z, mass, indx);
     },
       R"(
          Add the contribution of a single particle to the coefficients
@@ -1574,12 +1575,14 @@ void BasisFactoryClasses(py::module &m)
              z-axis position
          mass : float
              particle mass
+      	 indx : unsigned long int
+             particle index for selection functor
 
          Returns
          -------
          None
         )", 
-	 py::arg("x"), py::arg("y"), py::arg("z"), py::arg("mass"))
+      py::arg("x"), py::arg("y"), py::arg("z"), py::arg("mass"), py::arg("indx")=0)
     .def("getMass",            &BasisClasses::BiorthBasis::getMass,
 	 R"(
          Return the total mass of particles contributing the current coefficient set

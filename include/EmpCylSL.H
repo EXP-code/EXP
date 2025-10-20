@@ -210,7 +210,7 @@ protected:
   //! Coefficient magic number
   inline static const unsigned int cmagic = 0xc0a57a3;
 
-  std::vector<short> coefs_made;
+  std::vector<bool> coefs_made;
   bool eof_made;
 
   SphModTblPtr make_sl();
