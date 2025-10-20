@@ -4895,8 +4895,9 @@ namespace BasisClasses
     // Check that there is something to write
     //
     int totalCount = 0;
-    std::tie(sampleCounts, sampleMasses) = getCovarSamples()
-    for (int i = 0; i < sampleCounts.size(); ++i) totalCount += sampleCounts(i);
+    std::tie(sampleCounts, sampleMasses) = getCovarSamples();
+    totalCount += sampleCounts.sum();
+
     if (totalCount==0) {
       std::cout << "BiorthBasis::writeCoefCovariance: no data" << std::endl;
       return;
