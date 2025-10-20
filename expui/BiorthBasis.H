@@ -1002,7 +1002,7 @@ namespace BasisClasses
     {
       // Copy to base class members
       std::tie(sampleCounts, sampleMasses) = sl->getCovarSamples();
-      return sl->getCovarSamples();
+      return {sampleCounts, sampleMasses};
     }
   };
   
