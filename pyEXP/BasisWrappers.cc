@@ -1575,7 +1575,7 @@ void BasisFactoryClasses(py::module &m)
              z-axis position
          mass : float
              particle mass
-      	 indx : unsigned long int
+         indx : unsigned long int
              particle index for selection functor
 
          Returns

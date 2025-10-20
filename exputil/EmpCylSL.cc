@@ -4841,7 +4841,7 @@ EmpCylSL::getCovarSamples()
   if (PCAVAR) {
     std::get<0>(ret).resize(sampT);
     std::get<1>(ret).resize(sampT);
-    for (int T=0; T<sampT; T++) {
+    for (unsigned T=0; T<sampT; T++) {
       std::get<0>(ret)(T) = numbT[T];
       std::get<1>(ret)(T) = massT[T];
     }
