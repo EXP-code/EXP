@@ -930,7 +930,7 @@ public:
   //! Check orthogonality for basis (pyEXP style)
   std::vector<Eigen::MatrixXd> orthoCheck();
 
-  //! Return a vector of tuples of basis functions and the
+  //! Return a vector of tuples of basis coefficients and the
   //! covariance matrix for subsamples of particles
   using CoefCovarType = std::tuple<Eigen::VectorXd, Eigen::MatrixXd>;
   std::vector<std::vector<CoefCovarType>> getCoefCovariance();
