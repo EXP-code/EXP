@@ -92,7 +92,7 @@ namespace BasisClasses
     //! C++ local storage for computeAccel
     Eigen::Vector3d vstore;
 
-    //! C++ local storage for getAccelArray
+    //! C++ local storage for the array version of getAccel
     RowMatrixXd varray;
     //@}
 
@@ -195,9 +195,9 @@ namespace BasisClasses
 
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system for a collections of points
-    virtual RowMatrixXd& getAccelArray(Eigen::VectorXd& x,
-				       Eigen::VectorXd& y,
-				       Eigen::VectorXd& z)
+    virtual RowMatrixXd& getAccel(Eigen::VectorXd& x,
+				  Eigen::VectorXd& y,
+				  Eigen::VectorXd& z)
     {
       // Sanity check
       if (x.size() != y.size() || x.size() != z.size())

@@ -1346,7 +1346,7 @@ void BasisFactoryClasses(py::module &m)
          __call__       : same as getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
-    .def("getAccel", &BasisClasses::BiorthBasis::getAccel,
+    .def("getAccel", static_cast<Eigen::Vector3d& (BasisClasses::BiorthBasis*)(double, double, double)>(&BasisClasses::BiorthBasis::getAccel)
 	 R"(
          Return the acceleration for a given cartesian position
 
@@ -1362,6 +1362,30 @@ void BasisFactoryClasses(py::module &m)
          Returns
          -------
          fields: numpy.ndarray
+
+         See also
+         --------
+         getFields      : returns density, potential and acceleration
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same as getFields() but provides field labels in a tuple
+         )",
+	 py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("getAccelArray", static_cast<RowMatrixXd& (BasisClasses::BiorthBasis*)(Eigen::VectorXd&, Eigen::VectorXd&, Eigen::VectorXd&)>(&BasisClasses::BiorthBasis::getAccel)
+	 R"(
+         Return the acceleration for a given cartesian position
+
+         Parameters
+         ----------
+         x : ndarray
+             x-axis positions
+         y : ndarray
+             y-axis positions
+         z : ndarray
+             z-axis positions
+
+         Returns
+         -------
+         accel: numpy.ndarray
 
          See also
          --------
@@ -1394,6 +1418,36 @@ void BasisFactoryClasses(py::module &m)
          __call__       : same as getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("getAccelArray", &BasisClasses::BiorthBasis::getAccelArray,
+	 R"(
+         Return the acceleration for a given cartesian position
+
+         Parameters
+         ----------
+         x : ndarray
+             x-axis positions
+         y : ndarray
+             y-axis positions
+         z : ndarray
+             z-axis positions
+
+         Returns
+         -------
+         accel: numpy.ndarray
+
+         See also
+         --------
+         getFields      : returns density, potential and acceleration
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same as getFields() but provides field labels in a tuple
+         )",
+	 py::arg("x"), py::arg("y"), py::arg("z"))
+
+py::class_<Pet>(m, "Pet")
+   .def(py::init<const std::string &, int>())
+   .def("set", static_cast<void (Pet::*)(int)>(&Pet::set), "Set the pet's age")
+   .def("set", static_cast<void (Pet::*)(const std::string &)>(&Pet::set), "Set the pet's name");
+
     .def("getAccel", &BasisClasses::BiorthBasis::getAccelArray,
 	 R"(
          This is a alias/overload of getAccelArray to provide a vector
