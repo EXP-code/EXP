@@ -1352,7 +1352,7 @@ void BasisFactoryClasses(py::module &m)
          - The second list index is the angular elements.  For spherical bases, all (l, m) pairs
            are in triangular index order with l in [0,...,lmax] and m in [0,...,l] for a total of
            (lmax+1)*(lmax+2)/2 entries.  For cylindrical bases, there are (mmax+1) harmonic
-           entries entries for each value m in [0,...,mmax].
+           entries for each value m in [0,...,mmax].
          - Each covariance matrix is of shape (nmax, nmax), where nmax is the number of basis
            functions
 
