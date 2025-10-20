@@ -613,44 +613,39 @@ namespace BasisClasses
       // M loop
       for (int m=0, moffset=0, moffE=0; m<=l; m++, L++) {
 	
+	fac = factorial(l, m) * legs[tid](l, m);
+
 	if (m==0) {
-	  fac = factorial(l, m) * legs[tid](l, m);
 	  for (int n=0; n<nmax; n++) {
 	    fac4 = potd[tid](l, n)*fac;
 	    expcoef(loffset+moffset, n) += fac4 * norm * mass;
-
-	    if (pcavar) {
-	      meanV[T][L](n) += fac4 * norm * mass;
-	      for (int o=0; o<nmax; o++)
-		covrV[T][L](n, o)  += fac4 * norm *
-		  fac * potd[tid](l, o) * norm * mass;
-	    }
 	  }
 	  
 	  moffset++;
 	}
 	else {
-	  fac  = factorial(l, m) * legs[tid](l, m);
 	  fac1 = fac*cos(phi*m);
 	  fac2 = fac*sin(phi*m);
+
 	  for (int n=0; n<nmax; n++) {
 	    fac4 = potd[tid](l, n);
 	    expcoef(loffset+moffset  , n) += fac1 * fac4 * norm * mass;
 	    expcoef(loffset+moffset+1, n) += fac2 * fac4 * norm * mass;
-
-	    if (pcavar) {
-	      meanV[T][L](n) += fac * fac4 * norm * mass;
-	      for (int o=0; o<nmax; o++)
-		covrV[T][L](n, o)  += fac * fac4 * norm *
-		  fac * potd[tid](l, o) * norm * mass;
-	    }
 	  }
 	  
 	  moffset+=2;
 	}
+
+	if (pcavar) {
+	  Eigen::VectorXd g = potd[tid].row(l).transpose() * fac * norm;
+	  meanV[T][L].noalias() += g * mass;
+	  covrV[T][L].noalias() += g * g.transpose() * mass;
+	}
+
       }
+      // END: m loop
     }
-    
+    // END: l loop
   }
   
   void Spherical::make_coefs()
@@ -4900,6 +4895,7 @@ namespace BasisClasses
     // Check that there is something to write
     //
     int totalCount = 0;
+    std::tie(sampleCounts, sampleMasses) = getCovarSamples()
     for (int i = 0; i < sampleCounts.size(); ++i) totalCount += sampleCounts(i);
     if (totalCount==0) {
       std::cout << "BiorthBasis::writeCoefCovariance: no data" << std::endl;
