@@ -54,7 +54,7 @@ add_executable(viewcoefs  viewcoefs.cc)
 add_executable(h5power    h5power.cc)
 add_executable(makecoefs  makecoefs.cc)
 add_executable(testread   testread.cc)
-add_executable(testunits  testunits.cc UnitValidator.cc)
+add_executable(testunits  testunits.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} expui exputil ${common_LINKLIB})

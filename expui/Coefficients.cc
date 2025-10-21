@@ -80,22 +80,15 @@ namespace CoefClasses
       
     // Run the type validation
     //
-    std::string name, unit;
+    auto [valid, name, unit] = check(Name, Unit);
 
-    if (check.allowedType(Name)) {
-      name = check.canonicalType(Name);
-    } else {
-      throw std::runtime_error(std::string("Coefs::setUnit: Warning, name '")
-			       + Name + "' is not a recognized type name.");
+    if (not valid) {
+      throw std::runtime_error(std::string("Coefs::setUnit: Warning, type '")
+			       + Name + "' or unit '" + Unit + "' are not recognized.");
     }
 
-    if (check.allowedUnit(Unit)) {
-      unit = check.canonicalUnit(Unit);
-    } else {
-      throw std::runtime_error(std::string("Coefs::setUnit: Warning, unit '")
-			       + Unit + "' is not a recognized unit.");
-    };
-
+    // Check for existing unit and update
+    //
     for (auto & p : units) {
       std::string p_name(p.name);
 
@@ -107,6 +100,7 @@ namespace CoefClasses
     }
 
     // No matches
+    //
     units.push_back({name, unit, Value});
   }
 

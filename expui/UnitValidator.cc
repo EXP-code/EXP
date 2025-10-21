@@ -1,5 +1,40 @@
 #include "UnitValidator.H"
 
+// Constructor/initializer
+UnitValidator::UnitValidator()
+{
+  // Initialize the 'dictionaries'
+  allowed_types = createAllowedUnitTypes();
+  allowed_units = createAllowedUnitNames();
+}
+
+// Do the full check and return canonical strings in two steps.  First
+// check the type.  Then the unit within that type.
+std::tuple<bool, std::string, std::string>
+UnitValidator::operator()(const std::string& type, const std::string& unit)
+{
+  // Check type first
+  if (allowed_types.count(type) > 0) {
+
+    // Get canonical type
+    std::string canonical_type = allowed_types.at(type);
+    
+    // Now check unit in the type category
+    if (allowed_units[canonical_type].count(unit) > 0) {
+
+      // Get canonical unit name
+      std::string canonical_unit = allowed_units[canonical_type].at(unit);
+
+      // Return successful final results
+      return {true, canonical_type, canonical_unit};
+    }
+  }
+
+  // If we get here, we have a type or unit that is not recognized
+  return {false, "unknown", "unknown"};
+}
+
+
 // Map aliases to their canonical (primary) unit types
 std::unordered_map<std::string, std::string>
 UnitValidator::createAllowedUnitTypes()
@@ -29,98 +64,101 @@ UnitValidator::createAllowedUnitTypes()
     return allowed;
 }
 
-// Map aliases to their canonical (primary) unit names
-std::unordered_map<std::string, std::string>
+// Map aliases to their canonical (primary) unit names for each type
+// category
+std::map<std::string, std::unordered_map<std::string, std::string>>
 UnitValidator::createAllowedUnitNames()
 {
-  std::unordered_map<std::string, std::string> allowed;
+  std::map<std::string, std::unordered_map<std::string, std::string>> allowed;
 
   // Canonical length units
   //
-  allowed["m"]        = "m";
-  allowed["cm"]       = "cm";
-  allowed["km"]       = "km";
-  allowed["um"]       = "um";
-  allowed["nm"]       = "nm";
-  allowed["Angstrom"] = "Angstrom";
-  allowed["AU"]       = "AU";
-  allowed["ly"]       = "ly";
-  allowed["pc"]       = "pc";
-  allowed["kpc"]      = "kpc";
-  allowed["Mpc"]      = "Mpc";
+  allowed["length"]["m"]        = "m";
+  allowed["length"]["cm"]       = "cm";
+  allowed["length"]["km"]       = "km";
+  allowed["length"]["um"]       = "um";
+  allowed["length"]["nm"]       = "nm";
+  allowed["length"]["Angstrom"] = "Angstrom";
+  allowed["length"]["AU"]       = "AU";
+  allowed["length"]["ly"]       = "ly";
+  allowed["length"]["pc"]       = "pc";
+  allowed["length"]["kpc"]      = "kpc";
+  allowed["length"]["Mpc"]      = "Mpc";
 
   // Astronomical mass units
-  //
-  allowed["Msun"]     = "Msun";
-  allowed["Mearth"]   = "Mearth";
-  allowed["g"]        = "g";
-  allowed["kg"]       = "kg";
+  allowed["mass"]["Msun"]       = "Msun";
+  allowed["mass"]["Mearth"]     = "Mearth";
+  allowed["mass"]["g"]          = "g";
+  allowed["mass"]["kg"]         = "kg";
   
   // Time units
   //
-  allowed["s"]        = "s";
-  allowed["min"]      = "min";
-  allowed["hr"]       = "hr";
-  allowed["day"]      = "day";
-  allowed["yr"]       = "yr";
-  allowed["Myr"]      = "Myr";
-  allowed["Gyr"]      = "Gyr";
+  allowed["time"]["s"]          = "s";
+  allowed["time"]["min"]        = "min";
+  allowed["time"]["hr"]         = "hr";
+  allowed["time"]["day"]        = "day";
+  allowed["time"]["yr"]         = "yr";
+  allowed["time"]["Myr"]        = "Myr";
+  allowed["time"]["Gyr"]        = "Gyr";
 	
   // Velocity units
   //
-  allowed["m/s"]      = "m/s";
-  allowed["km/s"]     = "km/s";
-  allowed["km/hr"]    = "km/hr";
-  allowed["km/min"]   = "km/min";
-  allowed["c"]        = "c";
+  allowed["velocity"]["m/s"]      = "m/s";
+  allowed["velocity"]["km/s"]     = "km/s";
+  allowed["velocity"]["km/hr"]    = "km/hr";
+  allowed["velocity"]["km/min"]   = "km/min";
+  allowed["velocity"]["c"]        = "c";
   
 
   // Length aliases
   //
-  allowed["meter"]      = "m";
-  allowed["centimeter"] = "cm";
-  allowed["kilometer"]  = "km";
-  allowed["nanometer"]  = "nm";
-  allowed["micrometer"] = "um";
-  allowed["micron"]     = "um";
-  allowed["angstrom"]   = "Angstrom";
-  allowed["AA"]         = "Angstrom";
-  allowed["astronomical_unit"] = "AU";
-  allowed["au"]         = "AU";
-  allowed["light_year"] = "ly";
-  allowed["lyr"]        = "ly";
-  allowed["parsec"]     = "pc";
-  allowed["kiloparsec"] = "kpc";
-  allowed["megaparsec"] = "Mpc";
+  allowed["length"]["meter"]      = "m";
+  allowed["length"]["centimeter"] = "cm";
+  allowed["length"]["kilometer"]  = "km";
+  allowed["length"]["nanometer"]  = "nm";
+  allowed["length"]["micrometer"] = "um";
+  allowed["length"]["micron"]     = "um";
+  allowed["length"]["angstrom"]   = "Angstrom";
+  allowed["length"]["AA"]         = "Angstrom";
+  allowed["length"]["astronomical_unit"] = "AU";
+  allowed["length"]["au"]         = "AU";
+  allowed["length"]["light_year"] = "ly";
+  allowed["length"]["lyr"]        = "ly";
+  allowed["length"]["parsec"]     = "pc";
+  allowed["length"]["kiloparsec"] = "kpc";
+  allowed["length"]["megaparsec"] = "Mpc";
 
 
   // Mass aliases
   //
-  allowed["solar_mass"] = "Msun";
-  allowed["earth_mass"] = "Mearth";
-  allowed["gram"]       = "g";
-  allowed["kilograms"]  = "kg";
+  allowed["mass"]["solar_mass"] = "Msun";
+  allowed["mass"]["earth_mass"] = "Mearth";
+  allowed["mass"]["gram"]       = "g";
+  allowed["mass"]["kilograms"]  = "kg";
 
   // Time aliases
   //
-  allowed["second"]     = "s";
-  allowed["minute"]     = "min";
-  allowed["hour"]       = "hr";
-  allowed["year"]       = "yr";
+  allowed["time"]["second"]     = "s";
+  allowed["time"]["minute"]     = "min";
+  allowed["time"]["hour"]       = "hr";
+  allowed["time"]["year"]       = "yr";
 
   // Velocity aliases
   //
-  allowed["meter_per_second"] = "m/s";
-  allowed["m_per_s"]          = "m/s";
-  allowed["km_per_s"]         = "km/s";
-  allowed["km_per_hr"]        = "km/hr";
-  allowed["km_per_min"]       = "km/min";
-  allowed["speed_of_light"]   = "c";
+  allowed["velocity"]["meter_per_second"] = "m/s";
+  allowed["velocity"]["m_per_s"]          = "m/s";
+  allowed["velocity"]["km_per_s"]         = "km/s";
+  allowed["velocity"]["km_per_hr"]        = "km/hr";
+  allowed["velocity"]["km_per_min"]       = "km/min";
+  allowed["velocity"]["speed_of_light"]   = "c";
 
   // Special non-units
   //
-  allowed["mixed"]            = "mixed";
-  allowed["none"]             = "none";
+  allowed["G"][""]                 = "mixed";
+  allowed["G"]["_"]                = "mixed";
+  allowed["G"]["mixed"]            = "mixed";
+  allowed["G"]["none"]             = "mixed";
+  allowed["G"]["unitless"]         = "mixed";
 
   return allowed;
 }
