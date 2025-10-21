@@ -85,7 +85,10 @@ namespace MSSA
     int ncomp;
 
     //! Normalization options
-    bool totVar, totPow;
+    bool varFlag, powFlag;
+
+    //! Normalization values
+    double totVar, totPow;
 
     //! Toggle for detrending
     bool useMean;

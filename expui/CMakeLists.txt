@@ -48,20 +48,22 @@ install(TARGETS expui DESTINATION lib)
 
 # Configure and build the test routines
 #
-add_executable(nativetoh5 coefstoh5.cc)
-add_executable(h5compare  h5compare.cc)
-add_executable(viewcoefs  viewcoefs.cc)
-add_executable(h5power    h5power.cc)
-add_executable(makecoefs  makecoefs.cc)
-add_executable(testread   testread.cc)
+if(ENABLE_UTILS)
+  add_executable(nativetoh5 coefstoh5.cc)
+  add_executable(h5compare  h5compare.cc)
+  add_executable(viewcoefs  viewcoefs.cc)
+  add_executable(h5power    h5power.cc)
+  add_executable(makecoefs  makecoefs.cc)
+  add_executable(testread   testread.cc)
 
-foreach(program ${bin_PROGRAMS})
-  target_link_libraries(${program} expui exputil ${common_LINKLIB})
-  target_include_directories(${program} PUBLIC ${common_INCLUDE})
-  # TODO: Should find a proper solution for this, but for now, don't add OpenMP compile
-  # options if compiling on macOS with Clang
-  if(NOT (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang"))
-    target_compile_options(${program} PUBLIC ${OpenMP_CXX_FLAGS})
-  endif()
-  install(TARGETS ${program} DESTINATION bin)
-endforeach()
+  foreach(program ${bin_PROGRAMS})
+    target_link_libraries(${program} expui exputil ${common_LINKLIB})
+    target_include_directories(${program} PUBLIC ${common_INCLUDE})
+    # temporary Apple clang fix
+    if(NOT (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang"))
+      target_compile_options(${program} PUBLIC ${OpenMP_CXX_FLAGS})
+    endif()    
+    install(TARGETS ${program} DESTINATION bin)
+  endforeach()
+
+endif()

@@ -406,7 +406,7 @@ AxiSymModel::PSret AxiSymModel::gen_point_3d()
   if (gen_firstime) {
 
 #ifdef DEBUG
-    orb = SphericalOrbit(this);
+    orb = SphericalOrbit(this->shared_from_this());
 #endif
 
     double tol = 1.0e-5;
@@ -741,7 +741,7 @@ AxiSymModel::PSret AxiSymModel::gen_point_3d_iso
     gen_lastr = r;
 
 #ifdef DEBUG
-    std::cout << "gen_point_3d_iso[" << ModelID << "]: " << rmin
+    std::cout << "gen_point_3d_iso[" << ModelID << "]: " << get_min_radius()
 	 << ", " << get_max_radius() << std::endl;
 #endif
 
