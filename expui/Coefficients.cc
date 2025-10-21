@@ -126,8 +126,19 @@ namespace CoefClasses
 
   void Coefs::WriteH5Units(HighFive::File& file)
   {
+    if (units.size() != 4) {
+      std::cout << "---- Coefs::WriteH5Units: Warning, expected 4 units: "
+		<< "(length, mass, time, G) or (length, mass, velocity, G), etc. " << std::endl
+		<< "---- Coefs::WriteH5Units:  I found " << units.size() << " units instead.  Please "
+		<< " provide a consistent unit set." << std::endl;
+    }
+
     HighFive::DataSet dataset = file.createDataSet("Units", units);
-    std::cout << units;
+
+    if (units.size() == 4) {
+      std::cout << "Coefs::WriteH5Units: wrote units to HDF5 file:" << std::endl
+		<< units << std::endl;
+    }
   }
 
   void Coefs::ReadH5Units(HighFive::File& file)

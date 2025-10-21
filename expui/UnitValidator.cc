@@ -84,12 +84,14 @@ UnitValidator::createAllowedUnitNames()
   allowed["length"]["pc"]       = "pc";
   allowed["length"]["kpc"]      = "kpc";
   allowed["length"]["Mpc"]      = "Mpc";
+  allowed["length"]["none"]     = "none";
 
   // Astronomical mass units
   allowed["mass"]["Msun"]       = "Msun";
   allowed["mass"]["Mearth"]     = "Mearth";
   allowed["mass"]["g"]          = "g";
   allowed["mass"]["kg"]         = "kg";
+  allowed["mass"]["none"]       = "none";
   
   // Time units
   //
@@ -100,6 +102,7 @@ UnitValidator::createAllowedUnitNames()
   allowed["time"]["yr"]         = "yr";
   allowed["time"]["Myr"]        = "Myr";
   allowed["time"]["Gyr"]        = "Gyr";
+  allowed["time"]["none"]       = "none";
 	
   // Velocity units
   //
@@ -108,6 +111,7 @@ UnitValidator::createAllowedUnitNames()
   allowed["velocity"]["km/hr"]    = "km/hr";
   allowed["velocity"]["km/min"]   = "km/min";
   allowed["velocity"]["c"]        = "c";
+  allowed["velocity"]["none"]     = "none";
   
 
   // Length aliases
@@ -127,6 +131,7 @@ UnitValidator::createAllowedUnitNames()
   allowed["length"]["parsec"]     = "pc";
   allowed["length"]["kiloparsec"] = "kpc";
   allowed["length"]["megaparsec"] = "Mpc";
+  allowed["length"]["None"]       = "none";
 
 
   // Mass aliases
@@ -135,6 +140,7 @@ UnitValidator::createAllowedUnitNames()
   allowed["mass"]["earth_mass"] = "Mearth";
   allowed["mass"]["gram"]       = "g";
   allowed["mass"]["kilograms"]  = "kg";
+  allowed["mass"]["None"]       = "none";
 
   // Time aliases
   //
@@ -142,6 +148,7 @@ UnitValidator::createAllowedUnitNames()
   allowed["time"]["minute"]     = "min";
   allowed["time"]["hour"]       = "hr";
   allowed["time"]["year"]       = "yr";
+  allowed["time"]["None"]       = "none";
 
   // Velocity aliases
   //
@@ -151,14 +158,14 @@ UnitValidator::createAllowedUnitNames()
   allowed["velocity"]["km_per_hr"]        = "km/hr";
   allowed["velocity"]["km_per_min"]       = "km/min";
   allowed["velocity"]["speed_of_light"]   = "c";
+  allowed["velocity"]["none"]             = "none";
 
   // Special non-units
   //
-  allowed["G"][""]                 = "mixed";
-  allowed["G"]["_"]                = "mixed";
+  allowed["G"][""]                 = "none";
   allowed["G"]["mixed"]            = "mixed";
-  allowed["G"]["none"]             = "mixed";
-  allowed["G"]["unitless"]         = "mixed";
+  allowed["G"]["none"]             = "none";
+  allowed["G"]["unitless"]         = "none";
 
   return allowed;
 }
