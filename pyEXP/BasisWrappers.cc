@@ -280,7 +280,7 @@ void BasisFactoryClasses(py::module &m)
     }
     
     void accumulate(double x, double y, double z, double mass, unsigned long int indx) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, accumulate, mass, x, y, z, mass, indx);
+      PYBIND11_OVERRIDE_PURE(void, Basis, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override {
