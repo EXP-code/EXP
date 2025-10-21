@@ -201,7 +201,7 @@ namespace BasisClasses
     {
       // Sanity check
       if (x.size() != y.size() || x.size() != z.size())
-	throw std::runtime_error("BiorthBasis::getAccelArray: "
+	throw std::runtime_error("BiorthBasis::getAccel: "
 				 "x, y, z vectors must be of the same size");
       
       // Resize the return array
