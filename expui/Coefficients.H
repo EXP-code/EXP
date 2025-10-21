@@ -17,6 +17,9 @@
 // The EXP native coefficient classes
 #include <CoefStruct.H>
 
+// Unit validation
+#include <UnitValidator.H>
+
 // All coefficient classes are in this namespace
 namespace CoefClasses
 { 
@@ -113,6 +116,9 @@ namespace CoefClasses
 
     //! Default units (EXP native)
     std::vector<Unit> units {{"G", "none", 1.0f}};
+
+    //! Unit validator
+    static UnitValidator check;
 
   public:
     

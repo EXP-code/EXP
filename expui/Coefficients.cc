@@ -57,6 +57,9 @@ std::ostream& operator<< (std::ostream& out,
 namespace CoefClasses
 {
 
+  // Static instance of the unit validator
+  UnitValidator Coefs::check = UnitValidator();
+
   void Coefs::copyfields(std::shared_ptr<Coefs> p)
   {
     // These variables will copy data, not pointers
@@ -75,18 +78,26 @@ namespace CoefClasses
       strncpy(c, s.c_str(), std::min(s.length()+1, sz));
     };
       
-    // Keep copy with original case
-    std::string name(Name);
+    // Run the type validation
+    //
+    std::string name, unit;
 
-    // Convert to lower case for matching
-    std::transform(name.begin(), name.end(), name.begin(),
-		   [](unsigned char c){ return std::tolower(c); });
+    if (check.allowedType(Name)) {
+      name = check.canonicalType(Name);
+    } else {
+      throw std::runtime_error(std::string("Coefs::setUnit: Warning, name '")
+			       + Name + "' is not a recognized type name.");
+    }
+
+    if (check.allowedUnit(Unit)) {
+      unit = check.canonicalUnit(Unit);
+    } else {
+      throw std::runtime_error(std::string("Coefs::setUnit: Warning, unit '")
+			       + Unit + "' is not a recognized unit.");
+    };
 
     for (auto & p : units) {
       std::string p_name(p.name);
-
-      std::transform(p_name.begin(), p_name.end(), p_name.begin(),
-		     [](unsigned char c){ return std::tolower(c); });
 
       if (name == p_name) {
 	copy_s(Unit, &p.unit[0]);
@@ -96,7 +107,7 @@ namespace CoefClasses
     }
 
     // No matches
-    units.push_back({Name, Unit, Value});
+    units.push_back({name, unit, Value});
   }
 
   //! Get units
