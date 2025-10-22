@@ -202,6 +202,19 @@ void CoefficientClasses(py::module &m) {
     void zerodata() override {
       PYBIND11_OVERRIDE_PURE(void, Coefs, zerodata,);
     }
+
+    void setUnits(const std::string name, const std::string unit, const float value) {
+      PYBIND11_OVERRIDE(void, Coefs, setUnits, name, unit, value);
+    }
+
+    void setUnits(const std::vector<std::tuple<std::string, std::string, float>>& units) {
+      PYBIND11_OVERRIDE(void, Coefs, setUnits, units);
+    }
+
+    void removeUnits(const std::string name) {
+      PYBIND11_OVERRIDE(void, Coefs, removeUnits, name);
+    }
+
   };
 
   class PySphCoefs : public SphCoefs
@@ -1167,13 +1180,27 @@ void CoefficientClasses(py::module &m) {
     .def("Times",
 	 &CoefClasses::Coefs::Times,
 	 R"(
-            Return a list of times for coefficient sets currently in the container
+         Return a list of times for coefficient sets currently in the container
 
-            Returns
-            -------
-            list(float,...)
-                list of times
-            )")
+         Returns
+         -------
+         list(float,...)
+             list of times
+         )")
+    .def("removeUnits",
+         &CoefClasses::Coefs::removeUnits,
+         R"(
+         Remove a unit from the coefficient structure.
+
+         Parameters
+         ----------
+         name : str
+             the name of physical quantity (G, Length, Mass, Time, etc)
+
+         Returns
+         -------
+         None
+         )")
     .def("setUnits",
 	 py::overload_cast<const std::string, const std::string, const float>(&CoefClasses::Coefs::setUnits),
 	 R"(

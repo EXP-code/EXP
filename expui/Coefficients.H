@@ -239,6 +239,9 @@ namespace CoefClasses
     void setUnits
     (const std::vector<std::tuple<std::string, std::string, float>>& units);
 
+    //! Remove a unit by name
+    void removeUnits(const std::string name);
+
     //! Write units to H5
     void WriteH5Units(HighFive::File& file);
 

@@ -54,6 +54,8 @@ UnitValidator::createAllowedUnitTypes()
     allowed["L"]      = "length";
     allowed["m"]      = "mass";
     allowed["M"]      = "mass";
+    allowed["t"]      = "time";
+    allowed["T"]      = "time";
     allowed["vel"]    = "velocity";
     allowed["Vel"]    = "velocity";
     allowed["v"]      = "velocity";

@@ -71,6 +71,19 @@ namespace CoefClasses
     p->times    = times;
   }
 
+  void Coefs::removeUnits(const std::string name)
+  {
+    // Lambda test for matching name
+    auto test = [&name](Unit& elem) -> bool{return elem.name==name; };
+
+    // Explanation: std::remove_if shifts elements to be removed to
+    // the end of the range and returns an iterator to the new logical
+    // end. units.erase() then removes the elements from that point to
+    // the end.
+    units.erase(std::remove_if(units.begin(), units.end(), test), units.end()); 
+  }
+  
+
   void Coefs::setUnits
   (const std::string Name, const std::string Unit, const float Value)
   {
