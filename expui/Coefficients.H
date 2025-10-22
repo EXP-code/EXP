@@ -232,7 +232,12 @@ namespace CoefClasses
     void setDeltaT(double dT) { deltaT = dT; }
 
     //! Set units
-    void setUnit(std::string name, std::string unit, float value);
+    void setUnits
+    (const std::string name, const std::string unit, const float value);
+
+    //! Set units using a vector of tuples (name, unit, value)
+    void setUnits
+    (const std::vector<std::tuple<std::string, std::string, float>>& units);
 
     //! Write units to H5
     void WriteH5Units(HighFive::File& file);

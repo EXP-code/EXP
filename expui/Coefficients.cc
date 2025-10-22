@@ -71,7 +71,8 @@ namespace CoefClasses
     p->times    = times;
   }
 
-  void Coefs::setUnit(std::string Name, std::string Unit, float Value)
+  void Coefs::setUnits
+  (const std::string Name, const std::string Unit, const float Value)
   {
     auto copy_s = [](std::string& s, char* c) -> void {
       const size_t sz = 16;
@@ -83,7 +84,7 @@ namespace CoefClasses
     auto [valid, name, unit] = check(Name, Unit);
 
     if (not valid) {
-      throw std::runtime_error(std::string("Coefs::setUnit: Warning, type '")
+      throw std::runtime_error(std::string("Coefs::setUnits: Warning, type '")
 			       + Name + "' or unit '" + Unit + "' are not recognized.");
     }
 
@@ -93,7 +94,7 @@ namespace CoefClasses
       std::string p_name(p.name);
 
       if (name == p_name) {
-	copy_s(Unit, &p.unit[0]);
+	copy_s(unit, &p.unit[0]);
 	p.value = Value;
 	return;
       }
@@ -102,6 +103,16 @@ namespace CoefClasses
     // No matches
     //
     units.push_back({name, unit, Value});
+  }
+
+  // Set units using a vector of tuples (name, unit, value)
+  // Converts to a list of tuples in Python
+  void Coefs::setUnits
+  (const std::vector<std::tuple<std::string, std::string, float>>& units)
+  {
+    for (auto p : units) {
+      setUnits(std::get<0>(p), std::get<1>(p), std::get<2>(p));
+    }
   }
 
   //! Get units

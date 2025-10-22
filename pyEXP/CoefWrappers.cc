@@ -1165,8 +1165,8 @@ void CoefficientClasses(py::module &m) {
          You will get a runtime error if the entry does not exist.
          )",py::arg("time"))
     .def("Times",
-            &CoefClasses::Coefs::Times,
-            R"(
+	 &CoefClasses::Coefs::Times,
+	 R"(
             Return a list of times for coefficient sets currently in the container
 
             Returns
@@ -1174,25 +1174,39 @@ void CoefficientClasses(py::module &m) {
             list(float,...)
                 list of times
             )")
-    .def("setUnit",
-            &CoefClasses::Coefs::setUnit,
-            R"(
-            Set the units for the coefficient structure.
+    .def("setUnits",
+	 py::overload_cast<const std::string, const std::string, const float>(&CoefClasses::Coefs::setUnits),
+	 R"(
+         Set the units for the coefficient structure.
 
-            Parameters
-            ----------
-            name : str
-               the name of physical quantity (G, Length, Mass, Time, etc)
-            unit : str
-               the unit string (scalar, mixed, kpc, Msun, Myr, km/s etc.).
-               This field is optional and can be empty.
-            value : float
-               the default value of the multiples of the unit
+         Parameters
+         ----------
+         name : str
+            the name of physical quantity (G, Length, Mass, Time, etc)
+         unit : str
+            the unit string (scalar, mixed, kpc, Msun, Myr, km/s etc.).
+            This field is optional and can be empty.
+         value : float
+            the default value of the multiples of the unit
 
-            Returns
-            -------
-            None
-            )", py::arg("name"), py::arg("unit")="", py::arg("value")=1.0)
+         Returns
+         -------
+         None
+         )", py::arg("name"), py::arg("unit")="", py::arg("value")=1.0)
+    .def("setUnits",
+	 py::overload_cast<const std::vector<std::tuple<std::string, std::string, float>>&>(&CoefClasses::Coefs::setUnits),
+	 R"(
+         Set the units for the coefficient structure.
+
+         Parameters
+         ----------
+         list((str,str,float))
+             list of (name, unit, value) tuples, where each tuple contains the coefficient name (str), its unit (str), and its value (float).
+
+         Returns
+         -------
+         None
+         )", py::arg("units"))
     .def("WriteH5Coefs",
 	 [](CoefClasses::Coefs& self, const std::string& filename) {
 	   if (self.getUnits().size()!=4) {
