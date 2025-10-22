@@ -49,19 +49,28 @@ UnitValidator::createAllowedUnitTypes()
     allowed["G"]        = "G";
 
     // Aliases
-    allowed["len"]    = "length";
-    allowed["l"]      = "length";
-    allowed["L"]      = "length";
-    allowed["m"]      = "mass";
-    allowed["M"]      = "mass";
-    allowed["t"]      = "time";
-    allowed["T"]      = "time";
-    allowed["vel"]    = "velocity";
-    allowed["Vel"]    = "velocity";
-    allowed["v"]      = "velocity";
-    allowed["V"]      = "velocity";
-    allowed["grav"]   = "G";
+    allowed["Length"]   = "length";
+    allowed["Len"]      = "length";
+    allowed["len"]      = "length";
+    allowed["l"]        = "length";
+    allowed["L"]        = "length";
+    allowed["Mass"]     = "mass";
+    allowed["m"]        = "mass";
+    allowed["M"]        = "mass";
+    allowed["Time"]     = "time";
+    allowed["t"]        = "time";
+    allowed["T"]        = "time";
+    allowed["vel"]      = "velocity";
+    allowed["Vel"]      = "velocity";
+    allowed["Velocity"] = "velocity";
+    allowed["v"]        = "velocity";
+    allowed["V"]        = "velocity";
+    allowed["Grav"]     = "G";
+    allowed["grav"]     = "G";
+    allowed["grav_constant"] = "G";
+    allowed["Grav_constant"] = "G";
     allowed["gravitational_constant"] = "G";
+    allowed["Gravitational_constant"] = "G";
 
     return allowed;
 }

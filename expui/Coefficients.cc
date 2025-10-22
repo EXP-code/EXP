@@ -98,7 +98,8 @@ namespace CoefClasses
 
     if (not valid) {
       throw std::runtime_error(std::string("Coefs::setUnits: Warning, type '")
-			       + Name + "' or unit '" + Unit + "' are not recognized.");
+			       + Name + "' with unit '" + Unit +
+			       "' is incompatible or not recognized.");
     }
 
     // Check for existing unit and update
