@@ -3,7 +3,7 @@
 #include <map>
 
 /** Class to validate unit types and names The allowed types and units
-    can be extended as needed by adding new names and aliasess to
+    can be extended as needed by adding new names and aliases to
     UnitValidator::createAllowedUnitTypes() and
     UnitValidator::createAllowedUnitNames() in UnitValidator.cc
 */
