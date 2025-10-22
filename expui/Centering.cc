@@ -143,7 +143,7 @@ namespace Utility
 
       int count = 0;
       for (auto it=combo.rbegin(); it!=combo.rend(); it++) {
-	if (count > Nsort) break;
+	if (++count > Nsort) break;
 	for (int k=0; k<3; k++)
 	  ctr[k] += it->first * points[it->second].get(k);
 	dentot += it->first;

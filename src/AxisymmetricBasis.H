@@ -4,43 +4,45 @@
 #include <Basis.H>
 #include <Eigen/Eigen>
 
-//! Defines a basis-based potential and acceleration class
-/*! Configurable parameters are:
+/** @class AxisymmetricBasis
+    @brief Defines a basis-based potential and acceleration class
 
-  @param Lmax  is the maximum spherical harmonic order
+    @details **YAML configuration**
 
-  @param Mmax  is the maximum cylindrical harmonic order
+    @param Lmax  is the maximum spherical harmonic order
 
-  @param nmax  is the maximum radial order
+    @param Mmax  is the maximum cylindrical harmonic order
 
-  @param dof   is the dimensionality of the basis
+    @param nmax  is the maximum radial order
 
-  @param npca  is the frequency for pca analyses
+    @param dof   is the dimensionality of the basis
 
-  @param npca0 is the number of steps to skip before the first pca analysis
+    @param npca  is the frequency for pca analyses
 
-  @param pcavar boolean turns on pca analyses
+    @param npca0 is the number of steps to skip before the first pca analysis
 
-  @param pcaeof boolean turns on emperical function recomputation
+    @param pcavar boolean turns on pca analyses
 
-  @param pcadiag boolean turns on diagnostic pca output
+    @param pcaeof boolean turns on emperical function recomputation
 
-  @param pcavtk boolean prints out visualizable representations of pca info
+    @param pcadiag boolean turns on diagnostic pca output
 
-  @param hexp is the Hall smoothing exponent
+    @param pcavtk boolean prints out visualizable representations of pca info
 
-  @param samplesz is the number of subsamples for pca variance
-  analysis (default: 1). Value 0 means use sqrt number of particles
+    @param hexp is the Hall smoothing exponent
 
-  @param vtkfreq is the frequency for printing pca variance analysis info
+    @param samplesz is the number of subsamples for pca variance
+    analysis (default: 1). Value 0 means use sqrt number of particles
 
-  @param tksmooth is the S/N for Hall truncation for VarianceCut method
+    @param vtkfreq is the frequency for printing pca variance analysis info
 
-  @param tkcum is the cumulative fraction eigenvalue power for truncation for CmululativeCut method
+    @param tksmooth is the S/N for Hall truncation for VarianceCut method
 
-  @param tk_type is the smoothing type, one of: Hall, VarianceCut, CumulativeCut, VarianceWeighted
+    @param tkcum is the cumulative fraction eigenvalue power for truncation for CmululativeCut method
 
-  @param subsamp true sets partition variance computation (default: false)
+    @param tk_type is the smoothing type, one of: Hall, VarianceCut, CumulativeCut, VarianceWeighted
+    
+    @param subsamp true sets partition variance computation (default: false)
 */
 class AxisymmetricBasis : public Basis
 {

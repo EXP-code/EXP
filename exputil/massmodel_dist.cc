@@ -154,8 +154,10 @@ void SphericalModelTable::setup_df(int NUM, double RA)
     Qmin = get_pot(pot.x[0]);
     dQ = (Qmax - Qmin)/(double)(dfc.num-1);
   
-    // foffset = -std::numeric_limits<double>::max();
-    foffset = -1.0e42;
+    // The small value is not critical
+    const double FOFFSET0 = -1.0e-42;
+    foffset = FOFFSET0;
+
     dfc.Q[dfc.num-1] = Qmax;
     dfc.ffQ[dfc.num-1] = 0.0;
     fac = 1.0/(sqrt(8.0)*M_PI*M_PI);

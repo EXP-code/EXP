@@ -823,8 +823,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       other->time_so_far.stop();
 
       if (false) {	     // Some deep debugging for playback . . .
-	std::vector<double> cen1 = inter->c->getCenter(Component::Local);
-	std::vector<double> cen2 = other->getCenter(Component::Local);
+	auto cen1 = inter->c->getCenter(Component::Local);
+	auto cen2 = other->getCenter(Component::Local);
 
 	std::cout << "ComponentContainer [" << myid << "], centers for [" << inter->c->name
 		  << "-->" << other->name << "] c1=("

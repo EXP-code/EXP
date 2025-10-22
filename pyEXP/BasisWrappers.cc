@@ -292,13 +292,15 @@ void BasisFactoryClasses(py::module &m)
     }
 
     virtual CoefClasses::CoefStrPtr
-    createFromReader(PR::PRptr reader, std::vector<double> ctr) override {
-      PYBIND11_OVERRIDE_PURE(CoefClasses::CoefStrPtr, Basis, createFromReader, reader, ctr);
+    createFromReader(PR::PRptr reader, Eigen::Vector3d ctr,
+		     RowMatrix3d rot) override {
+      PYBIND11_OVERRIDE_PURE(CoefClasses::CoefStrPtr, Basis, createFromReader, reader, ctr, rot);
     }
 
 
-    virtual void initFromArray(std::vector<double> ctr) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, initFromArray, ctr);
+    void initFromArray
+    (Eigen::Vector3d ctr, RowMatrix3d rot) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, initFromArray, ctr, rot);
     }
 
     virtual void
@@ -394,7 +396,8 @@ void BasisFactoryClasses(py::module &m)
 			crt_eval, x, y, z);
     }
     
-    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override
+    {
       PYBIND11_OVERRIDE_PURE(void, BiorthBasis, load_coefs, coefs, time);
     }
     
@@ -404,6 +407,12 @@ void BasisFactoryClasses(py::module &m)
 
     const std::string harmonic() override {
       PYBIND11_OVERRIDE_PURE(std::string, BiorthBasis, harmonic);
+    }
+
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE_PURE(void, BiorthBasis, computeAccel, x, y, z, v);
     }
 
   public:
@@ -424,12 +433,6 @@ void BasisFactoryClasses(py::module &m)
 
     void set_coefs(CoefClasses::CoefStrPtr coefs) override {
       PYBIND11_OVERRIDE_PURE(void, BiorthBasis, set_coefs, coefs);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override
-    {
-      PYBIND11_OVERRIDE_PURE(std::vector<double>, BiorthBasis,
-			     getAccel, x, y, z);
     }
 
   };
@@ -466,6 +469,11 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(void, Spherical, get_force, tab, x);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, Spherical, computeAccel, x, y, z, v);
+    }
 
   public:
 
@@ -474,10 +482,6 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<double> getFields(double x, double y, double z) override {
       PYBIND11_OVERRIDE(std::vector<double>, Spherical, getFields, x, y, z);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override {
-      PYBIND11_OVERRIDE(std::vector<double>, Spherical, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
@@ -519,6 +523,13 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, Cylindrical, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, Cylindrical, computeAccel, x, y, z, v);
+    }
+
+
   public:
 
     // Inherit the constructors
@@ -526,10 +537,6 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<double> getFields(double x, double y, double z) override {
       PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getFields, x, y, z);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override {
-      PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override {
@@ -584,6 +591,13 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, FlatDisk, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, FlatDisk, computeAccel, x, y, z, v);
+    }
+
+
   public:
 
     // Inherit the constructors
@@ -592,11 +606,6 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getFields, x, y, z);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override
-    {
-      PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -654,6 +663,12 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, CBDisk, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, CBDisk, computeAccel, x, y, z, v);
+    }
+
   public:
 
     // Inherit the constructors
@@ -662,11 +677,6 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, CBDisk, getFields, x, y, z);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override
-    {
-      PYBIND11_OVERRIDE(std::vector<double>, CBDisk, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -727,6 +737,12 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, Slab, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, Slab, computeAccel, x, y, z, v);
+    }
+
   public:
 
     // Inherit the constructors
@@ -735,11 +751,6 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, Slab, getFields, x, y, z);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override
-    {
-      PYBIND11_OVERRIDE(std::vector<double>, Slab, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -800,6 +811,12 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, Cube, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, Cube, computeAccel, x, y, z, v);
+    }
+
   public:
 
     // Inherit the constructors
@@ -808,11 +825,6 @@ void BasisFactoryClasses(py::module &m)
     std::vector<double> getFields(double x, double y, double z) override
     {
       PYBIND11_OVERRIDE(std::vector<double>, Cube, getFields, x, y, z);
-    }
-
-    std::vector<double> getAccel(double x, double y, double z) override
-    {
-      PYBIND11_OVERRIDE(std::vector<double>, Cube, getAccel, x, y, z);
     }
 
     void accumulate(double x, double y, double z, double mass) override
@@ -884,14 +896,7 @@ void BasisFactoryClasses(py::module &m)
          This is an experimental feature
          )"
       )
-    .def("createFromArray",
-	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& ps,
-	    double time, std::vector<double> center,
-	    bool roundrobin, bool posvelrows)
-	 {
-	   return A.createFromArray(mass, ps, time, center,
-				    roundrobin, posvelrows);
-	 },
+    .def("createFromArray", &BasisClasses::Basis::createFromArray,
 	 R"(
          Generate the coefficients from a mass and position array or,
 	 phase-space array, time, and an optional expansion center location. 
@@ -903,6 +908,11 @@ void BasisFactoryClasses(py::module &m)
          ps   : numpy.ndarray
              an array with n rows and 6 columns (x, y, z, u, v, w)
              or 3 columns (x, y, z) for a biorthogonal basis
+         center : numpy.ndarray
+             the center of expansion for the basis functions
+         rotation : numpy.ndarray
+             the rotation matrix for the basis functions
+             (default is identity matrix)
          roundrobin : bool
              the particles will be accumulated for each process 
              round-robin style with MPI by default.  This may be 
@@ -925,13 +935,54 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
-	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("rotation") = RowMatrix3d::Identity(),
 	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
-    .def("makeFromArray",
-	 [](BasisClasses::Basis& A, double time)
+    .def("createFromArray",
+	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& ps,
+	    double time, Eigen::Vector3d center, bool roundrobin, bool posvelrows)
 	 {
-	   return A.makeFromArray(time);
+	   return A.createFromArray(mass, ps, time, center, RowMatrix3d::Identity(),
+				    roundrobin, posvelrows);
 	 },
+	 R"(
+         Generate the coefficients from a mass and position array or,
+	 phase-space array, time, and an optional expansion center location. 
+
+         Parameters
+         ----------
+         mass : list
+             vector containing the masses for the n particles
+         ps   : numpy.ndarray
+             an array with n rows and 6 columns (x, y, z, u, v, w)
+             or 3 columns (x, y, z) for a biorthogonal basis
+         center : numpy.ndarray
+             the center of expansion for the basis functions
+         roundrobin : bool
+             the particles will be accumulated for each process 
+             round-robin style with MPI by default.  This may be 
+             disabled with 'roundrobin=False'.
+         posvelrows : bool
+             positions (and optionally velocities) will be packed
+             in rows instead of columns.  This accommodates the numpy
+             construction [xpos, ypos, zpos] where xpos, ypos, zpos are
+             arrays.  Defaults to True.
+
+         Returns
+         -------
+         CoefStruct
+             the coefficient structure derived from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray  : add contribution for particles
+         makeFromArray : create coefficients contributions
+         )",
+	 py::arg("mass"), py::arg("pos"), py::arg("time"),
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
+    .def("makeFromArray", &BasisClasses::Basis::makeFromArray,
 	 R"(
          Make the coefficients
 
@@ -1120,6 +1171,8 @@ void BasisFactoryClasses(py::module &m)
              the ParticleReader instance
          center : list, default=[0, 0, 0]
 	     an optional expansion center location
+         rotation : numpy.ndarray, default=Identity
+             rotation matrix to apply to the phase-space coordinates
 
          Returns
          -------
@@ -1127,15 +1180,9 @@ void BasisFactoryClasses(py::module &m)
              the basis coefficients computed from the particles
          )",
 	 py::arg("reader"), 
-	 py::arg("center") = std::vector<double>(3, 0.0))
-    .def("createFromArray",
-	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
-	    double time, std::vector<double> center,
-	    bool roundrobin, bool posvelrows)
-	 {
-	   return A.createFromArray(mass, pos, time, center,
-				    roundrobin, posvelrows);
-	 },
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("rotation") = RowMatrix3d::Identity())
+    .def("createFromArray", &BasisClasses::BiorthBasis::createFromArray,
 	 R"(
          Generate the coefficients from a mass and position array,
 	 time, and an optional expansion center location. 
@@ -1168,13 +1215,53 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
-	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("rotation") = RowMatrix3d::Identity(),
 	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
-    .def("initFromArray",
-	 [](BasisClasses::BiorthBasis& A, std::vector<double> center)
+    .def("createFromArray",
+	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
+	    double time, Eigen::Vector3d center, bool roundrobin, bool posvelrows)
 	 {
-	   return A.initFromArray(center);
+	   return A.createFromArray(mass, pos, time, center, RowMatrix3d::Identity(),
+				    roundrobin, posvelrows);
 	 },
+	 R"(
+         Generate the coefficients from a mass and position array,
+	 time, and an optional expansion center location. 
+
+         Parameters
+         ----------
+         mass : list
+             vector containing the masses for the n particles
+         pos  : numpy.ndarray
+             an array with n rows and 3 columns (x, y, z)
+      	 center : numpy.ndarray
+             the center of expansion for the basis functions
+         roundrobin : bool
+             the particles will be accumulated for each process 
+             round-robin style with MPI by default.  This may be 
+             disabled with 'roundrobin=false'.
+         posvelrows : bool
+             positions (and optionally velocities) will be packed
+             in rows instead of columns.  This accommodates the numpy
+             construction [xpos, ypos, zpos] where xpos, ypos, zpos are
+             arrays.  Defaults to True.
+
+         Returns
+         -------
+         CoefStruct
+             the coefficient structure derived from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray  : add contribution for particles
+         makeFromArray : create coefficients contributions
+         )",
+	 py::arg("mass"), py::arg("pos"), py::arg("time"),
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
+    .def("initFromArray", &BasisClasses::BiorthBasis::initFromArray,
 	 R"(
          Initialize coefficient accumulation
 
@@ -1182,6 +1269,9 @@ void BasisFactoryClasses(py::module &m)
          ----------
          center : list, default=[0, 0, 0]
              vector of center positions
+         rotation : numpy.ndarray
+             the rotation matrix for the basis functions
+             (default is identity matrix)
 
          Returns
          -------
@@ -1198,11 +1288,13 @@ void BasisFactoryClasses(py::module &m)
          phase space arrays but allows for generation from very large 
          phase-space sets that can not be stored in physical memory.
          )",
-	 py::arg("center") = std::vector<double>(3, 0.0))
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("rotation") = RowMatrix3d::Identity())
     .def("addFromArray",
-	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos)
+	 [](BasisClasses::BiorthBasis& A,
+	    Eigen::VectorXd& mass, RowMatrixXd& pos)
 	 {
-	   return A.addFromArray(mass, pos);
+	   A.addFromArray(mass, pos);
 	 },
 	 R"(
          Add particle contributions to coefficients
@@ -1270,6 +1362,30 @@ void BasisFactoryClasses(py::module &m)
          Returns
          -------
          fields: numpy.ndarray
+
+         See also
+         --------
+         getFields      : returns density, potential and acceleration
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same as getFields() but provides field labels in a tuple
+         )",
+	 py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("getAccelArray", &BasisClasses::BiorthBasis::getAccelArray,
+	 R"(
+         Return the acceleration for a given cartesian position
+
+         Parameters
+         ----------
+         x : ndarray
+             x-axis positions
+         y : ndarray
+             y-axis positions
+         z : ndarray
+             z-axis positions
+
+         Returns
+         -------
+         accel: numpy.ndarray
 
          See also
          --------
@@ -2105,6 +2221,9 @@ void BasisFactoryClasses(py::module &m)
              the ParticleReader instance
          center : list, default=[0, 0, 0]
 	     an optional expansion center location
+         rotation : numpy.ndarray
+             the rotation matrix for the basis functions
+             (default is identity matrix)
 
          Returns
          -------
@@ -2112,12 +2231,9 @@ void BasisFactoryClasses(py::module &m)
              the basis coefficients computed from the particles
          )",
 	 py::arg("reader"), 
-	 py::arg("center") = std::vector<double>(3, 0.0))
-    .def("initFromArray",
-	 [](BasisClasses::FieldBasis& A, std::vector<double> center)
-	 {
-	   return A.initFromArray(center);
-	 },
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("rotation") = RowMatrix3d::Identity())
+    .def("initFromArray", &BasisClasses::FieldBasis::initFromArray,
 	 R"(
          Initialize coefficient accumulation
 
@@ -2125,6 +2241,8 @@ void BasisFactoryClasses(py::module &m)
          ----------
          center : list, default=[0, 0, 0]
              vector of center positions
+         rotation : numpy.ndarray, default=Identity
+             rotation matrix to apply to the phase-space coordinates
 
          Returns
          -------
@@ -2141,11 +2259,44 @@ void BasisFactoryClasses(py::module &m)
          phase space arrays but allows for generation from very large 
          phase-space sets that can not be stored in physical memory.
          )",
-	 py::arg("center") = std::vector<double>(3, 0.0))
-    .def("addFromArray",
-	 [](BasisClasses::FieldBasis& A, Eigen::VectorXd& mass, RowMatrixXd& ps)
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("rotation") = RowMatrix3d::Identity())
+    .def("initFromArray",
+	 [](BasisClasses::FieldBasis& A, Eigen::Vector3d center)
 	 {
-	   return A.addFromArray(mass, ps);
+	   return A.initFromArray(center, RowMatrix3d::Identity());
+	 },
+	 R"(
+         Initialize coefficient accumulation
+
+         Parameters
+         ----------
+         center : list, default=[0, 0, 0]
+             vector of center positions
+         rotation : numpy.ndarray, default=Identity
+             rotation matrix to apply to the phase-space coordinates
+
+         Returns
+         -------
+         None
+
+         Notes
+         -----
+	 After initialization, phase-space data is then added with 
+         addFromArray() call.  addFromArray() may be called multiple times 
+         with any unique partition of phase space. The final generation is 
+         finished with a call to makeFromArray() with the snapshot time.  
+         This final call returns the coefficient set. This sequence of 
+         calls is identical to createFromArray() for a single set of 
+         phase space arrays but allows for generation from very large 
+         phase-space sets that can not be stored in physical memory.
+         )",
+	 py::arg("center") = Eigen::Vector3d::Zero())
+    .def("addFromArray",
+	 [](BasisClasses::FieldBasis& A,
+	    Eigen::VectorXd& mass, RowMatrixXd& pos)
+	 {
+	   A.addFromArray(mass, pos);
 	 },
 	 R"(
          Add particle contributions to coefficients
@@ -2167,11 +2318,7 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
-    .def("makeFromArray",
-	 [](BasisClasses::FieldBasis& A, double time)
-	 {
-	   return A.makeFromArray(time);
-	 },
+    .def("makeFromArray", &BasisClasses::FieldBasis::makeFromArray,
 	 R"(
          Make the coefficients
 

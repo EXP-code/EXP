@@ -237,9 +237,17 @@ namespace CoefClasses
       
       // Check for center data
       //
-      std::vector<double> ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
+      }
+
+      // Check for rotation matrix
+      //
+      Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
+      if (stanza.hasAttribute("Rotation")) {
+	stanza.getAttribute("Rotation").read(rot);
       }
 
       if (Time < Tmin or Time > Tmax) continue;
@@ -265,8 +273,8 @@ namespace CoefClasses
       //
       auto coef = std::make_shared<SphStruct>();
       
-      if (ctr.size()) coef->ctr = ctr;
-
+      coef->ctr   = ctr;
+      coef->rot   = rot;
       coef->lmax  = Lmax;
       coef->nmax  = Nmax;
       coef->time  = Time;
@@ -447,9 +455,17 @@ namespace CoefClasses
       
       // Check for center data
       //
-      std::vector<double> ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
+      }
+
+      // Check for rotation matrix
+      //
+      Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
+      if (stanza.hasAttribute("Rotation")) {
+	stanza.getAttribute("Rotation").read(rot);
       }
 
       if (Time < Tmin or Time > Tmax) continue;
@@ -463,8 +479,8 @@ namespace CoefClasses
       //
       auto coef = std::make_shared<SphFldStruct>();
       
-      if (ctr.size()) coef->ctr = ctr;
-
+      coef->ctr   = ctr;
+      coef->rot   = rot;
       coef->nfld  = Nfld;
       coef->lmax  = Lmax;
       coef->nmax  = Nmax;
@@ -543,10 +559,19 @@ namespace CoefClasses
       
       // Check for center data
       //
-      std::vector<double> ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
       }
+
+      // Check for rotation matrix
+      //
+      Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
+      if (stanza.hasAttribute("Rotation")) {
+	stanza.getAttribute("Rotation").read(rot);
+      }
+
 
       if (Time < Tmin or Time > Tmax) continue;
 
@@ -559,8 +584,8 @@ namespace CoefClasses
       //
       auto coef = std::make_shared<CylFldStruct>();
       
-      if (ctr.size()) coef->ctr = ctr;
-
+      coef->ctr   = ctr;
+      coef->rot   = rot;
       coef->nfld  = Nfld;
       coef->mmax  = Mmax;
       coef->nmax  = Nmax;
@@ -804,9 +829,13 @@ namespace CoefClasses
       
       // Add a center attribute
       //
-      if (C->ctr.size()>0)
-	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+      stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
       
+      // Add a rotation matrix attribute
+      //
+      Eigen::Matrix3d rot = C->getRotation();
+      stanza.createAttribute<double>("Rotation", HighFive::DataSpace::From(rot)).write(rot);
+
       // Index counters
       //
       unsigned I = 0, L = 0;
@@ -986,9 +1015,17 @@ namespace CoefClasses
       
       // Check for center data
       //
-      std::vector<double> ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
+      }
+
+      // Check for rotation data
+      //
+      Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
+      if (stanza.hasAttribute("Rotation")) {
+	stanza.getAttribute("Rotation").read(rot);
       }
 
       if (Time < Tmin or Time > Tmax) continue;
@@ -1018,8 +1055,8 @@ namespace CoefClasses
       //
       auto coef = std::make_shared<CylStruct>();
       
-      if (ctr.size()) coef->ctr = ctr;
-
+      coef->ctr = ctr;
+      coef->rot = rot;
       coef->assign(in, Mmax, Nmax);
       coef->time = Time;
       coef->setGravConstant(G);
@@ -1202,8 +1239,12 @@ namespace CoefClasses
       
       // Add center attribute
       //
-      if (C->ctr.size()>0)
-	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+      stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+
+      // Add a rotation matrix attribute
+      //
+      Eigen::Matrix3d rot = C->getRotation();
+      stanza.createAttribute<double>("Rotation", HighFive::DataSpace::From(rot)).write(rot);
 
       // Add coefficient data
       //
@@ -1382,9 +1423,10 @@ namespace CoefClasses
       
       // Check for center data
       //
-      std::vector<double> ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
       }
 
       if (Time < Tmin or Time > Tmax) continue;
@@ -1741,9 +1783,10 @@ namespace CoefClasses
       
       // Check for center data
       //
-      std::vector<double> ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
       }
 
       if (Time < Tmin or Time > Tmax) continue;
@@ -3095,9 +3138,12 @@ namespace CoefClasses
     
       // Add a center attribute
       //
-      if (C->ctr.size()>0)
-	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+      stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
       
+      // Add a rotation matrix attribute
+      //
+      Eigen::Matrix3d rot = C->getRotation();
+      stanza.createAttribute<double>("Rotation", HighFive::DataSpace::From(rot)).write(rot);
 
       // Coefficient size (allow Eigen::Tensor to be easily recontructed from metadata)
       //
@@ -3217,10 +3263,8 @@ namespace CoefClasses
     
       // Add a center attribute
       //
-      if (C->ctr.size()>0)
-	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+      stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
       
-
       // Coefficient size (allow Eigen::Tensor to be easily recontructed from metadata)
       //
       const auto& d = C->coefs->dimensions();

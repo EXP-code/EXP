@@ -192,6 +192,8 @@ class Component
   friend class OrbTrace;
   friend class ComponentContainer;
 
+  using RowMatrix3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
+
 private:
 
   //! Parallel distribute and particle io
@@ -311,7 +313,7 @@ protected:
   //! Use center from this component
   Component *c0;
 
-  //! Locagte centering component
+  //! Locate centering component
   void find_ctr_component();
 
   //! Name of the centering component
@@ -755,14 +757,22 @@ public:
   }
 
   //! Get rectified component center
-  std::vector<double> getCenter(unsigned flags=Inertial)
+  Eigen::Vector3d getCenter(unsigned flags=Inertial)
   {
-    std::vector<double> ret(3, 0.0);
+    Eigen::Vector3d ret = Eigen::Vector3d::Zero();
     for (int j=0; j<3; j++) {
       if (com_system and flags & Local) ret[j] += com0[j];
       if (flags & Centered) ret[j] += center[j];
     }
 
+    return ret;
+  }
+
+  //! Get rotation matrix
+  RowMatrix3d getRotation()
+  {
+    RowMatrix3d ret = RowMatrix3d::Identity();
+    if ( (EJ & Orient::AXIS) and !EJdryrun) ret = orient->transformBody();
     return ret;
   }
 

@@ -5,7 +5,7 @@ set(bin_PROGRAMS shrinkics gensph gendisk gendisk2d gsphere pstmod
   cubeics zangics slabics addring)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
-  ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
+  expui ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
   ${HDF5_CXX_LIBRARIES})
 
 if(ENABLE_CUDA)
@@ -26,6 +26,7 @@ set(common_INCLUDE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/DSMC/src>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/utils/SL/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/expui/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC}

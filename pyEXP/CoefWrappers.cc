@@ -722,6 +722,11 @@ void CoefficientClasses(py::module &m) {
                 float
                     data's center value
                 )") 
+    .def_readonly("orient", &CoefStruct::rot,
+    R"(
+                numpy.ndarray
+                    data's rotation value
+                )") 
     .def("getCoefTime", &CoefStruct::getTime,
         R"(
         Read-only access to the coefficient time
@@ -791,7 +796,7 @@ void CoefficientClasses(py::module &m) {
           reading EXP coefficient files.
           )")
     .def("setCoefCenter",
-          static_cast<void (CoefStruct::*)(std::vector<double>&)>(&CoefStruct::setCenter),
+	 static_cast<void (CoefStruct::*)(Eigen::Vector3d&)>(&CoefStruct::setCenter),
           py::arg("mat"),
           R"(
           Set the center vector
@@ -800,6 +805,41 @@ void CoefficientClasses(py::module &m) {
           ----------
           mat  : numpy.ndarray
                 center vector
+  
+          Returns
+          -------
+          None
+  
+          Notes
+          -----
+  
+          See also
+          --------
+          getCenter : read-only access to center data
+          )")
+    .def("getCoefRotation", &CoefStruct::getRotation,
+          R"(
+          Read-only access to the rotation matrix
+  
+          Returns
+          -------
+          numpy.ndarray
+              unitary matrix of rotation data
+  
+          See also
+          --------
+          setCoefRotation : read-write access to the rotation matrix
+          )")
+    .def("setCoefRotation",
+	 static_cast<void (CoefStruct::*)(RowMatrix3d&)>(&CoefStruct::setRotation),
+          py::arg("mat"),
+          R"(
+          Set the rotation matrix
+  
+          Parameters
+          ----------
+          mat  : numpy.ndarray
+                rotation matrix
   
           Returns
           -------

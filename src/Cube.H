@@ -18,7 +18,36 @@
 #include <cudaMappingConstants.cuH>
 #endif
 
-//! Periodic cube basis
+/** @class Cube
+
+    @brief Periodic cube basis
+
+    @details **YAML configuration**
+
+    @param nminx is the minimum absoulte value of the wave number in
+    the x direction (default: 0)
+
+    @param nminy is the minimum absoulte value of the wave number in
+    the y direction (default: 0)
+
+    @param nminz is the minimum absoulte value of the wave number in
+    the z direction (default: 0)
+
+    @param nmaxx is the maximum absoulte value of the wave number in
+    the x direction (default: 16)
+
+    @param nmaxy is the maximum absoulte value of the wave number in
+    the y direction (default: 16)
+
+    @param nmaxz is the maximum absoulte value of the wave number in
+    the z direction (default: 16)
+
+    @param method string sets the evaluation method for the CUDA
+    kernel.  Available methods are: all, full, 3d which compute all
+    dimensions at once and planes, axes, and 1d which compute wave
+    vectors by plane.  This may be extended to specific algorithms in
+    the future.  This does nothing for the CPU-only computation.
+*/
 class Cube : public PotAccel
 {
 

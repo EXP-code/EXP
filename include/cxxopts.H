@@ -27,6 +27,7 @@ THE SOFTWARE.
 
 #include <cctype>
 #include <cstring>
+#include <cstdint>
 #include <exception>
 #include <iostream>
 #include <limits>

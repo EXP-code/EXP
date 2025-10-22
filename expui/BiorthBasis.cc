@@ -93,6 +93,87 @@ namespace BasisClasses
     return labels;
   }
 
+  std::shared_ptr<BiorthBasis> BiorthBasis::factory_string(const std::string& conf)
+  {
+    YAML::Node node;
+    
+    try {
+      // Read the YAML from a string
+      //
+      node = YAML::Load(conf);
+    }
+    catch (const std::runtime_error& error) {
+      std::cout << "BiorthBasis::factory constructor: found a problem in the YAML config"
+		<< std::endl;
+      throw;
+    }
+
+    // Complete the initialization
+    //
+    return factory_initialize(node);
+  }
+
+  std::shared_ptr<BiorthBasis> BiorthBasis::factory(const YAML::Node& conf)
+  {
+    return factory_initialize(conf);
+  }
+
+  std::shared_ptr<BiorthBasis> BiorthBasis::factory_initialize(const YAML::Node& conf)
+  {
+    std::shared_ptr<BiorthBasis> basis;
+    std::string name;
+    
+    // Load parameters from YAML configuration node
+    try {
+      name = conf["id"].as<std::string>();
+    } 
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing force id in BiorthBasis::factory"
+			     << std::string(60, '-') << std::endl
+			     << conf                 << std::endl
+			     << std::string(60, '-') << std::endl;
+      
+      throw std::runtime_error("BiorthBasis::factory: error parsing YAML");
+    }
+    
+    try {
+      if ( !name.compare("sphereSL") ) {
+	basis = std::make_shared<SphericalSL>(conf);
+      }
+      else if ( !name.compare("bessel") ) {
+	basis = std::make_shared<Bessel>(conf);
+      }
+      else if ( !name.compare("cylinder") ) {
+	basis = std::make_shared<Cylindrical>(conf);
+      }
+      else if ( !name.compare("flatdisk") ) {
+	basis = std::make_shared<FlatDisk>(conf);
+      }
+      else if ( !name.compare("CBDisk") ) {
+	basis = std::make_shared<CBDisk>(conf);
+      }
+      else if ( !name.compare("slabSL") ) {
+	basis = std::make_shared<Slab>(conf);
+      }
+      else if ( !name.compare("cube") ) {
+	basis = std::make_shared<Cube>(conf);
+      }
+      else {
+	std::string msg("I don't know about the basis named: ");
+	msg += name;
+	msg += ". Known types are currently 'sphereSL', 'bessel', 'cylinder', 'flatdisk', 'CBDisk', 'slabSL', and 'cube'";
+	throw std::runtime_error(msg);
+      }
+    }
+    catch (std::exception& e) {
+      std::cout << "Error in BiorthBasis::factory constructor: " << e.what() << std::endl;
+      throw;			// Rethrow the exception?
+    }
+    
+    return basis;
+  }
+
+
   Spherical::Spherical(const YAML::Node& CONF, const std::string& forceID) :
     BiorthBasis(CONF, forceID)
   {
@@ -618,8 +699,8 @@ namespace BasisClasses
     // Return force not potential gradient
   }
 
-  std::vector<double>
-  Spherical::getAccel(double x, double y, double z)
+  void Spherical::computeAccel(double x, double y, double z,
+			       Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get polar coordinates
     double R     = sqrt(x*x + y*y);
@@ -721,7 +802,7 @@ namespace BasisClasses
 
     // Return force not potential gradient
     //
-    return {tpotx, tpoty, potz};
+    acc << tpotx, tpoty, potz;
   }
 
 
@@ -987,6 +1068,7 @@ namespace BasisClasses
     "rcylmax",
     "acyl",
     "hcyl",
+    "sech2",
     "snr",
     "evcut",
     "nmaxfid",
@@ -1093,6 +1175,8 @@ namespace BasisClasses
 	double w1 = 1.0/(1.0+dweight);
 	double w2 = dweight/(1.0+dweight);
 	
+	if (sech2) { h1 *= 0.5; h2 *= 0.5; }
+
 	double f1 = cosh(z/h1);
 	double f2 = cosh(z/h2);
 	
@@ -1104,13 +1188,14 @@ namespace BasisClasses
 
     case DiskType::diskbulge:
       {
-	double f  = cosh(z/hcyl);
+	double h  = sech2 ? 0.5*hcyl : hcyl;
+	double f  = cosh(z/h);
 	double rr = pow(pow(R, 2) + pow(z,2), 0.5);
 	double w1 = Mfac;
 	double w2 = 1.0 - Mfac;
 	double as = HERNA;
 	
-	ans = w1*exp(-R/acyl)/(4.0*M_PI*acyl*acyl*hcyl*f*f) + 
+	ans = w1*exp(-R/acyl)/(4.0*M_PI*acyl*acyl*h*f*f) + 
 	  w2*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0) ;
       }
       break;
@@ -1120,8 +1205,9 @@ namespace BasisClasses
     case DiskType::exponential:
     default:
       {
-	double f = cosh(z/hcyl);
-	ans = exp(-R/acyl)/(4.0*M_PI*acyl*acyl*hcyl*f*f);
+	double h = sech2 ? 0.5*hcyl : hcyl;
+	double f = cosh(z/h);
+	ans = exp(-R/acyl)/(4.0*M_PI*acyl*acyl*h*f*f);
       }
       break;
     }
@@ -1243,6 +1329,7 @@ namespace BasisClasses
       
       if (conf["acyl"      ])       acyl  = conf["acyl"      ].as<double>();
       if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
+      if (conf["sech2"     ])      sech2  = conf["sech2"     ].as<bool>();
       if (conf["lmaxfid"   ])    lmaxfid  = conf["lmaxfid"   ].as<int>();
       if (conf["nmaxfid"   ])    nmaxfid  = conf["nmaxfid"   ].as<int>();
       if (conf["nmax"      ])       nmax  = conf["nmax"      ].as<int>();
@@ -1413,8 +1500,20 @@ namespace BasisClasses
       try {				// Check for map entry, will through if the 
 	DTYPE = dtlookup.at(dtype);	// key is not in the map.
 	
-	if (myid==0)		// Report DiskType
+	if (myid==0) {		// Report DiskType
 	  std::cout << "---- DiskType is <" << dtype << ">" << std::endl;
+
+	  if (not sech2) {
+	    switch (DTYPE) {
+	    case DiskType::doubleexpon:
+	    case DiskType::exponential:
+	    case DiskType::diskbulge:
+	      std::cout << "---- pyEXP uses sech^2(z/h) rather than the more common sech^2(z/(2h))" << std::endl
+			<< "---- Use the 'sech2: true' in your YAML config to use sech^2(z/(2h))" << std::endl
+			<< "---- pyEXP will assume sech^2(z/(2h)) by default in v 7.9.0 and later" << std::endl;
+	    }
+	  }
+	}
       }
       catch (const std::out_of_range& err) {
 	if (myid==0) {
@@ -1438,7 +1537,7 @@ namespace BasisClasses
 	// The scale in EmpCylSL is assumed to be 1 so we compute the
 	// height relative to the length
 	//
-	double H = hcyl/acyl;
+	double H = sech2 ? 0.5*hcyl/acyl : hcyl/acyl;
 
 	// The model instance (you can add others in DiskModels.H).
 	// It's MN or Exponential if not MN.
@@ -1537,7 +1636,8 @@ namespace BasisClasses
   }
   
   // Evaluate in cartesian coordinates
-  std::vector<double> Cylindrical::getAccel(double x, double y, double z)
+  void Cylindrical::computeAccel(double x, double y, double z,
+				 Eigen::Ref<Eigen::Vector3d> acc)
   {
     double R = sqrt(x*x + y*y);
     double phi = atan2(y, x);
@@ -1552,7 +1652,7 @@ namespace BasisClasses
     double tpoty = tpotR*y/R + tpotp*x/R ;
 
     // Apply G to forces on return
-    return {tpotx*G, tpoty*G, tpotz*G};
+    acc << tpotx*G, tpoty*G, tpotz*G;
   }
 
   // Evaluate in cylindrical coordinates
@@ -2139,7 +2239,8 @@ namespace BasisClasses
     return {den0, den1, den0+den1, pot0, pot1, pot0+pot1, rpot, zpot, ppot};
   }
 
-  std::vector<double> FlatDisk::getAccel(double x, double y, double z)
+  void FlatDisk::computeAccel(double x, double y, double z, 
+			      Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -2164,7 +2265,7 @@ namespace BasisClasses
       rpot = -G*totalMass*R/(r*r2 + 10.0*std::numeric_limits<double>::min());
       zpot = -G*totalMass*z/(r*r2 + 10.0*std::numeric_limits<double>::min());
       
-      return {rpot, zpot, ppot};
+      acc << rpot, zpot, ppot;
     }
 
     // Get the basis fields
@@ -2228,7 +2329,7 @@ namespace BasisClasses
     double potx = rpot*x/R - ppot*y/R;
     double poty = rpot*y/R + ppot*x/R;
 
-    return {potx, poty, zpot};
+    acc << potx, poty, zpot;
   }
 
 
@@ -2922,7 +3023,8 @@ namespace BasisClasses
   }
 
 
-  std::vector<double> CBDisk::getAccel(double x, double y, double z)
+  void CBDisk::computeAccel(double x, double y, double z,
+			    Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -2987,7 +3089,7 @@ namespace BasisClasses
     double potx = rpot*x/R - ppot*y/R;
     double poty = rpot*y/R + ppot*x/R;
 
-    return {potx, poty, zpot};
+    acc << potx, poty, zpot;
   }
 
 
@@ -3401,8 +3503,8 @@ namespace BasisClasses
   }
 
 
-  std::vector<double>
-  Slab::getAccel(double x, double y, double z)
+  void Slab::computeAccel(double x, double y, double z,
+			  Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Loop indices
     //
@@ -3476,7 +3578,7 @@ namespace BasisClasses
     }
 
     // Apply G to forces on return
-    return {G*accx.real(), G*accy.real(), G*accz.real()};
+    acc << G*accx.real(), G*accy.real(), G*accz.real();
   }
 
 
@@ -3852,7 +3954,8 @@ namespace BasisClasses
     return {0, den1, den1, 0, pot1*G, pot1*G, frcx*G, frcy*G, frcz*G};
   }
 
-  std::vector<double> Cube::getAccel(double x, double y, double z)
+  void Cube::computeAccel(double x, double y, double z,
+			  Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get thread id
     int tid = omp_get_thread_num();
@@ -3864,7 +3967,7 @@ namespace BasisClasses
     auto frc = ortho->get_force(expcoef, pos);
     
     // Apply G to forces on return
-    return {-G*frc(0).real(), -G*frc(1).real(), -G*frc(2).real()};
+    acc << -G*frc(0).real(), -G*frc(1).real(), -G*frc(2).real();
   }
 
   std::vector<double> Cube::cyl_eval(double R, double z, double phi)
@@ -3943,7 +4046,7 @@ namespace BasisClasses
   
   // Generate coeffients from a particle reader
   CoefClasses::CoefStrPtr BiorthBasis::createFromReader
-  (PR::PRptr reader, std::vector<double> ctr)
+  (PR::PRptr reader, Eigen::Vector3d ctr, RowMatrix3d rot)
   {
     CoefClasses::CoefStrPtr coef;
 
@@ -3962,36 +4065,47 @@ namespace BasisClasses
       throw std::runtime_error(sout.str());
     }
       
-    // Is center non-zero?
+    // Add the expansion center metadata and register for this instance
     //
-    bool addCenter = false;
-    for (auto v : ctr) {
-      if (v != 0.0) addCenter = true;
-    }
+    coefctr   = ctr;
+    coef->ctr = ctr;
 
-    // Add the expansion center metadata
+    // Add the rotation matrix metadata and register for this instance
     //
-    if (addCenter) coef->ctr = ctr;
+    coefrot   = rot;
+    coef->rot = rot;
 
-    std::vector<double> pp(3), vv(3);
+    std::vector<double> p1(3), v1(3);
+    
+    // Map the vector rather than copy
+    //
+    Eigen::Map<Eigen::Vector3d> pp(p1.data(), 3), vv(v1.data(), 3);
+    vv.setZero();
 
     reset_coefs();
     for (auto p=reader->firstParticle(); p!=0; p=reader->nextParticle()) {
 
       bool use = false;
       
+      // Translate and rotate the position vector
+      //
+      for (int k=0; k<3; k++) p1[k] = p->pos[k];
+      pp = coefrot * (pp - coefctr);
+
       if (ftor) {
-	pp.assign(p->pos, p->pos+3);
-	vv.assign(p->vel, p->vel+3);
-	use = ftor(p->mass, pp, vv, p->indx);
+	// Rotate the velocity vector
+	//
+	for (int k=0; k<3; k++) v1[k] = p->vel[k];
+	vv = coefrot * vv;
+	
+	use = ftor(p->mass, p1, v1, p->indx);
       } else {
 	use = true;
       }
 
-      if (use) accumulate(p->pos[0]-ctr[0],
-			  p->pos[1]-ctr[1],
-			  p->pos[2]-ctr[2],
-			  p->mass);
+      if (use) {
+	accumulate(pp(0), pp(1), pp(2), p->mass);
+      }
     }
     make_coefs();
     load_coefs(coef, reader->CurrentTime());
@@ -3999,7 +4113,7 @@ namespace BasisClasses
   }
 
   // Generate coefficients from a phase-space table
-  void BiorthBasis::initFromArray(std::vector<double> ctr)
+  void BiorthBasis::initFromArray(Eigen::Vector3d ctr, RowMatrix3d rot)
   {
     if (name.compare("sphereSL") == 0)
       coefret = std::make_shared<CoefClasses::SphStruct>();
@@ -4014,20 +4128,14 @@ namespace BasisClasses
       throw std::runtime_error(sout.str());
     }
       
-    // Is center non-zero?
-    //
-    bool addCenter = false;
-    for (auto v : ctr) {
-      if (v != 0.0) addCenter = true;
-    }
-
-    // Add the expansion center metadata
-    //
-    if (addCenter) coefret->ctr = ctr;
-    
-    // Register the center
+    // Add the expansion center metadata and register
     //
     coefctr = ctr;
+    coefret->ctr = ctr;
+
+    // Add the rotation metadata and register
+    coefrot = rot;
+    coefret->rot = rot;
 
     // Clean up for accumulation
     //
@@ -4056,6 +4164,7 @@ namespace BasisClasses
     int cols = p.cols(); 
 
     bool ambiguous = false;
+    bool haveVel   = false;
 
     if (cols==3 or cols==6) {
       if (rows != 3 and rows != 6) PosVelRows = false;
@@ -4076,7 +4185,11 @@ namespace BasisClasses
 		<< "if this assumption is wrong." << std::endl;
     }
 
-    std::vector<double> p1(3), v1(3, 0);
+    // Map the vector rather than copy
+    //
+    std::vector<double> p1(3), v1(3);
+    Eigen::Map<Eigen::Vector3d> pp(p1.data(), 3), vv(v1.data(), 3);
+    vv.setZero();
 
     if (PosVelRows) {
       if (p.rows()<3) {
@@ -4086,22 +4199,32 @@ namespace BasisClasses
 	throw std::runtime_error(msg.str());
       }
 
-      for (int n=0; n<p.cols(); n++) {
+      if (p.rows() == 6) haveVel = true;
 
+      for (int n=0; n<p.cols(); n++) {
+	
 	if (n % numprocs==myid or not RoundRobin) {
 
+	  for (int k=0; k<3; k++) {
+	    pp(k) = p(k, n);
+	    if (haveVel) vv(k) = p(k+3, n);
+	  }
+	  
+	  pp = coefrot * (pp - coefctr);
+
 	  bool use = true;
+
 	  if (ftor) {
-	    for (int k=0; k<3; k++) p1[k] = p(k, n);
+	    if (haveVel) vv = coefrot * vv;
 	    use = ftor(m(n), p1, v1, coefindx);
 	  } else {
 	    use = true;
 	  }
 	  coefindx++;
 	  
-	  if (use) accumulate(p(0, n)-coefctr[0],
-			      p(1, n)-coefctr[1],
-			      p(2, n)-coefctr[2], m(n));
+	  if (use) {
+	    accumulate(pp(0), pp(1), pp(2), m(n));
+	  }
 	}
       }
       
@@ -4114,22 +4237,32 @@ namespace BasisClasses
 	throw std::runtime_error(msg.str());
       }
 
+      if (p.cols() == 6) haveVel = true;
+
+
       for (int n=0; n<p.rows(); n++) {
 
 	if (n % numprocs==myid or not RoundRobin) {
 
+	  for (int k=0; k<3; k++) {
+	    pp(k) = p(n, k);
+	    if (haveVel) vv(k) = p(n, k+3);
+	  }
+	  
+	  pp = coefrot * (pp - coefctr);
+
 	  bool use = true;
 	  if (ftor) {
-	    for (int k=0; k<3; k++) p1[k] = p(n, k);
+	    if (haveVel) vv = coefrot * vv;
 	    use = ftor(m(n), p1, v1, coefindx);
 	  } else {
 	    use = true;
 	  }
 	  coefindx++;
 	  
-	  if (use) accumulate(p(n, 0)-coefctr[0],
-			      p(n, 1)-coefctr[1],
-			      p(n, 2)-coefctr[2], m(n));
+	  if (use) {
+	    accumulate(pp(0), pp(1), pp(2), m(n));
+	  }
 	}
       }
     }
@@ -4146,10 +4279,10 @@ namespace BasisClasses
   // Generate coefficients from a phase-space table
   //
   CoefClasses::CoefStrPtr BiorthBasis::createFromArray
-  (Eigen::VectorXd& m, RowMatrixXd& p, double time, std::vector<double> ctr,
-   bool RoundRobin, bool PosVelRows)
+  (Eigen::VectorXd& m, RowMatrixXd& p, double time, Eigen::Vector3d ctr,
+   RowMatrix3d rot, bool RoundRobin, bool PosVelRows)
   {
-    initFromArray(ctr);
+    initFromArray(ctr, rot);
     addFromArray(m, p, RoundRobin, PosVelRows);
     return makeFromArray(time);
   }
@@ -4167,13 +4300,20 @@ namespace BasisClasses
     auto ctr = basis->getCenter();
     if (basis->usingNonInertial()) ctr = {0, 0, 0};
 
+    // Get rotation matrix
+    //
+    auto rot = basis->getRotation();
+
     // Get fields
     //
     int rows = accel.rows();
     for (int n=0; n<rows; n++) {
-      auto v = basis->getFields(ps(n, 0) - ctr[0],
-				ps(n, 1) - ctr[1],
-				ps(n, 2) - ctr[2]);
+      Eigen::Vector3d pp;
+      for (int k=0; k<3; k++) pp(k) = ps(n, k) - ctr(k);
+      pp = rot * pp;
+
+      auto v = basis->getFields(pp(0), pp(1), pp(2));
+
       // First 6 fields are density and potential, followed by acceleration
       for (int k=0; k<3; k++) accel(n, k) += v[6+k] - basis->pseudo(k);
     }
@@ -4258,11 +4398,18 @@ namespace BasisClasses
 
     // Interpolate center
     //
-    if (coefsA->ctr.size() and coefsB->ctr.size()) {
-      newcoef->ctr.resize(3);
-      for (int k=0; k<3; k++)
-	newcoef->ctr[k] = a * coefsA->ctr[k] + b * coefsB->ctr[k];
-    }
+    newcoef->ctr = a * coefsA->ctr + b * coefsB->ctr;
+
+    // Interpolate rotation matrix followed by unitarization
+    //
+    RowMatrix3d newrot = a * coefsA->rot + b * coefsB->rot;
+
+    // Closest unitary matrix in the Frobenius norm sense
+    //
+    Eigen::BDCSVD<RowMatrix3d> svd
+      (newrot, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+    newcoef->rot = svd.matrixU() * svd.matrixV().adjoint();
 
     // Install coefficients
     //
