@@ -32,7 +32,7 @@ static void (*oldhandler)(int);	// keep a reference to the initial value
    Turns on exceptions for invalid, div by zero and overflow, other  
    bits default.  This will only work for x86 architecture.
  */
-void set_fpu_handler(void)
+static void set_fpu_handler(void)
 {
 #ifdef HAVE_FPU_CONTROL_H 
 				// Set control flag (see fpu_control.h)

@@ -31,12 +31,6 @@
 
 #include <mpi.h>
 
-//
-// MPI variables
-//
-int numprocs, proc_namelen;
-char processor_name[MPI_MAX_PROCESSOR_NAME];
-
 //! Generate orthonormal Laguerre functions
 class Laguerre
 {

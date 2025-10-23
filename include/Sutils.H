@@ -9,7 +9,7 @@
 #include <locale>
 
 //! Split string on a character delimiter
-std::vector<std::string> str_split(const std::string& s, char delimiter)
+static inline std::vector<std::string> str_split(const std::string& s, char delimiter)
 {
   std::vector<std::string> tokens;
   std::string token;
@@ -21,7 +21,7 @@ std::vector<std::string> str_split(const std::string& s, char delimiter)
 }
 
 //! Return a lower case copy
-std::string str_to_lower(const std::string& s)
+static inline std::string str_to_lower(const std::string& s)
 {
   std::string d(s);
   std::for_each(d.begin(), d.end(), [](char & c){ c = std::tolower(c); });
@@ -30,7 +30,7 @@ std::string str_to_lower(const std::string& s)
 }
 
 //! Return an upper case copy
-std::string str_to_upper(const std::string& s)
+static inline std::string str_to_upper(const std::string& s)
 {
   std::string d(s);
   std::for_each(d.begin(), d.end(), [](char & c){ c = std::toupper(c); });
