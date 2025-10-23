@@ -82,36 +82,36 @@
 
 #include <fenv.h>
 
-#include <config_exp.h>
+#include "config_exp.h"
 #ifdef HAVE_OMP_H
 #include <omp.h>
 #endif
 
 // EXP classes
 //
-#include <numerical.H>
-#include <gaussQ.H>
-#include <isothermal.H>
-#include <DiskDensityFunc.H>
-#include <hernquist_model.H>
-#include <model3d.H>
-#include <biorth.H>
-#include <SphericalSL.H>
-#include <interp.H>
-#include <EmpCylSL.H>
-#include <DiskModels.H>
-#include <libvars.H>		// Library globals
-#include <cxxopts.H>		// Command-line parsing
-#include <EXPini.H>		// Ini-style config
+#include "numerical.H"
+#include "gaussQ.H"
+#include "isothermal.H"
+#include "DiskDensityFunc.H"
+#include "hernquist_model.H"
+#include "model3d.H"
+#include "biorth.H"
+#include "SphericalSL.H"
+#include "interp.H"
+#include "EmpCylSL.H"
+#include "DiskModels.H"
+#include "libvars.H"		// Library globals
+#include "cxxopts.H"		// Command-line parsing
+#include "EXPini.H"		// Ini-style config
 
-#include <norminv.H>
+#include "norminv.H"
 
 #define M_SQRT1_3 (0.5773502691896257645091487)
 
                                 // For debugging
 #ifdef DEBUG
 #include <fenv.h>
-#include <fpetrap.h>
+#include "fpetrap.h"
 
 //===========================================
 // Handlers defined in exputil/stack.cc
@@ -228,9 +228,9 @@ void set_fpu_gdb_handler(void)
 #endif
 
                                 // Local headers
-#include <SphericalSL.H>
-#include <DiskHalo.H>
-#include <localmpi.H>
+#include "SphericalSL.H"
+#include "DiskHalo.H"
+#include "localmpi.H"
 
 
 // Hydrogen fraction
@@ -265,7 +265,7 @@ double       DWEIGHT = 1.0;
 double       Mfac  = 1.0;
 double       HERNA = 0.10;
 
-#include <Particle.H>
+#include "Particle.H"
 
 double DiskDens(double R, double z, double phi)
 {

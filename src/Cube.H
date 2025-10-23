@@ -9,8 +9,8 @@
 #include <Eigen/Eigen>
 #include <unsupported/Eigen/CXX11/Tensor>
 
-#include <Coefficients.H>
-#include <PotAccel.H>
+#include "Coefficients.H"
+#include "PotAccel.H"
 
 #if HAVE_LIBCUDA==1
 #include <thrust/complex.h>

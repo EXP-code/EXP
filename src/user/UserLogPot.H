@@ -1,9 +1,9 @@
 #ifndef _UserLogPot_H
 #define _UserLogPot_H
 
-#include <Particle.H>
-#include <AxisymmetricBasis.H>
-#include <ExternalCollection.H>
+#include "Particle.H"
+#include "AxisymmetricBasis.H"
+#include "ExternalCollection.H"
 
 /** Logarithmic triaxial potential
 

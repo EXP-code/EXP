@@ -10,7 +10,7 @@
 #include <cmath>
 #include <cstdlib>
 
-#include <interp.H>
+#include "interp.H"
 
 
 Cheby1d::Cheby1d()

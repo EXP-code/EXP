@@ -4,7 +4,7 @@
 #include <limits>
 #include <cmath>
 
-#include <interp.H>
+#include "interp.H"
 
 
 double Trapsum(const Eigen::VectorXd& x, const Eigen::VectorXd& y)

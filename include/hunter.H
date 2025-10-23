@@ -6,7 +6,7 @@
 #ifndef _hunter_h
 #define _hunter_h
 
-#include <massmodel.H>
+#include "massmodel.H"
 
 class HunterDisk : public AxiSymModel
 {

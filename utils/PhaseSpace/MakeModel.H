@@ -6,7 +6,7 @@
 
 #include <Eigen/Eigen>
 
-#include <massmodel.H>
+#include "massmodel.H"
 
 class MakeModel 
 {

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
-#include <numerical.H>
+#include "numerical.H"
 
 #define ITMAX 100
 #define CGOLD 0.3819660

@@ -1,7 +1,7 @@
 #ifndef _OutPSP_H
 #define _OutPSP_H
 
-#include <OutPSP.H>
+#include "OutPSP.H"
 
 /** Write phase-space dumps at regular intervals using MPI-IO
 

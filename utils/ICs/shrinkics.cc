@@ -13,7 +13,7 @@
 
 // EXP library support
 //
-#include <libvars.H>
+#include "libvars.H"
 
 using namespace std;
 

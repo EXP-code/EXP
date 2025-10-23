@@ -4,8 +4,8 @@
 #include <memory>
 #include <map>
 
-#include <SLGridMP2.H>
-#include <SphericalBasis.H>
+#include "SLGridMP2.H"
+#include "SphericalBasis.H"
 
 typedef std::shared_ptr<SLGridSph> SLGridSphPtr;
 

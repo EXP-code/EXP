@@ -2,11 +2,11 @@
 #include <iostream>
 #include <cmath>
 
-#include <numerical.H>
+#include "numerical.H"
 
-#include <phase.H>
-#include <staeckel.H>
-#include <models.H>
+#include "phase.H"
+#include "staeckel.H"
+#include "models.H"
 
 /* 
    get the force at a 3D position *x.

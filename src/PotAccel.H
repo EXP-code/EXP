@@ -10,11 +10,11 @@
 #include <memory>
 #include <yaml-cpp/yaml.h>
 
-#include <Particle.H>
-#include <StringTok.H>
-#include <YamlCheck.H>
+#include "Particle.H"
+#include "StringTok.H"
+#include "YamlCheck.H"
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 class Component;
 struct thrd_pass_PotAccel;

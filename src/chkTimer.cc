@@ -8,10 +8,10 @@
 
 #include <unistd.h>		// for sleep()
 
-#include <expand.H>
-#include <chkTimer.H>
+#include "expand.H"
+#include "chkTimer.H"
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 extern "C" {
   long rem_time(int);

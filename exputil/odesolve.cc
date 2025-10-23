@@ -1,7 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
-#include <numerical.H>
+#include "numerical.H"
 
 void integrate_ode(Eigen::VectorXd& x,
 		   double t0, double t1, double &dt, double eps,

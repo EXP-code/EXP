@@ -20,14 +20,14 @@
 #include <list>
 #include <map>
 
-#include <header.H>
-#include <PSP.H>
-#include <FileUtils.H>
+#include "header.H"
+#include "PSP.H"
+#include "FileUtils.H"
 
-#include <Progress.H>
-#include <cxxopts.H>		// Option parsing
-#include <libvars.H>		// EXP library globals
-#include <EXPmath.H>		// EXP math functions for clang
+#include "Progress.H"
+#include "cxxopts.H"		// Option parsing
+#include "libvars.H"		// EXP library globals
+#include "EXPmath.H"		// EXP math functions for clang
 
 #include <mpi.h>
 

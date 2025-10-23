@@ -6,14 +6,14 @@
 #include <limits>
 
 #include "expand.H"
-#include <gaussQ.H>
-#include <CylEXP.H>
-#include <Cylinder.H>
-#include <MixtureBasis.H>
-#include <DiskDensityFunc.H>
-#include <Timer.H>
-#include <exputils.H>
-#include <NVTX.H>
+#include "gaussQ.H"
+#include "CylEXP.H"
+#include "Cylinder.H"
+#include "MixtureBasis.H"
+#include "DiskDensityFunc.H"
+#include "Timer.H"
+#include "exputils.H"
+#include "NVTX.H"
 
 //@{
 //! These are for testing exclusively (should be set false for production)

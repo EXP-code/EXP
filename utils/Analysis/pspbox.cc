@@ -45,16 +45,16 @@ using namespace std;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <ParticleReader.H>
-#include <interp.H>
-#include <massmodel.H>
-#include <SphSL.H>
+#include "numerical.H"
+#include "ParticleReader.H"
+#include "interp.H"
+#include "massmodel.H"
+#include "SphSL.H"
 				// Support headers
-#include <localmpi.H>
-#include <cxxopts.H>
-#include <foarray.H>
-#include <libvars.H>
+#include "localmpi.H"
+#include "cxxopts.H"
+#include "foarray.H"
+#include "libvars.H"
 
 
 enum ProjectionType {Cylindrical=1, Spherical=2};

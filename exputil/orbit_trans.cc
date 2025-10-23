@@ -6,11 +6,11 @@
 #include <sstream>
 #include <cmath>
 
-#include <numerical.H>
-#include <interp.H>
-#include <massmodel.H>
-#include <orbit.H>
-#include <biorth.H>
+#include "numerical.H"
+#include "interp.H"
+#include "massmodel.H"
+#include "orbit.H"
+#include "biorth.H"
 
 int    SphericalOrbit::Nseg = 40;     // Number of trial segments for root finding 
 double SphericalOrbit::tol = 1.0e-8;  // root finder tolerance

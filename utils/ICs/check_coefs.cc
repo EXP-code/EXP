@@ -18,35 +18,35 @@
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
-#include <config_exp.h>
+#include "config_exp.h"
 #ifdef HAVE_OMP_H
 #include <omp.h>
 #endif
 
 // EXP classes
 //
-#include <numerical.H>
-#include <gaussQ.H>
-#include <isothermal.H>
-#include <hernquist_model.H>
-#include <model3d.H>
-#include <biorth.H>
-#include <SphericalSL.H>
-#include <interp.H>
-#include <EmpCylSL.H>
-#include <DiskModels.H>
-#include <DiskEval.H>
-#include <norminv.H>
-#include <cxxopts.H>
-#include <EXPmath.H>
-#include <EXPini.H>
+#include "numerical.H"
+#include "gaussQ.H"
+#include "isothermal.H"
+#include "hernquist_model.H"
+#include "model3d.H"
+#include "biorth.H"
+#include "SphericalSL.H"
+#include "interp.H"
+#include "EmpCylSL.H"
+#include "DiskModels.H"
+#include "DiskEval.H"
+#include "norminv.H"
+#include "cxxopts.H"
+#include "EXPmath.H"
+#include "EXPini.H"
 
 #define M_SQRT1_3 (0.5773502691896257645091487)
 
                                 // For debugging
 #ifdef DEBUG
 #include <fenv.h>
-#include <fpetrap.h>
+#include "fpetrap.h"
 
 //===========================================
 // Handlers defined in exputil/stack.cc
@@ -163,7 +163,7 @@ void set_fpu_gdb_handler(void)
 #endif
 
                                 // Local headers
-#include <localmpi.H>
+#include "localmpi.H"
 
 
 // Hydrogen fraction
@@ -188,8 +188,8 @@ double       ASHIFT;
 
 // EXP library support
 //
-#include <libvars.H>
-#include <Particle.H>
+#include "libvars.H"
+#include "Particle.H"
 
 double DiskDens(double R, double z, double phi)
 {

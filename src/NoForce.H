@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include <PotAccel.H>
+#include "PotAccel.H"
 
 /**
    A *NULL* force method

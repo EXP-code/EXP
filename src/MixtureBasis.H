@@ -3,7 +3,7 @@
 
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember)) 
 
-#include <TwoCenter.H>
+#include "TwoCenter.H"
 
 class MixtureBasis
 {

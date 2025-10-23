@@ -5,11 +5,11 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include <BiorthBasis.H>
-#include <FieldBasis.H>
+#include "BiorthBasis.H"
+#include "FieldBasis.H"
 
 namespace py = pybind11;
-#include <TensorToArray.H>
+#include "TensorToArray.H"
 
 void BasisFactoryClasses(py::module &m)
 {

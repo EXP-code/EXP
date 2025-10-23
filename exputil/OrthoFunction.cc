@@ -1,5 +1,5 @@
 #include <fstream>
-#include <OrthoFunction.H>
+#include "OrthoFunction.H"
 
 OrthoFunction::OrthoFunction
 (int nmax, DensFunc W, double rmin, double rmax, double scl, int dof) :

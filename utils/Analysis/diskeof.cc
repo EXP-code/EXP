@@ -38,18 +38,18 @@
 #include <cmath>
 #include <string>
 
-#include <config_exp.h>		// CMake generated config
+#include "config_exp.h"		// CMake generated config
 
 #ifdef HAVE_LIBPNGPP
-#include <ColorGradient.H>	// For PNG images
+#include "ColorGradient.H"	// For PNG images
 #endif
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
 #include <Eigen/Eigen>		// Eigen 3
 
-#include <DataGrid.H>		// For VTK or ASCII grid output
-#include <cxxopts.H>		// Command-line parser
+#include "DataGrid.H"		// For VTK or ASCII grid output
+#include "cxxopts.H"		// Command-line parser
 
                                 // System libs
 #include <unistd.h>
@@ -57,14 +57,14 @@
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <ParticleReader.H>
-#include <interp.H>
-#include <EmpCylSL.H>
+#include "numerical.H"
+#include "ParticleReader.H"
+#include "interp.H"
+#include "EmpCylSL.H"
 
-#include <localmpi.H>
-#include <foarray.H>
-#include <libvars.H>
+#include "localmpi.H"
+#include "foarray.H"
+#include "libvars.H"
 
 #ifdef DEBUG
 #ifndef _REDUCED

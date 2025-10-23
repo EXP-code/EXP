@@ -5,10 +5,10 @@
 #include <chrono>
 
 #include "expand.H"
-#include <global.H>
+#include "global.H"
 
-#include <AxisymmetricBasis.H>
-#include <OutPSN.H>
+#include "AxisymmetricBasis.H"
+#include "OutPSN.H"
 
 const std::set<std::string>
 OutPSN::valid_keys = {

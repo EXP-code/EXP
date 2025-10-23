@@ -7,9 +7,9 @@
 #include <iostream>
 #include <cmath>
 
-#include <biorth2d.H>
-#include <OrthoPoly.H>
-#include <gaussQ.H>
+#include "biorth2d.H"
+#include "OrthoPoly.H"
+#include "gaussQ.H"
 
 
 CBDisk::CBDisk(void) : AxiSymBiorth(2) {

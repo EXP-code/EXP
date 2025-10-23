@@ -6,12 +6,12 @@
 
 #include <Eigen/Eigen>
 
-#include <EXPException.H>
-#include <SLGridMP2.H>
-#include <localmpi.H>
-#include <libvars.H>
-#include <cxxopts.H>
-#include <gaussQ.H>
+#include "EXPException.H"
+#include "SLGridMP2.H"
+#include "localmpi.H"
+#include "libvars.H"
+#include "cxxopts.H"
+#include "gaussQ.H"
 
 int main(int argc, char** argv)
 {

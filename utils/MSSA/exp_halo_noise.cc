@@ -16,8 +16,8 @@
 
 #include "Coefs.H"
 #include "RedSVD.H"
-#include <config_exp.h>
-#include <cxxopts.H>
+#include "config_exp.h"
+#include "cxxopts.H"
 
 
 typedef std::tuple<unsigned, unsigned, unsigned, unsigned> Key;

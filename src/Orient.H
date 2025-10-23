@@ -6,11 +6,11 @@
 #include <deque>
 #include <algorithm>
 
-#include <euler.H>
-#include <Particle.H>
-#include <PseudoAccel.H>
+#include "euler.H"
+#include "Particle.H"
+#include "PseudoAccel.H"
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 class Component;
 

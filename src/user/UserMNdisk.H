@@ -1,9 +1,9 @@
 #ifndef _UserMNdisk_H
 #define _UserMNdisk_H
 
-#include <Particle.H>
-#include <AxisymmetricBasis.H>
-#include <ExternalCollection.H>
+#include "Particle.H"
+#include "AxisymmetricBasis.H"
+#include "ExternalCollection.H"
 
 /** Potential and force of the Miyamoto-Nagai disk.
 

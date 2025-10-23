@@ -3,9 +3,9 @@
 #include <fstream>
 #include <iomanip>
 
-#include <expand.H>
+#include "expand.H"
 
-#include <OutVel.H>
+#include "OutVel.H"
 
 const std::set<std::string>
 OutVel::valid_keys = {

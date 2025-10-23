@@ -9,8 +9,8 @@
 
 #include <Eigen/Eigen>
 
-#include <interp.H>
-#include <gaussQ.H>
+#include "interp.H"
+#include "gaussQ.H"
 
 /** Defines potential and force for ellipsoid models
     

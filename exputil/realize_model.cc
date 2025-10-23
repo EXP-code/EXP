@@ -34,17 +34,17 @@
 #include <memory>
 #include <cmath>
 
-#include <localmpi.H>
-#include <massmodel.H>
-#include <interp.H>
-#include <euler.H>
+#include "localmpi.H"
+#include "massmodel.H"
+#include "interp.H"
+#include "euler.H"
 
 #ifdef DEBUG
-#include <orbit.H>
+#include "orbit.H"
 static SphericalOrbit orb;
 #endif
 
-#include <libvars.H>
+#include "libvars.H"
 using namespace __EXP__;
 
 // Multimass Monte-Carlo rejection type.  Fixed-radius is the

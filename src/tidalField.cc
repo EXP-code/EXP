@@ -1,7 +1,7 @@
 
 #include "expand.H"
 
-#include <tidalField.H>
+#include "tidalField.H"
 
 const std::set<std::string>
 tidalField::valid_keys = {

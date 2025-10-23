@@ -9,20 +9,20 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include <Progress.H>		// Progress bar
-#include <TableGrid.H>		// For three-dimensional array
+#include "Progress.H"		// Progress bar
+#include "TableGrid.H"		// For three-dimensional array
 
-#include <interp.H>
+#include "interp.H"
 #include <thread>
-#include <exp_thread.h>
-#include <EXPException.H>
-#include <exputils.H>
+#include "exp_thread.h"
+#include "EXPException.H"
+#include "exputils.H"
 
 #include <Eigen/Eigenvalues>
 
-#include <config_exp.h>
+#include "config_exp.h"
 #ifdef HAVE_VTK
-#include <VtkPCA.H>
+#include "VtkPCA.H"
 #endif
 
 // For reading and writing HDF5 cache files
@@ -34,12 +34,12 @@
 #include <omp.h>		// For multithreading basis construction
 #endif
 
-#include <numerical.H>
-#include <gaussQ.H>
-#include <EmpCylSL.H>
-#include <DataGrid.H>
+#include "numerical.H"
+#include "gaussQ.H"
+#include "EmpCylSL.H"
+#include "DataGrid.H"
 
-#include <libvars.H>
+#include "libvars.H"
 using namespace __EXP__;	// For reference to n-body globals
 
 #undef  TINY

@@ -4,10 +4,10 @@
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
-#include <Progress.H>		// Progress bar
-#include <localmpi.H>		// MPI variables
+#include "Progress.H"		// Progress bar
+#include "localmpi.H"		// MPI variables
 
-#include <DiskEval.H>
+#include "DiskEval.H"
 
 #ifdef HAVE_OMP_H
 #include <omp.h>

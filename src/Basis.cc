@@ -1,6 +1,6 @@
 #include <limits>
 #include "expand.H"
-#include <Basis.H>
+#include "Basis.H"
 
 // Machine constant for Legendre
 //

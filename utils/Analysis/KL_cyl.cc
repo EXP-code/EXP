@@ -50,18 +50,18 @@
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <ParticleReader.H>
-#include <interp.H>
-#include <massmodel.H>
-#include <EmpCylSL.H>
-#include <foarray.H>
-#include <KDtree.H>
-#include <Progress.H>
-#include <cxxopts.H>
+#include "numerical.H"
+#include "ParticleReader.H"
+#include "interp.H"
+#include "massmodel.H"
+#include "EmpCylSL.H"
+#include "foarray.H"
+#include "KDtree.H"
+#include "Progress.H"
+#include "cxxopts.H"
 
-#include <libvars.H>
-#include <localmpi.H>
+#include "libvars.H"
+#include "localmpi.H"
 
 #include <yaml-cpp/yaml.h>	// YAML support
 

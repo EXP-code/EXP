@@ -3,7 +3,7 @@
 #include <cmath>
 #include <string>
 
-#include <gaussQ.H>
+#include "gaussQ.H"
 
 extern "C" {
   void Hermite(int n, double alpha, double abscis[], double weight[]);

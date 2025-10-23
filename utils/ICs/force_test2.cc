@@ -11,16 +11,16 @@
 #include <string>
 #include <vector>
 
-#include <DiskEval.H>
+#include "DiskEval.H"
 
 #include <fenv.h>
 
-#include <Progress.H>		// Progress bar
-#include <cxxopts.H>		// Command line parsing
+#include "Progress.H"		// Progress bar
+#include "cxxopts.H"		// Command line parsing
 
 // Globals for exp libraries
 //
-#include <libvars.H>
+#include "libvars.H"
 
 int 
 main(int ac, char **av)

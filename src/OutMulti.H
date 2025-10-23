@@ -1,7 +1,7 @@
 #ifndef _OutMulti_H
 #define _OutMulti_H
 
-#include <OutMulti.H>
+#include "OutMulti.H"
 
 /** Dump histogram of multistep levels to file in GNUPLOT format
 

@@ -1,9 +1,9 @@
 #include <cmath>
 #include <cstdlib>
 
-#include <numerical.H>
-#include <GenPoly.H>
-#include <interp.H>
+#include "numerical.H"
+#include "GenPoly.H"
+#include "interp.H"
 
 
 static double nn, mm;

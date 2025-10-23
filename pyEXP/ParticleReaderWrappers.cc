@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <ParticleReader.H>
+#include "ParticleReader.H"
 
 namespace py = pybind11;
 

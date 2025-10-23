@@ -1,8 +1,8 @@
 #ifndef _DISK_MODELS_H
 #define _DISK_MODELS_H
 
-#include <EmpCylSL.H>
-#include <DiskDensityFunc.H>
+#include "EmpCylSL.H"
+#include "DiskDensityFunc.H"
 
 //! A Ferrers Ellipsoid + Evacuated Exponential Disc (semi-realistic
 //! bar+disk model)

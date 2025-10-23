@@ -7,8 +7,8 @@
 #include <iomanip>
 #include <cmath>
 
-#include <biorth.H>
-#include <biorth_wake.H>
+#include "biorth.H"
+#include "biorth_wake.H"
 
 double factrl(int n);
 double plgndr(int l, int m, double x);

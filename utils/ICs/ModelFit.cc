@@ -7,9 +7,9 @@
 #include <string>
 #include <cmath>
 
-#include <SimAnn.H>
-#include <libvars.H>
-#include <cxxopts.H>
+#include "SimAnn.H"
+#include "libvars.H"
+#include "cxxopts.H"
 
 //! Base class for density fitting functions
 class ModelFit : public std::function<double(std::vector<double>&)>

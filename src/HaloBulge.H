@@ -5,7 +5,7 @@
 #include <vector>
 #include <set>
 
-#include <ExternalForce.H>
+#include "ExternalForce.H"
 
 //! Compute halo + bulge external force
 class HaloBulge : public ExternalForce

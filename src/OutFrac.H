@@ -1,8 +1,8 @@
 #ifndef _OutFrac_H
 #define _OutFrac_H
 
-#include <Output.H>
-#include <Component.H>
+#include "Output.H"
+#include "Component.H"
 
 /** Dump mass fractions at each interval
     

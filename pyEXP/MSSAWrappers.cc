@@ -2,10 +2,10 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include <expMSSA.H>
+#include "expMSSA.H"
 
 namespace py = pybind11;
-#include <TensorToArray.H>
+#include "TensorToArray.H"
 
 void MSSAtoolkitClasses(py::module &m) {
 

@@ -6,8 +6,8 @@
 #include <yaml-cpp/yaml.h>	// YAML support
 
 
-#include <coef.H>		// Old original header
-#include <CoefStruct.H>		// New coefficient structure
+#include "coef.H"		// Old original header
+#include "CoefStruct.H"		// New coefficient structure
 
 namespace CoefClasses
 {

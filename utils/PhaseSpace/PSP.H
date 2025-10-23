@@ -13,8 +13,8 @@
 
 #include <memory>
 
-#include <StringTok.H>
-#include <header.H>
+#include "StringTok.H"
+#include "header.H"
 
 class PSPstanza 
 {

@@ -2,7 +2,7 @@
 #define _Bessel_H
 
 #include <assert.h>
-#include <SphericalBasis.H>
+#include "SphericalBasis.H"
 
 Eigen::VectorXd sbessjz(int n, int m);
 

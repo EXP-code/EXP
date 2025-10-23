@@ -1,9 +1,9 @@
 #include <ios>
 #include <yaml-cpp/yaml.h>	      // YAML support
-#include <Sutils.H>		      // For trim-copy
+#include "Sutils.H"		      // For trim-copy
 
-#include <PSP.H>
-#include <libvars.H>		// Library support
+#include "PSP.H"
+#include "libvars.H"		// Library support
 
 bool badstatus(std::istream& in)
 {

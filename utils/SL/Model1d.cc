@@ -4,12 +4,12 @@
 #include <string>
 #include <cmath>
 
-#include <gaussQ.H>
-#include <interp.H>
+#include "gaussQ.H"
+#include "interp.H"
 
-#include <Model1d.H>
+#include "Model1d.H"
 
-#include <RK4.H>
+#include "RK4.H"
 
 double Sech2::HMAX     = 1.0e6;
 double Sech2mu::HMAX   = 1.0e6;

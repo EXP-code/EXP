@@ -63,7 +63,7 @@
 
 #include <math.h>
 #include <stdio.h>
-#include <numerical.H>
+#include "numerical.H"
 
 
 

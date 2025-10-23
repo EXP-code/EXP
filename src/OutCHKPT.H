@@ -1,7 +1,7 @@
 #ifndef _OutCHKPT_H
 #define _OutCHKPT_H
 
-#include <OutCHKPT.H>
+#include "OutCHKPT.H"
 
 /** Writes a checkpoint file at regular intervals
 

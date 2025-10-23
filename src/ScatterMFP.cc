@@ -9,7 +9,7 @@
 #include "expand.H"
 
 
-#include <ScatterMFP.H>
+#include "ScatterMFP.H"
 
 bool less_rpair(const rpair& one, const rpair& two)
 {

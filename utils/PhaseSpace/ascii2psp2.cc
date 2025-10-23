@@ -16,9 +16,9 @@
 #include <getopt.h>		// C-style option parsing
 
 #include <yaml-cpp/yaml.h>	// YAML support
-#include <libvars.H>		// EXP global library variables
+#include "libvars.H"		// EXP global library variables
 
-#include <PSP.H>
+#include "PSP.H"
 
 //-------------
 // Help message

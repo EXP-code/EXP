@@ -6,9 +6,9 @@
 #include <cmath>
 
 #include <time.h>
-#include <numerical.H>
+#include "numerical.H"
 
-#include <phase.H>
+#include "phase.H"
 
 using namespace std;
 

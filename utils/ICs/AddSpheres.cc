@@ -4,10 +4,10 @@
 #include <vector>
 #include <cmath>
 
-#include <localmpi.H>
-#include <massmodel.H>
-#include <AddSpheres.H>
-#include <interp.H>
+#include "localmpi.H"
+#include "massmodel.H"
+#include "AddSpheres.H"
+#include "interp.H"
 
 int    AddSpheres::number = 4000;
 double AddSpheres::Rmin = 1.0e-3;

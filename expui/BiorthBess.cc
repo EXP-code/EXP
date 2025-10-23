@@ -1,10 +1,10 @@
 #include <cassert>
 
-#include <BiorthBess.H>
-#include <EXPmath.H>
-#include <EXPException.H>
-#include <interp.H>
-#include <gaussQ.H>
+#include "BiorthBess.H"
+#include "EXPmath.H"
+#include "EXPException.H"
+#include "interp.H"
+#include "gaussQ.H"
 #include <cassert>
 
 BiorthBess::BiorthBess(double rmax, int lmax, int nmax, int RNUM) :

@@ -43,7 +43,7 @@ using namespace std;
 
 // EXP library support
 //
-#include <libvars.H>
+#include "libvars.H"
 
 using namespace __EXP__;	// Reference to n-body globals
 

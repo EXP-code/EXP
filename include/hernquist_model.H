@@ -2,7 +2,7 @@
 #define _hernquistmodel_H
 
 #include <cmath>
-#include <massmodel.H>
+#include "massmodel.H"
 
 class HernquistSphere : public AxiSymModel
 {

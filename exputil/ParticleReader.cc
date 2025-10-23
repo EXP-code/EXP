@@ -20,11 +20,11 @@
 
 #include <H5Cpp.h>		// HDF5 C++ support
 
-#include <ParticleReader.H>
-#include <EXPException.H>
-#include <P2Quantile.H>
-#include <gadget.H>
-#include <Sutils.H>		// For string trimming
+#include "ParticleReader.H"
+#include "EXPException.H"
+#include "P2Quantile.H"
+#include "gadget.H"
+#include "Sutils.H"		// For string trimming
 
 namespace PR {
 

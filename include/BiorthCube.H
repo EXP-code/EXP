@@ -9,11 +9,11 @@
 #include <Eigen/Eigen>
 
 #include <mpi.h>
-#include <localmpi.H>
+#include "localmpi.H"
 
-#include <config_exp.h>		// EXP configuration
+#include "config_exp.h"		// EXP configuration
 
-#include <massmodel.H>
+#include "massmodel.H"
 #include <yaml-cpp/yaml.h>
 
 #if HAVE_LIBCUDA==1
@@ -33,7 +33,7 @@
 #include <cudaMappingConstants.cuH>
 #endif
 
-#include <EmpCyl2d.H>
+#include "EmpCyl2d.H"
 
 //!! BiorthCube grid class
 class BiorthCube
