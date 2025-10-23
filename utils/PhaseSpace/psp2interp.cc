@@ -15,15 +15,15 @@
 
 using namespace std;
 
-#include <Progress.H>		// The old boost progress bar
-#include <cxxopts.H>		// Option parsing
-#include <libvars.H>		// EXP library globals
+#include "Progress.H"		// The old boost progress bar
+#include "cxxopts.H"		// Option parsing
+#include "libvars.H"		// EXP library globals
 
-#include <StringTok.H>
-#include <FileUtils.H>
-#include <header.H>
-#include <Grid2D.H>
-#include <PSP.H>
+#include "StringTok.H"
+#include "FileUtils.H"
+#include "header.H"
+#include "Grid2D.H"
+#include "PSP.H"
 
 int
 main(int ac, char **av)

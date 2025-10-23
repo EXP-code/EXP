@@ -8,12 +8,12 @@
 
 #include <Eigen/Eigen>
 
-#include <libvars.H>		// EXP library support
-#include <localmpi.H>		// MPI basics
-#include <SLSphere.H>		// Defines biorthogonal SL class
-#include <gaussQ.H>		// Gauss-Legendre quadrature
-#include <cxxopts.H>		// Option parsing
-#include <libvars.H>		// EXP library globals
+#include "libvars.H"		// EXP library support
+#include "localmpi.H"		// MPI basics
+#include "SLSphere.H"		// Defines biorthogonal SL class
+#include "gaussQ.H"		// Gauss-Legendre quadrature
+#include "cxxopts.H"		// Option parsing
+#include "libvars.H"		// EXP library globals
 
 
 //===========================================================================

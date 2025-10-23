@@ -2,7 +2,7 @@
 #define _plummer_H
 
 #include <cmath>
-#include <massmodel.H>
+#include "massmodel.H"
 
 class PlummerSphere : public AxiSymModel
 {

@@ -2,7 +2,7 @@
 #define _GenPoly_H
 
 #include <cmath>
-#include <massmodel.H>
+#include "massmodel.H"
 
 class GeneralizedPolytrope : public AxiSymModel
 {

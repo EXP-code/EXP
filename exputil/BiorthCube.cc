@@ -12,16 +12,16 @@
 #include <Eigen/Eigen>		// Eigen3
 #include <unsupported/Eigen/CXX11/Tensor> // Eigen3 tensors
 
-#include <Progress.H>		// Progress bar
+#include "Progress.H"		// Progress bar
 
 #ifdef HAVE_OMP_H
 #include <omp.h>		// For multithreading basis construction
 #endif
 
-#include <BiorthCube.H>		// Definition for this class
-#include <EXPException.H>	// For GenericError
-#include <numerical.H>
-#include <libvars.H>
+#include "BiorthCube.H"		// Definition for this class
+#include "EXPException.H"	// For GenericError
+#include "numerical.H"
+#include "libvars.H"
 
 using namespace __EXP__;	// For reference to n-body globals
 

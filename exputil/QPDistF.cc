@@ -33,13 +33,13 @@
 #include <cmath>
 #include <map>
 
-#include <numerical.H>
-#include <gaussQ.H>
-#include <interp.H>
+#include "numerical.H"
+#include "gaussQ.H"
+#include "interp.H"
 
-#include <massmodel.H>
+#include "massmodel.H"
 
-#include <QPDistF.H>
+#include "QPDistF.H"
 
 bool QPDistF::MassEGrid    = true;
 bool QPDistF::MassLinear   = true;

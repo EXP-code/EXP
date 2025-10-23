@@ -1,5 +1,5 @@
 #include <math.h>
-#include <numerical.H>
+#include "numerical.H"
 
 double gammln(double xx)
 {

@@ -2,9 +2,9 @@
 #include <fstream>
 #include <iomanip>
 
-#include <expand.H>
+#include "expand.H"
 
-#include <OutCoef.H>
+#include "OutCoef.H"
 
 const std::set<std::string>
 OutCoef::valid_keys = {

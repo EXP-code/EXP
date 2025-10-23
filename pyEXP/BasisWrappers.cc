@@ -5,11 +5,11 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include <BiorthBasis.H>
-#include <FieldBasis.H>
+#include "BiorthBasis.H"
+#include "FieldBasis.H"
 
 namespace py = pybind11;
-#include <TensorToArray.H>
+#include "TensorToArray.H"
 
 void BasisFactoryClasses(py::module &m)
 {
@@ -1346,7 +1346,7 @@ void BasisFactoryClasses(py::module &m)
          __call__       : same as getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
-    .def("getAccel", &BasisClasses::BiorthBasis::getAccel,
+    .def("getAccel", py::overload_cast<double, double, double>(&BasisClasses::BiorthBasis::getAccel),
 	 R"(
          Return the acceleration for a given cartesian position
 
@@ -1370,7 +1370,51 @@ void BasisFactoryClasses(py::module &m)
          __call__       : same as getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
-    .def("getAccelArray", &BasisClasses::BiorthBasis::getAccelArray,
+    .def("getAccel", py::overload_cast<Eigen::VectorXd&, Eigen::VectorXd&, Eigen::VectorXd&>(&BasisClasses::BiorthBasis::getAccel),
+	 R"(
+         Return the acceleration for a given cartesian position
+
+         Parameters
+         ----------
+         x : ndarray
+             x-axis positions
+         y : ndarray
+             y-axis positions
+         z : ndarray
+             z-axis positions
+
+         Returns
+         -------
+         accel: numpy.ndarray
+
+         See also
+         --------
+         getFields      : returns density, potential and acceleration
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same as getFields() but provides field labels in a tuple
+         )",
+	 py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("getAccel", py::overload_cast<RowMatrixXd&>(&BasisClasses::BiorthBasis::getAccel),
+	 R"(
+         Return the acceleration for an array of cartesian positions
+
+         Parameters
+         ----------
+         pos : ndarray (N, 3
+             x, y, z positions
+
+         Returns
+         -------
+         accel: numpy.ndarray
+
+         See also
+         --------
+         getFields      : returns density, potential and acceleration
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same as getFields() but provides field labels in a tuple
+         )",
+	 py::arg("pos"))
+    .def("getAccelArray", py::overload_cast<Eigen::VectorXd&, Eigen::VectorXd&, Eigen::VectorXd&>(&BasisClasses::BiorthBasis::getAccel),
 	 R"(
          Return the acceleration for a given cartesian position
 

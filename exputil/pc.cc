@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include <assert.h>
 #include <cmath>
-#include <numerical.H>
-#include <phase.H>
+#include "numerical.H"
+#include "phase.H"
 
 
 /* 

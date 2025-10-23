@@ -6,7 +6,7 @@ using namespace std;
 
 #include "expand.H"
 
-#include <OutLog.H>
+#include "OutLog.H"
 
 char OutLog::lab_global[][19] = {
   "Time",

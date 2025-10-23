@@ -5,17 +5,17 @@
 #include <iomanip>
 #include <fstream>
 
-#include <config_exp.h>
+#include "config_exp.h"
 #ifdef HAVE_OMP_H
 #include <omp.h>
 #endif
 
 // EXP classes
 //
-#include <libvars.H>
-#include <BasisFactory.H>
-#include <cxxopts.H>		// Command-line parsing
-#include <EXPini.H>		// Ini-style config
+#include "libvars.H"
+#include "BasisFactory.H"
+#include "cxxopts.H"		// Command-line parsing
+#include "EXPini.H"		// Ini-style config
 
 int
 main(int ac, char **av)

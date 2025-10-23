@@ -9,24 +9,24 @@
 
 #include <Eigen/Eigen>
 
-#include <gaussQ.H>
-#include <interp.H>
-#include <Timer.H>
+#include "gaussQ.H"
+#include "interp.H"
+#include "Timer.H"
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
 #endif
 
-#include <Particle.H>
-#include <SLGridMP2.H>
-#include <coef.H>
+#include "Particle.H"
+#include "SLGridMP2.H"
+#include "coef.H"
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
 
-#include <libvars.H>
+#include "libvars.H"
 using namespace __EXP__;
 
 /** Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as

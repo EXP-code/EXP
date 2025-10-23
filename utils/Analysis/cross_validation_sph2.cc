@@ -51,16 +51,16 @@ using namespace std;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <ParticleReader.H>
-#include <interp.H>
-#include <massmodel.H>
-#include <SphSL.H>
-#include <foarray.H>
+#include "numerical.H"
+#include "ParticleReader.H"
+#include "interp.H"
+#include "massmodel.H"
+#include "SphSL.H"
+#include "foarray.H"
 				// Library support
-#include <libvars.H>
-#include <localmpi.H>
-#include <cxxopts.H>
+#include "libvars.H"
+#include "localmpi.H"
+#include "cxxopts.H"
 
 // Globals
 //

@@ -9,7 +9,7 @@
 void do_step (int);
 void clean_up(void);
 
-#include <fpetrap.h>
+#include "fpetrap.h"
 
 #ifdef USE_GPTL
 #include <gptl.h>
@@ -19,8 +19,8 @@ void clean_up(void);
 #include <slurm/slurm.h>
 #endif
 
-#include <BarrierWrapper.H>
-#include <FileUtils.H>
+#include "BarrierWrapper.H"
+#include "FileUtils.H"
 
 
 //===========================================

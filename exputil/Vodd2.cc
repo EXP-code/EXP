@@ -43,7 +43,7 @@
 #include <vector>
 #include <deque>
 
-#include <interp.H>
+#include "interp.H"
 
 template <class V>
 double odd2(double x, const V &xtab, const V &ftab, int even)

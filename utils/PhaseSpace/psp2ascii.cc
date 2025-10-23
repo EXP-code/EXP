@@ -16,10 +16,10 @@
 
 using namespace std;
 
-#include <StringTok.H>
-#include <header.H>
-#include <PSP.H>
-#include <cxxopts.H>
+#include "StringTok.H"
+#include "header.H"
+#include "PSP.H"
+#include "cxxopts.H"
 
 int
 main(int argc, char **argv)

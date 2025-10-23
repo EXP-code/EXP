@@ -3,9 +3,9 @@
 
 #include <vector>
 
-#include <Particle.H>
-#include <Particle.H>
-#include <SLGridMP2.H>
+#include "Particle.H"
+#include "Particle.H"
+#include "SLGridMP2.H"
 
 class SphericalSL
 {

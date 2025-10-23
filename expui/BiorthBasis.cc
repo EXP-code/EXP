@@ -1,11 +1,11 @@
 #include <algorithm>
 
-#include <YamlCheck.H>
-#include <EXPException.H>
-#include <BiorthBasis.H>
-#include <DiskModels.H>
-#include <exputils.H>
-#include <gaussQ.H>
+#include "YamlCheck.H"
+#include "EXPException.H"
+#include "BiorthBasis.H"
+#include "DiskModels.H"
+#include "exputils.H"
+#include "gaussQ.H"
 
 #ifdef HAVE_FE_ENABLE
 #include <cfenv>

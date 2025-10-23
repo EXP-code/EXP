@@ -2,7 +2,7 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 namespace py = pybind11;
 

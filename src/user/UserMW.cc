@@ -3,7 +3,7 @@
 
 #include "expand.H"
 
-#include <UserMW.H>
+#include "UserMW.H"
 
 UserMW::UserMW(const YAML::Node& conf) : ExternalForce(conf)
 {

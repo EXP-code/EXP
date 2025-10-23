@@ -1,7 +1,7 @@
 #ifndef _king_H
 #define _king_H
 
-#include <massmodel.H>
+#include "massmodel.H"
 
 class KingSphere : public SphericalModelTable
 {

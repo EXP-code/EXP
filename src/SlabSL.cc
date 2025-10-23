@@ -3,7 +3,7 @@
 
 #include "expand.H"
 
-#include <SlabSL.H>
+#include "SlabSL.H"
 
 const std::set<std::string>
 SlabSL::valid_keys = {

@@ -1,7 +1,7 @@
 #ifndef _OrbTrace_H
 #define _OrbTrace_H
 
-#include <OrbTrace.H>
+#include "OrbTrace.H"
 
 /** Log norb orbits at each interval
     

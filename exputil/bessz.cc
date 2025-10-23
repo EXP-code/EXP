@@ -11,8 +11,8 @@
 **************************************************************************/
 
 #include <cmath>
-#include <numerical.H>
-#include <EXPmath.H>
+#include "numerical.H"
+#include "EXPmath.H"
 
 #define STEPS 6
 #define TOL 1.0e-7

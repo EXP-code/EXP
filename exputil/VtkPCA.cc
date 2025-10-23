@@ -1,4 +1,4 @@
-#include <VtkPCA.H>
+#include "VtkPCA.H"
 
 #include <map>
 

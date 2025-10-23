@@ -45,16 +45,16 @@ using namespace std;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <ParticleReader.H>
-#include <interp.H>
-#include <massmodel.H>
-#include <SphSL.H>
+#include "numerical.H"
+#include "ParticleReader.H"
+#include "interp.H"
+#include "massmodel.H"
+#include "SphSL.H"
 
-#include <localmpi.H>
-#include <cxxopts.H>
-#include <foarray.H>
-#include <libvars.H>
+#include "localmpi.H"
+#include "cxxopts.H"
+#include "foarray.H"
+#include "libvars.H"
   
 int
 main(int argc, char **argv)

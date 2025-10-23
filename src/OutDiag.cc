@@ -5,8 +5,8 @@
 
 #include "expand.H"
 
-#include <AxisymmetricBasis.H>
-#include <OutDiag.H>
+#include "AxisymmetricBasis.H"
+#include "OutDiag.H"
 
 const std::set<std::string>
 OutDiag::valid_keys = {

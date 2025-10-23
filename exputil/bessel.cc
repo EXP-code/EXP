@@ -2,7 +2,7 @@
 #include <iomanip>
 #include <cmath>
 
-#include <numerical.H>
+#include "numerical.H"
 
 
 double BesselJ(int n, double x)

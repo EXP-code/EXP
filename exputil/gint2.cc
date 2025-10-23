@@ -72,7 +72,7 @@
 
 using namespace std;
 
-#include <gaussQ.H>
+#include "gaussQ.H"
 
                               /* if DEBUG is set, weights and abscissas are
                                  printed on stderr */

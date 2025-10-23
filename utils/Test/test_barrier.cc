@@ -44,9 +44,9 @@
 
 #include <unistd.h>
 
-#include <BarrierWrapper.H>
-#include <cxxopts.H>
-#include <libvars.H>
+#include "BarrierWrapper.H"
+#include "cxxopts.H"
+#include "libvars.H"
 
 using namespace std;
 

@@ -17,10 +17,10 @@
 #include <list>
 #include <map>
 
-#include <cxxopts.H>		// Option parsing
-#include <libvars.H>		// EXP library globals
-#include <header.H>		// PSP headers
-#include <ParticleReader.H>	// Read snaps
+#include "cxxopts.H"		// Option parsing
+#include "libvars.H"		// EXP library globals
+#include "header.H"		// PSP headers
+#include "ParticleReader.H"	// Read snaps
 
 using namespace std;
 

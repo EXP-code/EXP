@@ -37,7 +37,7 @@
 #include <sstream>
 #include <stdexcept>
 
-#include <SphericalSL.H>
+#include "SphericalSL.H"
 
 void legendre_R(int lmax, double x, Eigen::MatrixXd& p);
 void dlegendre_R(int lmax, double x, Eigen::MatrixXd &p, Eigen::MatrixXd &dp);

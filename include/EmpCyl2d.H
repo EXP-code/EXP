@@ -12,11 +12,11 @@
 #include <Eigen/Eigenvalues>
 
 #include <yaml-cpp/yaml.h>	// Parameters parsing
-#include <config_exp.h>		// For config macros
+#include "config_exp.h"		// For config macros
 
-#include <gaussQ.H>
-#include <EXPmath.H>
-#include <localmpi.H>
+#include "gaussQ.H"
+#include "EXPmath.H"
+#include "localmpi.H"
 
 // For reading and writing cache file
 //

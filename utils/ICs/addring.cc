@@ -17,29 +17,29 @@
 
 #include <fenv.h>
 
-#include <config_exp.h>
+#include "config_exp.h"
 #ifdef HAVE_OMP_H
 #include <omp.h>
 #endif
 
 // EXP classes
 //
-#include <numerical.H>
-#include <gaussQ.H>
-#include <isothermal.H>
-#include <hernquist_model.H>
-#include <model3d.H>
-#include <biorth.H>
-#include <SphericalSL.H>
-#include <interp.H>
-#include <AddSpheres.H>
-#include <libvars.H>		// Library globals
-#include <cxxopts.H>		// Command-line parsing
-#include <EXPini.H>		// Ini-style config
+#include "numerical.H"
+#include "gaussQ.H"
+#include "isothermal.H"
+#include "hernquist_model.H"
+#include "model3d.H"
+#include "biorth.H"
+#include "SphericalSL.H"
+#include "interp.H"
+#include "AddSpheres.H"
+#include "libvars.H"		// Library globals
+#include "cxxopts.H"		// Command-line parsing
+#include "EXPini.H"		// Ini-style config
 
                                 // Local headers
-#include <SphericalSL.H>
-#include <localmpi.H>
+#include "SphericalSL.H"
+#include "localmpi.H"
 
 int
 main(int ac, char **av)

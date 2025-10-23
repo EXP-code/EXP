@@ -43,17 +43,17 @@
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
+#include "numerical.H"
 #include "Particle.h"
-#include <PSP2.H>
-#include <interp.H>
-#include <massmodel.H>
-#include <SphSL.H>
-#include <foarray.H>
+#include "PSP2.H"
+#include "interp.H"
+#include "massmodel.H"
+#include "SphSL.H"
+#include "foarray.H"
 
-#include <global.H>
-#include <cxxopts.H>
-#include <localmpi.H>
+#include "global.H"
+#include "cxxopts.H"
+#include "localmpi.H"
 
 // Globals
 //

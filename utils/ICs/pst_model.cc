@@ -14,27 +14,27 @@
 #include <getopt.h>
 
                                 // MDW classes
-#include <numerical.H>
-#include <EllipsoidForce.H>
-#include <CylindricalDisk.H>
-#include <massmodel.H>
-#include <interp.H>
-#include <ZBrent.H>
-#include <localmpi.H>
-#include <libvars.H>
+#include "numerical.H"
+#include "EllipsoidForce.H"
+#include "CylindricalDisk.H"
+#include "massmodel.H"
+#include "interp.H"
+#include "ZBrent.H"
+#include "localmpi.H"
+#include "libvars.H"
 
 using namespace __EXP__;	// Reference to n-body globals
 
                                 // For debugging
 #ifdef DEBUG
-#include <fpetrap.h>
+#include "fpetrap.h"
 #endif
 
 
 // EXP library support
 //
-#include <libvars.H>
-#include <localmpi.H>
+#include "libvars.H"
+#include "localmpi.H"
 
 /*
   Param 0: r_max

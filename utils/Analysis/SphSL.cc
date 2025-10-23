@@ -7,11 +7,11 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include <config_exp.h>
-#include <SphSL.H>
+#include "config_exp.h"
+#include "SphSL.H"
 
 #ifdef HAVE_LIBPNGPP
-#include <ColorGradient.H>	// For PNG images
+#include "ColorGradient.H"	// For PNG images
 #endif
 
 int    SphSL::NUMR = 800;

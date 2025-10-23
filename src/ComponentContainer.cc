@@ -2,23 +2,23 @@
   Compute accelerations, potential, and density.
 */
 
-#include <expand.H>
+#include "expand.H"
 
 #include <filesystem>
 #include <algorithm>
 #include <vector>
 #include <memory>
 
-#include <ComponentContainer.H>
-#include <ExternalCollection.H>
-#include <ParticleReader.H>
-#include <StringTok.H>
+#include "ComponentContainer.H"
+#include "ExternalCollection.H"
+#include "ParticleReader.H"
+#include "StringTok.H"
 
 #ifdef USE_GPTL
 #include <gptl.h>
 #endif
 
-#include <NVTX.H>
+#include "NVTX.H"
 
 long ComponentContainer::tinterval = 300;	// Seconds between timer dumps
 

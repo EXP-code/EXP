@@ -8,10 +8,10 @@
 
 #include <Eigen/Eigen>
 
-#include <PotRZ.H>		// Hankel computation for potential
-#include <EmpCyl2d.H>		// 2d empirical basis
-#include <gaussQ.H>		// Gauss-Legendre quadrature
-#include <cxxopts.H>
+#include "PotRZ.H"		// Hankel computation for potential
+#include "EmpCyl2d.H"		// 2d empirical basis
+#include "gaussQ.H"		// Gauss-Legendre quadrature
+#include "cxxopts.H"
 
 int main(int argc, char** argv)
 {

@@ -32,9 +32,9 @@
 #include <cstdlib>
 #include <cmath>
 
-#include <gaussQ.H>
-#include <biorth2d.H>
-#include <OrthoPoly.H>
+#include "gaussQ.H"
+#include "biorth2d.H"
+#include "OrthoPoly.H"
 
 
 Eigen::VectorXd

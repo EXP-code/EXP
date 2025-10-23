@@ -41,9 +41,9 @@
 #include <string>
 #include <set>
 
-#include <AxisymmetricBasis.H>
-#include <GravKernel.H>
-#include <massmodel.H>
+#include "AxisymmetricBasis.H"
+#include "GravKernel.H"
+#include "massmodel.H"
 
 
 class Direct : public PotAccel

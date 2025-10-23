@@ -1,4 +1,4 @@
-#include <YamlCheck.H>
+#include "YamlCheck.H"
 
 std::set<std::string> YamlCheck(const YAML::Node& node, const std::set<std::string>& valid)
 {

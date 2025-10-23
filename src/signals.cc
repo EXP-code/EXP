@@ -1,7 +1,7 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include <fpetrap.h>
+#include "fpetrap.h"
 #include "expand.H"
 
 //===========================================

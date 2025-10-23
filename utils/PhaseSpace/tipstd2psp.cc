@@ -20,8 +20,8 @@ extern "C" {
 #include <vector>
 #include <string>
 
-#include <libvars.H>		// For library globals
-#include <header.H>
+#include "libvars.H"		// For library globals
+#include "header.H"
 
 #include <getopt.h>		// C-style option parsing
 

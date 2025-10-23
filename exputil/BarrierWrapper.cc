@@ -1,6 +1,6 @@
 
 #include <memory>
-#include <BarrierWrapper.H>
+#include "BarrierWrapper.H"
 #include <unistd.h>
 
 #include <cstring>

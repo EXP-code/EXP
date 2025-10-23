@@ -4,9 +4,9 @@
                                 // C++/STL headers
 #include <string>
                                 // EXP classes
-#include <libvars.H>
-#include <EmpCylSL.H>
-#include <localmpi.H>
+#include "libvars.H"
+#include "EmpCylSL.H"
+#include "localmpi.H"
 
 
 void usage(char *prog)

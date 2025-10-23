@@ -1,5 +1,5 @@
 #include <cmath>
-#include <GravKernel.H>
+#include "GravKernel.H"
 
 std::pair<double, double> PlummerSoft::operator()(double r, double eps)
 {

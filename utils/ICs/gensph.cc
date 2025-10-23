@@ -36,32 +36,32 @@
 
 // EXP classes
 //
-#include <libvars.H>
-#include <localmpi.H>
-#include <numerical.H>
-#include <massmodel.H>
-#include <model3d.H>
-#include <GenPoly.H>
-#include <isothermal.H>
-#include <hernquist_model.H>
-#include <EllipForce.H>
-#include <localmpi.H>
-#include <fpetrap.h>
-#include <cxxopts.H>
-#include <EXPini.H>
+#include "libvars.H"
+#include "localmpi.H"
+#include "numerical.H"
+#include "massmodel.H"
+#include "model3d.H"
+#include "GenPoly.H"
+#include "isothermal.H"
+#include "hernquist_model.H"
+#include "EllipForce.H"
+#include "localmpi.H"
+#include "fpetrap.h"
+#include "cxxopts.H"
+#include "EXPini.H"
 
 // Reference to n-body globals
 //
 using namespace __EXP__;
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 #ifdef HAVE_FFTW
 #include <complex>
 #include <fftw3.h>
 #endif
 
-#include <euler.H>
+#include "euler.H"
 
 // Global variables
 

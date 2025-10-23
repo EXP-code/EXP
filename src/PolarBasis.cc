@@ -8,8 +8,8 @@
 #include <cmath>
 #include <set>
 
-#include <PolarBasis.H>
-#include <MixtureBasis.H>
+#include "PolarBasis.H"
+#include "MixtureBasis.H"
 
 // #define TMP_DEBUG
 // #define MULTI_DEBUG

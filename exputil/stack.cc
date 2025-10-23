@@ -19,7 +19,7 @@
 #include <cstdlib>
 #include <stdexcept>
 
-#include <libvars.H>
+#include "libvars.H"
 using namespace __EXP__;
 
 //! Traceback type

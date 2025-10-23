@@ -11,14 +11,14 @@
 #include <string>
 #include <vector>
 
-#include <DiskEval.H>
-#include <cxxopts.H>
+#include "DiskEval.H"
+#include "cxxopts.H"
 
 #include <fenv.h>
 
 // Globals for exp libraries
 //
-#include <libvars.H>
+#include "libvars.H"
 
 int 
 main(int ac, char **av)

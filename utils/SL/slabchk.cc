@@ -5,9 +5,9 @@
 #include <random>
 #include <cmath>
 
-#include <cxxopts.H>
-#include <gaussQ.H>
-#include <SLGridMP2.H>
+#include "cxxopts.H"
+#include "gaussQ.H"
+#include "SLGridMP2.H"
 #include "Model1d.H"
 
 int 

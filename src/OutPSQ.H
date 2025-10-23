@@ -1,7 +1,7 @@
 #ifndef _OutPSQ_H
 #define _OutPSQ_H
 
-#include <OutPSQ.H>
+#include "OutPSQ.H"
 
 /** Write phase-space dumps at regular intervals from each node 
     in component pieces.  These pieces may be reassembled from the info

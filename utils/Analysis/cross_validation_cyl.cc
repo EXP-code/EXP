@@ -43,7 +43,7 @@
 				// Eigen3
 #include <Eigen/Eigen>
 
-#include <Progress.H>
+#include "Progress.H"
 
                                 // System libs
 #include <unistd.h>
@@ -51,16 +51,16 @@
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <ParticleReader.H>
-#include <interp.H>
-#include <massmodel.H>
-#include <EmpCylSL.H>
-#include <foarray.H>
+#include "numerical.H"
+#include "ParticleReader.H"
+#include "interp.H"
+#include "massmodel.H"
+#include "EmpCylSL.H"
+#include "foarray.H"
 
-#include <libvars.H>
-#include <cxxopts.H>
-#include <localmpi.H>
+#include "libvars.H"
+#include "cxxopts.H"
+#include "localmpi.H"
 
 #include <yaml-cpp/yaml.h>	// YAML support
   

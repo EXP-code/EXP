@@ -14,7 +14,7 @@
 #include <vector>
 #include <array>
 
-#include <cxxopts.H>
+#include "cxxopts.H"
 
 int 
 main(int ac, char **av)

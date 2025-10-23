@@ -5,10 +5,10 @@
 #include <chrono>
 
 #include "expand.H"
-#include <global.H>
+#include "global.H"
 
-#include <AxisymmetricBasis.H>
-#include <OutPSQ.H>
+#include "AxisymmetricBasis.H"
+#include "OutPSQ.H"
 
 const std::set<std::string>
 OutPSQ::valid_keys = {

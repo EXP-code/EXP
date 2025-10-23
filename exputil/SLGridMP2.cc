@@ -17,16 +17,16 @@
 #include <cstdlib>
 #include <vector>
 
-#include <EXPException.H>
-#include <SLGridMP2.H>
-#include <massmodel.H>
-#include <EXPmath.H>
+#include "EXPException.H"
+#include "SLGridMP2.H"
+#include "massmodel.H"
+#include "EXPmath.H"
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
 #endif
 
-#include <config_exp.h>		// For config macros
+#include "config_exp.h"		// For config macros
 
 // For reading and writing cache file
 //

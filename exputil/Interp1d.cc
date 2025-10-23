@@ -1,7 +1,7 @@
 #include <cmath>
 #include <vector>
 
-#include <interp.H>
+#include "interp.H"
 
 Interp1d::~Interp1d(void) 
 {

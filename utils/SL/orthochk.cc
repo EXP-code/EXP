@@ -6,10 +6,10 @@
 
 #include <getopt.h>
 
-#include <biorth1d.H>
-#include <SLGridMP2.H>
-#include <gaussQ.H>
-#include <localmpi.H>
+#include "biorth1d.H"
+#include "SLGridMP2.H"
+#include "gaussQ.H"
+#include "localmpi.H"
 
 //===========================================================================
 

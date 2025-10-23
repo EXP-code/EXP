@@ -10,9 +10,9 @@
 #include <sys/types.h>
 #include <unistd.h>		// For getpid
 
-#include <expand.H>
-#include <ExternalCollection.H>
-#include <OutputContainer.H>
+#include "expand.H"
+#include "ExternalCollection.H"
+#include "OutputContainer.H"
 
 void begin_run(void)
 {

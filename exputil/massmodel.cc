@@ -10,8 +10,8 @@
 #include <vector>
 #include <limits>
 
-#include <massmodel.H>
-#include <interp.H>
+#include "massmodel.H"
+#include "interp.H"
 
 int wordSplit(string& x, vector<string>& words);
 

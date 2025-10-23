@@ -5,10 +5,10 @@
 #include <memory>
 #include <array>
 
-#include <cxxopts.H>
-#include <libvars.H>
+#include "cxxopts.H"
+#include "libvars.H"
 
-#include <ParticleReader.H>
+#include "ParticleReader.H"
 
 int main(int argc, char **argv)
 {

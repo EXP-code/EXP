@@ -3,7 +3,7 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include <CoefContainer.H>
+#include "CoefContainer.H"
 
 namespace py = pybind11;
 

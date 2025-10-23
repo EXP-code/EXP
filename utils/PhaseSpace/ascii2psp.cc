@@ -17,9 +17,9 @@
 
 using namespace std;
 
-#include <header.H>
-#include <cxxopts.H>		// Option parsing
-#include <libvars.H>		// EXP library globals
+#include "header.H"
+#include "cxxopts.H"		// Option parsing
+#include "libvars.H"		// EXP library globals
 
 int
 main(int argc, char **argv)

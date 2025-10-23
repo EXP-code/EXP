@@ -8,17 +8,17 @@
 #include <random>
 #include <cmath>
 
-#include <exponential.H>
-#include <massmodel.H>
+#include "exponential.H"
+#include "massmodel.H"
 
-#include <gaussQ.H>
-#include <localmpi.H>
+#include "gaussQ.H"
+#include "localmpi.H"
 
-#include <AddDisk.H>
-#include <SphericalSL.H>
-#include <Disk2d.H>
-#include <SParticle.H>
-#include <libvars.H>
+#include "AddDisk.H"
+#include "SphericalSL.H"
+#include "Disk2d.H"
+#include "SParticle.H"
+#include "libvars.H"
 
 class Disk2dHaloException : public std::runtime_error
 {

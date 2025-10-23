@@ -4,7 +4,7 @@
 #include <string>
 
 #include <yaml-cpp/yaml.h>	// YAML support
-#include <cxxopts.H>		// Command-line parsing
+#include "cxxopts.H"		// Command-line parsing
 
 
 class EXPparser
