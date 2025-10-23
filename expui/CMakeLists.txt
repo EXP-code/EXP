@@ -84,6 +84,19 @@ target_sources(expui PUBLIC FILE_SET HEADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/../include/massmodel.H
 	${CMAKE_CURRENT_SOURCE_DIR}/../include/interp.H
 	${CMAKE_CURRENT_SOURCE_DIR}/../include/orbit.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/StringTok.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/OrthoFunction.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/gaussQ.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/PseudoAccel.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/QuadLS.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/MonotCubicInterpolator.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/QPDistF.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/DiskWithHalo.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/EmpCyl2d.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/EXPmath.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/libvars.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/Timer.H
+	${CMAKE_CURRENT_SOURCE_DIR}/../include/coef.H
 )
 
 install(TARGETS expui FILE_SET HEADERS DESTINATION include/EXP)
