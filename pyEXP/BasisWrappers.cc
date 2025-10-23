@@ -1394,6 +1394,26 @@ void BasisFactoryClasses(py::module &m)
          __call__       : same as getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("getAccel", py::overload_cast<RowMatrixXd&>(&BasisClasses::BiorthBasis::getAccel),
+	 R"(
+         Return the acceleration for an array of cartesian positions
+
+         Parameters
+         ----------
+         pos : ndarray (N, 3
+             x, y, z positions
+
+         Returns
+         -------
+         accel: numpy.ndarray
+
+         See also
+         --------
+         getFields      : returns density, potential and acceleration
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same as getFields() but provides field labels in a tuple
+         )",
+	 py::arg("pos"))
     .def("getAccelArray", py::overload_cast<Eigen::VectorXd&, Eigen::VectorXd&, Eigen::VectorXd&>(&BasisClasses::BiorthBasis::getAccel),
 	 R"(
          Return the acceleration for a given cartesian position

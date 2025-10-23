@@ -213,7 +213,27 @@ namespace BasisClasses
 
       return varray;
     }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system for a collections of points
+    virtual RowMatrixXd& getAccel(RowMatrixXd& pos)
+    {
+      // Sanity check
+      if (pos.cols() != 3)
+	throw std::runtime_error("BiorthBasis::getAccel: "
+				 "input array must have 3 columns");
+      
+      // Resize the return array
+      varray.resize(pos.rows(), 3);
+#pragma omp parallel for
+      for (int i=0; i<pos.rows(); ++i) {
+	computeAccel(pos(i, 0), pos(i, 1), pos(i, 2), varray.row(i));
+      }
+      
+      return varray;
+    }
   };
+
 
   /**
      An abstract spherical basis to evaluate expansion coeffients and

@@ -1,14 +1,19 @@
 
 set(ODE_SRC rk4.cc bs.cc odesolve.cc)
+
 set(SYMP_SRC sia4.cc)
+
 set(ROOT_SRC rtbis.cc rtsafe.cc brent.cc zbrent.cc mnbrak.cc zbrak.cc zbrac.cc)
+
 set(QUAD_SRC qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc
   Trapsum.cc Splsum.cc)
-set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc # Hankel.cc
-  rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc stack.cc
-  localmpi.cc TableGrid.cc writePVD.cc libvars.cc TransformFFT.cc QDHT.cc
-  YamlCheck.cc parseVersionString.cc EXPmath.cc laguerre_polynomial.cpp
-  YamlConfig.cc orthoTest.cc OrthoFunction.cc VtkGrid.cc)
+
+set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc #
+  Hankel.cc rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc
+  stack.cc localmpi.cc TableGrid.cc writePVD.cc libvars.cc
+  TransformFFT.cc QDHT.cc YamlCheck.cc parseVersionString.cc
+  EXPmath.cc laguerre_polynomial.cpp YamlConfig.cc orthoTest.cc
+  OrthoFunction.cc VtkGrid.cc Sutils.cc fpetrap.cc)
 
 if(HAVE_VTK)
   list(APPEND UTIL_SRC VtkPCA.cc)
