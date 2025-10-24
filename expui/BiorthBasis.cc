@@ -637,9 +637,11 @@ namespace BasisClasses
 	}
 
 	if (pcavar) {
-	  Eigen::VectorXd g = potd[tid].row(l).transpose() * fac * norm;
+	  Eigen::VectorXcd g = std::exp(std::complex<double>(0.0, m*phi)) * 
+	    potd[tid].row(l).transpose() * fac * norm;
+	  
 	  meanV[T][L].noalias() += g * mass;
-	  covrV[T][L].noalias() += g * g.transpose() * mass;
+	  covrV[T][L].noalias() += g * g.adjoint() * mass;
 	}
 
       }
@@ -1547,8 +1549,7 @@ namespace BasisClasses
     EmpCylSL::CMAPZ       = cmapZ;
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
-    EmpCylSL::PCAVAR      = pcavar;
-    
+
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
     //
@@ -1570,9 +1571,9 @@ namespace BasisClasses
     //
     if (mlim>=0)  sl->set_mlim(mlim);
     if (EVEN_M)   sl->setEven(EVEN_M);
-    if (sampT>0)  {
+    if (pcavar)  {
       sl->setSampT(sampT);
-      sl->init_pca();
+      sl->set_covar(true);
     }
     
     // Cache override for old Eigen cache
@@ -4869,28 +4870,56 @@ namespace BasisClasses
       size_t lmax = covar[T].size();
       size_t nmax = std::get<0>(covar[T][0]).rows();
 
-      Eigen::VectorXd data(lmax*nmax);
-      for (size_t l=0, c=0; l<lmax; l++) {
-	for (size_t n=0; n<nmax; n++, c++) {
-	  data(c) = std::get<0>(covar[T][l])(n);
-	}
-      }
+      if (floatType) {
+	Eigen::VectorXcf data(lmax*nmax);
 
-      HighFive::DataSet coefdata = sample.createDataSet("coefficients", data);
-
-      // Pack the covariance data in an upper triangular format
-      //
-      size_t diagonalSize = nmax*(nmax + 1)/2;
-      data.resize(lmax*diagonalSize);
-      for (size_t l=0, c=0; l<lmax; l++) {
-	for (size_t n1=0; n1<nmax; n1++) {
-	  for (size_t n2=n1; n2<nmax; n2++, c++) {
-	    data(c) = std::get<1>(covar[T][l])(n1, n2);
+	for (size_t l=0, c=0; l<lmax; l++) {
+	  for (size_t n=0; n<nmax; n++, c++) {
+	    data(c) = static_cast<std::complex<float>>
+	      (std::get<0>(covar[T][l])(n));
 	  }
 	}
-      }
 
-      HighFive::DataSet covdata = sample.createDataSet("covariance", data);
+	HighFive::DataSet coefdata = sample.createDataSet("coefficients", data);
+
+	// Pack the covariance data in an upper triangular format
+	//
+	size_t diagonalSize = nmax*(nmax + 1)/2;
+	data.resize(lmax*diagonalSize);
+	for (size_t l=0, c=0; l<lmax; l++) {
+	  for (size_t n1=0; n1<nmax; n1++) {
+	    for (size_t n2=n1; n2<nmax; n2++, c++) {
+	      data(c) = static_cast<std::complex<float>>
+		(std::get<1>(covar[T][l])(n1, n2));
+	    }
+	  }
+	}
+	
+	HighFive::DataSet covdata = sample.createDataSet("covariance", data);
+      } else {
+	Eigen::VectorXcd data(lmax*nmax);
+	for (size_t l=0, c=0; l<lmax; l++) {
+	  for (size_t n=0; n<nmax; n++, c++) {
+	    data(c) = std::get<0>(covar[T][l])(n);
+	  }
+	}
+
+	HighFive::DataSet coefdata = sample.createDataSet("coefficients", data);
+
+	// Pack the covariance data in an upper triangular format
+	//
+	size_t diagonalSize = nmax*(nmax + 1)/2;
+	data.resize(lmax*diagonalSize);
+	for (size_t l=0, c=0; l<lmax; l++) {
+	  for (size_t n1=0; n1<nmax; n1++) {
+	    for (size_t n2=n1; n2<nmax; n2++, c++) {
+	      data(c) = std::get<1>(covar[T][l])(n1, n2);
+	    }
+	  }
+	}
+	
+	HighFive::DataSet covdata = sample.createDataSet("covariance", data);
+      }
     }
     // END: sample loop
 
@@ -4952,10 +4981,15 @@ namespace BasisClasses
       //
       file.createAttribute<std::string>("CovarianceFileVersion", HighFive::DataSpace::From(CovarianceFileVersion)).write(CovarianceFileVersion);
 
-      // We write the basis identifier string
+      // Write the basis identifier string
       //
       file.createAttribute<std::string>("BasisID", HighFive::DataSpace::From(BasisID)).write(BasisID);
       
+      // Write the data type size
+      //
+      int sz = 8; if (floatType) sz = 4;
+      file.createAttribute<int>("FloatSize", HighFive::DataSpace::From(sz)).write(sz);
+
       // Write the specific parameters
       //
       writeCovarH5Params(file);
@@ -5037,6 +5071,16 @@ namespace BasisClasses
       //
       file.getAttribute("BasisID").read(basisID);
       
+      // Get the float size
+      int sz = 8;
+      file.getAttribute("FloatSize").read(sz);
+      if (sz != 4 and sz != 8) {
+	std::ostringstream sout;
+	sout << "CovarianceReader: unsupported float size, " << sz;
+	throw std::runtime_error(sout.str());
+      }
+      std::cout << "Float size is " << sz << std::endl;
+
       int lmax, nmax, ltot;
 
       // Current implemented spherical types
@@ -5102,7 +5146,7 @@ namespace BasisClasses
 	  HighFive::Group sample = stanza.getGroup(sT.str());
 
 	  // Storage
-	  Eigen::VectorXd data;
+	  Eigen::VectorXcd data;
 
 	  // Repack the data
 	  std::vector<CoefCovarType> elem(ltot);
@@ -5112,7 +5156,13 @@ namespace BasisClasses
 	  }
 
 	  // Get the flattened coefficient array
-	  data = sample.getDataSet("coefficients").read<Eigen::VectorXd>();
+	  if (sz==4) {
+	    Eigen::VectorXcf dataF;
+	    dataF = sample.getDataSet("coefficients").read<Eigen::VectorXcf>();
+	    data = dataF.cast<std::complex<double>>();
+	  } else {
+	    data = sample.getDataSet("coefficients").read<Eigen::VectorXcd>();
+	  }
 	  
 	  // Pack the coefficient data
 	  for (size_t l=0, c=0; l<ltot; l++) {
@@ -5122,7 +5172,13 @@ namespace BasisClasses
 	  }
 
 	  // Get the flattened covariance array
-	  data = sample.getDataSet("covariance").read<Eigen::VectorXd>();
+	  if (sz==4) {
+	    Eigen::VectorXcf dataF;
+	    dataF = sample.getDataSet("covariance").read<Eigen::VectorXcf>();
+	    data = dataF.cast<std::complex<double>>();
+	  } else {
+	    data = sample.getDataSet("covariance").read<Eigen::VectorXcd>();
+	  }
 	  
 	  // Pack the coefficient data
 	  for (size_t l=0, c=0; l<ltot; l++) {

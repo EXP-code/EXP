@@ -101,6 +101,9 @@ namespace BasisClasses
     //! Coefficient variance computation enabled
     bool pcavar = false;
 
+    //! Data type for covariance
+    bool floatType = false;
+
     //@{
     //! Sample counts and masses for covariance computation
     Eigen::VectorXi sampleCounts;
@@ -269,6 +272,9 @@ namespace BasisClasses
     void writeCoefCovariance(const std::string& compname,
 			     const std::string& runtag,
 			     double time=0.0);
+
+    //! Choose between float and double storage for covariance
+    void setCovarFloatType(bool flt) { floatType = flt; }
 
     //! Make covariance after accumulation
     virtual void makeCoefCovariance(void) {}
@@ -1328,7 +1334,7 @@ namespace BasisClasses
   {
   public:
     
-    using CoefCovarType = std::tuple<Eigen::VectorXd, Eigen::MatrixXd>;
+    using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
 
   protected:
 

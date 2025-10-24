@@ -436,7 +436,7 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(void, BiorthBasis, set_coefs, coefs);
     }
 
-    using CCelement = std::tuple<Eigen::VectorXd, Eigen::MatrixXd>;
+    using CCelement = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
     using CCreturn  = std::vector<std::vector<CCelement>>;
 
     CCreturn getCoefCovariance(void) override {
@@ -1332,23 +1332,24 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("mass"), py::arg("pos"))
     .def("getCoefCovariance", &BasisClasses::BiorthBasis::getCoefCovariance,
          R"(
-	 Return the coefficient vectors and covariance matrices for each partition of the
+         Return the coefficient vectors and covariance matrices for each partition of the
          accumulated particles. The number of partitions is set by the configuration
          parameter 'sampT' (default: 100).
 
          The first dimension are the time samples.  The second dimension is the angular
-         index. The coefficients are the moduli of the original complex coefficient vectors.
+         index. Each element is a tuple of the coefficient vector and covariance.
+         The values are complex128 and represet the full amplitude and phase information.
 
          Returns
          -------
          arrays: list[list[tuple[np.ndarray, np.ndarray]]]
              Each element is a tuple (coef_vector, coef_covariance_matrix),
              where coef_vector and coef_covariance_matrix are numpy.ndarray.
-             Each coef_covariance_matrix is of shape (nmax, nmax)
+             Each coef_covariance_matrix is of shape (nmax, nmax). All values are
+             complex128.
 
          Shape and Indexing
          ------------------
-         - Coefficient vectors are moduli of the original complex coefficient vectors
          - The first list index is the number of time samples.
          - The second list index is the angular elements.  For spherical bases, all (l, m) pairs
            are in triangular index order with l in [0,...,lmax] and m in [0,...,l] for a total of
@@ -1365,7 +1366,7 @@ void BasisFactoryClasses(py::module &m)
          )")
     .def("getCovarSamples", &BasisClasses::BiorthBasis::getCovarSamples,
          R"(
-	 Return a vector of counts and mass used to compute the partitioned 
+         Return a vector of counts and mass used to compute the partitioned 
          vectors and covariance.  The length of both returned vectors equals 'sampT'
 
          Parameters
@@ -1387,7 +1388,7 @@ void BasisFactoryClasses(py::module &m)
          )")
     .def("writeCoefCovariance", &BasisClasses::BiorthBasis::writeCoefCovariance,
          R"(
-	 Write the partitioned coefficient vectors and covariance matrices
+         Write the partitioned coefficient vectors and covariance matrices
          to a specified HDF5 file.  The number of partitions is set by the
          configuration parameter 'sampT' and defaults to 100.
 
@@ -1415,7 +1416,22 @@ void BasisFactoryClasses(py::module &m)
          getCoefCovariance : get the coefficient vectors and covariance matrices
                              for the partitioned phase space.
          getCovarSamples   : get counts and mass in each partition
-	 )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
+         )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
+    .def("setCovarFloatType", &BasisClasses::BiorthBasis::setCovarFloatType,
+         R"(
+         Set the floating point type used for covariance storage in HDF5. Set to
+         true for float4.  Type float8 is the default (false).  This does not affect
+         the return type in getCoefCovariance().
+
+         Parameters
+         ----------
+         floatType : bool
+                 Use 'float32' rather than 'float64' if true
+
+         Returns
+         -------
+         None
+         )")
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
          Return the field evaluations for a given cartesian position. The
@@ -2721,7 +2737,7 @@ void BasisFactoryClasses(py::module &m)
        times : list(float)
             a list of evaluation times
       )")
-  .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXd, Eigen::MatrixXd>>>
+  .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>>>
        (BasisClasses::CovarianceReader::*)(unsigned)>(&BasisClasses::CovarianceReader::getCoefCovariance),
      R"(
      Get the covariance matrices for the basis coefficients
@@ -2737,7 +2753,7 @@ void BasisFactoryClasses(py::module &m)
             each subsample
     )",
     py::arg("index"))
-  .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXd, Eigen::MatrixXd>>>
+  .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>>>
        (BasisClasses::CovarianceReader::*)(double)>(&BasisClasses::CovarianceReader::getCoefCovariance),
      R"(
      Get the covariance matrices for the basis coefficients
@@ -2750,8 +2766,8 @@ void BasisFactoryClasses(py::module &m)
      Returns
      -------
       list(list(tuple(numpy.ndarray, numpy.ndarray)))
-	    list of partitioned coefficients and their covariance matrices for
-            each subsample
+	    List of partitioned coefficients and their covariance matrices for
+            each subsample. The returns are complex-valued.
     )",
     py::arg("time"))
    .def("getCovarSamples", static_cast<std::tuple<Eigen::VectorXi, Eigen::VectorXd>

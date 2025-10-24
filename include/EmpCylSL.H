@@ -94,6 +94,13 @@ protected:
   //! EOF variance computation
   using VarMat = std::vector< std::vector< std::vector< std::vector<double> > > >;
   VarMat SC, SS, SCe, SCo, SSe, SSo;
+
+  //! Complex covariance implemenation
+  using CVarMat = std::vector< std::vector< std::vector< Eigen::MatrixXcd> > >;
+  using CVarVec = std::vector< std::vector< std::vector< Eigen::VectorXcd> > >;
+  CVarMat MV;
+  CVarVec VC;
+  bool covar = false;
   //@}
 
   std::vector<Eigen::MatrixXd> var, varE, varO;
@@ -630,6 +637,15 @@ public:
   //! Initialize PCA work space
   void init_pca();
 
+  //! Initialize covariance work space
+  void init_covar();
+
+  //! Turn on/off covariance computation
+  void set_covar(bool tf) {
+    covar = tf;
+    if (tf) init_covar();
+  }
+
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
 
@@ -932,7 +948,7 @@ public:
 
   //! Return a vector of tuples of basis coefficients and the
   //! covariance matrix for subsamples of particles
-  using CoefCovarType = std::tuple<Eigen::VectorXd, Eigen::MatrixXd>;
+  using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
   std::vector<std::vector<CoefCovarType>> getCoefCovariance();
 
   //! Covariance statistics
