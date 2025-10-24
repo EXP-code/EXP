@@ -9,7 +9,8 @@ UnitValidator::UnitValidator()
 }
 
 // Do the full check and return canonical strings in two steps.  First
-// check the type.  Then the unit within that type.
+// check the type.  Then the unit within that type.  Returns a tuple of
+// (is_valid, canonical_type, canonical_unit).
 std::tuple<bool, std::string, std::string>
 UnitValidator::operator()(const std::string& type, const std::string& unit)
 {
@@ -41,38 +42,44 @@ UnitValidator::createAllowedUnitTypes()
 {
   std::unordered_map<std::string, std::string> allowed;
 
-  // Canonical names
-    allowed["length"]   = "length";
-    allowed["mass"]     = "mass";
-    allowed["time"]     = "time";
-    allowed["velocity"] = "velocity";
-    allowed["G"]        = "G";
+  // These are the canonical names
+  //
+  allowed["length"]   = "length";
+  allowed["mass"]     = "mass";
+  allowed["time"]     = "time";
+  allowed["velocity"] = "velocity";
+  allowed["G"]        = "G";
+  
+  // These are recognized aliases aliases for the types
+  //
+  allowed["Length"]   = "length";
+  allowed["Len"]      = "length";
+  allowed["len"]      = "length";
+  allowed["l"]        = "length";
+  allowed["L"]        = "length";
 
-    // Aliases
-    allowed["Length"]   = "length";
-    allowed["Len"]      = "length";
-    allowed["len"]      = "length";
-    allowed["l"]        = "length";
-    allowed["L"]        = "length";
-    allowed["Mass"]     = "mass";
-    allowed["m"]        = "mass";
-    allowed["M"]        = "mass";
-    allowed["Time"]     = "time";
-    allowed["t"]        = "time";
-    allowed["T"]        = "time";
-    allowed["vel"]      = "velocity";
-    allowed["Vel"]      = "velocity";
-    allowed["Velocity"] = "velocity";
-    allowed["v"]        = "velocity";
-    allowed["V"]        = "velocity";
-    allowed["Grav"]     = "G";
-    allowed["grav"]     = "G";
-    allowed["grav_constant"] = "G";
-    allowed["Grav_constant"] = "G";
-    allowed["gravitational_constant"] = "G";
-    allowed["Gravitational_constant"] = "G";
+  allowed["Mass"]     = "mass";
+  allowed["m"]        = "mass";
+  allowed["M"]        = "mass";
 
-    return allowed;
+  allowed["Time"]     = "time";
+  allowed["t"]        = "time";
+  allowed["T"]        = "time";
+
+  allowed["vel"]      = "velocity";
+  allowed["Vel"]      = "velocity";
+  allowed["Velocity"] = "velocity";
+  allowed["v"]        = "velocity";
+  allowed["V"]        = "velocity";
+  
+  allowed["Grav"]     = "G";
+  allowed["grav"]     = "G";
+  allowed["grav_constant"] = "G";
+  allowed["Grav_constant"] = "G";
+  allowed["gravitational_constant"] = "G";
+  allowed["Gravitational_constant"] = "G";
+  
+  return allowed;
 }
 
 // Map aliases to their canonical (primary) unit names for each type
@@ -81,6 +88,22 @@ std::map<std::string, std::unordered_map<std::string, std::string>>
 UnitValidator::createAllowedUnitNames()
 {
   std::map<std::string, std::unordered_map<std::string, std::string>> allowed;
+
+  // Allow 'none' as a unit for all types
+  //
+  allowed["length"]["none"]     = "none";
+  allowed["mass"]["none"]       = "none";
+  allowed["time"]["none"]       = "none";
+  allowed["length"]["None"]     = "none";
+  allowed["mass"]["None"]       = "none";
+  allowed["velocity"]["none"]   = "none";
+
+  // Special non-units
+  //
+  allowed["G"][""]              = "none";
+  allowed["G"]["mixed"]         = "mixed";
+  allowed["G"]["none"]          = "none";
+  allowed["G"]["unitless"]      = "none";
 
   // Canonical length units
   //
@@ -95,14 +118,13 @@ UnitValidator::createAllowedUnitNames()
   allowed["length"]["pc"]       = "pc";
   allowed["length"]["kpc"]      = "kpc";
   allowed["length"]["Mpc"]      = "Mpc";
-  allowed["length"]["none"]     = "none";
 
-  // Astronomical mass units
+  // Standard astronomical mass units
+  //
   allowed["mass"]["Msun"]       = "Msun";
   allowed["mass"]["Mearth"]     = "Mearth";
   allowed["mass"]["g"]          = "g";
   allowed["mass"]["kg"]         = "kg";
-  allowed["mass"]["none"]       = "none";
   
   // Time units
   //
@@ -113,10 +135,10 @@ UnitValidator::createAllowedUnitNames()
   allowed["time"]["yr"]         = "yr";
   allowed["time"]["Myr"]        = "Myr";
   allowed["time"]["Gyr"]        = "Gyr";
-  allowed["time"]["none"]       = "none";
 	
   // Velocity units
   //
+  allowed["velocity"]["cm/s"]     = "cmm/s";
   allowed["velocity"]["m/s"]      = "m/s";
   allowed["velocity"]["km/s"]     = "km/s";
   allowed["velocity"]["km/hr"]    = "km/hr";
@@ -142,7 +164,6 @@ UnitValidator::createAllowedUnitNames()
   allowed["length"]["parsec"]     = "pc";
   allowed["length"]["kiloparsec"] = "kpc";
   allowed["length"]["megaparsec"] = "Mpc";
-  allowed["length"]["None"]       = "none";
 
 
   // Mass aliases
@@ -151,7 +172,6 @@ UnitValidator::createAllowedUnitNames()
   allowed["mass"]["earth_mass"] = "Mearth";
   allowed["mass"]["gram"]       = "g";
   allowed["mass"]["kilograms"]  = "kg";
-  allowed["mass"]["None"]       = "none";
 
   // Time aliases
   //
@@ -163,20 +183,15 @@ UnitValidator::createAllowedUnitNames()
 
   // Velocity aliases
   //
-  allowed["velocity"]["meter_per_second"] = "m/s";
-  allowed["velocity"]["m_per_s"]          = "m/s";
-  allowed["velocity"]["km_per_s"]         = "km/s";
-  allowed["velocity"]["km_per_hr"]        = "km/hr";
-  allowed["velocity"]["km_per_min"]       = "km/min";
-  allowed["velocity"]["speed_of_light"]   = "c";
-  allowed["velocity"]["none"]             = "none";
+  allowed["velocity"]["meter_per_second"]      = "m/s";
+  allowed["velocity"]["centimeter_per_second"] = "cm/s";
+  allowed["velocity"]["cm_per_s"]              = "cm/s";
+  allowed["velocity"]["m_per_s"]               = "m/s";
+  allowed["velocity"]["km_per_s"]              = "km/s";
+  allowed["velocity"]["km_per_hr"]             = "km/hr";
+  allowed["velocity"]["km_per_min"]            = "km/min";
+  allowed["velocity"]["speed_of_light"]        = "c";
 
-  // Special non-units
-  //
-  allowed["G"][""]                 = "none";
-  allowed["G"]["mixed"]            = "mixed";
-  allowed["G"]["none"]             = "none";
-  allowed["G"]["unitless"]         = "none";
 
   return allowed;
 }
