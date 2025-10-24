@@ -1,7 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
-#include <numerical.H>
+#include "numerical.H"
 
 #define FACTOR 1.6
 #define NTRY 50

@@ -8,9 +8,9 @@
 #include <limits>
 #include <cmath>
 
-#include <massmodel.H>
-#include <interp.H>
-#include <orbit.H>
+#include "massmodel.H"
+#include "interp.H"
+#include "orbit.H"
 
 void RegularOrbit::bomb(const char *s)
 {

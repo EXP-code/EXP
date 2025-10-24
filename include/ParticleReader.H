@@ -15,14 +15,14 @@
 
 #include <mpi.h>
 
-#include <config_exp.h>
+#include "config_exp.h"
 
-#include <StringTok.H>
-#include <header.H>
-#include <Particle.H>
-#include <gadget.H>
+#include "StringTok.H"
+#include "header.H"
+#include "Particle.H"
+#include "gadget.H"
 
-#include <tipsy.H>
+#include "tipsy.H"
 
 namespace PR
 {

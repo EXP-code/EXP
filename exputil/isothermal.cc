@@ -10,9 +10,9 @@
 #include <string>
 #include <vector>
 
-#include <numerical.H>
-#include <interp.H>
-#include <isothermal.H>
+#include "numerical.H"
+#include "interp.H"
+#include "isothermal.H"
 
 static double sig;
 static void iso_derivs(double x, Eigen::VectorXd& y, Eigen::VectorXd& dy)

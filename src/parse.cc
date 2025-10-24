@@ -3,7 +3,7 @@
 //
 
 #include "expand.H"
-#include <cxxopts.H>
+#include "cxxopts.H"
 
 #include <cstdlib>
 #include <errno.h>
@@ -18,7 +18,7 @@
 #include <ctime>
 #include <set>
 
-#include <global_key_set.H>
+#include "global_key_set.H"
 
 void exp_version()
 {

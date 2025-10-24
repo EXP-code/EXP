@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 #if HAVE_LIBCUDA==1
 

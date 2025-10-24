@@ -6,7 +6,7 @@
 
 #include <Eigen/Eigen>
 
-#include <gaussQ.H>
+#include "gaussQ.H"
 
 //! Compute orthogonal functions whose lowest-order member is the
 //! background density using the Stieltjes procedure for generating

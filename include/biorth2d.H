@@ -7,7 +7,7 @@
 #define _biorth2d_H
 
 #include <string>
-#include <biorth.H>
+#include "biorth.H"
 
 class AxiSymBiorth;
 

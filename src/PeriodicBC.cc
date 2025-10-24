@@ -4,7 +4,7 @@
 
 #include "expand.H"
 
-#include <PeriodicBC.H>
+#include "PeriodicBC.H"
 
 template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));

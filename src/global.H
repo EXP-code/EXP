@@ -10,14 +10,14 @@
 #include <random>
 
 #include <list>
-#include <coef.H>
+#include "coef.H"
 
-#include <chkTimer.H>
-#include <BarrierWrapper.H>
+#include "chkTimer.H"
+#include "BarrierWrapper.H"
 
 #include <yaml-cpp/yaml.h>
 
-#include <localmpi.H>
+#include "localmpi.H"
 
 using namespace std;
 
@@ -336,7 +336,7 @@ extern bool leapfrog_cuda;
 extern unsigned int   random_seed;
 
 //! exputils globals
-#include <libvars.H>
+#include "libvars.H"
 using namespace __EXP__;
 
 //! For toggling CUDA profiling

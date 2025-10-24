@@ -49,13 +49,13 @@
 
 #include <H5Cpp.h>
 
-#include <ParticleReader.H>
-#include <Centering.H>
-#include <massmodel.H>
-#include <localmpi.H>
-#include <EXPini.H>		// Enhanced option parsing
-#include <libvars.H>		// EXP library globals
-#include <interp.H>
+#include "ParticleReader.H"
+#include "Centering.H"
+#include "massmodel.H"
+#include "localmpi.H"
+#include "EXPini.H"		// Enhanced option parsing
+#include "libvars.H"		// EXP library globals
+#include "interp.H"
 #include "KDE2d.H"		// Kernel density estimation
 
 void p_rec(std::ofstream& out, double E, double K, double V)

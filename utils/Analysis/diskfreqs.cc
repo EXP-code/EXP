@@ -43,18 +43,18 @@
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <interp.H>
-#include <EmpCylSL.H>
-#include <SphSL.H>
+#include "numerical.H"
+#include "interp.H"
+#include "EmpCylSL.H"
+#include "SphSL.H"
 
 				// Local coefficient classes
 #include "Coefs.H"
 
-#include <localmpi.H>
-#include <foarray.H>
-#include <cxxopts.H>
-#include <libvars.H>
+#include "localmpi.H"
+#include "foarray.H"
+#include "cxxopts.H"
+#include "libvars.H"
 
 const std::string overview = "Compute azimuthal and vertical disk frequencies from coefficients";
 

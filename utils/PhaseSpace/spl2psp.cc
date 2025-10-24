@@ -15,13 +15,13 @@
 #include <string>
 #include <list>
 
-#include <StringTok.H>
-#include <header.H>
-#include <PSP.H>
-#include <Particle.H>
+#include "StringTok.H"
+#include "header.H"
+#include "PSP.H"
+#include "Particle.H"
 
 #include <yaml-cpp/yaml.h>
-#include <cxxopts.H>
+#include "cxxopts.H"
 
 using namespace std;
 

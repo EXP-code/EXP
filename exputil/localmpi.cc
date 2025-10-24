@@ -6,7 +6,7 @@
 #include <sstream>
 #include <vector>
 
-#include <localmpi.H>
+#include "localmpi.H"
 
 //
 // MPI variables

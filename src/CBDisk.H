@@ -4,7 +4,7 @@
 #include <memory>
 #include <map>
 
-#include <PolarBasis.H>
+#include "PolarBasis.H"
 
 /** Reference implemenation of the Clutton-Brock disk basis
 

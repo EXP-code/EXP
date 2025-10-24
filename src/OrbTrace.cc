@@ -4,9 +4,9 @@
 #include <iomanip>
 #include <sstream>
 
-#include <expand.H>
+#include "expand.H"
 
-#include <OrbTrace.H>
+#include "OrbTrace.H"
 
 const std::set<std::string>
 OrbTrace::valid_keys = {

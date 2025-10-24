@@ -12,13 +12,13 @@
 #include <vector>
 #include <limits>
 				// EXP classes
-#include <interp.H>
-#include <numerical.H>
-#include <exponential.H>
-#include <interp.H>
+#include "interp.H"
+#include "numerical.H"
+#include "exponential.H"
+#include "interp.H"
 				// Local
-#include <AddDisk.H>
-#include <Disk2dHalo.H>
+#include "AddDisk.H"
+#include "Disk2dHalo.H"
 using namespace __EXP__;
 				// Grid parameters and Toomre Q
 double Disk2dHalo::RHMIN       = 1.0e-4;

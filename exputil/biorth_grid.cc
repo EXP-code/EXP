@@ -7,8 +7,8 @@
 #include <iostream>
 #include <cmath>
 
-#include <interp.H>
-#include <biorth.H>
+#include "interp.H"
+#include "biorth.H"
 
 double factrl(int n);
 double plgndr(int l, int m, double x);

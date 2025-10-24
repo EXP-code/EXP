@@ -16,22 +16,22 @@
 
 #include <fenv.h>
 
-#include <config_exp.h>
+#include "config_exp.h"
 #ifdef HAVE_OMP_H
 #include <omp.h>
 #endif
 
 // EXP classes
 //
-#include <numerical.H>
-#include <gaussQ.H>
-#include <interp.H>
-#include <Disk2d.H>
-#include <libvars.H>		// Library globals
-#include <cxxopts.H>		// Command-line parsing
-#include <EXPini.H>		// Ini-style config
+#include "numerical.H"
+#include "gaussQ.H"
+#include "interp.H"
+#include "Disk2d.H"
+#include "libvars.H"		// Library globals
+#include "cxxopts.H"		// Command-line parsing
+#include "EXPini.H"		// Ini-style config
 
-#include <norminv.H>
+#include "norminv.H"
 
 using namespace __EXP__;	// Reference to n-body globals
 

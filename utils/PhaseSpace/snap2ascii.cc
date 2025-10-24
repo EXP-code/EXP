@@ -36,9 +36,9 @@
 #include <sstream>
 #include <vector>
 
-#include <ParticleReader.H>	// Read n-body snapshots
-#include <cxxopts.H>		// Option parsing
-#include <libvars.H>		// EXP library globals
+#include "ParticleReader.H"	// Read n-body snapshots
+#include "cxxopts.H"		// Option parsing
+#include "libvars.H"		// EXP library globals
 
 int
 main(int argc, char **argv)

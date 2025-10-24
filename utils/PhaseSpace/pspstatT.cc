@@ -19,12 +19,12 @@ using namespace std;
 
 #include <yaml-cpp/yaml.h>	// YAML library support
 
-#include <Species.H>
-#include <cxxopts.H>
-#include <libvars.H>		// EXP library globals
+#include "Species.H"
+#include "cxxopts.H"
+#include "libvars.H"		// EXP library globals
 
-#include <header.H>
-#include <PSP.H>
+#include "header.H"
+#include "PSP.H"
 
 #include "atomic_constants.H"
 

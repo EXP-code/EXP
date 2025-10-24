@@ -39,12 +39,12 @@
 
 #include <H5Cpp.h>
 
-#include <ParticleReader.H>
-#include <MakeModel.H>
-#include <localmpi.H>
-#include <cxxopts.H>		// Option parsing
-#include <libvars.H>		// EXP library globals
-#include <interp.H>
+#include "ParticleReader.H"
+#include "MakeModel.H"
+#include "localmpi.H"
+#include "cxxopts.H"		// Option parsing
+#include "libvars.H"		// EXP library globals
+#include "interp.H"
 
 int
 main(int argc, char **argv)

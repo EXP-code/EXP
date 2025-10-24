@@ -2,7 +2,7 @@
 
 #include "expand.H"
 
-#include <EJcom.H>
+#include "EJcom.H"
 
 const std::set<std::string>
 EJcom::valid_keys = {

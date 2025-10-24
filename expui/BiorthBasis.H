@@ -10,22 +10,19 @@
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 #include <yaml-cpp/yaml.h>
 
-#include <highfive/highfive.hpp> // HDF5 interface
-#include <highfive/eigen.hpp>
-
-#include <DiskDensityFunc.H>
-#include <ParticleReader.H>
-#include <Coefficients.H>
-#include <BiorthBess.H>
-#include <BasisFactory.H>
-#include <BiorthCube.H>
-#include <sltableMP2.H>
-#include <SLGridMP2.H>
-#include <YamlCheck.H>
-#include <BiorthCyl.H>
-#include <EmpCylSL.H>
-#include <localmpi.H>
-#include <exputils.H>
+#include "DiskDensityFunc.H"
+#include "ParticleReader.H"
+#include "Coefficients.H"
+#include "BiorthBess.H"
+#include "BasisFactory.H"
+#include "BiorthCube.H"
+#include "sltableMP2.H"
+#include "SLGridMP2.H"
+#include "YamlCheck.H"
+#include "BiorthCyl.H"
+#include "EmpCylSL.H"
+#include "localmpi.H"
+#include "exputils.H"
 
 namespace Field
 {
@@ -97,7 +94,7 @@ namespace BasisClasses
     //! C++ local storage for computeAccel
     Eigen::Vector3d vstore;
 
-    //! C++ local storage for getAccelArray
+    //! C++ local storage for the array version of getAccel
     RowMatrixXd varray;
     //@}
 
@@ -233,13 +230,13 @@ namespace BasisClasses
 
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system for a collections of points
-    virtual RowMatrixXd& getAccelArray(Eigen::VectorXd& x,
-				       Eigen::VectorXd& y,
-				       Eigen::VectorXd& z)
+    virtual RowMatrixXd& getAccel(Eigen::VectorXd& x,
+				  Eigen::VectorXd& y,
+				  Eigen::VectorXd& z)
     {
       // Sanity check
       if (x.size() != y.size() || x.size() != z.size())
-	throw std::runtime_error("BiorthBasis::getAccelArray: "
+	throw std::runtime_error("BiorthBasis::getAccel: "
 				 "x, y, z vectors must be of the same size");
       
       // Resize the return array
@@ -254,7 +251,7 @@ namespace BasisClasses
 
     //! Return a vector of tuples of basis functions and the
     //! covariance matrix for subsamples of particles
-    using CoefCovarType = std::tuple<Eigen::VectorXd, Eigen::MatrixXd>;
+    using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
     virtual std::vector<std::vector<CoefCovarType>>
     getCoefCovariance()
     {
@@ -276,7 +273,26 @@ namespace BasisClasses
     //! Make covariance after accumulation
     virtual void makeCoefCovariance(void) {}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system for a collections of points
+    virtual RowMatrixXd& getAccel(RowMatrixXd& pos)
+    {
+      // Sanity check
+      if (pos.cols() != 3)
+	throw std::runtime_error("BiorthBasis::getAccel: "
+				 "input array must have 3 columns");
+      
+      // Resize the return array
+      varray.resize(pos.rows(), 3);
+#pragma omp parallel for
+      for (int i=0; i<pos.rows(); ++i) {
+	computeAccel(pos(i, 0), pos(i, 1), pos(i, 2), varray.row(i));
+      }
+      
+      return varray;
+    }
   };
+
 
   /**
      An abstract spherical basis to evaluate expansion coeffients and
@@ -374,8 +390,8 @@ namespace BasisClasses
     //@{
     //! Covariance structures.  First index is T, second is harmonic
     //! (l,m).
-    std::vector<std::vector<Eigen::VectorXd>> meanV;
-    std::vector<std::vector<Eigen::MatrixXd>> covrV;
+    std::vector<std::vector<Eigen::VectorXcd>> meanV;
+    std::vector<std::vector<Eigen::MatrixXcd>> covrV;
     void init_covariance();
     void zero_covariance();
     void writeCovarH5Params(HighFive::File& file);

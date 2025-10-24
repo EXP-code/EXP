@@ -2,8 +2,8 @@
 #define _isothermal_H
 
 #include <cmath>
-#include <massmodel.H>
-#include <interp.H>
+#include "massmodel.H"
+#include "interp.H"
 
 class SingIsothermalSphere : public AxiSymModel
 {

@@ -3,8 +3,8 @@
 #include <sstream>
 
 #include "expand.H"
-#include <massmodel.H>
-#include <UserHalo.H>
+#include "massmodel.H"
+#include "UserHalo.H"
 
 const std::set<std::string>
 UserHalo::valid_keys = {

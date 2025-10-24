@@ -1,7 +1,7 @@
 #ifndef _OutLog_H
 #define _OutLog_H
 
-#include <OutLog.H>
+#include "OutLog.H"
 
 //! Log vital statistics every n steps
 /**

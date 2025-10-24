@@ -17,14 +17,14 @@ using namespace std;
 #include <string>
 #include <locale>
 
-#include <Species.H>
+#include "Species.H"
 
-#include <StringTok.H>
-#include <cxxopts.H>		// Option parsing
-#include <libvars.H>		// EXP library globals
-#include <header.H>
-#include <writePVD.H>
-#include <PSP.H>
+#include "StringTok.H"
+#include "cxxopts.H"		// Option parsing
+#include "libvars.H"		// EXP library globals
+#include "header.H"
+#include "writePVD.H"
+#include "PSP.H"
 
 //
 // VTK stuff
@@ -47,7 +47,7 @@ using vtkFloatArrayP            = vtkSmartPointer<vtkFloatArray>;
 
 // KD tree for density computation
 //
-#include <KDtree.H>
+#include "KDtree.H"
 
 typedef std::vector< std::vector<unsigned> > I2Vector;
 

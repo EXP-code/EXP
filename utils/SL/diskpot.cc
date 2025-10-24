@@ -8,13 +8,13 @@
 
 #include <getopt.h>		// For long options
 
-#include <libvars.H>		// EXP globals
-#include <localmpi.H>		// MPI globals
-#include <SLSphere.H>		// Defines biorthogonal SL class
-#include <CylindricalDisk.H>	// The axisymmetric potential solver
-#include <gaussQ.H>		// Gauss-Legendre quadrature
-#include <exponential.H>	// Exponential disk
-#include <toomre.H>		// Toomre disk (including Kuzmin)
+#include "libvars.H"		// EXP globals
+#include "localmpi.H"		// MPI globals
+#include "SLSphere.H"		// Defines biorthogonal SL class
+#include "CylindricalDisk.H"	// The axisymmetric potential solver
+#include "gaussQ.H"		// Gauss-Legendre quadrature
+#include "exponential.H"	// Exponential disk
+#include "toomre.H"		// Toomre disk (including Kuzmin)
 
 //===========================================================================
 

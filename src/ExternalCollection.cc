@@ -12,14 +12,14 @@
 #include <vector>
 #include <string> 
 
-#include <ExternalCollection.H>
+#include "ExternalCollection.H"
 
-#include <tidalField.H>
-#include <externalShock.H>
-#include <generateRelaxation.H>
-#include <ScatterMFP.H>
-#include <PeriodicBC.H>
-#include <HaloBulge.H>
+#include "tidalField.H"
+#include "externalShock.H"
+#include "generateRelaxation.H"
+#include "ScatterMFP.H"
+#include "PeriodicBC.H"
+#include "HaloBulge.H"
 
 ExternalCollection::ExternalCollection(void)
 {

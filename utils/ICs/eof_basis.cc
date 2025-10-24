@@ -5,12 +5,12 @@
 #include <string>
 
 				// Option parsing
-#include <cxxopts.H>
+#include "cxxopts.H"
 
                                 // EXP support
-#include <libvars.H>
-#include <EmpCylSL.H>
-#include <localmpi.H>
+#include "libvars.H"
+#include "EmpCylSL.H"
+#include "localmpi.H"
 
 int 
 main(int argc, char **argv)

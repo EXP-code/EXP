@@ -3,9 +3,9 @@
 
 #include <stdlib.h>
 #include <string>
-#include <numerical.H>
+#include "numerical.H"
 
-#include <externalShock.H>
+#include "externalShock.H"
 
 externalShock::externalShock(const YAML::Node& conf) : ExternalForce(conf)
 {

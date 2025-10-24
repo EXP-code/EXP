@@ -7,15 +7,15 @@
 #include <string>
 
 #include <mpi.h>
-#include <localmpi.H>
+#include "localmpi.H"
 
-#include <config_exp.h>
+#include "config_exp.h"
 
-#include <massmodel.H>
-#include <sltableMP2.H>
+#include "massmodel.H"
+#include "sltableMP2.H"
 #include <yaml-cpp/yaml.h>
 
-#include <libvars.H>
+#include "libvars.H"
 using namespace __EXP__;
 
 #if HAVE_LIBCUDA==1

@@ -21,7 +21,7 @@
 #include <cstdlib>
 #include <cmath>
 
-#include <interp.H>
+#include "interp.H"
 
 double	Splsum(const Eigen::VectorXd& x, const Eigen::VectorXd& y)
 {

@@ -1,11 +1,11 @@
 #include <algorithm>
 
-#include <YamlCheck.H>
-#include <EXPException.H>
-#include <BasisFactory.H>
-#include <BiorthBasis.H>
-#include <FieldBasis.H>
-#include <exputils.H>
+#include "YamlCheck.H"
+#include "EXPException.H"
+#include "BasisFactory.H"
+#include "BiorthBasis.H"
+#include "FieldBasis.H"
+#include "exputils.H"
 
 #ifdef HAVE_FE_ENABLE
 #include <cfenv>

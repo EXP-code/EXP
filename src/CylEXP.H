@@ -1,9 +1,9 @@
 #ifndef _CylEXP_H
 #define _CylEXP_H
 
-#include <global.H>
-#include <expand.H>
-#include <EmpCylSL.H>
+#include "global.H"
+#include "expand.H"
+#include "EmpCylSL.H"
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>

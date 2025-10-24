@@ -6,7 +6,7 @@
 #include <string>
 #include <sstream>
 
-#include <libvars.H>
+#include "libvars.H"
 
 /** Defines an error handler base class EXPException to handle exceptions
  */

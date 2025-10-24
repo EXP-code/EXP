@@ -1,5 +1,5 @@
 #include <iomanip>
-#include <VtkGrid.H>
+#include "VtkGrid.H"
 
 #ifdef HAVE_VTK
 

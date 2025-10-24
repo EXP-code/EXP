@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cmath>
 
-#include <Cube.H>
+#include "Cube.H"
 
 const std::set<std::string>
 Cube::valid_keys = {

@@ -7,10 +7,10 @@
 // Needed from EXP/src . . .
 typedef std::pair<unsigned short, unsigned short> speciesKey;
 
-#include <Particle.H>
+#include "Particle.H"
 
 // N-body globals
-#include <libvars.H>
+#include "libvars.H"
 using namespace __EXP__;
 
 float Particle::effort_default = 1.0e-12;

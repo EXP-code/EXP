@@ -5,8 +5,8 @@
 
 namespace py = pybind11;
 
-#include <Centering.H>
-#include <ParticleIterator.H>
+#include "Centering.H"
+#include "ParticleIterator.H"
 
 void UtilityClasses(py::module &m) {
 

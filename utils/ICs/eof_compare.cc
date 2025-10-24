@@ -2,10 +2,10 @@
 #include <string>
 
                                 // EXP library support
-#include <libvars.H>
-#include <EmpCylSL.H>
-#include <localmpi.H>
-#include <cxxopts.H>
+#include "libvars.H"
+#include "EmpCylSL.H"
+#include "localmpi.H"
+#include "cxxopts.H"
 
 
 int 

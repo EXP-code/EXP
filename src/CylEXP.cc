@@ -7,7 +7,7 @@
 #include <limits>
 #include <string>
 
-#include <CylEXP.H>
+#include "CylEXP.H"
 
 CylEXP::CylEXP(int numr, int lmax, int mmax, int nord,
 	       double ascale, double hscale, int Nodd,

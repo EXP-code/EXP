@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string>
 
-#include <poly.H>
+#include "poly.H"
 
 using namespace std;
 

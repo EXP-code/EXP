@@ -1,8 +1,8 @@
 #include <iostream>
 #include <cmath>
-#include <numerical.H>
-#include <rotcurv.H>
-#include <phase.H>
+#include "numerical.H"
+#include "rotcurv.H"
+#include "phase.H"
 
 /*
   ROTATION CURVE ANALYSIS FUNCTIONS

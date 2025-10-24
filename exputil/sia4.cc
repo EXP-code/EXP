@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <math.h>
-#include <numerical.H>
+#include "numerical.H"
 
 /*
 4th order sympletic integration algorithm from

@@ -8,10 +8,10 @@
 #include <unistd.h>		// For unlink
 
 #include "expand.H"
-#include <global.H>
+#include "global.H"
 
-#include <AxisymmetricBasis.H>
-#include <OutCHKPT.H>
+#include "AxisymmetricBasis.H"
+#include "OutCHKPT.H"
 
 const std::set<std::string>
 OutCHKPT::valid_keys = {

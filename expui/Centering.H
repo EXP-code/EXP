@@ -1,7 +1,7 @@
 #ifndef _Centering_H_
 #define _Centering_H_
 
-#include <ParticleReader.H>
+#include "ParticleReader.H"
 
 namespace Utility
 {

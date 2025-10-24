@@ -34,8 +34,8 @@
 #include <iomanip>
 #include <cmath>
 
-#include <OrthoPoly.H>
-#include <CauchyPV.H>
+#include "OrthoPoly.H"
+#include "CauchyPV.H"
 
 double sqrarg;
 #define SQR(a) ((sqrarg=(a)) == 0.0 ? 0.0 : sqrarg*sqrarg)

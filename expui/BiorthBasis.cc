@@ -1,12 +1,11 @@
 #include <algorithm>
 
-#include <YamlCheck.H>
-#include <EXPException.H>
-#include <BiorthBasis.H>
-#include <DiskModels.H>
-#include <config_exp.h>
-#include <exputils.H>
-#include <gaussQ.H>
+#include "YamlCheck.H"
+#include "EXPException.H"
+#include "BiorthBasis.H"
+#include "DiskModels.H"
+#include "exputils.H"
+#include "gaussQ.H"
 
 #ifdef HAVE_FE_ENABLE
 #include <cfenv>
@@ -1681,6 +1680,11 @@ namespace BasisClasses
 	
 	if (dmodel.compare("MN")==0) // Miyamoto-Nagai
 	  model = std::make_shared<MNdisk>(1.0, H);
+	else if (DTYPE == DiskType::python) {
+	  model = std::make_shared<AxiSymPyModel>(pyname, acyl);
+	  std::cout << "Using AxiSymPyModel for deprojection from Python function <"
+		    << pyname << ">" << std::endl;
+	}
 	else			// Default to exponential
 	  model = std::make_shared<Exponential>(1.0, H);
 

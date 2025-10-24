@@ -1,7 +1,7 @@
 
 #include <cmath>
-#include <numerical.H>
-#include <models.H>
+#include "numerical.H"
+#include "models.H"
 
 
 double Quadrupole_Bar::potential(Eigen::Vector3d &x)

@@ -5,7 +5,7 @@
 
 // For MPI awareness
 //
-#include <localmpi.H>
+#include "localmpi.H"
 
 
 // Forward declare PR::Tipsy so it can friend TipsyFile

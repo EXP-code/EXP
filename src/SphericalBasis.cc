@@ -7,8 +7,8 @@
 #include <vector>
 #include <set>
 
-#include <SphericalBasis.H>
-#include <MixtureBasis.H>
+#include "SphericalBasis.H"
+#include "MixtureBasis.H"
 
 // #define TMP_DEBUG
 // #define MULTI_DEBUG

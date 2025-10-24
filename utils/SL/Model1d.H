@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include <interp.H>
+#include "interp.H"
 
 class OneDModel
 {

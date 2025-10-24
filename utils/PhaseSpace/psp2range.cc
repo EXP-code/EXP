@@ -16,13 +16,13 @@
 #include <map>
 #include <set>
 
-#include <Species.H>
+#include "Species.H"
 
-#include <header.H>
-#include <PSP.H>
-#include <InitContainer.H>
-#include <cxxopts.H>		// Option parsing
-#include <libvars.H>		// EXP library globals
+#include "header.H"
+#include "PSP.H"
+#include "InitContainer.H"
+#include "cxxopts.H"		// Option parsing
+#include "libvars.H"		// EXP library globals
 
 using namespace std;
 

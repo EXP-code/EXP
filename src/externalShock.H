@@ -1,8 +1,8 @@
 #ifndef _externalShock_H
 #define _externalShock_H
 
-#include <orbit.H>
-#include <massmodel.H>
+#include "orbit.H"
+#include "massmodel.H"
 
 //! Compute shock perturbation
 class externalShock : public ExternalForce

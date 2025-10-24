@@ -2,10 +2,10 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include <Koopman.H>
+#include "Koopman.H"
 
 namespace py = pybind11;
-#include <TensorToArray.H>
+#include "TensorToArray.H"
 
 void EDMDtoolkitClasses(py::module &m) {
 

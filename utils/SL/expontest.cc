@@ -8,10 +8,10 @@
 
 #include <Eigen/Eigen>
 
-#include <PotRZ.H>		// Hankel computation for potential
-#include <gaussQ.H>		// Gauss-Legendre quadrature
-#include <cxxopts.H>
-#include <EXPmath.H>  // Compatibility for Mac
+#include "PotRZ.H"		// Hankel computation for potential
+#include "gaussQ.H"		// Gauss-Legendre quadrature
+#include "cxxopts.H"
+#include "EXPmath.H"  // Compatibility for Mac
 
 int main(int argc, char** argv)
 {

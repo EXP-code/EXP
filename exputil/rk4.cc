@@ -2,7 +2,7 @@
 #include <iomanip>
 #include <cmath>
 
-#include <numerical.H>
+#include "numerical.H"
 
 #define PGROW -0.20
 #define PSHRNK -0.25

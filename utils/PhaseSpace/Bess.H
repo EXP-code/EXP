@@ -3,7 +3,7 @@
 
 #include <cmath>
 
-#include <EXPmath.H>
+#include "EXPmath.H"
 
 //! Generate orthonormal Bessel functions of integral order
 class Bess

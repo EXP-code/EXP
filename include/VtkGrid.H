@@ -31,7 +31,7 @@ using vtkRectilinearGridP       = vtkSmartPointer<vtkRectilinearGrid>;
 using vtkRectilinearGridWriterP = vtkSmartPointer<vtkXMLRectilinearGridWriter>;
 using vtkFloatArrayP            = vtkSmartPointer<vtkFloatArray>;
 
-#include <ThreeDGrid.H>
+#include "ThreeDGrid.H"
 
 /**
    A ThreeDGrid implementation of the rectangular grid database
@@ -62,7 +62,7 @@ public:
 
 #else
 
-#include <ThreeDGrid.H>
+#include "ThreeDGrid.H"
 
 /**
    A ThreeDGrid implementation of the rectangular grid database

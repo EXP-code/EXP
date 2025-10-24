@@ -2,7 +2,7 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include <FieldGenerator.H>
+#include "FieldGenerator.H"
 
 namespace py = pybind11;
 

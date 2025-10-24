@@ -1,4 +1,4 @@
-#include <numerical.H>
+#include "numerical.H"
 
 void zbrak(std::function<double(double)> fx, double x1, double x2, int n, 
 	   double *xb1, double *xb2, int *nb)

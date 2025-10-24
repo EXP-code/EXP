@@ -1,7 +1,7 @@
 #include <iomanip>
 #include <fstream>
 
-#include <TableGrid.H>
+#include "TableGrid.H"
 
 TableGrid::TableGrid(int nx, int ny, int nz,
 		 double xmin, double xmax,

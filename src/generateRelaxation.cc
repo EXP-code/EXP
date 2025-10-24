@@ -1,7 +1,7 @@
 
 #include "expand.H"
 
-#include <generateRelaxation.H>
+#include "generateRelaxation.H"
 
 generateRelaxation::generateRelaxation(const YAML::Node& conf) : ExternalForce(conf)
 {

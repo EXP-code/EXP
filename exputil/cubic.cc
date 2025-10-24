@@ -3,7 +3,7 @@
 #include <cmath>
 
 #include <unistd.h>
-#include <numerical.H>
+#include "numerical.H"
 
 Eigen::MatrixXd build_cubic_table(Eigen::VectorXd &xt,
 				  Eigen::VectorXd &ft,

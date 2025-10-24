@@ -1,9 +1,9 @@
 #ifndef _UserMW_H
 #define _UserMW_H
 
-#include <Particle.H>
-#include <AxisymmetricBasis.H>
-#include <ExternalCollection.H>
+#include "Particle.H"
+#include "AxisymmetricBasis.H"
+#include "ExternalCollection.H"
 
 /** Potential and force of the Milky Way, a la Gala.
 

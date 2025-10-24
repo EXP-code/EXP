@@ -5,9 +5,9 @@
 #include <cctype>
 #include <string>
 
-#include <FieldGenerator.H>
-#include <DataGrid.H>
-#include <localmpi.H>
+#include "FieldGenerator.H"
+#include "DataGrid.H"
+#include "localmpi.H"
 
 // Verbose output for checking stack usage
 #ifdef DEBUG

@@ -7,20 +7,20 @@
 #include <memory>
 #include <map>
 
-#include <Component.H>
-#include <Bessel.H>
-#include <Sphere.H>
-#include <EJcom.H>
-#include <Cylinder.H>
-#include <FlatDisk.H>
-#include <CBDisk.H>
-#include <Cube.H>
-#include <SlabSL.H>
-#include <Direct.H>
-#include <Shells.H>
-#include <NoForce.H>
-#include <Orient.H>
-#include <YamlCheck.H>
+#include "Component.H"
+#include "Bessel.H"
+#include "Sphere.H"
+#include "EJcom.H"
+#include "Cylinder.H"
+#include "FlatDisk.H"
+#include "CBDisk.H"
+#include "Cube.H"
+#include "SlabSL.H"
+#include "Direct.H"
+#include "Shells.H"
+#include "NoForce.H"
+#include "Orient.H"
+#include "YamlCheck.H"
 
 #include "expand.H"
 

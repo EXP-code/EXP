@@ -1,6 +1,6 @@
 #include <cmath>
-#include <numerical.H>
-#include <models.H>
+#include "numerical.H"
+#include "models.H"
 
 
 /* modified Hubble model */

@@ -51,7 +51,7 @@
 #ifndef _expand_H
 #define _expand_H
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 #define BSD_SOURCE
 
@@ -162,19 +162,19 @@ inline bool atol(string& s) {return atoi(s.c_str()) ? true : false;}
 // Component structures
 //===========================================
 
-#include <ComponentContainer.H>
+#include "ComponentContainer.H"
 
 //===========================================
 // External forces
 //===========================================
 
-#include <ExternalForce.H>
+#include "ExternalForce.H"
 
 //===========================================
 // Output list
 //===========================================
 
-#include <Output.H>
+#include "Output.H"
 
 void do_output_init(void);
 
@@ -183,8 +183,8 @@ void do_output_init(void);
 //===========================================
 
 #include <yaml-cpp/yaml.h>
-#include <ComponentContainer.H>
-#include <global.H>
+#include "ComponentContainer.H"
+#include "global.H"
 
 //===========================================
 // Handlers defined in signal.cc
@@ -221,7 +221,7 @@ void mpi_gdb_wait_trace(int sig);
 // Exception handler
 //===========================================
 
-#include <EXPException.H>
+#include "EXPException.H"
 
 #endif
 

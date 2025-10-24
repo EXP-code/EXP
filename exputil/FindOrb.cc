@@ -7,11 +7,11 @@
 #include <sstream>
 #include <string>
 
-#include <orbit.H>
-#include <massmodel.H>
+#include "orbit.H"
+#include "massmodel.H"
 
-#include <SimAnn.H>
-#include <FindOrb.H>
+#include "SimAnn.H"
+#include "FindOrb.H"
 
 
 void FindOrb::mapvars(std::vector<double>& x, double& ee, double& kk)

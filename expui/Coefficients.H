@@ -14,7 +14,7 @@
 #include <yaml-cpp/yaml.h>
 
 // The EXP native coefficient classes
-#include <CoefStruct.H>
+#include "CoefStruct.H"
 
 namespace CoefClasses
 { 

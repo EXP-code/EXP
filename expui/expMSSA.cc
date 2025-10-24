@@ -20,7 +20,7 @@
 #include <cmath>
 #include <map>
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 #include <Eigen/Dense>
 
@@ -35,20 +35,20 @@
 
 #include <omp.h>
 
-#include <KMeans.H>
+#include "KMeans.H"
 
-#include <expMSSA.H>
+#include "expMSSA.H"
 
-#include <RedSVD.H>
-#include <YamlConfig.H>
-#include <YamlCheck.H>
-#include <EXPException.H>
-#include <libvars.H>
+#include "RedSVD.H"
+#include "YamlConfig.H"
+#include "YamlCheck.H"
+#include "EXPException.H"
+#include "libvars.H"
 
-#include <TransformFFT.H>
+#include "TransformFFT.H"
 
 #ifdef HAVE_LIBPNGPP
-#include <ColorGradient.H>
+#include "ColorGradient.H"
 #endif
 
 #include "expMSSA.H"
