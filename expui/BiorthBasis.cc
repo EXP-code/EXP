@@ -5079,7 +5079,6 @@ namespace BasisClasses
 	sout << "CovarianceReader: unsupported float size, " << sz;
 	throw std::runtime_error(sout.str());
       }
-      std::cout << "Float size is " << sz << std::endl;
 
       int lmax, nmax, ltot;
 
