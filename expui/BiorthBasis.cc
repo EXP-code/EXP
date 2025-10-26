@@ -4912,20 +4912,18 @@ namespace BasisClasses
     // Pack the coefficient data
     //
     if (floatType) {
-      Eigen::VectorXcf data(nmax*ltot*sampleSize);
+      // Create a vector of doubles for the real and imaginary parts
+      Eigen::VectorXf real_part(nmax*ltot*sampleSize);
+      Eigen::VectorXf imag_part(nmax*ltot*sampleSize);
 
       for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
 	for (size_t l=0; l<ltot; l++) {
 	  for (size_t n=0; n<nmax; n++, c++) {
-	    data(c) = static_cast<std::complex<float>>
-	      (std::get<0>(covar[T][l])(n));
+	    real_part(c) = std::real(std::get<0>(covar[T][l])(n));
+	    imag_part(c) = std::imag(std::get<0>(covar[T][l])(n));
 	  }
 	}
       }
-
-      // Create a vector of doubles for the real and imaginary parts
-      Eigen::VectorXf real_part = data.real();
-      Eigen::VectorXf imag_part = data.imag();
 
       // Create two separate, compressed datasets
       stanza.createDataSet("coefficients_real", real_part, dcpl2);
@@ -4933,41 +4931,36 @@ namespace BasisClasses
       
       // Pack the covariance data in an upper triangular format
       //
-      data.resize(ltot*diagonalSize*sampleSize);
+      real_part.resize(ltot*diagonalSize*sampleSize);
+      imag_part.resize(ltot*diagonalSize*sampleSize);
+
       for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
 	for (size_t l=0; l<ltot; l++) {
 	  for (size_t n1=0; n1<nmax; n1++) {
 	    for (size_t n2=n1; n2<nmax; n2++, c++) {
-	      data(c) = static_cast<std::complex<float>>
-		(std::get<1>(covar[T][l])(n1, n2));
+	      real_part(c) = std::real(std::get<1>(covar[T][l])(n1, n2));
+	      imag_part(c) = std::imag(std::get<1>(covar[T][l])(n1, n2));
 	    }
 	  }
 	}
       }
 	
-      // Create a vector of doubles for the real and imaginary parts
-      real_part = data.real();
-      imag_part = data.imag();
-
       // Create two separate, compressed datasets
       stanza.createDataSet("covariance_real", real_part, dcpl3);
       stanza.createDataSet("covariance_imag", imag_part, dcpl3);
       
     } else {
-      Eigen::VectorXcd data(ltot*nmax*sampleSize);
+      Eigen::VectorXd real_part(ltot*nmax*sampleSize);
+      Eigen::VectorXd imag_part(ltot*nmax*sampleSize);
 
-      for (size_t T=0; T<sampleCounts.size(); T++) {
-	for (size_t l=0, c=0; l<ltot; l++) {
+      for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
+	for (size_t l=0; l<ltot; l++) {
 	  for (size_t n=0; n<nmax; n++, c++) {
-	    data(c) = std::get<0>(covar[T][l])(n);
+	    real_part(c) = std::real(std::get<0>(covar[T][l])(n));
+	    imag_part(c) = std::imag(std::get<0>(covar[T][l])(n));
 	  }
 	}
       }
-
-      // Create a vector of doubles for the real and imaginary parts
-      //
-      Eigen::VectorXd real_part = data.real();
-      Eigen::VectorXd imag_part = data.imag();
 
       // Create two separate, compressed datasets
       //
@@ -4976,22 +4969,20 @@ namespace BasisClasses
       
       // Pack the covariance data in an upper triangular format
       //
-      data.resize(ltot*diagonalSize*sampleSize);
-      for (size_t T=0; T<sampleCounts.size(); T++) {
-	for (size_t l=0, c=0; l<ltot; l++) {
+      real_part.resize(ltot*diagonalSize*sampleSize);
+      imag_part.resize(ltot*diagonalSize*sampleSize);
+
+      for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
+	for (size_t l=0; l<ltot; l++) {
 	  for (size_t n1=0; n1<nmax; n1++) {
 	    for (size_t n2=n1; n2<nmax; n2++, c++) {
-	      data(c) = std::get<1>(covar[T][l])(n1, n2);
+	      real_part(c) = std::real(std::get<1>(covar[T][l])(n1, n2));
+	      imag_part(c) = std::imag(std::get<1>(covar[T][l])(n1, n2));
 	    }
 	  }
 	}
       }
 	
-      // Create a vector of doubles for the real and imaginary parts
-      //
-      real_part = data.real();
-      imag_part = data.imag();
-
       // Create two separate, compressed datasets
       //
       stanza.createDataSet("covariance_real", real_part, dcpl3);
@@ -5144,7 +5135,7 @@ namespace BasisClasses
 	throw std::runtime_error("CovarianceReader: this is an early alpha test version. Please remake your files");
       }
       // Test for current version
-      if (version != std::string("1.01")) {
+      if (version != std::string("1.1")) {
 	throw std::runtime_error(std::string("CovarianceReader: unsupported file version, ") + version);
       }
 
@@ -5278,20 +5269,23 @@ namespace BasisClasses
 	// Positions in data stanzas
 	int sCof = 0, sCov = 0;
 
+	// Loop through all indices and repack
 	for (int T=0; T<nT; T++) {
 
-	  // Repack the data
+	  // Data element for this time
 	  std::vector<CoefCovarType> elem(lSize);
 	  for (auto & e : elem) {
+	    // Coefficients
 	    std::get<0>(e).resize(rank);
+	    // Covariance matrix
 	    std::get<1>(e).resize(rank, rank);
 	  }
 
 	  // Pack the coefficient data
 	  int c = 0;
 	  for (size_t l=0; l<lSize; l++) {
-	    for (size_t n=0; n<rank; n++, c++) {
-	      std::get<0>(elem[l])(n) = data0(c+sCof);
+	    for (size_t n=0; n<rank; n++) {
+	      std::get<0>(elem[l])(n) = data0(sCof + c++);
 	    }
 	  }
 	  sCof += c;
@@ -5300,8 +5294,8 @@ namespace BasisClasses
 	  c = 0;
 	  for (size_t l=0; l<lSize; l++) {
 	    for (size_t n1=0; n1<rank; n1++) {
-	      for (size_t n2=n1; n2<rank; n2++, c++) {
-		std::get<1>(elem[l])(n1, n2) = data1(c+sCov);
+	      for (size_t n2=n1; n2<rank; n2++) {
+		std::get<1>(elem[l])(n1, n2) = data1(sCov + c++);
 		if (n1 != n2)
 		  std::get<1>(elem[l])(n2, n1) = std::get<1>(elem[l])(n1, n2);
 	      }

@@ -139,8 +139,9 @@ namespace BasisClasses
     //! Add coefficient covariance data to an HDF5 file
     virtual void extendCoefCovariance(const std::string& filename, double time);
 
-    //! Variance file versioning
-    inline static const std::string CovarianceFileVersion = "1.01";
+    //! Variance file versioning (Version 1.0 has more granularity and
+    //! poor compression)
+    inline static const std::string CovarianceFileVersion = "1.1";
 
   public:
     
