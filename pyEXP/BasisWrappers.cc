@@ -1432,6 +1432,23 @@ void BasisFactoryClasses(py::module &m)
          -------
          None
          )")
+    .def("setCovarH5Compress", &BasisClasses::BiorthBasis::setCovarH5Compress,
+         R"(
+	 Set the HDF5 compression level for covariance storage in HDF5.
+
+         Parameters
+         ----------
+         compress : int
+		 HDF5 compression level 0-9 (default: 5)
+         chunkSize : int
+		 HDF5 chunk size for dataset storage (default: 1024*1024)
+         shuffle : bool
+		 Use shuffle filter if true (default: true)
+
+         Returns
+         -------
+         None
+         )", py::arg("compress")=5, py::arg("chunkSize")=1024*1024, py::arg("shuffle")=true)
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
          Return the field evaluations for a given cartesian position. The

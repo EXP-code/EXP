@@ -10,6 +10,11 @@
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 #include <yaml-cpp/yaml.h>
 
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
+
 #include "DiskDensityFunc.H"
 #include "ParticleReader.H"
 #include "Coefficients.H"
@@ -110,6 +115,13 @@ namespace BasisClasses
     Eigen::VectorXd sampleMasses;
     //@}
 
+    //@{
+    //! HDF5 compression settings
+    unsigned H5compress  = 5;
+    unsigned H5chunk     = 4096; // 1024*1024;
+    bool     H5shuffle   = true;
+    //@}
+
     //! Round time key to emulated fixed-point arithmetic
     double roundTime(double time)
     {
@@ -128,7 +140,7 @@ namespace BasisClasses
     virtual void extendCoefCovariance(const std::string& filename, double time);
 
     //! Variance file versioning
-    inline static const std::string CovarianceFileVersion = "1.0";
+    inline static const std::string CovarianceFileVersion = "1.01";
 
   public:
     
@@ -275,6 +287,14 @@ namespace BasisClasses
 
     //! Choose between float and double storage for covariance
     void setCovarFloatType(bool flt) { floatType = flt; }
+
+    //! HDF5 compression settings
+    void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle)
+    {
+      H5compress = level;
+      H5chunk    = chunksize;
+      H5shuffle  = shuffle;
+    }
 
     //! Make covariance after accumulation
     virtual void makeCoefCovariance(void) {}
