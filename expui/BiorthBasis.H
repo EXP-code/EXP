@@ -118,7 +118,7 @@ namespace BasisClasses
     //@{
     //! HDF5 compression settings
     unsigned H5compress  = 5;
-    unsigned H5chunk     = 4096; // 1024*1024;
+    unsigned H5chunk     = 1024*1024; // (1 MB)
     bool     H5shuffle   = true;
     //@}
 
