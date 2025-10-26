@@ -1434,21 +1434,26 @@ void BasisFactoryClasses(py::module &m)
          )")
     .def("setCovarH5Compress", &BasisClasses::BiorthBasis::setCovarH5Compress,
          R"(
-	 Set the HDF5 compression level for covariance storage in HDF5.
+	 Set the HDF5 compression level for covariance storage in HDF5.  The Szip
+     	 compression algorithm may also be enabled but seems to not have better
+         performance for these data than the standard Gzip compression.  Gzip with
+      	 level 5 and shuffling is enabled by default.
 
          Parameters
          ----------
          compress : int
-		 HDF5 compression level 0-9 (default: 5)
+		 HDF5 Gzip compression level 0-9 (default: 5)
          chunkSize : int
 		 HDF5 chunk size for dataset storage (default: 1024*1024)
          shuffle : bool
 		 Use shuffle filter if true (default: true)
+         szip : bool
+		 Use Szip compression algorithm (default: false)
 
          Returns
          -------
          None
-         )", py::arg("compress")=5, py::arg("chunkSize")=1024*1024, py::arg("shuffle")=true)
+         )", py::arg("compress")=5, py::arg("chunkSize")=1024*1024, py::arg("shuffle")=true, py::arg("azip")=false)
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
          Return the field evaluations for a given cartesian position. The

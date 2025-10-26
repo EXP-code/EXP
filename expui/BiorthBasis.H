@@ -120,6 +120,7 @@ namespace BasisClasses
     unsigned H5compress  = 5;
     unsigned H5chunk     = 1024*1024; // (1 MB)
     bool     H5shuffle   = true;
+    bool     H5szip      = false;
     //@}
 
     //! Round time key to emulated fixed-point arithmetic
@@ -290,11 +291,12 @@ namespace BasisClasses
     void setCovarFloatType(bool flt) { floatType = flt; }
 
     //! HDF5 compression settings
-    void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle)
+    void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle, bool szip=false)
     {
       H5compress = level;
       H5chunk    = chunksize;
       H5shuffle  = shuffle;
+      H5szip     = szip;
     }
 
     //! Make covariance after accumulation

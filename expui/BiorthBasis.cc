@@ -4890,6 +4890,10 @@ namespace BasisClasses
       ("rankSize", HighFive::DataSpace::From(nmax)).write(nmax);
       
     if (H5compress) {
+      // Szip parameters
+      const int options_mask = H5_SZIP_NN_OPTION_MASK;
+      const int pixels_per_block = 8;
+
       // Properties for coefficients
       //
       unsigned int csz2 = nmax * ltot * sampleSize;
@@ -4897,7 +4901,11 @@ namespace BasisClasses
 
       dcpl2.add(data_dims2);
       if (H5shuffle) dcpl2.add(HighFive::Shuffle());
-      dcpl2.add(HighFive::Deflate(H5compress));
+      if (H5szip) {
+	dcpl2.add(HighFive::Szip(options_mask, pixels_per_block));
+      } else {
+	dcpl2.add(HighFive::Deflate(H5compress));
+      }
 
       // Properties for  covariance
       //
@@ -4906,7 +4914,11 @@ namespace BasisClasses
 
       dcpl3.add(data_dims3);
       if (H5shuffle) dcpl3.add(HighFive::Shuffle());
-      dcpl3.add(HighFive::Deflate(H5compress));
+      if (H5szip) {
+	dcpl3.add(HighFive::Szip(options_mask, pixels_per_block));
+      } else {
+	dcpl3.add(HighFive::Deflate(H5compress));
+      }
     }
 
     // Pack the coefficient data
