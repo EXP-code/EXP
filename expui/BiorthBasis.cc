@@ -4953,9 +4953,6 @@ namespace BasisClasses
 	Eigen::VectorXd real_part = data.real();
 	Eigen::VectorXd imag_part = data.imag();
 
-	std::cout << "Real part size = " << real_part.size() << std::endl;
-	std::cout << "Imag part size = " << real_part.size() << std::endl;
-
 	// Create two separate, compressed datasets
 	sample.createDataSet("coefficients_real", real_part, dcpl2);
 	sample.createDataSet("coefficients_imag", imag_part, dcpl2);
@@ -4977,10 +4974,7 @@ namespace BasisClasses
 	imag_part = data.imag();
 
 	// Create two separate, compressed datasets
-	std::cout << "Making real coefs [double]" << std::endl;
 	sample.createDataSet("covariance_real", real_part, dcpl3);
-
-	std::cout << "Making imag coefs [double]" << std::endl;
 	sample.createDataSet("covariance_imag", imag_part, dcpl3);
       }
     }
