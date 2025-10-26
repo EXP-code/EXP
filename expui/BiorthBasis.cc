@@ -4850,11 +4850,11 @@ namespace BasisClasses
       
     // Enable compression
     //
-    auto dcpl1 = HighFive::DataSetCreateProps{};
-    auto dcpl2 = HighFive::DataSetCreateProps{};
-    auto dcpl3 = HighFive::DataSetCreateProps{};
+    auto dcpl1 = HighFive::DataSetCreateProps{}; // sample stats
+    auto dcpl2 = HighFive::DataSetCreateProps{}; // coefficients
+    auto dcpl3 = HighFive::DataSetCreateProps{}; // covariance
 
-    // Properties for sample data
+    // Properties for sample stats
     if (H5compress) {
       unsigned int csz = sampleCounts.size();
       dcpl1.add(HighFive::Chunking({csz, 1}));
@@ -4867,11 +4867,32 @@ namespace BasisClasses
     HighFive::DataSet s1data = stanza.createDataSet("sampleCounts", sampleCounts, dcpl1);
     HighFive::DataSet s2data = stanza.createDataSet("sampleMasses", sampleMasses, dcpl1);
 
+    // Covariance data
+    //
     auto covar = getCoefCovariance();
 
+    // Number of samples
+    //
+    unsigned sampleSize   = covar.size();
+    unsigned ltot         = covar[0].size();
+    unsigned nmax         = std::get<0>(covar[0][0]).rows();
+    unsigned diagonalSize = nmax*(nmax + 1)/2;
+
+    // Add data dimensions
+    //
+    stanza.createAttribute<unsigned>
+      ("sampleSize", HighFive::DataSpace::From(sampleSize)).write(sampleSize);
+
+    stanza.createAttribute<unsigned>
+      ("angularSize", HighFive::DataSpace::From(ltot)).write(ltot);
+
+    stanza.createAttribute<unsigned>
+      ("rankSize", HighFive::DataSpace::From(nmax)).write(nmax);
+      
     if (H5compress) {
       // Properties for coefficients
-      unsigned int csz2 = std::get<0>(covar[0][0]).size();
+      //
+      unsigned int csz2 = nmax * ltot * sampleSize;
       HighFive::Chunking data_dims2{std::min<unsigned>(csz2, H5chunk), 1};
 
       dcpl2.add(data_dims2);
@@ -4879,7 +4900,8 @@ namespace BasisClasses
       dcpl2.add(HighFive::Deflate(H5compress));
 
       // Properties for  covariance
-      unsigned int csz3 = std::get<1>(covar[0][0]).size();
+      //
+      unsigned int csz3 = ltot * diagonalSize * sampleSize;
       HighFive::Chunking data_dims3{std::min<unsigned>(csz3, H5chunk), 1};
 
       dcpl3.add(data_dims3);
@@ -4887,44 +4909,33 @@ namespace BasisClasses
       dcpl3.add(HighFive::Deflate(H5compress));
     }
 
-    // Add the samples
+    // Pack the coefficient data
     //
-    for (size_t T=0; T<sampleCounts.size(); T++) {
+    if (floatType) {
+      Eigen::VectorXcf data(nmax*ltot*sampleSize);
 
-      // Group name
-      std::ostringstream sT;
-      sT << std::setw(8) << std::setfill('0') << std::right << T;
-      
-      // Make a new group
-      HighFive::Group sample = stanza.createGroup(sT.str());
-
-      // Pack the coefficient data
-      size_t lmax = covar[T].size();
-      size_t nmax = std::get<0>(covar[T][0]).rows();
-
-      if (floatType) {
-	Eigen::VectorXcf data(lmax*nmax);
-
-	for (size_t l=0, c=0; l<lmax; l++) {
+      for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
+	for (size_t l=0; l<ltot; l++) {
 	  for (size_t n=0; n<nmax; n++, c++) {
 	    data(c) = static_cast<std::complex<float>>
 	      (std::get<0>(covar[T][l])(n));
 	  }
 	}
+      }
 
-	// Create a vector of doubles for the real and imaginary parts
-	Eigen::VectorXf real_part = data.real();
-	Eigen::VectorXf imag_part = data.imag();
+      // Create a vector of doubles for the real and imaginary parts
+      Eigen::VectorXf real_part = data.real();
+      Eigen::VectorXf imag_part = data.imag();
 
-	// Create two separate, compressed datasets
-	sample.createDataSet("coefficients_real", real_part, dcpl2);
-	sample.createDataSet("coefficients_imag", imag_part, dcpl2);
-
-	// Pack the covariance data in an upper triangular format
-	//
-	size_t diagonalSize = nmax*(nmax + 1)/2;
-	data.resize(lmax*diagonalSize);
-	for (size_t l=0, c=0; l<lmax; l++) {
+      // Create two separate, compressed datasets
+      stanza.createDataSet("coefficients_real", real_part, dcpl2);
+      stanza.createDataSet("coefficients_imag", imag_part, dcpl2);
+      
+      // Pack the covariance data in an upper triangular format
+      //
+      data.resize(ltot*diagonalSize*sampleSize);
+      for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
+	for (size_t l=0; l<ltot; l++) {
 	  for (size_t n1=0; n1<nmax; n1++) {
 	    for (size_t n2=n1; n2<nmax; n2++, c++) {
 	      data(c) = static_cast<std::complex<float>>
@@ -4932,51 +4943,59 @@ namespace BasisClasses
 	    }
 	  }
 	}
+      }
 	
-	// Create a vector of doubles for the real and imaginary parts
-	real_part = data.real();
-	imag_part = data.imag();
+      // Create a vector of doubles for the real and imaginary parts
+      real_part = data.real();
+      imag_part = data.imag();
 
-	// Create two separate, compressed datasets
-	sample.createDataSet("covariance_real", real_part, dcpl3);
-	sample.createDataSet("covariance_imag", imag_part, dcpl3);
+      // Create two separate, compressed datasets
+      stanza.createDataSet("covariance_real", real_part, dcpl3);
+      stanza.createDataSet("covariance_imag", imag_part, dcpl3);
+      
+    } else {
+      Eigen::VectorXcd data(ltot*nmax*sampleSize);
 
-      } else {
-	Eigen::VectorXcd data(lmax*nmax);
-	for (size_t l=0, c=0; l<lmax; l++) {
+      for (size_t T=0; T<sampleCounts.size(); T++) {
+	for (size_t l=0, c=0; l<ltot; l++) {
 	  for (size_t n=0; n<nmax; n++, c++) {
 	    data(c) = std::get<0>(covar[T][l])(n);
 	  }
 	}
+      }
 
-	// Create a vector of doubles for the real and imaginary parts
-	Eigen::VectorXd real_part = data.real();
-	Eigen::VectorXd imag_part = data.imag();
+      // Create a vector of doubles for the real and imaginary parts
+      //
+      Eigen::VectorXd real_part = data.real();
+      Eigen::VectorXd imag_part = data.imag();
 
-	// Create two separate, compressed datasets
-	sample.createDataSet("coefficients_real", real_part, dcpl2);
-	sample.createDataSet("coefficients_imag", imag_part, dcpl2);
-
-	// Pack the covariance data in an upper triangular format
-	//
-	size_t diagonalSize = nmax*(nmax + 1)/2;
-	data.resize(lmax*diagonalSize);
-	for (size_t l=0, c=0; l<lmax; l++) {
+      // Create two separate, compressed datasets
+      //
+      stanza.createDataSet("coefficients_real", real_part, dcpl2);
+      stanza.createDataSet("coefficients_imag", imag_part, dcpl2);
+      
+      // Pack the covariance data in an upper triangular format
+      //
+      data.resize(ltot*diagonalSize*sampleSize);
+      for (size_t T=0; T<sampleCounts.size(); T++) {
+	for (size_t l=0, c=0; l<ltot; l++) {
 	  for (size_t n1=0; n1<nmax; n1++) {
 	    for (size_t n2=n1; n2<nmax; n2++, c++) {
 	      data(c) = std::get<1>(covar[T][l])(n1, n2);
 	    }
 	  }
 	}
-	
-	// Create a vector of doubles for the real and imaginary parts
-	real_part = data.real();
-	imag_part = data.imag();
-
-	// Create two separate, compressed datasets
-	sample.createDataSet("covariance_real", real_part, dcpl3);
-	sample.createDataSet("covariance_imag", imag_part, dcpl3);
       }
+	
+      // Create a vector of doubles for the real and imaginary parts
+      //
+      real_part = data.real();
+      imag_part = data.imag();
+
+      // Create two separate, compressed datasets
+      //
+      stanza.createDataSet("covariance_real", real_part, dcpl3);
+      stanza.createDataSet("covariance_imag", imag_part, dcpl3);
     }
     // END: sample loop
 
@@ -5193,108 +5212,107 @@ namespace BasisClasses
 	sampleMasses.push_back(Eigen::VectorXd());
 	stanza.getDataSet("sampleMasses").read(sampleMasses.back());
 
-	int nT = sampleCounts.back().size();
+	// Get data attributes
+	//
+	int nT, lSize, rank;
+	stanza.getAttribute("sampleSize") .read(nT);
+	stanza.getAttribute("angularSize").read(lSize);
+	stanza.getAttribute("rankSize")   .read(rank);
 
-	// Allocate vector for current time
+	// Allocate sample vector for current time
 	covarData.push_back(std::vector<std::vector<CoefCovarType>>(nT));
 
-	for (int T=0; T<nT; T++) {
-	  // Group name
-	  std::ostringstream sT;
-	  sT << std::setw(8) << std::setfill('0') << std::right << T;
-      
-	  // Get the group
-	  HighFive::Group sample = stanza.getGroup(sT.str());
+	// Storage
+	Eigen::VectorXcd data0, data1;
 
-	  // Storage
-	  Eigen::VectorXcd data;
+	// Get the flattened coefficient array
+	if (sz==4) {
+	  // Get the real and imaginary parts
+	  Eigen::VectorXf data_real =
+	    stanza.getDataSet("coefficients_real").read<Eigen::VectorXf>();
+
+	  Eigen::VectorXf data_imag =
+	    stanza.getDataSet("coefficients_imag").read<Eigen::VectorXf>();
+	  
+	  // Resize the complex array and assign
+	  data0.resize(data_real.size());
+	  data0.real() = data_real.cast<double>();
+	  data0.imag() = data_imag.cast<double>();
+
+	  data_real =
+	    stanza.getDataSet("covariance_real").read<Eigen::VectorXf>();
+
+	  data_imag =
+	    stanza.getDataSet("covariance_imag").read<Eigen::VectorXf>();
+	  
+	  // Resize the complex array and assign
+	  data1.resize(data_real.size());
+	  data1.real() = data_real.cast<double>();
+	  data1.imag() = data_imag.cast<double>();
+	} else {
+	  // Get the real and imaginary parts
+	  Eigen::VectorXd data_real =
+	    stanza.getDataSet("coefficients_real").read<Eigen::VectorXd>();
+
+	  Eigen::VectorXd data_imag =
+	    stanza.getDataSet("coefficients_imag").read<Eigen::VectorXd>();
+	  
+	  // Resize the complex array and assign
+	  data0.resize(data_real.size());
+	  data0.real() = data_real;
+	  data0.imag() = data_imag;
+
+	  // Get the real and imaginary parts
+	  data_real =
+	    stanza.getDataSet("covariance_real").read<Eigen::VectorXd>();
+
+	  data_imag =
+	    stanza.getDataSet("covariance_imag").read<Eigen::VectorXd>();
+	  
+	  // Resize the complex array and assign
+	  data1.resize(data_real.size());
+	  data1.real() = data_real;
+	  data1.imag() = data_imag;
+	}
+
+	// Positions in data stanzas
+	int sCof = 0, sCov = 0;
+
+	for (int T=0; T<nT; T++) {
 
 	  // Repack the data
-	  std::vector<CoefCovarType> elem(ltot);
+	  std::vector<CoefCovarType> elem(lSize);
 	  for (auto & e : elem) {
-	    std::get<0>(e).resize(nmax);
-	    std::get<1>(e).resize(nmax, nmax);
+	    std::get<0>(e).resize(rank);
+	    std::get<1>(e).resize(rank, rank);
 	  }
 
-	  // Get the flattened coefficient array
-	  if (sz==4) {
-	    // Get the real and imaginary parts
-	    Eigen::VectorXf data_real =
-	      sample.getDataSet("coefficients_real").read<Eigen::VectorXf>();
-
-	    Eigen::VectorXf data_imag =
-	      sample.getDataSet("coefficients_imag").read<Eigen::VectorXf>();
-
-	    // Resize the complex array and assign
-	    data.resize(data_real.size());
-	    data.real() = data_real.cast<double>();
-	    data.imag() = data_imag.cast<double>();
-	  } else {
-	    // Get the real and imaginary parts
-	    Eigen::VectorXd data_real =
-	      sample.getDataSet("coefficients_real").read<Eigen::VectorXd>();
-
-	    Eigen::VectorXd data_imag =
-	      sample.getDataSet("coefficients_imag").read<Eigen::VectorXd>();
-
-	    // Resize the complex array and assign
-	    data.resize(data_real.size());
-	    data.real() = data_real;
-	    data.imag() = data_imag;
-	  }
-	  
 	  // Pack the coefficient data
-	  for (size_t l=0, c=0; l<ltot; l++) {
-	    for (size_t n=0; n<nmax; n++, c++) {
-	      std::get<0>(elem[l])(n) = data(c);
+	  int c = 0;
+	  for (size_t l=0; l<lSize; l++) {
+	    for (size_t n=0; n<rank; n++, c++) {
+	      std::get<0>(elem[l])(n) = data0(c+sCof);
 	    }
 	  }
+	  sCof += c;
 
-	  // Get the flattened covariance array
-	  if (sz==4) {
-	    // Real parts
-	    Eigen::VectorXf data_real = 
-	      sample.getDataSet("covariance_real").read<Eigen::VectorXf>();
-
-	    // Imaginary parts
-	    Eigen::VectorXf data_imag = 
-	      sample.getDataSet("covariance_imag").read<Eigen::VectorXf>();
-
-	    // Resize the final storage
-	    data.resize(data_real.size());
-	    data.real() = data_real.cast<double>();
-	    data.imag() = data_real.cast<double>();
-	  } else {
-	    // Real parts
-	    Eigen::VectorXd data_real = 
-	      sample.getDataSet("covariance_real").read<Eigen::VectorXd>();
-
-	    // Imaginary parts
-	    Eigen::VectorXd data_imag = 
-	      sample.getDataSet("covariance_imag").read<Eigen::VectorXd>();
-
-	    // Resize the final storage
-	    data.resize(data_real.size());
-	    data.real() = data_real;
-	    data.imag() = data_real;
-	  }
-	  
-	  // Pack the coefficient data
-	  for (size_t l=0, c=0; l<ltot; l++) {
-	    for (size_t n1=0; n1<nmax; n1++) {
-	      for (size_t n2=n1; n2<nmax; n2++, c++) {
-		std::get<1>(elem[l])(n1, n2) = data(c);
+	  // Pack the covariance data
+	  c = 0;
+	  for (size_t l=0; l<lSize; l++) {
+	    for (size_t n1=0; n1<rank; n1++) {
+	      for (size_t n2=n1; n2<rank; n2++, c++) {
+		std::get<1>(elem[l])(n1, n2) = data1(c+sCov);
 		if (n1 != n2)
 		  std::get<1>(elem[l])(n2, n1) = std::get<1>(elem[l])(n1, n2);
 	      }
 	    }
 	  }
+	  sCov += c;
 
 	  // Add the data
 	  covarData.back()[T] = std::move(elem);
 	}
 	// END: sample loop
-
       }
       // END: snapshot loop
     } catch (HighFive::Exception& err) {
