@@ -1962,7 +1962,6 @@ void EmpCylSL::setup_accumulation(int mlevel)
       }
 
       if (covar) {
-	std::cout << "SANITY: cleaning up" << std::endl;
 	for (unsigned T=0; T<sampT; T++) {
 	  for (int mm=0; mm<=MMAX; mm++) {
 	    MV[nth][T][mm].setZero();
