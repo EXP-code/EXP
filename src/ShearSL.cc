@@ -374,6 +374,11 @@ void ShearSL::dump_coefs_h5(const std::string& file)
     // Add the name attribute.  We only need this on the first call.
     slabCoefs.setName(component->name);
 
+    // Add the default units
+    slabCoefs.setUnits({{"length", "none", 1.0},
+			{"mass",   "none", 1.0},
+			{"time",   "none", 1.0}});
+
     // And the new coefficients and write the new HDF5
     slabCoefs.clear();
     slabCoefs.add(cur);

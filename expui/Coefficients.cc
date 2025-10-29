@@ -152,10 +152,12 @@ namespace CoefClasses
   void Coefs::WriteH5Units(HighFive::File& file)
   {
     if (units.size() != 4) {
-      std::cout << "---- Coefs::WriteH5Units: Warning, expected 4 units: "
-		<< "(length, mass, time, G) or (length, mass, velocity, G), etc. " << std::endl
-		<< "---- Coefs::WriteH5Units:  I found " << units.size() << " units instead.  Please "
-		<< " provide a consistent unit set." << std::endl;
+      std::ostringstream sout;
+      sout << "---- Coefs::WriteH5Units: Warning, expected 4 units: "
+	   << "(length, mass, time, G) or (length, mass, velocity, G), etc. "
+	   << "I found " << units.size() << " units instead.  Please "
+	   << " provide a consistent unit set.";
+      throw std::runtime_error(sout.str());
     }
 
     HighFive::DataSet dataset = file.createDataSet("Units", units);
@@ -171,8 +173,10 @@ namespace CoefClasses
     if (file.exist("Units")) {
       HighFive::DataSet dataset = file.getDataSet("Units");
       units = dataset.read<std::vector<Unit>>();
-      std::cout << "Coefs::ReadH5Units: read units from HDF5 file:" << std::endl;
-      std::cout << units;
+      if (verbose and myid==0) {
+	std::cout << "Coefs::ReadH5Units: read units from HDF5 file:" << std::endl;
+	std::cout << units;
+      }
     }
   }
 

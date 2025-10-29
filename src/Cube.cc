@@ -520,6 +520,11 @@ void Cube::dump_coefs_h5(const std::string& file)
     // Add the name attribute.  We only need this on the first call.
     cubeCoefs.setName(component->name);
 
+    // Add the default units
+    cubeCoefs.setUnits({{"length", "none", 1.0},
+			{"mass",   "none", 1.0},
+			{"time",   "none", 1.0}});
+
     // And the new coefficients and write the new HDF5
     cubeCoefs.clear();
     cubeCoefs.add(cur);

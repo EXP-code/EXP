@@ -1587,6 +1587,11 @@ void Cylinder::dump_coefs_h5(const std::string& file)
     // Add the name attribute.  We only need this on the first call.
     cylCoefs.setName(component->name);
 
+    // Add the default units
+    cylCoefs.setUnits({{"length", "none", 1.0},
+		       {"mass",   "none", 1.0},
+		       {"time",   "none", 1.0}});
+
     // Add the new coefficients and write the new HDF5
     cylCoefs.clear();
     cylCoefs.add(cur);

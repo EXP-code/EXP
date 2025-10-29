@@ -1926,6 +1926,11 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
     // Add the name attribute.  We only need this on the first call.
     sphCoefs.setName(component->name);
 
+    // Add the default units
+    sphCoefs.setUnits({{"length", "none", 1.0},
+		       {"mass",   "none", 1.0},
+		       {"time",   "none", 1.0}});
+
     // And the new coefficients and write the new HDF5
     sphCoefs.clear();
     sphCoefs.add(cur);
