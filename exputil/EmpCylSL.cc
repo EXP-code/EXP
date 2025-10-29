@@ -4355,9 +4355,6 @@ void EmpCylSL::make_coefficients(bool compute)
     MPIout2.resize(rank3*rank3*(MMAX+1));
   }
 
-  std::cout << "Process " << myid << ": completed coefficient accumulation, "
-	    << "multistep=" << multistep << ", sampT=" << sampT << std::endl;
-
 				// Sum up over threads
 				// 
   for (unsigned M=0; M<=multistep; M++) {
