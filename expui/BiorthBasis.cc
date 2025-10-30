@@ -4827,9 +4827,8 @@ namespace BasisClasses
   {
     file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
     file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
-    file.createAttribute<double>("scale", HighFive::DataSpace::From(rscl)).write(rscl);
-    file.createAttribute<double>("rmin", HighFive::DataSpace::From(rmin)).write(rmin);
-    file.createAttribute<double>("rmax", HighFive::DataSpace::From(rmax)).write(rmax);
+    file.createAttribute<double>("rcylmin", HighFive::DataSpace::From(rcylmin)).write(rcylmin);
+    file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
     file.createAttribute<double>("acyl", HighFive::DataSpace::From(acyl)).write(acyl);
     file.createAttribute<double>("hcyl", HighFive::DataSpace::From(hcyl)).write(hcyl);
   }

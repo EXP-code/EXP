@@ -910,8 +910,7 @@ namespace BasisClasses
     int lmaxfid, nmaxfid, mmax, mlim, nmax;
     int ncylodd, ncylnx, ncylny, ncylr, cmap, cmapR, cmapZ, vflag;
     int rnum, pnum, tnum;
-    double rmin, rmax, rcylmin, rcylmax;
-    double acyl, hcyl;
+    double rcylmin, rcylmax, acyl, hcyl;
     bool expcond, logarithmic, density, EVEN_M, sech2 = false;
     
     std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;
@@ -920,7 +919,6 @@ namespace BasisClasses
     bool coefs_defined;
     Eigen::MatrixXd factorial;
     Eigen::MatrixXd expcoef;
-    double rscl;
     int used;
     
     std::string cachename;
@@ -1008,9 +1006,6 @@ namespace BasisClasses
       return EmpCylSL::cacheInfo(cachefile);
     }
 
-    //! Prescaling factor
-    void set_scale(const double scl) { rscl = scl; }
-    
     //! Zero out coefficients to prepare for a new expansion
     void reset_coefs(void);
     
