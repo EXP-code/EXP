@@ -195,9 +195,9 @@ namespace BasisClasses
 
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system for a collections of points
-    virtual RowMatrixXd& getAccel(Eigen::VectorXd& x,
-				  Eigen::VectorXd& y,
-				  Eigen::VectorXd& z)
+    virtual RowMatrixXd& getAccel(Eigen::Ref<const Eigen::VectorXd> x,
+				  Eigen::Ref<const Eigen::VectorXd> y,
+				  Eigen::Ref<const Eigen::VectorXd> z)
     {
       // Sanity check
       if (x.size() != y.size() || x.size() != z.size())
@@ -216,7 +216,7 @@ namespace BasisClasses
 
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system for a collections of points
-    virtual RowMatrixXd& getAccel(RowMatrixXd& pos)
+    virtual RowMatrixXd& getAccel(Eigen::Ref<const RowMatrixXd> pos)
     {
       // Sanity check
       if (pos.cols() != 3)
