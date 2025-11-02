@@ -1370,7 +1370,7 @@ void BasisFactoryClasses(py::module &m)
          __call__       : same as getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
-    .def("getAccel", py::overload_cast<Eigen::VectorXd&, Eigen::VectorXd&, Eigen::VectorXd&>(&BasisClasses::BiorthBasis::getAccel),
+    .def("getAccel", py::overload_cast<Eigen::Ref<const Eigen::VectorXd>, Eigen::Ref<const Eigen::VectorXd>, Eigen::Ref<const Eigen::VectorXd>>(&BasisClasses::BiorthBasis::getAccel),
 	 R"(
          Return the acceleration for a given cartesian position
 
@@ -1394,7 +1394,7 @@ void BasisFactoryClasses(py::module &m)
          __call__       : same as getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
-    .def("getAccel", py::overload_cast<RowMatrixXd&>(&BasisClasses::BiorthBasis::getAccel),
+    .def("getAccel", py::overload_cast<Eigen::Ref<const RowMatrixXd>>(&BasisClasses::BiorthBasis::getAccel),
 	 R"(
          Return the acceleration for an array of cartesian positions
 
@@ -1414,7 +1414,7 @@ void BasisFactoryClasses(py::module &m)
          __call__       : same as getFields() but provides field labels in a tuple
          )",
 	 py::arg("pos"))
-    .def("getAccelArray", py::overload_cast<Eigen::VectorXd&, Eigen::VectorXd&, Eigen::VectorXd&>(&BasisClasses::BiorthBasis::getAccel),
+    .def("getAccelArray", py::overload_cast<Eigen::Ref<const Eigen::VectorXd>, Eigen::Ref<const Eigen::VectorXd>, Eigen::Ref<const Eigen::VectorXd>>(&BasisClasses::BiorthBasis::getAccel),
 	 R"(
          Return the acceleration for a given cartesian position
 
