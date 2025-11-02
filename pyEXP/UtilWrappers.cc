@@ -6,6 +6,7 @@
 namespace py = pybind11;
 
 #include "Centering.H"
+#include "KDdensity.H"
 #include "ParticleIterator.H"
 
 void UtilityClasses(py::module &m) {
@@ -243,4 +244,58 @@ void UtilityClasses(py::module &m) {
       None
 
    )", py::arg("verbose") = false);
+
+  py::class_<Utility::KDdensity>(m, "KDdensity")
+    .def(py::init<PR::PRptr, int>(),
+	 R"(
+         Create a k-d tree density estimator for a particle set
+
+         Parameters
+         ----------
+	 reader : ParticleReader
+                  the particle-reader class instance
+         Ndens  : int, default=32
+                  number of particles per sample ball (32 is a good 
+		  compromise between accuracy and runtime; 16 is okay if 
+		  you are trying to shave off runtime. 
+
+         Returns
+	 -------
+	 KDdensity
+	          the KDdensity instance
+    )", py::arg("reader"), py::arg("Ndens")=32)
+    .def(py::init<const Eigen::VectorXd&, const KDdensity::RowMatrixXd&, int>(),
+	 R"(
+         Create a k-d tree density estimator for a particle set
+
+         Parameters
+         ----------
+	 mass   : ndarray(N)
+                  mass array
+	 pos    : ndarray(N,3)
+                  x, y, z array
+         Ndens  : int, default=32
+                  number of particles per sample ball (32 is a good 
+		  compromise between accuracy and runtime; 16 is okay if 
+		  you are trying to shave off runtime. 
+
+         Returns
+	 -------
+	 KDdensity
+	          the KDdensity instance
+    )", py::arg("mass"), py::arg("pos"), py::arg("Ndens")=32)
+    .def("getDensity", &Utility::KDdensity::getDensity,
+	 R"(
+         Get the density estimate at a given particle index
+
+         Parameters
+         ----------
+         index : int
+                 the particle index
+
+         Returns
+         -------
+         float
+                 the density estimate at the particle position
+    )", py::arg("index"));
 }
