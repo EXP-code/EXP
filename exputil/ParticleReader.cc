@@ -705,7 +705,7 @@ namespace PR {
   }
   
 
-  PSPhdf5::PSPhdf5(const std::vector<std::string>& files, bool verbose) : ParticleReader()
+  PSPhdf5::PSPhdf5(const std::vector<std::string>& files, bool verbose) : PSP(verbose)
   {
     _files   = files;
     _verbose = verbose;
