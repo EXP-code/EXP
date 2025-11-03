@@ -294,6 +294,17 @@ namespace PR {
   
   const Particle* GadgetNative::firstParticle()
   {
+    if (done) {
+      std::cout << "---- GadgetNative: restarting at the beginning"
+		<< std::endl;
+      done = false;
+      curfile = _files.begin();
+      if (not nextFile()) {	// Try opening
+	std::cerr << "GadgetNative: no files found; logic error?"
+		  << std::endl;
+      }
+    }
+
     pcount = 0;
     
     return &particles[pcount++];
@@ -305,6 +316,7 @@ namespace PR {
       return &particles[pcount++];
     } else {
       if (nextFile()) return firstParticle();
+      done = true;
       return 0;
     }
   }
@@ -650,6 +662,15 @@ namespace PR {
   
   const Particle* GadgetHDF5::firstParticle()
   {
+    if (done) {
+      std::cout << "---- GadgetHDF5: restarting at the beginning" << std::endl;
+      done = false;
+      curfile = _files.begin();
+      if (not nextFile()) {
+	std::cerr << "GadgetHDF5: no files found; logic error?" << std::endl;
+      }
+    }
+
     pcount = 0;
     
     return & particles[pcount++];
@@ -661,7 +682,8 @@ namespace PR {
       return & particles[pcount++];
     } else {
       if (nextFile()) return firstParticle();
-      else return 0;
+      done = true;
+      return 0;
     }
   }
    
@@ -1221,6 +1243,16 @@ namespace PR {
 
   const Particle* PSPhdf5::firstParticle()
   {
+    if (done) {
+      std::cout << "---- PSPhdf5: restarting at the beginning"
+		<< std::endl;
+      done = false;
+      curfile = _files.begin();
+      if (not nextFile()) {
+	std::cerr << "PSPhdf5: no files found; logic error?" << std::endl;
+      }
+    }
+
     pcount = 0;
     
     return & particles[pcount++];
@@ -1232,7 +1264,8 @@ namespace PR {
       return & particles[pcount++];
     } else {
       if (nextFile()) return firstParticle();
-      else return 0;
+      done = true;
+      return 0;
     }
   }
   

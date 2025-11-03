@@ -35,6 +35,7 @@ namespace PR
     static std::vector<std::string> readerTypes;
     int numprocs, myid;
     bool use_mpi;
+    bool done = false;
     
     //! Check for a list of directories or files and not both
     static bool parseDirectoryList(const std::vector<std::string>& files);
