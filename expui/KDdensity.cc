@@ -119,7 +119,19 @@ namespace Utility
     }
   }
 
-  double KDdensity::getDensity(unsigned long index)
+  double KDdensity::getDensityAtPoint(double x, double y, double z)
+  {
+    point3 query_point({x, y, z}, 0.0);
+    auto ret = kdtree_->nearestN(query_point, Ndens);
+    double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
+    if (volume>0.0 and KDmass>0.0)
+      return std::get<1>(ret)/volume/KDmass;
+    else
+      return 0.0;
+  }
+
+
+  double KDdensity::getDensityByIndex(unsigned long index)
   {
     return KDdens[indx[index]];
   }

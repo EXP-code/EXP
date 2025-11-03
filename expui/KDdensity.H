@@ -46,8 +46,11 @@ namespace Utility
     //! Create KD tree from a arrays of masses and positions
     KDdensity(const Eigen::VectorXd& m, const RowMatrixXd& d, int Ndens=32);
 
+    //! Get density at a given point
+    double getDensityAtPoint(double x, double y, double z);
+
     //! Get density for particle index
-    double getDensity(unsigned long index);
+    double getDensityByIndex(unsigned long index);
 
   };
 }

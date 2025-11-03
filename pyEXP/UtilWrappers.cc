@@ -284,7 +284,42 @@ void UtilityClasses(py::module &m) {
 	 KDdensity
 	          the KDdensity instance
     )", py::arg("mass"), py::arg("pos"), py::arg("Ndens")=32)
-    .def("getDensity", &Utility::KDdensity::getDensity,
+    .def("getDensityAtPoint", &Utility::KDdensity::getDensityAtPoint,
+	 R"(
+         Get the density estimate at a given point
+
+         Parameters
+         ----------
+         x : float
+             the x coordinate of the evaluation point
+         y : float
+             the y coordinate of the evaluation point
+         z : float
+             the z coordinate of the evaluation point
+
+         Returns
+         -------
+         float
+                 the density estimate at the particle position
+    )", py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("getDensityAtPoint",
+	 [](Utility::KDdensity& A, std::vector<double>& pos) {
+	   return A.getDensityAtPoint(pos[0], pos[1], pos[2]);
+	 },
+	 R"(
+         Get the density estimate at a given point
+
+         Parameters
+         ----------
+         pos : list(float)
+               x, y, z coordinates of the evaluation point
+
+         Returns
+         -------
+         float
+                 the density estimate at the particle position
+    )", py::arg("pos"))
+    .def("getDensityByIndex", &Utility::KDdensity::getDensityByIndex,
 	 R"(
          Get the density estimate at a given particle index
 
