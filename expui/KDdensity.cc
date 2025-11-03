@@ -38,7 +38,7 @@ namespace Utility
 	auto ret = kdtree_->nearestN(points[k], Ndens);
 	double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
 	if (volume>0.0 and KDmass>0.0)
-	  KDdens[k] = std::get<1>(ret)/volume/KDmass;
+	  KDdens[k] = std::get<1>(ret)/volume;
 	else badVol++;
       }
     }
@@ -100,7 +100,7 @@ namespace Utility
 	auto ret = kdtree_->nearestN(points[k], Ndens);
 	double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
 	if (volume>0.0 and KDmass>0.0)
-	  KDdens[k] = std::get<1>(ret)/volume/KDmass;
+	  KDdens[k] = std::get<1>(ret)/volume;
 	else badVol++;
       }
     }
@@ -125,7 +125,7 @@ namespace Utility
     auto ret = kdtree_->nearestN(query_point, Ndens);
     double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
     if (volume>0.0 and KDmass>0.0)
-      return std::get<1>(ret)/volume/KDmass;
+      return std::get<1>(ret)/volume;
     else
       return 0.0;
   }

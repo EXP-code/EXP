@@ -295,8 +295,9 @@ namespace PR {
   const Particle* GadgetNative::firstParticle()
   {
     if (done) {
-      std::cout << "---- GadgetNative: restarting at the beginning"
-		<< std::endl;
+      if (myid==0 and _verbose)
+      std::cout << "---- ParticleReader::GadgetNative: "
+		<< "restarting reader" << std::endl;
       done = false;
       curfile = _files.begin();
       if (not nextFile()) {	// Try opening
@@ -663,7 +664,9 @@ namespace PR {
   const Particle* GadgetHDF5::firstParticle()
   {
     if (done) {
-      std::cout << "---- GadgetHDF5: restarting at the beginning" << std::endl;
+      if (myid==0 and _verbose)
+      std::cout << "---- ParticleReader::GadgetHDF5: "
+		<< "restarting reader" << std::endl;
       done = false;
       curfile = _files.begin();
       if (not nextFile()) {
@@ -1244,8 +1247,9 @@ namespace PR {
   const Particle* PSPhdf5::firstParticle()
   {
     if (done) {
-      std::cout << "---- PSPhdf5: restarting at the beginning"
-		<< std::endl;
+      if (myid==0 and _verbose)
+	std::cout << "---- ParticleReader::PSPhdf5: "
+		  << "restarting reader" << std::endl;
       done = false;
       curfile = _files.begin();
       if (not nextFile()) {
