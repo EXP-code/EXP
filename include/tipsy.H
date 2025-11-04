@@ -1,6 +1,7 @@
 #ifndef _tipsy_H
 #define _tipsy_H
 
+#include <cstdint>
 #include <map>
 
 // For MPI awareness
