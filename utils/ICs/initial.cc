@@ -264,6 +264,7 @@ double       HRATIO  = 1.0;
 double       DWEIGHT = 1.0;
 double       Mfac  = 1.0;
 double       HERNA = 0.10;
+bool         sech2 = true;
 
 #include "Particle.H"
 
@@ -298,8 +299,8 @@ double DiskDens(double R, double z, double phi)
     {
       double a1 = ASCALE;
       double a2 = ASCALE*ARATIO;
-      double h1 = HSCALE;
-      double h2 = HSCALE*HRATIO;
+      double h1 = sech2 ? 0.5*HSCALE : HSCALE;
+      double h2 = sech2 ? 0.5*HSCALE*HRATIO : HSCALE*HRATIO;
       double w1 = 1.0/(1.0+DWEIGHT);
       double w2 = DWEIGHT/(1.0+DWEIGHT);
 
@@ -315,7 +316,7 @@ double DiskDens(double R, double z, double phi)
   case DiskType::diskbulge:
     {
       double acyl = ASCALE;
-      double hcyl = HSCALE;
+      double hcyl = sech2 ? 0.5*HSCALE : HSCALE;
       double f = cosh(z/HSCALE);
       double rr = pow(pow(R, 2) + pow(z,2), 0.5);
       double w1 = Mfac;
@@ -335,8 +336,9 @@ double DiskDens(double R, double z, double phi)
   case DiskType::exponential:
   default:
     {
-      double f = cosh(z/HSCALE);
-      ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f);
+      double h = sech2 ? 0.5*HSCALE : HSCALE;
+      double f = cosh(z/h);
+      ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*h*f*f);
     }
     break;
   }
@@ -409,6 +411,12 @@ main(int ac, char **av)
   options.add_options()
     ("h,help", "Print this help message")
     ("T,template", "Write template options file with current and all default values")
+    ("sech2", "Use sech^2 vertical profile for disk density",
+     cxxopts::value<bool>()->default_value("true"))
+    ("mtype", "EmpCylSL spherical model type (one of: Exponential, Gaussian, Plummer, Power)",
+     cxxopts::value<string>(mtype)->default_value("Exponential"))
+    ("ppow", "Power-law index for EmpCylSL Power spherical model",
+     cxxopts::value<double>(PPower)->default_value("2.0"))
     ("c,config", "Parameter configuration file",
      cxxopts::value<string>(config))
     ("deproject", "The EmpCylSL deprojection from specified disk model (EXP or MN)",
