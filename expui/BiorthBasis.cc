@@ -26,7 +26,6 @@ namespace BasisClasses
     "pcavtk",
     "pcaeof",
     "subsamp",
-    "sampT",
     "snr",
     "samplesz",
     "vtkfreq",
@@ -265,6 +264,8 @@ namespace BasisClasses
       if (conf["M0_ONLY"])   M0_only   = conf["M0_ONLY"].as<bool>();
       if (conf["pcavar"])    pcavar    = conf["pcavar"].as<bool>();
       if (conf["subsamp"])   sampT     = conf["subsamp"].as<int>();
+
+      sampT = std::max(1, sampT); // Sanity
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -1446,7 +1447,7 @@ namespace BasisClasses
     if (unmatched.size())
       throw YamlConfigError("Basis::Basis::Cylindrical", "parameter", unmatched, __FILE__, __LINE__);
     
-    int sampT = 0;
+    int sampT = 1;
 
     // Assign values from YAML
     //
@@ -1500,6 +1501,9 @@ namespace BasisClasses
       if (conf["pyname"    ])      pyname = conf["pyname"    ].as<std::string>();
       if (conf["pcavar"]    )      pcavar = conf["pcavar"    ].as<bool>();
       if (conf["subsamp"]   )      sampT  = conf["subsamp"   ].as<int>();
+
+      // Sanity
+      sampT = std::max(1, sampT);
 
       // Deprecation warning
       if (conf["density"   ]) {
