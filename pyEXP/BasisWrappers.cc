@@ -449,6 +449,10 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(Selement, BiorthBasis, getCovarSamples,);
     }
 
+    void enableCoefCovariance(bool pcavar, int nsamples) override {
+      PYBIND11_OVERRIDE(void, BiorthBasis, enableCoefCovariance, pcavar, nsamples);
+    }
+
   };
 
   class PySpherical : public Spherical
@@ -1432,6 +1436,22 @@ void BasisFactoryClasses(py::module &m)
          -------
          None
          )")
+    .def("enableCoefCovariance", &BasisClasses::BiorthBasis::enableCoefCovariance,
+	 R"(
+         Enable or disable the coefficient covariance computation and set the
+         default number of paritions to use for the covariance computation.
+
+         Parameters
+         ----------
+         pcavar   : bool
+                    enable (true) or disable (false) the covariance computation
+         nsamples : int
+                    number of time partitions to use for covariance computation
+
+         Returns
+         -------
+         None
+	)", py::arg("pcavar"), py::arg("nsamples")=100)
     .def("setCovarH5Compress", &BasisClasses::BiorthBasis::setCovarH5Compress,
          R"(
 	 Set the HDF5 compression level for covariance storage in HDF5.  The Szip

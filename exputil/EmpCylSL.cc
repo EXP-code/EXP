@@ -332,7 +332,7 @@ EmpCylSL::EmpCylSL(int mlim, std::string cachename)
   eof_made   = false;
   
   sampT        = 1;
-  defSampT     = 1;
+  defSampT     = 0;
   tk_type      = None;
   
   cylmass      = 0.0;

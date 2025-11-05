@@ -1447,8 +1447,6 @@ namespace BasisClasses
     if (unmatched.size())
       throw YamlConfigError("Basis::Basis::Cylindrical", "parameter", unmatched, __FILE__, __LINE__);
     
-    int sampT = 1;
-
     // Assign values from YAML
     //
     try {

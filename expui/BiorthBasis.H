@@ -272,6 +272,7 @@ namespace BasisClasses
     virtual std::vector<std::vector<CoefCovarType>>
     getCoefCovariance()
     {
+      // Must be overriden; base implementation throws error
       throw std::runtime_error("BiorthBasis::getCoefCovariance: Not implemented for this basis");
     }
 
@@ -301,6 +302,14 @@ namespace BasisClasses
 
     //! Make covariance after accumulation
     virtual void makeCoefCovariance(void) {}
+
+    //! Enable covariance computation with optional sample time
+    virtual void enableCoefCovariance(bool pcavar, int sampT_in)
+    {
+      // Must be overriden; base implementation throws error
+      throw std::runtime_error("BiorthBasis::enableCoefCovariance: "
+			       "Not implemented for this basis");
+    }
 
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system for a collections of points
@@ -487,6 +496,13 @@ namespace BasisClasses
     //! covariance matrix for subsamples of particles
     std::vector<std::vector<CoefCovarType>>
     getCoefCovariance();
+
+    virtual void enableCoefCovariance(bool pcavar, int sampT_in=100)
+    {
+      pcavar = true;
+      sampT  = sampT_in;
+      if (pcavar) init_covariance();
+    }
   };
 
   /**
@@ -919,7 +935,7 @@ namespace BasisClasses
     bool coefs_defined;
     Eigen::MatrixXd factorial;
     Eigen::MatrixXd expcoef;
-    int used;
+    int used, sampT = 1;
     
     std::string cachename;
     bool oldcache = false;
@@ -1061,6 +1077,15 @@ namespace BasisClasses
       return {sampleCounts, sampleMasses};
     }
 
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100)
+    {
+      pcavar = pcavar_in;
+      sampT  = sampT_in;
+      if (pcavar)  {
+	sl->setSampT(std::max(1, sampT));
+	sl->set_covar(true);
+      }
+    }
   };
   
   /**
