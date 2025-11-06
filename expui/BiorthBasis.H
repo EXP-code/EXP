@@ -497,9 +497,9 @@ namespace BasisClasses
     std::vector<std::vector<CoefCovarType>>
     getCoefCovariance();
 
-    virtual void enableCoefCovariance(bool pcavar, int sampT_in=100)
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100)
     {
-      pcavar = true;
+      pcavar = pcavar_in;
       sampT  = sampT_in;
       if (pcavar) init_covariance();
     }

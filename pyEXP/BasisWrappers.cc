@@ -518,6 +518,10 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(std::vector<Eigen::MatrixXd>, Spherical, orthoCheck, knots);
     }
 
+    void enableCoefCovariance(bool pcavar, int nsamples) override {
+      PYBIND11_OVERRIDE(void, Spherical, enableCoefCovariance, pcavar, nsamples);
+    }
+
   };
 
 
@@ -567,6 +571,10 @@ void BasisFactoryClasses(py::module &m)
 
     void make_coefs(void) override {
       PYBIND11_OVERRIDE(void, Cylindrical, make_coefs,);
+    }
+
+    void enableCoefCovariance(bool pcavar, int nsamples) override {
+      PYBIND11_OVERRIDE(void, Cylindrical, enableCoefCovariance, pcavar, nsamples);
     }
 
   };
