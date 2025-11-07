@@ -251,6 +251,28 @@ namespace CoefClasses
     //! Get units
     std::vector<std::tuple<std::string, std::string, float>> getUnits();
 
+    //! Get allowed unit types
+    const std::vector<std::string> getAllowedUnitTypes() const
+    {
+      return check.getAllowedTypes();
+    }
+    
+    //! Get allowed aliases for each type
+    const std::vector<std::string>
+    getAllowedTypeAliases(const std::string& type) const
+    {
+      return check.getAllowedTypeAliases(type);
+    }
+
+    //! Get allowed units for a given type
+    const std::vector<std::string>
+    getAllowedUnitNames(const std::string& type) const
+    {
+      auto ret = check.getAllowedUnits(type);
+      std::sort(ret.begin(), ret.end());
+      return ret;
+    }
+
     //! Get gravitational constant
     double getGravConstant();
 

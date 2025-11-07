@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "UnitValidator.H"
 
 // Constructor/initializer
@@ -196,3 +197,39 @@ UnitValidator::createAllowedUnitNames()
   return allowed;
 }
 
+// Get allowed aliases for each type
+const std::vector<std::string>
+UnitValidator::getAllowedTypeAliases(const std::string& type) const
+{
+  // Build the alias vector
+  std::vector<std::string> aliases;
+
+  for (const auto& pair : allowed_types) {
+    if (pair.second == type) {
+      aliases.push_back(pair.first);
+    }
+  }
+
+  // Sort the vector
+  std::sort(aliases.begin(), aliases.end());
+
+  return aliases;
+}
+
+// Canonical names for allowed unit types
+const std::vector<std::string> UnitValidator::getAllowedTypes() const
+{
+  return {"mass", "length", "time", "velocity", "G"};
+}
+
+// Get allowed units for a given type (and their aliases)
+const std::vector<std::string> UnitValidator::getAllowedUnits(const std::string& type) const
+{
+  std::vector<std::string> units;
+  if (allowed_units.count(type) > 0) {
+    for (const auto& pair : allowed_units.at(type)) {
+      units.push_back(pair.first);
+    }
+  }
+  return units;
+}

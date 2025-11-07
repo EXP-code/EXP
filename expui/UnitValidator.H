@@ -1,5 +1,7 @@
 #include <unordered_map>
+#include <vector>
 #include <string>
+#include <tuple>
 #include <map>
 
 /** Class to validate unit types and names The allowed types and units
@@ -58,5 +60,14 @@ public:
   //! Do the full check and return canonical strings
   std::tuple<bool, std::string, std::string>
   operator()(const std::string& type, const std::string& unit);
+
+  //! Get allowed unit types
+  const std::vector<std::string> getAllowedTypes() const;
+
+  //! Get allowed aliases for each type
+  const std::vector<std::string> getAllowedTypeAliases(const std::string& type) const;
+
+  //! Get allowed units for a given type and their aliases
+  const std::vector<std::string> getAllowedUnits(const std::string& type) const;
 
 };
