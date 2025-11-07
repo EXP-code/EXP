@@ -5,8 +5,8 @@
 #include <vector>
 #include <map>
 
-#include <BasisFactory.H>
-#include <Coefficients.H>
+#include "BasisFactory.H"
+#include "Coefficients.H"
 
 namespace Field
 {

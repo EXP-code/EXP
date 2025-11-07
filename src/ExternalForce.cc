@@ -1,6 +1,6 @@
 #include "expand.H"
 
-#include <ExternalForce.H>
+#include "ExternalForce.H"
 
 ExternalForce::ExternalForce(const YAML::Node& conf) : PotAccel(0, conf)
 {

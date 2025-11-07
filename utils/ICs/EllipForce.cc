@@ -3,7 +3,7 @@
 #include <fstream>
 #include <string>
 
-#include <EllipForce.H>
+#include "EllipForce.H"
 
 std::string EllipForce::cache_file = ".ellipforce.cache";
 

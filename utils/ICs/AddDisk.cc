@@ -4,10 +4,10 @@
 #include <sstream>
 #include <vector>
 
-#include <localmpi.H>
-#include <massmodel.H>
-#include <interp.H>
-#include <AddDisk.H>
+#include "localmpi.H"
+#include "massmodel.H"
+#include "interp.H"
+#include "AddDisk.H"
 
 int AddDisk::number = 4000;
 double AddDisk::Rmin = 1.0e-3;

@@ -10,8 +10,8 @@
 
 #include <omp.h>		// For OpenMP API
 
-#include <localmpi.H>		// MPI support
-#include <libvars.H>		// For orthoTol
+#include "localmpi.H"		// MPI support
+#include "libvars.H"		// For orthoTol
 
 // Compute the orthogonality of a list of matrices and gather stats
 //

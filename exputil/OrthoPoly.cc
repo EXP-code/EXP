@@ -1,4 +1,4 @@
-#include <OrthoPoly.H>
+#include "OrthoPoly.H"
 
 double OrthoPoly::f(const double x, const int n)
 {

@@ -47,19 +47,19 @@
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <cxxopts.H>
-#include <libvars.H>
-#include <EmpCylSL.H>
+#include "numerical.H"
+#include "cxxopts.H"
+#include "libvars.H"
+#include "EmpCylSL.H"
 #include "Particle.h"
-#include <interp.H>
+#include "interp.H"
 #include "Coefs.H"
 
-#include <writePVD.H>
-#include <localmpi.H>
-#include <foarray.H>
+#include "writePVD.H"
+#include "localmpi.H"
+#include "foarray.H"
 
-#include <DataGrid.H>
+#include "DataGrid.H"
 
 const std::string overview = "Compute disk potential, force and density profiles from\nEXP coefficient files\n";
 

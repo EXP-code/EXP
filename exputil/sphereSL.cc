@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <iomanip>
-#include <sphereSL.H>
+#include "sphereSL.H"
 
 
 int  SphereSL::mpi   = 0;

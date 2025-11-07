@@ -18,13 +18,13 @@
 #include <list>
 #include <map>
 
-#include <header.H>
-#include <PSP.H>
-#include <FileUtils.H>
+#include "header.H"
+#include "PSP.H"
+#include "FileUtils.H"
 
-#include <Progress.H>
-#include <cxxopts.H>
-#include <libvars.H>		// EXP library globals
+#include "Progress.H"
+#include "cxxopts.H"
+#include "libvars.H"		// EXP library globals
 
 
 //! Coefficient file header

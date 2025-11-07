@@ -3,10 +3,10 @@
 #include <iostream>
 #include <cmath>
 
-#include <euler.H>
-#include <biorth.H>
-#include <biorth_wake.H>
-#include <SimAnn.H>
+#include "euler.H"
+#include "biorth.H"
+#include "biorth_wake.H"
+#include "SimAnn.H"
 
 double factrl(int n);
 double plgndr(int l, int m, double x);
@@ -275,7 +275,7 @@ void BiorthWake::amoeba(void)
   
 #ifdef DEBUG
 
-#include <gaussQ.H>
+#include "gaussQ.H"
 #include <iomanip>
 
 std::complex<double> BiorthWake::test_fct(double theta, double phi)

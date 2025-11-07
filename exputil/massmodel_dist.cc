@@ -46,8 +46,8 @@
 #include <string>
 #include <cmath>
 
-#include <massmodel.H>
-#include <interp.H>
+#include "massmodel.H"
+#include "interp.H"
 
 const double OFFSET=1.0e-3;
 const double OFFTOL=1.2;

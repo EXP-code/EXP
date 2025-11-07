@@ -14,10 +14,10 @@
 
 #include <omp.h>
 
-#include <mestel.H>
+#include "mestel.H"
 
-#include <Progress.H>		// Progress bar
-#include <cxxopts.H>		// Option parsing
+#include "Progress.H"		// Progress bar
+#include "cxxopts.H"		// Option parsing
 
 int 
 main(int ac, char **av)

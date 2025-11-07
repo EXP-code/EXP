@@ -10,6 +10,7 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Compiler flags.  Not all tested thoroughly...
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -305,6 +306,14 @@ endif()
 
 # Force installation of the yaml-cpp libraries
 install(TARGETS yaml-cpp DESTINATION lib)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+                FILES_MATCHING PATTERN "*.h")
+
+# Install HighFive headers
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/extern/HighFive/include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    PATTERN "*.in" EXCLUDE)
 
 # Check for doxygen is the user wants web docs
 if (BUILD_DOCS)

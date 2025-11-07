@@ -7,7 +7,7 @@
 #ifndef _toomre_H
 #define _toomre_H
 
-#include <massmodel.H>
+#include "massmodel.H"
 
 class ToomreDisk : public AxiSymModel
 {

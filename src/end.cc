@@ -4,10 +4,10 @@
   Global flag "finish" is set to 1
 */
 
-#include <expand.H>
-#include <global.H>
-#include <OutputContainer.H>
-#include <ExternalCollection.H>
+#include "expand.H"
+#include "global.H"
+#include "OutputContainer.H"
+#include "ExternalCollection.H"
 
 #include <sys/types.h>
 #include <unistd.h>

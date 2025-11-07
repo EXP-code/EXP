@@ -1,6 +1,6 @@
 #include <cmath>
-#include <numerical.H>
-#include <phase.H>
+#include "numerical.H"
+#include "phase.H"
 
 /* 
    Run an orbit from one point on the surface of section 

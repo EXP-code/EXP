@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 
-#include <massmodel.H>
+#include "massmodel.H"
 
 class AddSpheres
 {

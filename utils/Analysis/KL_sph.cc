@@ -43,24 +43,24 @@
 				// Eigen3
 #include <Eigen/Eigen>
 				// Progress barp
-#include <Progress.H>
+#include "Progress.H"
                                 // System libs
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <ParticleReader.H>
-#include <interp.H>
-#include <massmodel.H>
-#include <SphSL.H>
-#include <KDtree.H>
-#include <foarray.H>
-#include <cxxopts.H>		// Command-line parsing
+#include "numerical.H"
+#include "ParticleReader.H"
+#include "interp.H"
+#include "massmodel.H"
+#include "SphSL.H"
+#include "KDtree.H"
+#include "foarray.H"
+#include "cxxopts.H"		// Command-line parsing
 				// Library support
-#include <localmpi.H>
-#include <libvars.H>
+#include "localmpi.H"
+#include "libvars.H"
 
 using namespace __EXP__;	// Reference to n-body globals
 

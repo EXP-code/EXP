@@ -1,7 +1,7 @@
 #ifndef _OutPSN_H
 #define _OutPSN_H
 
-#include <OutPSN.H>
+#include "OutPSN.H"
 
 /** Write phase-space dumps at regular intervals.
     Each %dump is written into a new file label as <code>filename.n</code>

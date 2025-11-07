@@ -32,9 +32,9 @@ using namespace std;
 #include <functional>
 #include <cmath>
 
-#include <gaussQ.H>
-#include <biorth2d.H>
-#include <OrthoPoly.H>
+#include "gaussQ.H"
+#include "biorth2d.H"
+#include "OrthoPoly.H"
 
 
 Eigen::VectorXd

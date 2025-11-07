@@ -4,10 +4,10 @@
 #include <string>
 #include <cmath>
 
-#include <localmpi.H>
-#include <SLGridMP2.H>
-#include <gaussQ.H>
-#include <cxxopts.H>
+#include "localmpi.H"
+#include "SLGridMP2.H"
+#include "gaussQ.H"
+#include "cxxopts.H"
 
 int main(int argc, char** argv)
 {

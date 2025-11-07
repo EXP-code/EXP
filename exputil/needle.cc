@@ -2,8 +2,8 @@
 
 #include <Eigen/Eigen>
 
-#include <numerical.H>
-#include <models.H>
+#include "numerical.H"
+#include "models.H"
 
 
 double Needle::potential(Eigen::Vector3d &x)

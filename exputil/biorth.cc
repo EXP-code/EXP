@@ -9,8 +9,8 @@
 #include <iostream>
 #include <cmath>
 
-#include <biorth.H>
-#include <EXPmath.H>
+#include "biorth.H"
+#include "EXPmath.H"
 
 double ultra(int n, double l, double x);
 

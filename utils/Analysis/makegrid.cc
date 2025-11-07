@@ -5,8 +5,8 @@
 #include <cmath>
 #include <limits>
 
-#include <config_exp.h>
-#include <libvars.H>
+#include "config_exp.h"
+#include "libvars.H"
 
 #ifdef HAVE_VTK
 
@@ -33,7 +33,7 @@
 #include <vtkLookupTable.h>
 #include <vtkVersion.h>
 
-#include <cxxopts.H>
+#include "cxxopts.H"
 
 //
 // Helper class for diagnostics
@@ -90,9 +90,9 @@ const char* fPosVel::names[] = {"x", "y", "z", "u", "v", "z"};
 //
 // PSP stuff
 //
-#include <StringTok.H>
-#include <header.H>
-#include <ParticleReader.H>
+#include "StringTok.H"
+#include "header.H"
+#include "ParticleReader.H"
 
 int main(int argc, char**argv)
 {

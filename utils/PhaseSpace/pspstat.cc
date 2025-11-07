@@ -16,11 +16,11 @@
 
 #include <Eigen/Eigen>
 
-#include <StringTok.H>
-#include <libvars.H>		// EXP library globals
-#include <cxxopts.H>		// Option parsing
-#include <header.H>
-#include <PSP.H>
+#include "StringTok.H"
+#include "libvars.H"		// EXP library globals
+#include "cxxopts.H"		// Option parsing
+#include "header.H"
+#include "PSP.H"
 
 int
 main(int argc, char **argv)

@@ -1,7 +1,7 @@
 #ifndef _OutPSR_H
 #define _OutPSR_H
 
-#include <OutPSR.H>
+#include "OutPSR.H"
 
 /** Write phase-space dumps at regular intervals from each node 
     in component pieces.  These pieces may be reassembled from the info

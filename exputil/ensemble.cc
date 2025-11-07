@@ -3,7 +3,7 @@
 #include <cstdlib>
 
 #include <time.h>
-#include <numerical.H>
+#include "numerical.H"
 
 #include "phase.H"
 

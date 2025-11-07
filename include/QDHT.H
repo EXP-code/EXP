@@ -9,7 +9,7 @@
 
 #include <Eigen/Eigen>
 
-#include <EXPmath.H>		// For C++17 special function workarounds
+#include "EXPmath.H"		// For C++17 special function workarounds
 
 //! Hankel transform based on the QDHT algorithm
 //!

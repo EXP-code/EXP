@@ -5,7 +5,7 @@
 #define _biorth1d_H
 
 #include <cmath>
-#include <biorth.H>
+#include "biorth.H"
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>

@@ -1,7 +1,7 @@
 #ifndef _User_Test_H
 #define _User_Test_H
 
-#include <ExternalCollection.H>
+#include "ExternalCollection.H"
 
 /** Simple skeleton user routine
     Does nothing but print out messages at each call

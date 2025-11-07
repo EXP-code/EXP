@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include <SLGridMP2.H>
-#include <localmpi.H>
+#include "SLGridMP2.H"
+#include "localmpi.H"
 #include <Eigen/Eigen>
 
 /**

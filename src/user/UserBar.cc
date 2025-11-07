@@ -2,12 +2,12 @@
 #include <set>
 
 #include "expand.H"
-#include <localmpi.H>
-#include <gaussQ.H>
+#include "localmpi.H"
+#include "gaussQ.H"
 
-#include <YamlCheck.H>
-#include <EXPException.H>
-#include <UserBar.H>
+#include "YamlCheck.H"
+#include "EXPException.H"
+#include "UserBar.H"
 
 UserBar::UserBar(const YAML::Node &conf) : ExternalForce(conf)
 {

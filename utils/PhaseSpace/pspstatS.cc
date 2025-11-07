@@ -18,13 +18,13 @@
 
 using namespace std;
 
-#include <Species.H>
+#include "Species.H"
 
-#include <StringTok.H>
-#include <cxxopts.H>		// Option parsing
-#include <libvars.H>		// EXP library globals
-#include <header.H>
-#include <PSP.H>
+#include "StringTok.H"
+#include "cxxopts.H"		// Option parsing
+#include "libvars.H"		// EXP library globals
+#include "header.H"
+#include "PSP.H"
 
 #include "atomic_constants.H"
 

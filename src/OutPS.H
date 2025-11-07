@@ -1,7 +1,7 @@
 #ifndef _OutPS_H
 #define _OutPS_H
 
-#include <OutPS.H>
+#include "OutPS.H"
 
 /** Append phase space dumps to specified file at regular intervals
 

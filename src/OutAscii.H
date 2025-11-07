@@ -1,8 +1,8 @@
 #ifndef _OutAscii_H
 #define _OutAscii_H
 
-#include <Component.H>
-#include <OutAscii.H>
+#include "Component.H"
+#include "OutAscii.H"
 
 /** Write phase-space dumps for a single component 
     at regular intervals in ascii format.  Each line contains:

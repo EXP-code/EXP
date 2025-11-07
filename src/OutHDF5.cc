@@ -17,9 +17,9 @@
 #include <highfive/eigen.hpp>
 
 #include "expand.H"
-#include <global.H>
+#include "global.H"
 
-#include <OutHDF5.H>
+#include "OutHDF5.H"
 
 const std::set<std::string>
 OutHDF5::valid_keys = {

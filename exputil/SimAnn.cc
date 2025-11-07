@@ -3,7 +3,7 @@
 //
 // Uses Cauchy training
 
-#include <SimAnn.H>
+#include "SimAnn.H"
 
 SimAnn::SimAnn (SimAnn::Func1d f, const int d):
   func (f), ddwell (20), rrange (M_PI_2), t0 (0.0), K (1.0),

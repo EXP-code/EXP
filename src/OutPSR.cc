@@ -5,11 +5,11 @@
 #include <chrono>
 
 #include "expand.H"
-#include <global.H>
-#include <OutputContainer.H>
+#include "global.H"
+#include "OutputContainer.H"
 
-#include <AxisymmetricBasis.H>
-#include <OutPSR.H>
+#include "AxisymmetricBasis.H"
+#include "OutPSR.H"
 
 const std::set<std::string>
 OutPSR::valid_keys = {

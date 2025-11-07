@@ -4,10 +4,10 @@
 #include <chrono>
 
 #include "expand.H"
-#include <global.H>
+#include "global.H"
 
-#include <AxisymmetricBasis.H>
-#include <OutPS.H>
+#include "AxisymmetricBasis.H"
+#include "OutPS.H"
 
 const std::set<std::string>
 OutPS::valid_keys = {

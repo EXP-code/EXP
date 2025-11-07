@@ -12,7 +12,7 @@
 
 #include <fftw3.h>
 
-#include <cxxopts.H>
+#include "cxxopts.H"
 
 namespace KDE
 {

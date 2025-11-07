@@ -10,7 +10,7 @@
 #include <cstring>
 
 #include <yaml-cpp/yaml.h>	// YAML support
-#include <cxxopts.H>		// Option parser
+#include "cxxopts.H"		// Option parser
 
 /** Saves the current command-line cxxopts database in YAML format for
     user configuration.  For ease, the current convention is that all

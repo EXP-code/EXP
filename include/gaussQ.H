@@ -1,7 +1,7 @@
 /*
 
 SYNOPSIS
-     #include <gaussQ.H>
+     #include "gaussQ.H"
 
 
 DESCRIPTION

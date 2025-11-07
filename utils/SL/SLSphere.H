@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include <biorth.H>
-#include <SLGridMP2.H>
+#include "biorth.H"
+#include "SLGridMP2.H"
 
 class SLSphere : public AxiSymBiorth
 {

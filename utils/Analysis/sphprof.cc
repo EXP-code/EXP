@@ -44,16 +44,16 @@
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <ParticleReader.H>
-#include <interp.H>
-#include <massmodel.H>
-#include <SphSL.H>
-#include <DataGrid.H>
-#include <localmpi.H>
-#include <foarray.H>
-#include <cxxopts.H>
-#include <libvars.H>
+#include "numerical.H"
+#include "ParticleReader.H"
+#include "interp.H"
+#include "massmodel.H"
+#include "SphSL.H"
+#include "DataGrid.H"
+#include "localmpi.H"
+#include "foarray.H"
+#include "cxxopts.H"
+#include "libvars.H"
 
 // Globals
 

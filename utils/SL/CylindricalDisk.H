@@ -4,8 +4,8 @@
 
 using namespace std;
 
-#include <massmodel.H>
-#include <SLSphere.H>
+#include "massmodel.H"
+#include "SLSphere.H"
 
 /** 
     Functionoid defining the radial and vertical profiles for the disk

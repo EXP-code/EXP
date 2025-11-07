@@ -7,8 +7,8 @@
 #include <complex>
 #include <cstring>
 
-#include <config_exp.h>
-#include <localmpi.H>
+#include "config_exp.h"
+#include "localmpi.H"
 
 #include <Eigen/Dense>
 #include <yaml-cpp/yaml.h>
@@ -16,7 +16,7 @@
 #include <highfive/highfive.hpp>
 #include <highfive/eigen.hpp>
 
-#include <Coefficients.H>
+#include "Coefficients.H"
 
 // Create a helper function to describe the compound type
 HighFive::CompoundType create_compound_Unit() {

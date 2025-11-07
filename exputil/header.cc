@@ -1,6 +1,6 @@
 #include <iostream>
 #include <iomanip>
-#include <header.H>
+#include "header.H"
 
 int ComponentHeader::defaultInfoSize = 1024;
 

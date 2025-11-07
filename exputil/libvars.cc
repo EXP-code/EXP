@@ -3,7 +3,7 @@
    standalone utilities
  */
 
-#include <libvars.H>
+#include "libvars.H"
 
 namespace __EXP__
 {

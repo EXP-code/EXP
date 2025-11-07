@@ -6,10 +6,10 @@
 #include <fstream>
 #include <string>
 
-#include <numerical.H>
-#include <biorth.H>
+#include "numerical.H"
+#include "biorth.H"
 
-#include <SLGridMP2.H>
+#include "SLGridMP2.H"
 
 
 class SphereSL : public AxiSymBiorth

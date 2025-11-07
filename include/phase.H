@@ -6,7 +6,7 @@
 
 #include <Eigen/Eigen>
 
-#include <numerical.H>
+#include "numerical.H"
 
 class Ensemble;
 

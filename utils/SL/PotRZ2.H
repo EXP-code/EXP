@@ -1,7 +1,7 @@
 #ifndef _PotRZ_H
 #define _PotRZ_H
 
-#include <QDHT.H>
+#include "QDHT.H"
 #include <cmath>
 
 //! Compute the inverse Hankel transform to get the potential based on

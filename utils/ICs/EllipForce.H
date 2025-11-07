@@ -7,8 +7,8 @@
 #include <memory>
 #include <vector>
 
-#include <interp.H>
-#include <gaussQ.H>
+#include "interp.H"
+#include "gaussQ.H"
 
 class EllipForce {
 private:

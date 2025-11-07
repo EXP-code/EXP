@@ -5,7 +5,7 @@
 #ifndef _Expon_H
 #define _Expon_H
 
-#include <massmodel.H>
+#include "massmodel.H"
 
 class ExponentialDisk : public AxiSymModel
 {

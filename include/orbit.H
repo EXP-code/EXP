@@ -4,7 +4,7 @@
 #include <functional>
 #include <memory>
 #include <Eigen/Eigen>
-#include <gaussQ.H>
+#include "gaussQ.H"
 
 class AxiSymModel;
 class AxiSymBiorth;

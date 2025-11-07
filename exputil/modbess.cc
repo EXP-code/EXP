@@ -1,6 +1,6 @@
 
 #include <math.h>
-#include <numerical.H>
+#include "numerical.H"
 
 
 double BesselK(int n, double x)

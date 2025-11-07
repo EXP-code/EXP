@@ -2,9 +2,9 @@
 #include <sstream>
 
 #include "expand.H"
-#include <gaussQ.H>
+#include "gaussQ.H"
 
-#include <UserDisk.H>
+#include "UserDisk.H"
 
 extern double bessj0(double);
 extern double bessj1(double);

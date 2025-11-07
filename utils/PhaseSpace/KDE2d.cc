@@ -1,4 +1,4 @@
-#include <KDE2d.H>
+#include "KDE2d.H"
 
 namespace KDE
 {

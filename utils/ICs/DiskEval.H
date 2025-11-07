@@ -18,12 +18,12 @@
 
 // MDW classes
 //
-#include <numerical.H>
-#include <gaussQ.H>
-#include <EmpCylSL.H>
-#include <DiskModels.H>
+#include "numerical.H"
+#include "gaussQ.H"
+#include "EmpCylSL.H"
+#include "DiskModels.H"
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 double  plgndr(int l, int m, double x);
 double dplgndr(int l, int m, double x);

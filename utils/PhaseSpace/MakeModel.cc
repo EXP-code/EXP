@@ -3,9 +3,9 @@
 #include <fstream>
 #include <memory>
 
-#include <localmpi.H>
-#include <MakeModel.H>
-#include <interp.H>
+#include "localmpi.H"
+#include "MakeModel.H"
+#include "interp.H"
 
 MakeModel::MakeModel(int N, double Rmin, double Rmax, bool LogR)
 {

@@ -5,9 +5,9 @@
 #include <cmath>
 #include <cstdlib>
 
-#include <massmodel.H>
-#include <exponential.H>
-#include <EXPmath.H>
+#include "massmodel.H"
+#include "exponential.H"
+#include "EXPmath.H"
 
 double ExponentialDisk::get_pot(const double r)
 {

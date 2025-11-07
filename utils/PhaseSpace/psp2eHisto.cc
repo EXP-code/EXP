@@ -20,14 +20,14 @@ using namespace std;
 #include <string>
 #include <locale>
 
-#include <Species.H>
+#include "Species.H"
 
-#include <StringTok.H>
-#include <writePVD.H>
-#include <cxxopts.H>		// Option parsing
-#include <libvars.H>		// EXP library globals
-#include <header.H>
-#include <PSP.H>
+#include "StringTok.H"
+#include "writePVD.H"
+#include "cxxopts.H"		// Option parsing
+#include "libvars.H"		// EXP library globals
+#include "header.H"
+#include "PSP.H"
 
 //
 // VTK stuff

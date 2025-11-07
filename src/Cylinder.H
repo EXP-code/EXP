@@ -3,19 +3,19 @@
 
 #include <memory>
 
-#include <Orient.H>
-#include <Basis.H>
-#include <CylEXP.H>
-#include <Coefficients.H>
+#include "Orient.H"
+#include "Basis.H"
+#include "CylEXP.H"
+#include "Coefficients.H"
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
 
-#include <CoefContainer.H>
+#include "CoefContainer.H"
 
 // This prints out the level switch matrix.  For deep debugging only.
 // #define CYL_UPDATE_TABLE

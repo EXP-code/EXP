@@ -5,7 +5,7 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include <cxxopts.H>
+#include "cxxopts.H"
 
 #define NAME_ID    "yaml_diff"
 #define VERSION_ID "0.1"

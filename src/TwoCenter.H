@@ -1,11 +1,11 @@
 #ifndef _TwoCenter_H
 #define _TwoCenter_H
 
-#include <SLGridMP2.H>
+#include "SLGridMP2.H"
 
-#include <Sphere.H>
-#include <Bessel.H>
-#include <Cylinder.H>
+#include "Sphere.H"
+#include "Bessel.H"
+#include "Cylinder.H"
 
 class MixtureBasis;
 

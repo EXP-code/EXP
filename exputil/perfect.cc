@@ -1,11 +1,11 @@
 
 #include <math.h>
 #include <stdio.h>
-#include <numerical.H>
+#include "numerical.H"
 
-#include <phase.H>
-#include <staeckel.H>
-#include <models.H>
+#include "phase.H"
+#include "staeckel.H"
+#include "models.H"
 
 
 /*

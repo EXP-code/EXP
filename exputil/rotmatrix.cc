@@ -124,7 +124,7 @@ main(int argc, char **argv)
 #include <iostream>
 #include <iomanip>
 
-#include <gaussQ.H>
+#include "gaussQ.H"
 
 main(int argc, char **argv)
 {

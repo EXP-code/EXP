@@ -6,7 +6,7 @@
 #include <string>
 #include <tuple>
 
-#include <massmodel.H>
+#include "massmodel.H"
 
 class OneDModel : public MassModel
 {
