@@ -142,7 +142,7 @@ main(int argc, char **argv)
     ("NG", "Grid points for scalar products",
      cxxopts::value<int>(ng)->default_value("512"))
     ("i,INFILE", "Model file",
-     cxxopts::value<std::string>(INFILE)->default_value("model.dat"))
+     cxxopts::value<std::string>(INFILE))
     ("o,PREFIX", "Output file prefix",
      cxxopts::value<std::string>(PREFIX)->default_value("orthoTest"))
     ;
@@ -163,6 +163,16 @@ main(int argc, char **argv)
     if (myid==0) std::cout << std::endl << options.help() << std::endl;
     MPI_Finalize();
     return 0;
+  }
+
+  // Check for model file
+  //
+  if (MODEL==0 && !vm.count("INFILE")) {
+    if (myid==0)
+      std::cerr << "Must specify model input file with the -i or "
+		<< "--INFILE=file option" << std::endl;
+    MPI_Finalize();
+    return -1;
   }
 
   // Assign biorthogonal type
