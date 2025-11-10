@@ -609,10 +609,9 @@ namespace BasisClasses
     for (int l=0, loffset=0, L=0; l<=lmax; loffset+=(2*l+1), l++) {
       
       Eigen::VectorXd workE;
-      int esize = (l+1)*nmax;
       
       // M loop
-      for (int m=0, moffset=0, moffE=0; m<=l; m++, L++) {
+      for (int m=0, moffset=0; m<=l; m++, L++) {
 	
 	fac = factorial(l, m) * legs[tid](l, m);
 
