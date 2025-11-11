@@ -611,7 +611,7 @@ namespace BasisClasses
       Eigen::VectorXd workE;
       
       // M loop
-      for (int m=0, moffset=0; m<=l; m++, L++) {
+      for (int m=0, moffset=0, moffE=0; m<=l; m++, L++) {
 	
 	fac = factorial(l, m) * legs[tid](l, m);
 
@@ -684,10 +684,10 @@ namespace BasisClasses
 	  for (int l=0; l<ltot; l++) {
 	    
 	    MPI_Allreduce(MPI_IN_PLACE, meanV[T][l].data(), meanV[T][l].size(),
-			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 
 	    MPI_Allreduce(MPI_IN_PLACE, covrV[T][l].data(), covrV[T][l].size(),
-			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	  }
 	}
       }
