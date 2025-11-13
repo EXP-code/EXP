@@ -1278,6 +1278,7 @@ namespace BasisClasses
     unsigned used;
   
     using coefType = Eigen::Tensor<std::complex<double>, 3>;
+    using covrType = Eigen::Tensor<std::complex<double>, 4>;
 
     coefType expcoef;
     
@@ -1322,6 +1323,18 @@ namespace BasisClasses
     void computeAccel(double x, double y, double z, 
 		      Eigen::Ref<Eigen::Vector3d> vstore);
 
+    //@{
+    //! Covariance structures.  First index is T, second is the
+    //! flattened 3-d k vector
+    std::tuple<int, int, int> index3D(unsigned k);
+    unsigned index1D(int kx, int ky, int kz);
+    std::vector<Eigen::VectorXcd> meanV;
+    std::vector<Eigen::MatrixXcd> covrV;
+    void init_covariance();
+    void zero_covariance();
+    void writeCovarH5Params(HighFive::File& file);
+    int sampT = 100;
+    //@}
 
   public:
     
@@ -1369,6 +1382,24 @@ namespace BasisClasses
 
       if (worst > __EXP__::orthoTol) return false;
       return true;
+    }
+
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    std::vector<std::vector<CoefCovarType>> getCoefCovariance();
+
+    //! Get sample count and mass arrays
+    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples()
+    {
+      return {sampleCounts, sampleMasses};
+    }
+
+    //! Enable coefficient covariance computation
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100)
+    {
+      pcavar = pcavar_in;
+      sampT  = sampT_in;
     }
 
   };

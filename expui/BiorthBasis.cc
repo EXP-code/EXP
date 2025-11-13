@@ -3819,17 +3819,28 @@ namespace BasisClasses
     "knots",
     "verbose",
     "check",
-    "method"
+    "method",
+    "pcavar,"
+    "subsamp"
   };
 
   Cube::Cube(const YAML::Node& CONF) : BiorthBasis(CONF, "cube")
   {
     initialize();
+
+    // Initialize covariance
+    //
+    if (pcavar) init_covariance();
   }
 
   Cube::Cube(const std::string& confstr) : BiorthBasis(confstr, "cube")
   {
     initialize();
+
+
+    // Initialize covariance
+    //
+    if (pcavar) init_covariance();
   }
 
   void Cube::initialize()
@@ -3866,17 +3877,20 @@ namespace BasisClasses
     // Assign values from YAML
     //
     try {
-      if (conf["nminx"])      nminx = conf["nminx"].as<int>();
-      if (conf["nminy"])      nminy = conf["nminy"].as<int>();
-      if (conf["nminz"])      nminz = conf["nminz"].as<int>();
+      if (conf["nminx"])      nminx  = conf["nminx"].as<int>();
+      if (conf["nminy"])      nminy  = conf["nminy"].as<int>();
+      if (conf["nminz"])      nminz  = conf["nminz"].as<int>();
       
-      if (conf["nmaxx"])      nmaxx = conf["nmaxx"].as<int>();
-      if (conf["nmaxy"])      nmaxy = conf["nmaxy"].as<int>();
-      if (conf["nmaxz"])      nmaxz = conf["nmaxz"].as<int>();
+      if (conf["nmaxx"])      nmaxx  = conf["nmaxx"].as<int>();
+      if (conf["nmaxy"])      nmaxy  = conf["nmaxy"].as<int>();
+      if (conf["nmaxz"])      nmaxz  = conf["nmaxz"].as<int>();
       
-      if (conf["knots"])      knots = conf["knots"].as<int>();
+      if (conf["knots"])      knots  = conf["knots"].as<int>();
 
-      if (conf["check"])      check = conf["check"].as<bool>();
+      if (conf["check"])      check  = conf["check"].as<bool>();
+
+      if (conf["pcavar"])     pcavar = conf["pcavar"].as<bool>();
+      if (conf["subsamp"])    sampT  = conf["subsamp"].as<int>();
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -3916,6 +3930,7 @@ namespace BasisClasses
     expcoef.setZero();
     totalMass = 0.0;
     used = 0;
+    if (pcavar) zero_covariance();
   }
   
   
@@ -3998,6 +4013,9 @@ namespace BasisClasses
        std::exp(-kfac*(y*nmaxy)),
        std::exp(-kfac*(z*nmaxz))};
     
+    unsigned Itot = (2*nmaxx+1)*(2*nmaxy+1)*(2*nmaxz+1);
+    Eigen::VectorXcd g(Itot);
+
     Eigen::Vector3cd curr(init);
     for (int ix=0; ix<=2*nmaxx; ix++, curr(0)*=step(0)) {
       curr(1) = init(1);
@@ -4016,9 +4034,25 @@ namespace BasisClasses
 	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
 
 	  expcoef(ix, iy, iz) += - mass * curr(0)*curr(1)*curr(2) * norm;
+
+	  if (pcavar)
+	    g[index1D(ix, iy, iz)] = curr(0)*curr(1)*curr(2) * norm;
 	}
       }
     }
+
+    if (pcavar) {
+      // Sample index for pcavar
+      int T = 0;
+      T = used % sampT;
+      sampleCounts(T) += 1;
+      sampleMasses(T) += mass;
+
+      meanV[T].noalias() += g * mass;
+      covrV[T].noalias() += g * g.adjoint() * mass;
+    }
+
+    used++;
   }
   
   void Cube::make_coefs()
@@ -4030,9 +4064,50 @@ namespace BasisClasses
       
       MPI_Allreduce(MPI_IN_PLACE, expcoef.data(), expcoef.size(), MPI_DOUBLE_COMPLEX,
 		    MPI_SUM, MPI_COMM_WORLD);
+
+
+      if (pcavar) {
+
+	MPI_Allreduce(MPI_IN_PLACE, sampleCounts.data(), sampleCounts.size(),
+		      MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	
+	MPI_Allreduce(MPI_IN_PLACE, sampleMasses.data(), sampleMasses.size(),
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+	for (int T=0; T<sampT; T++) {
+
+	  MPI_Allreduce(MPI_IN_PLACE, meanV[T].data(), meanV[T].size(),
+			MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	  
+	  MPI_Allreduce(MPI_IN_PLACE, covrV[T].data(), covrV[T].size(),
+			MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	}
+	// END: sample loop
+      }
+      // END: pcavar
     }
+    // END: using mpi
   }
   
+  /** Return a vector of tuples of basis functions and the covariance
+      matrix for subsamples of particles for Cube type */
+  std::vector<std::vector<BiorthBasis::CoefCovarType>>
+  Cube::getCoefCovariance()
+  {
+    std::vector<std::vector<BiorthBasis::CoefCovarType>> ret;
+    if (pcavar) {
+      ret.resize(sampT);
+      for (int T=0; T<sampT; T++) {
+	ret[T].resize(1);
+	std::get<0>(ret[T][0]) = meanV[T];
+	std::get<1>(ret[T][0]) = covrV[T];
+      }
+    }
+    
+    return ret;
+  }
+
+
   std::vector<double> Cube::crt_eval(double x, double y, double z)
   {
     // Get thread id
@@ -4139,6 +4214,86 @@ namespace BasisClasses
     return ret;
   }
   
+  void Cube::init_covariance()
+  {
+    if (pcavar) {
+      int Itot = (2*nmaxx+1)*(2*nmaxy+1)*(2*nmaxz+1);
+	
+      meanV.resize(sampT);
+      for (auto& v : meanV) {
+	v.resize(Itot);
+      }
+
+      covrV.resize(sampT);
+      for (auto& v : covrV) {
+	v.resize(Itot, Itot);
+      }
+
+      sampleCounts.resize(sampT);
+      sampleMasses.resize(sampT);
+      
+      zero_covariance();
+    }
+  }
+
+
+  void Cube::zero_covariance()
+  {
+    for (int T=0; T<sampT; T++) {
+      meanV[T].setZero();
+      covrV[T].setZero();
+    }
+
+    sampleCounts.setZero();
+    sampleMasses.setZero();
+  }
+
+
+  unsigned Cube::index1D(int kx, int ky, int kz)
+  {
+    if (kx <-nmaxx or kx > nmaxx) {
+      std::ostringstream sout;
+      sout << "Cube::index1d: x index [" << kx << "] must be in [" << -nmaxx << ", " << nmaxx << "]";
+      throw std::runtime_error(sout.str());
+    }
+
+    if (ky <-nmaxy or ky > nmaxy) {
+      std::ostringstream sout;
+      sout << "Cube::index1d: y index [" << ky << "] must be in [" << -nmaxy << ", " << nmaxy << "]";
+      throw std::runtime_error(sout.str());
+    }
+
+    if (kz <-nmaxz or kx > nmaxz) {
+      std::ostringstream sout;
+      sout << "Cube::index1d: z index [" << kz << "] must be in [" << -nmaxz << ", " << nmaxz << "]";
+      throw std::runtime_error(sout.str());
+    }
+
+    return (kx + nmaxx)*(2*nmaxy+1)*(2*nmaxz+1) + (ky + nmaxy)*(2*nmaxz+1) + kz + nmaxz;
+  }
+
+  std::tuple<int, int, int> Cube::index3D(unsigned indx)
+  {
+    int Itot = (2*nmaxx+1)*(2*nmaxy+1)*(2*nmaxz+1);
+
+    // Sanity check
+    //
+    if (indx >= Itot) {
+      std::ostringstream sout;
+      sout << "Cube::index3d: index [" << indx << "] must be in 0 <= indx < " << Itot;
+      throw std::runtime_error(sout.str());
+    }
+
+    // Compute the 3d index
+    //
+    int ix = indx/((2*nmaxy+1)*(2*nmaxz+1));
+    int iy = (indx - ix*(2*nmaxy+1)*(2*nmaxz+1))/(2*nmaxz+1);
+    int iz = indx - ix*(2*nmaxy+1)*(2*nmaxz+1)/(2*nmaxz+1) - iy*(2*nmaxz+1);
+  
+    return {ix - nmaxx, iy - nmaxy, iz - nmaxz};
+  }
+
+
   // Generate coeffients from a particle reader
   CoefClasses::CoefStrPtr BiorthBasis::createFromReader
   (PR::PRptr reader, Eigen::Vector3d ctr, RowMatrix3d rot)
@@ -4832,6 +4987,16 @@ namespace BasisClasses
     file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
     file.createAttribute<double>("acyl", HighFive::DataSpace::From(acyl)).write(acyl);
     file.createAttribute<double>("hcyl", HighFive::DataSpace::From(hcyl)).write(hcyl);
+  }
+  
+  void Cube::writeCovarH5Params(HighFive::File& file)
+  {
+    file.createAttribute<int>("nminx", HighFive::DataSpace::From(nminx)).write(nminx);
+    file.createAttribute<int>("nminy", HighFive::DataSpace::From(nminy)).write(nminy);
+    file.createAttribute<int>("nminz", HighFive::DataSpace::From(nminz)).write(nminz);
+    file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(nmaxx)).write(nmaxx);
+    file.createAttribute<int>("nmaxy", HighFive::DataSpace::From(nmaxy)).write(nmaxy);
+    file.createAttribute<int>("nmaxz", HighFive::DataSpace::From(nmaxz)).write(nmaxz);
   }
   
   unsigned BiorthBasis::writeCovarH5(HighFive::Group& snaps, unsigned count, double time)

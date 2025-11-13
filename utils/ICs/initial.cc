@@ -401,7 +401,7 @@ main(int ac, char **av)
   bool         const_height, images, multi, basis, zeropos, zerovel;
   bool         report, ignore, evolved, diskmodel;
   int          nhalo, ndisk, ngas, ngparam;
-  std::string  hbods, dbods, gbods, suffix, centerfile, halofile1, halofile2;
+  std::string  hbods, dbods, gbods, outtag, runtag, centerfile, halofile1, halofile2;
   std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
 
   const std::string mesg("Generates a Monte Carlo realization of a halo with an\n embedded disk using Jeans' equations\n");
@@ -607,10 +607,10 @@ main(int ac, char **av)
      cxxopts::value<double>(Tmin)->default_value("500.0"))
     ("centerfile", "File containing phase-space center",
      cxxopts::value<std::string>(centerfile))
-    ("runtag", "Prefix for output files",
-     cxxopts::value<std::string>(runtag)->default_value("gendisk"))
-    ("suffix", "Suffix for output files (none by default)",
-     cxxopts::value<std::string>(suffix))
+    ("suffix", "Prefix for output files",
+     cxxopts::value<std::string>(outtag)->default_value("gendisk"))
+    ("runtag", "Suffix for output files (none by default)",
+     cxxopts::value<std::string>(runtag))
     ("threads", "Number of threads to run",
      cxxopts::value<int>(nthrds)->default_value("1"))
     ("allow", "Allow multimass algorithm to generature negative masses for testing")
@@ -807,10 +807,10 @@ main(int ac, char **av)
 
   int n_particlesH, n_particlesD, n_particlesG;
 
-  if (suffix.size()>0) {
-    hbods = hbods + "." + suffix;
-    dbods = dbods + "." + suffix;
-    gbods = gbods + "." + suffix;
+  if (runtag.size()>0) {
+    hbods = hbods + "." + runtag;
+    dbods = dbods + "." + runtag;
+    gbods = gbods + "." + runtag;
   }
 
   // Divvy up the particles by core
@@ -874,7 +874,7 @@ main(int ac, char **av)
   if (vm.count("itmax"))  DiskHalo::ITMAX    = itmax;
   if (vm.count("allow"))  DiskHalo::ALLOW    = true;
   if (vm.count("nomono")) DiskHalo::use_mono = false;
-  if (suffix.size())      DiskHalo::RUNTAG   = suffix;
+  if (runtag.size())      DiskHalo::RUNTAG   = runtag;
 
   AddDisk::use_mpi      = true;
   AddDisk::Rmin         = RMIN;
@@ -986,7 +986,7 @@ main(int ac, char **av)
     // Basis orthgonality check
     //
     if (vm.count("ortho")) {
-      std::ofstream out(runtag + ".ortho_check");
+      std::ofstream out(outtag + ".ortho_check");
       expandd->ortho_check(out);
     }
   }
@@ -1187,7 +1187,7 @@ main(int ac, char **av)
 	std::cout << "Dumping coefficients halo . . . " << std::flush;
 	ostringstream sout;
 	sout << "halo_coefs.";
-	if (suffix.size()>0) sout << suffix;
+	if (outtag.size()>0) sout << outtag;
 	else                 sout << "dump";
 	ofstream out(sout.str());
 	if (out) expandh->dump_coefs(out, false);
@@ -1197,7 +1197,7 @@ main(int ac, char **av)
 	std::cout << "Dumping a probe through the halo . . . " << std::flush;
 	ostringstream sout;
 	sout << "halo_probe.";
-	if (suffix.size()>0) sout << suffix;
+	if (outtag.size()>0) sout << outtag;
 	else                 sout << "dump";
 	ofstream out(sout.str());
 	if (out) {
@@ -1287,7 +1287,7 @@ main(int ac, char **av)
 	std::cout << "Dumping coefficients . . . " << std::flush;
 	ostringstream sout;
 	sout << "disk_coefs.";
-	if (suffix.size()>0) sout << suffix;
+	if (outtag.size()>0) sout << outtag;
 	else                 sout << "dump";
 	ofstream out(sout.str());
 	if (out) expandd->dump_coefs(out);
@@ -1333,11 +1333,11 @@ main(int ac, char **av)
 
     if (ndisk) {
       int nout = 200;
-      string dumpstr = runtag + ".dump";
+      string dumpstr = outtag + ".dump";
       expandd->dump_basis(dumpstr, 0);
-      expandd->dump_images(runtag, 5.0*scale_length, 5.0*scale_height,
+      expandd->dump_images(outtag, 5.0*scale_length, 5.0*scale_height,
 			   nout, nout, false);
-      expandd->dump_images_basis(runtag, 5.0*scale_length, 5.0*scale_height,
+      expandd->dump_images_basis(outtag, 5.0*scale_length, 5.0*scale_height,
 				 nout, nout, false, 0, MMAX, 0, NMAXD-1);
     }
 

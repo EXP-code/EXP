@@ -868,6 +868,24 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(void, Cube, make_coefs,);
     }
 
+    using CCelement = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
+    using CCreturn  = std::vector<std::vector<CCelement>>;
+
+    CCreturn getCoefCovariance(void) override {
+      PYBIND11_OVERRIDE(CCreturn, Cube, getCoefCovariance,);
+    }
+
+    using Selement = std::tuple<Eigen::VectorXi, Eigen::VectorXd>;
+
+    Selement getCovarSamples() override {
+      PYBIND11_OVERRIDE(Selement, Cube, getCovarSamples,);
+    }
+
+    void enableCoefCovariance(bool pcavar, int nsamples) override {
+      PYBIND11_OVERRIDE(void, Cube, enableCoefCovariance, pcavar, nsamples);
+    }
+
+
   };
 
 
