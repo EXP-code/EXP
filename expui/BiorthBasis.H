@@ -1139,7 +1139,7 @@ namespace BasisClasses
 
     coefType expcoef;
     
-    //! Notal mass on grid
+    //! Total mass on grid
     double totalMass;
 
     //! Number of particles
@@ -1281,7 +1281,6 @@ namespace BasisClasses
     unsigned used;
   
     using coefType = Eigen::Tensor<std::complex<double>, 3>;
-    using covrType = Eigen::Tensor<std::complex<double>, 4>;
 
     coefType expcoef;
     
