@@ -590,6 +590,7 @@ namespace BasisClasses
     
     if (r < rmin or r > rmax) return;
     
+    // Update counters
     used++;
     totalMass += mass;
     
@@ -2206,6 +2207,7 @@ namespace BasisClasses
 
     if (R < ortho->getRtable() and fabs(z) < ortho->getRtable()) {
     
+      // Update counters
       used++;
       totalMass += mass;
     
@@ -3009,6 +3011,7 @@ namespace BasisClasses
     // Get thread id
     int tid = omp_get_thread_num();
 
+    // Update counters
     used++;
     totalMass += mass;
     
@@ -3464,6 +3467,7 @@ namespace BasisClasses
     else
       y -= std::floor( y);
     
+    // Update counters
     used++;
 
     // Storage for basis evaluation
@@ -3914,10 +3918,17 @@ namespace BasisClasses
     //
     int nthrds = omp_get_max_threads();
 
+    // Total number of wavenumbers
+    //
+    Itot = (2*nmaxx + 1) * (2*nmaxy + 1) * (2*nmaxz + 1);
+
     expcoef.resize(2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1);
     expcoef.setZero();
       
+    // Counters
+    //
     used = 0;
+    totalMass = 0.0;
 
     // Set cartesian coordindates
     //
@@ -4001,6 +4012,9 @@ namespace BasisClasses
     else
       z -= std::floor( z);
     
+    // Update counters
+    used++;
+    totalMass += mass;
     
     // Recursion multipliers
     Eigen::Vector3cd step
@@ -4012,8 +4026,8 @@ namespace BasisClasses
        std::exp(-kfac*(y*nmaxy)),
        std::exp(-kfac*(z*nmaxz))};
     
-    unsigned Itot = (2*nmaxx+1)*(2*nmaxy+1)*(2*nmaxz+1);
-    Eigen::VectorXcd g(Itot);
+    Eigen::VectorXcd g;
+    if (pcavar) g.resize(Itot);
 
     Eigen::Vector3cd curr(init);
     for (int ix=0; ix<=2*nmaxx; ix++, curr(0)*=step(0)) {
@@ -4035,7 +4049,7 @@ namespace BasisClasses
 	  expcoef(ix, iy, iz) += - mass * curr(0)*curr(1)*curr(2) * norm;
 
 	  if (pcavar)
-	    g[index1D(ix, iy, iz)] = curr(0)*curr(1)*curr(2) * norm;
+	    g[index1D(ii, jj, kk)] = curr(0)*curr(1)*curr(2) * norm;
 	}
       }
     }
@@ -4050,8 +4064,6 @@ namespace BasisClasses
       meanV[T].noalias() += g * mass;
       covrV[T].noalias() += g * g.adjoint() * mass;
     }
-
-    used++;
   }
   
   void Cube::make_coefs()
@@ -4059,6 +4071,9 @@ namespace BasisClasses
     if (use_mpi) {
       
       MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
+		    MPI_SUM, MPI_COMM_WORLD);
+      
+      MPI_Allreduce(MPI_IN_PLACE, &totalMass, 1, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
       
       MPI_Allreduce(MPI_IN_PLACE, expcoef.data(), expcoef.size(), MPI_DOUBLE_COMPLEX,
@@ -4216,8 +4231,7 @@ namespace BasisClasses
   void Cube::init_covariance()
   {
     if (pcavar) {
-      int Itot = (2*nmaxx+1)*(2*nmaxy+1)*(2*nmaxz+1);
-	
+
       meanV.resize(sampT);
       for (auto& v : meanV) {
 	v.resize(Itot);
@@ -4252,34 +4266,35 @@ namespace BasisClasses
   {
     if (kx <-nmaxx or kx > nmaxx) {
       std::ostringstream sout;
-      sout << "Cube::index1d: x index [" << kx << "] must be in [" << -nmaxx << ", " << nmaxx << "]";
+      sout << "Cube::index1D: x index [" << kx << "] must be in [" << -nmaxx << ", " << nmaxx << "]";
       throw std::runtime_error(sout.str());
     }
 
     if (ky <-nmaxy or ky > nmaxy) {
       std::ostringstream sout;
-      sout << "Cube::index1d: y index [" << ky << "] must be in [" << -nmaxy << ", " << nmaxy << "]";
+      sout << "Cube::index1D: y index [" << ky << "] must be in [" << -nmaxy << ", " << nmaxy << "]";
       throw std::runtime_error(sout.str());
     }
 
     if (kz <-nmaxz or kx > nmaxz) {
       std::ostringstream sout;
-      sout << "Cube::index1d: z index [" << kz << "] must be in [" << -nmaxz << ", " << nmaxz << "]";
+      sout << "Cube::index1D: z index [" << kz << "] must be in [" << -nmaxz << ", " << nmaxz << "]";
       throw std::runtime_error(sout.str());
     }
 
-    return (kx + nmaxx)*(2*nmaxy+1)*(2*nmaxz+1) + (ky + nmaxy)*(2*nmaxz+1) + kz + nmaxz;
+    return
+      (kx + nmaxx)*(2*nmaxy+1)*(2*nmaxz+1) +
+      (ky + nmaxy)*(2*nmaxz+1) +
+      (kz + nmaxz);
   }
 
   std::tuple<int, int, int> Cube::index3D(unsigned indx)
   {
-    int Itot = (2*nmaxx+1)*(2*nmaxy+1)*(2*nmaxz+1);
-
     // Sanity check
     //
     if (indx >= Itot) {
       std::ostringstream sout;
-      sout << "Cube::index3d: index [" << indx << "] must be in 0 <= indx < " << Itot;
+      sout << "Cube::index3D: index [" << indx << "] must be in 0 <= indx < " << Itot;
       throw std::runtime_error(sout.str());
     }
 

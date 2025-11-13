@@ -1271,6 +1271,9 @@ namespace BasisClasses
     //! Maximum expansion order for construction
     int nmaxx, nmaxy, nmaxz;
 
+    //! Total number of modes
+    unsigned Itot;
+
     //! Number of integration knots for orthogonal check
     int knots;
 
@@ -1282,7 +1285,7 @@ namespace BasisClasses
 
     coefType expcoef;
     
-    //! Notal mass on grid
+    //! Total mass on grid
     double totalMass;
 
     //! Number of particles
@@ -1400,6 +1403,10 @@ namespace BasisClasses
     {
       pcavar = pcavar_in;
       sampT  = sampT_in;
+      if (pcavar) {
+	init_covariance();
+	zero_covariance();
+      }
     }
 
   };
