@@ -3837,7 +3837,6 @@ namespace BasisClasses
   {
     initialize();
 
-
     // Initialize covariance
     //
     if (pcavar) init_covariance();
