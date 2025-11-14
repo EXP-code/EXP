@@ -1561,7 +1561,29 @@ void BasisFactoryClasses(py::module &m)
          Returns
          -------
          None
-         )", py::arg("coefs"));
+         )", py::arg("coefs"))
+    .def("get_shared_ptr_capsule", [](const std::shared_ptr<BasisClasses::BiorthBasis> &self) -> py::capsule {
+      return py::capsule(
+        new std::shared_ptr(self),
+        "BiorthBasis_shared_ptr",
+        [](void *v) { delete static_cast<std::shared_ptr<BasisClasses::BiorthBasis> *>(v); }
+      );
+    },
+    R"(
+        Get a capsule containing a shared pointer to the BiorthBasis instance.
+
+        Returns
+        -------
+        capsule: PyCapsule
+            A PyCapsule containing a shared pointer to the BiorthBasis instance with
+            the name "BiorthBasis_shared_ptr".
+
+        Notes
+        -----
+        This can be used to pass the BiorthBasis instance to non-Pybind11 C extensions
+        in a lifetime-safe manner.
+        )"
+    );
 
   py::class_<BasisClasses::Cylindrical, std::shared_ptr<BasisClasses::Cylindrical>, PyCylindrical, BasisClasses::BiorthBasis>(m, "Cylindrical")
     .def(py::init<const std::string&>(),
