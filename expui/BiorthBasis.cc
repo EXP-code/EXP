@@ -4653,5 +4653,409 @@ namespace BasisClasses
     return {times, ret};
   }
 
+  CoefClasses::CoefStrPtr Spherical::makeFromFunction
+  (std::function<double(double, double, double, double time)> func,
+   std::map<std::string, double>& params, double time, bool potential)
+  {
+    // Get mapping constant
+    //
+    double rmapping = rmap;
+    if (params.find("rmapping") == params.end())
+      std::cout << "---- BiorthBasis::makeFromFunction: using default rmapping="
+		<< rmapping << std::endl;
+    else
+      rmapping = params["rmapping"];
+
+    // Quadrature knots
+    //
+    int knots = 200;
+    if (params.find("knots") != params.end())
+      knots = static_cast<int>(params["knots"]);
+    
+    // Define mapping functions
+    //
+    auto r_to_x = [&](double r) -> double
+    {
+      if (r<0.0) throw std::runtime_error("BiorthBasis::makeFromFunction: r<0");
+      return (r/rmapping-1.0)/(r/rmapping+1.0);
+    };
+    
+
+    auto x_to_r = [&](double x) -> double
+    {
+      return (1.0 + x)/(1.0 - x) * rmapping;
+    };
+    
+
+    auto d_x_to_r = [&](double x) -> double
+    {
+      return 0.5*(1.0 - x)*(1.0 - x)/rmapping;
+    };
+    
+    double ximin = r_to_x(rmin);
+    double ximax = r_to_x(rmax);
+    
+    if (ximin <=-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<=-1");
+    if (ximin >= 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>=+1");
+      
+    if (ximax <=-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<=-1");
+    if (ximax >= 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>=+1");
+      
+    int Lmax = lmax;
+    int Nmax = nmax;
+
+    // Make the structure
+    //
+    auto scof = std::make_shared<CoefClasses::SphStruct>();
+    
+    // =====================
+    // Begin coordinate loop
+    // =====================
+    
+    LegeQuad lw(knots);
+    
+    // Number of possible threads
+    int nthrds = omp_get_max_threads();
+    std::vector<Eigen::MatrixXd> potd(nthrds), legs(nthrds);
+
+    for (auto & v : legs ) v.resize(Lmax+1, Lmax+1);
+
+    std::vector<Eigen::MatrixXcd> mat(nthrds);
+    for (auto & v : mat) {
+      v.resize((Lmax+1)*(Lmax+2)/2, Nmax);
+      v.setZero();
+    }
+
+#pragma omp parallel for
+    for (int ijk=0; ijk<knots*knots*knots; ijk++) {
+
+      // Get thread id
+      int tid = omp_get_thread_num();
+
+      // Get quadrature indicies
+      int i = floor(ijk/(knots*knots)+1.0e-16);
+      int j = (ijk  - i*knots*knots)/knots;
+      int k = ijk - i*knots*knots - j*knots;
+      
+      double xx    =  ximin + (ximax - ximin)*lw.knot(i);
+      double rr    =  x_to_r(xx);
+      double costh = -1.0 + 2.0*lw.knot(j);
+      double sinth = sqrt(std::abs(1.0 - costh*costh));
+      double phi   = 2.0*M_PI/knots*k;
+      
+      double x = rr*sinth*cos(phi);
+      double y = rr*sinth*sin(phi);
+      double z = rr*costh;
+      
+      if (potential)
+	get_dens(potd[tid], rr);
+      else
+	get_pot (potd[tid], rr);
+
+      legendre_R(Lmax, costh, legs[tid]);
+
+      double fval = func(x, y, z, time) * (ximax - ximin) * rr*rr /
+	d_x_to_r(xx) * 2.0 * lw.weight(i) * lw.weight(j) * 2.0*M_PI/knots;
+
+      for (int L=0, l=0; L<=Lmax; L++) {
+	  
+	for (int M=0; M<=L; M++, l++) {
+	    
+	  double prefac = sqrt( (2.0*L+1.0)/(4.0*M_PI) * exp(lgamma(L-M+1) - lgamma(L+M+1)) );
+	  if (M) prefac *= M_SQRT2;
+
+	  for (int n=0; n<Nmax; n++) {
+
+	    if (M==0) {
+	      mat[tid](l, n) += prefac * legs[tid](L, M) * potd[tid](L, n) * fval;
+	    }
+	    else {
+	      double fac = prefac * legs[tid](L, M) * potd[tid](L, n) * fval;
+	      mat[tid](l, n) += std::complex<double>(cos(phi*M), sin(phi*M)) * fac;
+	    }
+	  }
+	}
+      }
+    }
+
+    // Sum up results from all threads
+    for (int n=1; n<nthrds; n++) mat[0] += mat[n];
+
+    // Assign to CoefStruct
+    scof->assign(mat[0], Lmax, Nmax);
+
+    return scof;
+  }
+
+  double Spherical::computeQuadrature
+  (std::function<double(double, double, double)> func,
+   std::map<std::string, double>& params)
+  {
+    // Get mapping constant
+    //
+    double rmapping = rmap;
+    if (params.find("rmapping") == params.end())
+      std::cout << "---- BiorthBasis::computeQuadrature: using default rmapping="
+		<< rmapping << std::endl;
+    else
+      rmapping = params["rmapping"];
+
+    // Quadrature knots
+    //
+    int knots = 200;
+    if (params.find("knots") != params.end())
+      knots = static_cast<int>(params["knots"]);
+    
+    // Define mapping functions
+    //
+    auto r_to_x = [&](double r) -> double
+    {
+      if (r<0.0) throw std::runtime_error("BiorthBasis::computeQuadrature: r<0");
+      return (r/rmapping-1.0)/(r/rmapping+1.0);
+    };
+    
+
+    auto x_to_r = [&](double x) -> double
+    {
+      return (1.0 + x)/(1.0 - x) * rmapping;
+    };
+    
+
+    auto d_x_to_r = [&](double x) -> double
+    {
+      return 0.5*(1.0 - x)*(1.0 - x)/rmapping;
+    };
+    
+    double ximin = r_to_x(rmin);
+    double ximax = r_to_x(rmax);
+
+    if (ximin<=-1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x<=-1");
+    if (ximax>= 1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x>=+1");
+
+    if (ximax<=-1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x<=-1");
+    if (ximax>= 1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x>=+1");
+
+    int Lmax = lmax;
+    int Nmax = nmax;
+
+    // =====================
+    // Begin coordinate loop
+    // =====================
+    
+    LegeQuad lw(knots);
+    
+    // Number of possible threads
+    int nthrds = omp_get_max_threads();
+
+    // Storage for multithreading
+    std::vector<double> ret(nthrds);
+
+#pragma omp parallel for
+    for (int ijk=0; ijk<knots*knots*knots; ijk++) {
+
+      // Get thread id
+      int tid = omp_get_thread_num();
+
+      // Get quadrature indicies
+      int i = floor(ijk/(knots*knots)+1.0e-16);
+      int j = (ijk  - i*knots*knots)/knots;
+      int k = ijk - i*knots*knots - j*knots;
+      
+      double xx =  ximin + (ximax - ximin)*lw.knot(i);
+      double rr =  x_to_r(xx);
+      double costh = -1.0 + 2.0*lw.knot(j);
+      double sinth = sqrt(std::abs(1.0 - costh*costh));
+      double phi = 2.0*M_PI/knots*k;
+      
+      double x = rr*sinth*cos(phi);
+      double y = rr*sinth*sin(phi);
+      double z = rr*costh;
+      
+      double fval = func(x, y, z) * (ximax - ximin) * rr*rr /
+	d_x_to_r(xx) * 2.0 * lw.weight(i) * lw.weight(j) * 2.0*M_PI/knots;
+
+      ret[tid] += fval;
+    }
+
+    for (int n=1; n<nthrds; n++) ret[0] += ret[n];
+
+    return ret[0];
+  }
+
+  CoefClasses::CoefStrPtr Cylindrical::makeFromFunction
+  (std::function<double(double, double, double, double time)> func,
+   std::map<std::string, double>& params, double time, bool potential)
+  {
+    CoefClasses::CoefStrPtr coefs;
+
+    // Quadrature knots
+    //
+    int knots = 200;
+    if (params.find("knots") != params.end())
+      knots = static_cast<int>(params["knots"]);
+    
+    // Get from internal cylindrical class instance
+    //
+    double ASCL   = sl->get_ascale();
+    double HSCL   = sl->get_hscale();
+    double Rtable = sl->get_rtable();
+
+    double xmin = sl->r_to_xi(sl->RMIN*ASCL);
+    double xmax = sl->r_to_xi(Rtable*ASCL);
+      
+    double ymin = sl->z_to_y(-Rtable*ASCL);
+    double ymax = sl->z_to_y( Rtable*ASCL);
+
+    int Mmax = sl->get_mmax();
+    int Nmax = sl->get_order();
+
+    // Make the structure
+    //
+    auto scof = std::make_shared<CoefClasses::CylStruct>();
+
+    // =====================
+    // Begin coordinate loop
+    // =====================
+
+    LegeQuad lw(knots);
+
+    // Number of possible threads
+    //
+    int nthrds = omp_get_max_threads();
+
+    std::vector<Eigen::MatrixXcd> mat(nthrds);
+    for (auto & v : mat) {
+      v.resize(Mmax+1, Nmax);
+      v.setZero();
+    }
+
+#pragma omp parallel for
+    for (int ijk=0; ijk<knots*knots*knots; ijk++) {
+
+      // Get thread id
+      int tid = omp_get_thread_num();
+
+      // Get quadrature indicies
+      int i = floor(ijk/(knots*knots)+1.0e-16);
+      int j = (ijk  - i*knots*knots)/knots;
+      int k = ijk - i*knots*knots - j*knots;
+      
+      double xx = xmin + (xmax - xmin)*lw.knot(i);
+      double yy = ymin + (ymax - ymin)*lw.knot(j);
+
+      double R =   sl->xi_to_r(xx);
+      double z =   sl->y_to_z(yy);
+      double phi = 2.0*M_PI/knots*k;
+      
+      double x = R*cos(phi);
+      double y = R*sin(phi);
+
+      double fac = (xmax - xmin)*(ymax - ymin) * lw.weight(i)*lw.weight(j) *
+	2.0*M_PI/knots * func(x, y, z, time) * R /
+	sl->d_xi_to_r(xx) * sl->d_y_to_z(yy);
+
+      for (int mm=0; mm<=Mmax; mm++) {
+
+	double mcos = cos(phi*mm);
+	double msin = sin(phi*mm);
+
+	for (int nn=0; nn<Nmax; nn++) {
+
+	  double pC, pS;
+	  if (potential)
+	    sl->getDensSC(mm, nn, R, z, pC, pS);
+	  else
+	    sl->getPotSC(mm, nn, R, z, pC, pS);
+
+	  mat[tid](mm, nn) += std::complex<double>(pC*mcos, pS*msin) * fac;
+	}
+      }
+    }
+
+    // Sum up results from all threads
+    for (int n=1; n<nthrds; n++) mat[0] += mat[n];
+
+    // Assign to CoefStruct
+    scof->assign(mat[0], Mmax, Nmax);    
+    
+    return scof;
+  }
+
+  double Cylindrical::computeQuadrature
+  (std::function<double(double, double, double)> func,
+   std::map<std::string, double>& params)
+  {
+    CoefClasses::CoefStrPtr coefs;
+
+    // Quadrature knots
+    //
+    int knots = 200;
+    if (params.find("knots") != params.end())
+      knots = static_cast<int>(params["knots"]);
+    
+    // Get from internal cylindrical class instance
+    //
+    double ASCL   = sl->get_ascale();
+    double HSCL   = sl->get_hscale();
+    double Rtable = sl->get_rtable();
+
+    double xmin = sl->r_to_xi(sl->RMIN*ASCL);
+    double xmax = sl->r_to_xi(Rtable*ASCL);
+      
+    double ymin = sl->z_to_y(-Rtable*ASCL);
+    double ymax = sl->z_to_y( Rtable*ASCL);
+
+    int Mmax = sl->get_mmax();
+    int Nmax = sl->get_order();
+
+    // Make the structure
+    //
+    auto scof = std::make_shared<CoefClasses::CylStruct>();
+
+    // =====================
+    // Begin coordinate loop
+    // =====================
+
+    LegeQuad lw(knots);
+
+    double ret = 0.0;
+      
+    // Number of possible threads
+    //
+    int nthrds = omp_get_max_threads();
+
+#pragma omp parallel for
+    for (int ijk=0; ijk<knots*knots*knots; ijk++) {
+
+      // Get thread id
+      int tid = omp_get_thread_num();
+
+      // Get quadrature indicies
+      int i = floor(ijk/(knots*knots)+1.0e-16);
+      int j = (ijk  - i*knots*knots)/knots;
+      int k = ijk - i*knots*knots - j*knots;
+      
+      double xx = xmin + (xmax - xmin)*lw.knot(i);
+      double yy = ymin + (ymax - ymin)*lw.knot(j);
+
+      double R =   sl->xi_to_r(xx);
+      double z =   sl->y_to_z(yy);
+      double phi = 2.0*M_PI/knots*k;
+      
+      double x = R*cos(phi);
+      double y = R*sin(phi);
+
+      double fac = (xmax - xmin)*(ymax - ymin) * lw.weight(i)*lw.weight(j) *
+	2.0*M_PI/knots * func(x, y, z) * R /
+	sl->d_xi_to_r(xx) * sl->d_y_to_z(yy);
+
+#pragma omp critical
+      ret += fac;
+    }
+    
+    return ret;
+  }
+
+
 }
 // END namespace BasisClasses

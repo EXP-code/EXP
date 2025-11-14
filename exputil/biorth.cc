@@ -472,4 +472,82 @@ void BSSphere::dens(int n, int l, double r, Eigen::VectorXd& t)
 
 }
 
+Sturm::Sturm(SphModTblPtr mod, int LMAX, int NMAX, int NUMR,
+	     std::string cache_file, double scale) :  AxiSymBiorth(3)
+{
+  BiorthID = "SturmSphere";
+
+  nmax = NMAX;
+  lmax = LMAX;
+
+  double rmin = mod->get_min_radius();
+  double rmax = mod->get_max_radius();
+
+  std::cout << "rmin=" << rmin << "  rmax=" << rmax << endl;
+  int cmap = 1;
+
+  ortho = std::make_shared<SLGridSph>(mod, LMAX, NMAX, NUMR, rmin, rmax,
+				      true, cmap, scale, cache_file, false);
+
+  xmin = ortho->r_to_xi(rmin);
+  xmax = ortho->r_to_xi(rmax);
+}
+
+Sturm::~Sturm()
+{
+  // Nothing, using shared_ptr for ortho
+}
+
+
+double Sturm::potl(const int nn, const int l, const double x) 
+{ 
+  return ortho->get_pot(x, l, nn, 0); 
+}
+
+double Sturm::dens(const int nn, const int l, const double x) 
+{ 
+  return ortho->get_dens(x, l, nn, 0); 
+}
+
+void Sturm::potl(const int nn, const int l, const double r, Eigen::VectorXd& t)
+{ 
+  ortho->get_pot(t, r, l, 0); 
+}
+
+void Sturm::dens(const int nn, const int l, const double r, Eigen::VectorXd& t)
+{ 
+  ortho->get_dens(t, r, l, 0); 
+}
+
+double Sturm::potlR(const int nn, const int l, const double r) 
+{
+  return potl(nn, l, ortho->r_to_xi(r) ); 
+}
+
+double Sturm::densR(const int nn, const int l, const double r) 
+{
+  return dens(nn, l, ortho->r_to_xi(r) ); 
+}
+
+double Sturm::potlRZ(const int nn, const int l, const double r,
+		       const double z) 
+{
+  return potl(nn, l, r_to_rb(sqrt(r*r+z*z)) ); 
+}
+
+
+double Sturm::rb_to_r(double const x) 
+{ 
+  return ortho->xi_to_r(x); 
+}
+
+double Sturm::r_to_rb(double const r)
+{ 
+  return ortho->r_to_xi(r); 
+}
+
+double Sturm::d_r_to_rb(double const x) 
+{ 
+  return ortho->d_xi_to_r(x);
+}
 

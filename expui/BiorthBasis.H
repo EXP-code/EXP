@@ -144,6 +144,27 @@ namespace BasisClasses
     CoefClasses::CoefStrPtr makeFromArray(double time=0.0);
     //@}
     
+    //! Create and the coefficients from a function callback with the
+    //! provided time value.  Set potential=true if function is a
+    //! potential field.  Density is assumed if false (default).
+    virtual CoefClasses::CoefStrPtr makeFromFunction
+    (std::function<double(double x, double y, double z, double time)> func,
+     std::map<std::string, double>& params, double time=0.0, bool potential=false)
+    {
+      throw std::runtime_error("Error: BiorthBasis::makeFromFunction is not implemented");
+      return nullptr;
+    }
+    
+    //! Compute a quadrature over the basis domain using function
+    //! callback for the integrand
+    virtual double computeQuadrature
+    (std::function<double(double x, double y, double z)> func,
+     std::map<std::string, double>& params)
+    {
+      throw std::runtime_error("Error: BiorthBasis::computeQuadrature is not implemented");
+      return 0.0;
+    }
+    
     //! Accumulate new coefficients
     virtual void accumulate(double x, double y, double z, double mass) = 0;
     
@@ -383,6 +404,19 @@ namespace BasisClasses
       return ret;
     }
 
+    //! Create and the coefficients from a function callback with the
+    //! provided time value.  Set potential=true if function is a
+    //! potential field.  Density is assumed if false (default).
+    virtual CoefClasses::CoefStrPtr makeFromFunction
+    (std::function<double(double x, double y, double z, double time)> func,
+     std::map<std::string, double>& params, double time=0.0, bool potential=false);
+
+
+    //! Compute a quadrature over the basis domain using function
+    //! callback for the integrand
+    double computeQuadrature
+    (std::function<double(double x, double y, double z)> func,
+     std::map<std::string, double>& params);
   };
 
   /**
@@ -439,6 +473,7 @@ namespace BasisClasses
     //! produce matrices
     std::vector<Eigen::MatrixXd> orthoCheck(int knots=40)
     { return sl->orthoCheck(knots); }
+
   };
   
   /**
@@ -940,6 +975,18 @@ namespace BasisClasses
       return ret;
     }
 
+    //! Create and the coefficients from a function callback with the
+    //! provided time value.  Set potential=true if function is a
+    //! potential field.  Density is assumed if false (default).
+    virtual CoefClasses::CoefStrPtr makeFromFunction
+    (std::function<double(double x, double y, double z, double time)> func,
+     std::map<std::string, double>& params, double time=0.0, bool potential=false);
+
+    //! Compute a quadrature over the basis domain using function
+    //! callback for the integrand
+    double computeQuadrature
+    (std::function<double(double x, double y, double z)> func,
+     std::map<std::string, double>& params);
   };
   
   /**

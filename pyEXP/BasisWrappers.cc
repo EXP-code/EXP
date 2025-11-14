@@ -148,7 +148,10 @@ void BasisFactoryClasses(py::module &m)
     you to scale your phase-space processing to snapshots of any size.
     For reference, the createFromReader() method uses a producer-consumer
     pattern internally to provide scalability.  These three methods allow
-    you to provide the same pattern in your own pipeline.
+    you to provide the same pattern in your own pipeline. Finally, the
+    makeFromFunction() creates coefficients from a user-supplied
+    density or potential field function.
+
 
     Coordinate systems
     -------------------
@@ -1316,6 +1319,60 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
+    .def("makeFromFunction", &BasisClasses::BiorthBasis::makeFromFunction,
+	 py::call_guard<py::gil_scoped_release>(),
+	 R"(
+         Make coefficients from a density function callback
+
+         Parameters
+         ----------
+         func : function
+                the density function callback with the signature:
+                func(float x, float y, float time) -> float
+         params : dict
+                dictionary of parameters to pass to the function.  Default is
+                empty.
+         time : float
+                snapshot time (default=0.0)
+         potential : bool
+		if True, function is assumed to be a potential field.  Default
+                is False, and the function is assumed to be a density field.
+
+         Returns
+         -------
+         CoefStruct
+             the coefficient structure created from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray  : add contribution for particles
+         )",
+	 py::arg("func"), py::arg("params")=std::map<std::string, double>(),
+	 py::arg("time")=0.0, py::arg("potential")=false
+	 )
+    .def("computeQuadrature", &BasisClasses::BiorthBasis::computeQuadrature,
+	 py::call_guard<py::gil_scoped_release>(),
+	 R"(
+	 Compute the quadrature of a function of the basis domain
+
+         Parameters
+         ----------
+         func : function
+                the integrand with all signature 
+                func(x, y, z) -> float
+         params : dict
+                dictionary of parameters to pass to the function.  Default is
+                empty.
+
+         Returns
+         -------
+         float
+             the quadrature value
+
+         )",
+	 py::arg("func"), py::arg("params")=std::map<std::string, double>()
+	 )
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
          Return the field evaluations for a given cartesian position. The
@@ -1804,6 +1861,8 @@ void BasisFactoryClasses(py::module &m)
         Parameters
         ----------
         I : int
+	  double hold = norm * mass * mcos * vc[id](mm, nn);
+
             the spherical coefficient array index
 
         Returns
