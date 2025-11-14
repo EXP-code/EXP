@@ -51,12 +51,12 @@ void BasisFactoryClasses(py::module &m)
         a phase-space snapshot.  This is a specialized version of FieldBasis.
 
     Each of these bases take a YAML configuration file as input. These parameter
-    lists are as subset of and have the same structure as thosed used by EXP.
+    lists are as subset of and have the same structure as those used by EXP.
     The factory and the individual constructors will check the parameters keys
     and warn of mismatches for safety.  See the EXP documentation and the pyEXP
     examples for more detail.  The first four bases are the most often used bi-
     orthogonal basis types used for computing the potential and forces from
-    density distributions.  Other biorthgonal bases in EXP but not in pyEXP
+    density distributions.  Other biorthogonal bases in EXP but not in pyEXP
     include those for cubic and slab geometries and other special-purpose bases
     such as the Hernquist, Clutton-Brock sphere and two-dimensional disk basis.
     These will be made available in a future release if there is demand.  Note
@@ -102,7 +102,7 @@ void BasisFactoryClasses(py::module &m)
 
        def myFunctor(m, pos, vel, index):
           ret = False  # Default return value
-          # some caculation with scalar mass, pos array, vel array and
+          # some calculation with scalar mass, pos array, vel array and
           # integer index that sets ret to True if desired . . . 
           return ret
 
@@ -128,7 +128,7 @@ void BasisFactoryClasses(py::module &m)
     phase-space field functor to cylindrical or spherical velocities
     based on the 'dof' parameter.  More on 'dof' below.
 
-    Scalablility
+    Scalability
     ------------
     createFromArray() is a convenience method allows you to transform
     coordinates and preprocess phase space using your own methods and
@@ -195,7 +195,7 @@ void BasisFactoryClasses(py::module &m)
     Coefs data base and installs the interpolated coefficients for the
     current time in the basis instance.  The SingleTimeFunc interpolates on
     the Coefs data base for a single fixed time and sets the interpolated
-    coefficients once at the beginning of the integration.  This implementes
+    coefficients once at the beginning of the integration.  This implements
     a fixed potential model.  AccelFunc can be inherited by a native Python
     class and the evalcoefs() may be implemented in Python and passed to
     IntegrateOrbits in the same way as a native C++ class.
@@ -1132,7 +1132,7 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          setNonInertial : set non-inertial data from an Orient file
-         setNonInertialAccel : set the non-inertial acceration
+         setNonInertialAccel : set the non-inertial acceleration
          )",
 	 py::arg("N"), py::arg("times"), py::arg("pos")
          )
@@ -1159,7 +1159,7 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          setNonInertial : set non-inertial data from a time series of values
-         setNonInertialAccel : set the non-inertial acceration
+         setNonInertialAccel : set the non-inertial acceleration
          )",
 	 py::arg("N"), py::arg("orient")
          )
@@ -1368,7 +1368,7 @@ void BasisFactoryClasses(py::module &m)
 
          The first dimension are the time samples.  The second dimension is the angular
          index. Each element is a tuple of the coefficient vector and covariance.
-         The values are complex128 and represet the full amplitude and phase information.
+         The values are complex128 and represents the full amplitude and phase information.
 
          Returns
          -------
@@ -1465,7 +1465,7 @@ void BasisFactoryClasses(py::module &m)
     .def("enableCoefCovariance", &BasisClasses::BiorthBasis::enableCoefCovariance,
 	 R"(
          Enable or disable the coefficient covariance computation and set the
-         default number of paritions to use for the covariance computation.
+         default number of partitions to use for the covariance computation.
 
          Parameters
          ----------
@@ -1502,13 +1502,13 @@ void BasisFactoryClasses(py::module &m)
          )", py::arg("compress")=5, py::arg("chunkSize")=1024*1024, py::arg("shuffle")=true, py::arg("azip")=false)
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
-         Return the field evaluations for a given cartesian position. The
+         Return the field evaluations for a given Cartesian position. The
          fields include density, potential, and force.  The density and
          potential evaluations are separated into full, axisymmetric and
          non-axisymmetric contributions.
 
          You can get the fields labels by using the __call__ method of the
-         basis object.  This is equilevalent to a tuple of the getFields()
+         basis object.  This is equivalent to a tuple of the getFields()
          output with a list of field labels.
 
          Parameters
@@ -1532,7 +1532,7 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("x"), py::arg("y"), py::arg("z"))
     .def("getAccel", py::overload_cast<double, double, double>(&BasisClasses::BiorthBasis::getAccel),
 	 R"(
-         Return the acceleration for a given cartesian position
+         Return the acceleration for a given Cartesian position
 
          Parameters
          ----------
@@ -1556,7 +1556,7 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("x"), py::arg("y"), py::arg("z"))
     .def("getAccel", py::overload_cast<Eigen::VectorXd&, Eigen::VectorXd&, Eigen::VectorXd&>(&BasisClasses::BiorthBasis::getAccel),
 	 R"(
-         Return the acceleration for a given cartesian position
+         Return the acceleration for a given Cartesian position
 
          Parameters
          ----------
@@ -1580,7 +1580,7 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("x"), py::arg("y"), py::arg("z"))
     .def("getAccel", py::overload_cast<RowMatrixXd&>(&BasisClasses::BiorthBasis::getAccel),
 	 R"(
-         Return the acceleration for an array of cartesian positions
+         Return the acceleration for an array of Cartesian positions
 
          Parameters
          ----------
@@ -1600,7 +1600,7 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("pos"))
     .def("getAccelArray", py::overload_cast<Eigen::VectorXd&, Eigen::VectorXd&, Eigen::VectorXd&>(&BasisClasses::BiorthBasis::getAccel),
 	 R"(
-         Return the acceleration for a given cartesian position
+         Return the acceleration for a given Cartesian position
 
          Parameters
          ----------
@@ -1624,7 +1624,7 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("x"), py::arg("y"), py::arg("z"))
     .def("getFieldsCoefs", &BasisClasses::BiorthBasis::getFieldsCoefs,
 	 R"(
-         Return the field evaluations for a given cartesian position
+         Return the field evaluations for a given Cartesian position
          for every frame in a coefficient set.  The field evaluations are
          produced by a call to getFields().
 
@@ -1661,7 +1661,7 @@ void BasisFactoryClasses(py::module &m)
          coordinates for SphericalSL and Bessel, cylindrical coordinates for
          Cylindrical, FlatDisk, and CBDisk, and Cartesian coordinates for the 
          Slab and Cube. This member function can be used to override the
-         default. The available coorindates are: 'spherical', 'cylindrical', 
+         default. The available coordinates are: 'spherical', 'cylindrical', 
          'cartesian'.
 
          Parameters
@@ -1730,7 +1730,7 @@ void BasisFactoryClasses(py::module &m)
          )")
     .def("make_coefs",         &BasisClasses::BiorthBasis::make_coefs,
 	 R"(
-         Create the coefficients after particle accumuluation is complete
+         Create the coefficients after particle accumulation is complete
 
          Returns
          -------
@@ -1812,7 +1812,7 @@ void BasisFactoryClasses(py::module &m)
 	   return A.orthoCheck(knots);
 	 },
 	R"(
-        Check orthgonality of basis functions by quadrature
+        Check orthogonality of basis functions by quadrature
 
         Inner-product matrix of Sturm-Liouville solutions indexed by
         harmonic order used to assess fidelity.
@@ -1899,7 +1899,7 @@ void BasisFactoryClasses(py::module &m)
 	return A.orthoCheck(knots);
       },
 	R"(
-        Check orthgonality of basis functions by quadrature
+        Check orthogonality of basis functions by quadrature
 
         Inner-product matrix of Sturm-Liouville solutions indexed by
         harmonic order used to assess fidelity.
@@ -1960,7 +1960,7 @@ void BasisFactoryClasses(py::module &m)
 
       .def_static("invI", [](int I)
       {
-	if (I<0) std::runtime_error("I must be an interger greater than or equal to 0");
+	if (I<0) std::runtime_error("I must be an integer greater than or equal to 0");
 	int l = std::floor(0.5*(-1.0 + std::sqrt(1.0 + 8.0 * I)));
 	int m = I - int(l * (l + 1) / 2);
 	return std::tuple<int, int>(l, m);
@@ -2030,7 +2030,7 @@ void BasisFactoryClasses(py::module &m)
 	return A.orthoCheck(knots);
       },
 	R"(
-        Check orthgonality of basis functions by quadrature
+        Check orthogonality of basis functions by quadrature
 
         Inner-product matrix of Sturm-Liouville solutions indexed by
         harmonic order used to assess fidelity.
@@ -2072,7 +2072,7 @@ void BasisFactoryClasses(py::module &m)
 	return A.orthoCheck(knots);
       },
 	R"(
-        Check orthgonality of basis functions by quadrature
+        Check orthogonality of basis functions by quadrature
 
         Inner-product matrix of Sturm-Liouville solutions indexed by
         harmonic order used to assess fidelity.
@@ -2142,7 +2142,7 @@ void BasisFactoryClasses(py::module &m)
       return A.orthoCheck();
     },
       R"(
-      Check orthgonality of basis functions by quadrature
+      Check orthogonality of basis functions by quadrature
 
       Inner-product matrix of Sturm-Liouville solutions indexed by
       harmonic order used to assess fidelity.
@@ -2230,7 +2230,7 @@ void BasisFactoryClasses(py::module &m)
       return A.orthoCheck();
     },
       R"(
-      Check orthgonality of basis functions by quadrature
+      Check orthogonality of basis functions by quadrature
 
       Inner-product matrix of Sturm-Liouville solutions indexed by
       harmonic order used to assess fidelity.
@@ -2328,7 +2328,7 @@ void BasisFactoryClasses(py::module &m)
       return A.orthoCheck();
     },
       R"(
-      Check orthgonality of basis functions by quadrature
+      Check orthogonality of basis functions by quadrature
 
       Inner-product matrix of indexed by flattened wave number (nx, ny, nz) where
       each of nx is in [-nmaxx, nmaxx], ny is in [-nmaxy, nmaxy] and nz is in 
@@ -2413,13 +2413,13 @@ void BasisFactoryClasses(py::module &m)
       return A.orthoCheck();
     },
       R"(
-      Check orthgonality of basis functions by quadrature
+      Check orthogonality of basis functions by quadrature
 
       Inner-product matrix of indexed by flattened wave number (nx, ny, nz) where
       each of nx is in [-nmaxx, nmaxx], and so on for ny and nz.  Each dimension 
       has dx=2*nmaxx+1 wave numbers and similarly for dy and dz.  The index into the
       array is index=(nx+nmaxx)*dx*dy + (ny+nmaxy)*dy + (nz+nmaxz).   This is an 
-      analyic basis so the orthogonality matrix is not a check of any numerical
+      analytic basis so the orthogonality matrix is not a check of any numerical
       computation other than the quadrature itself.  It is included for completeness.
 
       Parameters
@@ -2652,7 +2652,7 @@ void BasisFactoryClasses(py::module &m)
 	return A.orthoCheck();
       },
       R"(
-        Check orthgonality of basis functions by quadrature
+        Check orthogonality of basis functions by quadrature
 
         Inner-product matrix of orthogonal functions
 
