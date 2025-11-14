@@ -3852,9 +3852,9 @@ namespace BasisClasses
     //
     BasisID = "Cube";
 
-    nminx = std::numeric_limits<int>::max();
-    nminy = std::numeric_limits<int>::max();
-    nminz = std::numeric_limits<int>::max();
+    nminx = 0;
+    nminy = 0;
+    nminz = 0;
 
     nmaxx = 6;
     nmaxy = 6;
@@ -4027,7 +4027,10 @@ namespace BasisClasses
        std::exp(-kfac*(z*nmaxz))};
     
     Eigen::VectorXcd g;
-    if (pcavar) g.resize(Itot);
+    if (pcavar) {
+      g.resize(Itot);
+      g.setZero();
+    }
 
     Eigen::Vector3cd curr(init);
     for (int ix=0; ix<=2*nmaxx; ix++, curr(0)*=step(0)) {
@@ -4042,6 +4045,9 @@ namespace BasisClasses
 	  int ii = ix-nmaxx;
 	  int jj = iy-nmaxy;
 	  int kk = iz-nmaxz;
+
+	  // Limit to minimum wave number
+	  if (abs(ii)<nminx || abs(jj)<nminy || abs(kk)<nminz) continue;
 
 	  // Normalization
 	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
@@ -4307,7 +4313,7 @@ namespace BasisClasses
     int iy = (indx - ix*(2*nmaxy+1)*(2*nmaxz+1))/(2*nmaxz+1);
     int iz = indx - ix*(2*nmaxy+1)*(2*nmaxz+1)/(2*nmaxz+1) - iy*(2*nmaxz+1);
   
-    return {ix, iy, iz}
+    return {ix, iy, iz};
   }
 
 
@@ -5362,6 +5368,12 @@ namespace BasisClasses
 	file.getAttribute("mmax").read(lmax);
 	file.getAttribute("nmax").read(nmax);
 	ltot = lmax + 1;
+      } else if (basisID == "Cube") {
+	int nmaxx, nmaxy, nmaxz;
+	file.getAttribute("nmaxx").read(nmaxx);
+	file.getAttribute("nmaxy").read(nmaxy);
+	file.getAttribute("nmaxz").read(nmaxz);
+	ltot = (2*nmaxx + 1) * (2*nmaxy + 1) * (2*nmaxz + 1);
       } else {
 	throw std::runtime_error(std::string("CovarianceReader: unknown or unimplemented covariance for basis type, ") + basisID);
       }

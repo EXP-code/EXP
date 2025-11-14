@@ -2373,23 +2373,29 @@ void BasisFactoryClasses(py::module &m)
 
       Parameters
       ----------
-      kx : int
+      nx : int
            wave-number index in [0, 2*nmax_x]
-      kx : int
+      ny : int
            wave-number index in [0, 2*nmax_y]
-      kx : int
+      nz : int
            wave-number index in [0, 2*nmax_z]
 
       Returns
       -------
       indx : int
            flattened index for coefficient array and covariance matrix
+
+      Notes
+      -----
+      Wave-numbers range from 2*pi/L*[-nmax, nmax] in each dimension.  The indices
+      nx, ny, nz describe the wave-number offset by nmax.
+
       )",
-	 py::arg("kx"), py::arg("ky"), py::arg("kz"))
-    .def("index1D", &BasisClasses::Cube::index1D,
+	 py::arg("nx"), py::arg("ny"), py::arg("nz"))
+    .def("index3D", &BasisClasses::Cube::index3D,
       R"(
-      Returns a flattened 1-d index into the arrays and matrices returned by the
-      getCoefCovariance() routines from wave number indexing.
+      Returns a tuple of indices for the wave-numbers (kx, ky, kz) from the flattened
+      1-d index for the arrays and matrices returned by the getCoefCovariance() routines
 
       Parameters
       ----------
@@ -2401,9 +2407,7 @@ void BasisFactoryClasses(py::module &m)
       indices : tuple(int, int, int)
               wave-number indices for each dimension in the ranges [0, 2*nmax-x],
               [0, 2*nmax_y], [0, 2*nmax_z]
-      )",
-	 py::arg("index"));
-
+      )", py::arg("index"))
     .def("orthoCheck", [](BasisClasses::Cube& A)
     {
       return A.orthoCheck();
