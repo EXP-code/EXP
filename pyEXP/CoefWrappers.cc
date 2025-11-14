@@ -1488,8 +1488,29 @@ void CoefficientClasses(py::module &m) {
                 --------
                 addcoef : add coefficient structures to an existing coefficieint container
                 )",
-                py::arg("coef"), py::arg("name")="");
+		py::arg("coef"), py::arg("name")="")
+    .def("get_shared_ptr_capsule", [](const std::shared_ptr<CoefClasses::Coefs> &self) -> py::capsule {
+      return py::capsule(
+        new std::shared_ptr(self),
+        "Coefs_shared_ptr",
+        [](void *v) { delete static_cast<std::shared_ptr<CoefClasses::Coefs> *>(v); }
+      );
+    },
+    R"(
+        Get a capsule containing a shared pointer to the Coefs instance.
 
+        Returns
+        -------
+        capsule: PyCapsule
+            A PyCapsule containing a shared pointer to the Coefs instance with
+            the name "Coefs_shared_ptr".
+
+        Notes
+        -----
+        This can be used to pass the Coefs instance to non-Pybind11 C extensions
+        in a lifetime-safe manner.
+        )"
+    );
 
   py::class_<CoefClasses::SphCoefs, std::shared_ptr<CoefClasses::SphCoefs>, PySphCoefs, CoefClasses::Coefs>
     (m, "SphCoefs", "Container for spherical coefficients")
