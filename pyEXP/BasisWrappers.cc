@@ -2281,7 +2281,7 @@ void BasisFactoryClasses(py::module &m)
 
          Returns
          -------
-         Cube
+         Slab
              the new instance
          )", py::arg("YAMLstring"))
     .def("getBasis", &BasisClasses::Slab::getBasis,
@@ -2366,6 +2366,44 @@ void BasisFactoryClasses(py::module &m)
          Cube
              the new instance
          )", py::arg("YAMLstring"))
+    .def("index1D", &BasisClasses::Cube::index1D,
+      R"(
+      Returns a flattened 1-d index into the arrays and matrices returned by the
+      getCoefCovariance() routines from wave number indexing.
+
+      Parameters
+      ----------
+      kx : int
+           wave-number index in [0, 2*nmax_x]
+      kx : int
+           wave-number index in [0, 2*nmax_y]
+      kx : int
+           wave-number index in [0, 2*nmax_z]
+
+      Returns
+      -------
+      indx : int
+           flattened index for coefficient array and covariance matrix
+      )",
+	 py::arg("kx"), py::arg("ky"), py::arg("kz"))
+    .def("index1D", &BasisClasses::Cube::index1D,
+      R"(
+      Returns a flattened 1-d index into the arrays and matrices returned by the
+      getCoefCovariance() routines from wave number indexing.
+
+      Parameters
+      ----------
+      index : int
+              flattened index for coefficient array and covariance matrix
+
+      Returns
+      -------
+      indices : tuple(int, int, int)
+              wave-number indices for each dimension in the ranges [0, 2*nmax-x],
+              [0, 2*nmax_y], [0, 2*nmax_z]
+      )",
+	 py::arg("index"));
+
     .def("orthoCheck", [](BasisClasses::Cube& A)
     {
       return A.orthoCheck();

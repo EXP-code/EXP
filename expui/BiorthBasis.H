@@ -1328,8 +1328,6 @@ namespace BasisClasses
     //@{
     //! Covariance structures.  First index is T, second is the
     //! flattened 3-d k vector
-    std::tuple<int, int, int> index3D(unsigned k);
-    unsigned index1D(int kx, int ky, int kz);
     std::vector<Eigen::VectorXcd> meanV;
     std::vector<Eigen::MatrixXcd> covrV;
     void init_covariance();
@@ -1408,6 +1406,11 @@ namespace BasisClasses
       }
     }
 
+    //! Return wave-number indices from flattened index
+    std::tuple<int, int, int> index3D(unsigned k);
+
+    //! Get flattened index from wave-number indicies
+    unsigned index1D(int kx, int ky, int kz);
   };
   
   class CovarianceReader

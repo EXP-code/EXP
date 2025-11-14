@@ -4049,7 +4049,7 @@ namespace BasisClasses
 	  expcoef(ix, iy, iz) += - mass * curr(0)*curr(1)*curr(2) * norm;
 
 	  if (pcavar)
-	    g[index1D(ii, jj, kk)] = curr(0)*curr(1)*curr(2) * norm;
+	    g[index1D(ix, iy, iz)] = curr(0)*curr(1)*curr(2) * norm;
 	}
       }
     }
@@ -4264,28 +4264,31 @@ namespace BasisClasses
 
   unsigned Cube::index1D(int kx, int ky, int kz)
   {
-    if (kx <-nmaxx or kx > nmaxx) {
+    if (kx <0 or kx > 2*nmaxx) {
       std::ostringstream sout;
-      sout << "Cube::index1D: x index [" << kx << "] must be in [" << -nmaxx << ", " << nmaxx << "]";
+      sout << "Cube::index1D: x index [" << kx << "] must be in [0, "
+	   << 2*nmaxx << "]";
       throw std::runtime_error(sout.str());
     }
 
     if (ky <-nmaxy or ky > nmaxy) {
       std::ostringstream sout;
-      sout << "Cube::index1D: y index [" << ky << "] must be in [" << -nmaxy << ", " << nmaxy << "]";
+      sout << "Cube::index1D: y index [" << ky << "] must be in [0, "
+	   << 2*nmaxy << "]";
       throw std::runtime_error(sout.str());
     }
 
     if (kz <-nmaxz or kx > nmaxz) {
       std::ostringstream sout;
-      sout << "Cube::index1D: z index [" << kz << "] must be in [" << -nmaxz << ", " << nmaxz << "]";
+      sout << "Cube::index1D: z index [" << kz << "] must be in [0, "
+	   << 2*nmaxz << "]";
       throw std::runtime_error(sout.str());
     }
 
     return
-      (kx + nmaxx)*(2*nmaxy+1)*(2*nmaxz+1) +
-      (ky + nmaxy)*(2*nmaxz+1) +
-      (kz + nmaxz);
+      kx*(2*nmaxy+1)*(2*nmaxz+1) +
+      ky*(2*nmaxz+1) +
+      kz;
   }
 
   std::tuple<int, int, int> Cube::index3D(unsigned indx)
@@ -4304,7 +4307,7 @@ namespace BasisClasses
     int iy = (indx - ix*(2*nmaxy+1)*(2*nmaxz+1))/(2*nmaxz+1);
     int iz = indx - ix*(2*nmaxy+1)*(2*nmaxz+1)/(2*nmaxz+1) - iy*(2*nmaxz+1);
   
-    return {ix - nmaxx, iy - nmaxy, iz - nmaxz};
+    return {ix, iy, iz}
   }
 
 
