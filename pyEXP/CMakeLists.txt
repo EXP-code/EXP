@@ -40,7 +40,11 @@ pybind11_add_module(pyEXP PyWrappers.cc CoefWrappers.cc
   ParticleReaderWrappers.cc MSSAWrappers.cc EDMDWrappers.cc)
 target_link_libraries(pyEXP PUBLIC expui exputil ${common_LINKLIB})
 target_include_directories(pyEXP PUBLIC ${common_INCLUDE})
-target_compile_options(pyEXP PUBLIC ${OpenMP_CXX_FLAGS})
+# TODO: Should find a proper solution for this, but for now, don't add OpenMP compile
+# options if compiling on macOS with Clang
+if(NOT (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang"))
+  target_compile_options(pyEXP PUBLIC ${OpenMP_CXX_FLAGS})
+endif()
 get_target_property(cxxflags pyEXP COMPILE_OPTIONS)
 message("The project has set the following flags: ${cxxflags}")
 
