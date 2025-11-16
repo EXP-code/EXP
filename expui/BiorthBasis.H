@@ -1333,7 +1333,8 @@ namespace BasisClasses
     void init_covariance();
     void zero_covariance();
     void writeCovarH5Params(HighFive::File& file);
-    int sampT = 100;
+    bool covar = false;
+    int  sampT = 100;
     //@}
 
   public:
@@ -1405,6 +1406,9 @@ namespace BasisClasses
 	zero_covariance();
       }
     }
+
+    //! Turn on/off covariance computation
+    void setCovar(bool flag=true)  { covar = flag; }
 
     //! Return wave-number indices from flattened index
     std::tuple<int, int, int> index3D(unsigned k);

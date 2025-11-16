@@ -885,7 +885,6 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(void, Cube, enableCoefCovariance, pcavar, nsamples);
     }
 
-
   };
 
 
@@ -2366,6 +2365,25 @@ void BasisFactoryClasses(py::module &m)
          Cube
              the new instance
          )", py::arg("YAMLstring"))
+    .def("setCovar", &BasisClasses::Cube::setCovar,
+       R"(
+       Turn on coefficient covariance matrix computation.  Set to OFF by default to
+       save disk space, computatation time, and memory.
+
+       Parameters
+       ----------
+       flag : bool
+              True to enable covariance matrix computation, False to disable it.
+
+       Returns
+       -------
+       None
+
+       Notes
+       -----
+       The covariance matrix computation can use significant memory and disk space
+       for the Cube basis especially and is disabled by default.
+       )", py::arg("flag")=true)
     .def("index1D", &BasisClasses::Cube::index1D,
       R"(
       Returns a flattened 1-d index into the arrays and matrices returned by the
@@ -2880,8 +2898,8 @@ void BasisFactoryClasses(py::module &m)
             each subsample. The returns are complex-valued.
     )",
     py::arg("time"))
-   .def("getCovarSamples", static_cast<std::tuple<Eigen::VectorXi, Eigen::VectorXd>
-	(BasisClasses::CovarianceReader::*)(unsigned)>(&BasisClasses::CovarianceReader::getCovarSamples),
+   .def("getCovarSamples",
+	py::overload_cast<unsigned>(&BasisClasses::CovarianceReader::getCovarSamples),
       R"(
       Get sample counts for the covariance computation
 
@@ -2896,8 +2914,7 @@ void BasisFactoryClasses(py::module &m)
           sample counts and masses for the covariance computation
       )",
       py::arg("index"))
-   .def("getCovarSamples", static_cast<std::tuple<Eigen::VectorXi, Eigen::VectorXd>
-	(BasisClasses::CovarianceReader::*)(double)>(&BasisClasses::CovarianceReader::getCovarSamples),
+    .def("getCovarSamples", py::overload_cast<double>(&BasisClasses::CovarianceReader::getCovarSamples),
       R"(
       Get sample counts for the covariance computation
 
