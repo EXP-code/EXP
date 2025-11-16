@@ -3880,19 +3880,19 @@ namespace BasisClasses
     // Assign values from YAML
     //
     try {
-      if (conf["nminx"])      nminx  = conf["nminx"].as<int>();
-      if (conf["nminy"])      nminy  = conf["nminy"].as<int>();
-      if (conf["nminz"])      nminz  = conf["nminz"].as<int>();
+      if (conf["nminx"])      nminx  = conf["nminx"  ].as<int>();
+      if (conf["nminy"])      nminy  = conf["nminy"  ].as<int>();
+      if (conf["nminz"])      nminz  = conf["nminz"  ].as<int>();
       
-      if (conf["nmaxx"])      nmaxx  = conf["nmaxx"].as<int>();
-      if (conf["nmaxy"])      nmaxy  = conf["nmaxy"].as<int>();
-      if (conf["nmaxz"])      nmaxz  = conf["nmaxz"].as<int>();
+      if (conf["nmaxx"])      nmaxx  = conf["nmaxx"  ].as<int>();
+      if (conf["nmaxy"])      nmaxy  = conf["nmaxy"  ].as<int>();
+      if (conf["nmaxz"])      nmaxz  = conf["nmaxz"  ].as<int>();
       
-      if (conf["knots"])      knots  = conf["knots"].as<int>();
+      if (conf["knots"])      knots  = conf["knots"  ].as<int>();
 
-      if (conf["check"])      check  = conf["check"].as<bool>();
+      if (conf["check"])      check  = conf["check"  ].as<bool>();
 
-      if (conf["pcavar"])     pcavar = conf["pcavar"].as<bool>();
+      if (conf["pcavar"])     pcavar = conf["pcavar" ].as<bool>();
       if (conf["subsamp"])    sampT  = conf["subsamp"].as<int>();
     } 
     catch (YAML::Exception & error) {
@@ -4055,7 +4055,7 @@ namespace BasisClasses
 	  expcoef(ix, iy, iz) += - mass * curr(0)*curr(1)*curr(2) * norm;
 
 	  if (pcavar)
-	    g[index1D(ix, iy, iz)] = curr(0)*curr(1)*curr(2) * norm;
+	    g[index1D(ix, iy, iz)] = - mass * curr(0)*curr(1)*curr(2) * norm;
 	}
       }
     }
@@ -4270,21 +4270,21 @@ namespace BasisClasses
 
   unsigned Cube::index1D(int kx, int ky, int kz)
   {
-    if (kx <0 or kx > 2*nmaxx) {
+    if (kx < 0 or kx > 2*nmaxx) {
       std::ostringstream sout;
       sout << "Cube::index1D: x index [" << kx << "] must be in [0, "
 	   << 2*nmaxx << "]";
       throw std::runtime_error(sout.str());
     }
 
-    if (ky <-nmaxy or ky > nmaxy) {
+    if (ky < 0 or ky > 2*nmaxy) {
       std::ostringstream sout;
       sout << "Cube::index1D: y index [" << ky << "] must be in [0, "
 	   << 2*nmaxy << "]";
       throw std::runtime_error(sout.str());
     }
 
-    if (kz <-nmaxz or kx > nmaxz) {
+    if (kz < 0 or kx > 2*nmaxz) {
       std::ostringstream sout;
       sout << "Cube::index1D: z index [" << kz << "] must be in [0, "
 	   << 2*nmaxz << "]";
