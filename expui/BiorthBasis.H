@@ -3,10 +3,17 @@
 
 #include <functional>
 #include <tuple>
+#include <map>
+#include <set>
 
 #include <Eigen/Eigen>
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 #include <yaml-cpp/yaml.h>
+
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
 
 #include "DiskDensityFunc.H"
 #include "ParticleReader.H"
@@ -96,8 +103,52 @@ namespace BasisClasses
     RowMatrixXd varray;
     //@}
 
+    //! Coefficient variance computation enabled
+    bool pcavar = false;
+
+    //! Data type for covariance
+    bool floatType = false;
+
+    //@{
+    //! Sample counts and masses for covariance computation
+    Eigen::VectorXi sampleCounts;
+    Eigen::VectorXd sampleMasses;
+    //@}
+
+    //@{
+    //! HDF5 compression settings
+    unsigned H5compress  = 5;
+    unsigned H5chunk     = 1024*1024; // (1 MB)
+    bool     H5shuffle   = true;
+    bool     H5szip      = false;
+    //@}
+
+    //! Round time key to emulated fixed-point arithmetic
+    double roundTime(double time)
+    {
+      // Eight decimal places should be enough here...
+      const double multiplier = 1.0e+08;  // std::pow(10.0, 8);
+      return std::floor(time * multiplier + 0.5) / multiplier;
+    }
+
+    //! Write H5 covariance; returns updated group count
+    virtual unsigned writeCovarH5(HighFive::Group& group, unsigned count, double time);
+    
+    //! Write H5 parameters for coefficient covariance
+    virtual void writeCovarH5Params(HighFive::File& file) {}
+
+    //! Add coefficient covariance data to an HDF5 file
+    virtual void extendCoefCovariance(const std::string& filename, double time);
+
+    //! Variance file versioning (Version 1.0 has more granularity and
+    //! poor compression)
+    inline static const std::string CovarianceFileVersion = "1.1";
+
   public:
     
+    //! Basis identifier string
+    std::string BasisID = "BiorthBasis";
+
     //! Constructor from YAML node
     BiorthBasis(const YAML::Node& conf,
 		const std::string& name="BiorthBasis") : Basis(conf, name) {}
@@ -166,13 +217,14 @@ namespace BasisClasses
     }
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass) = 0;
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0) = 0;
     
     //! Accumulate new coefficients
-    virtual void accumulate(double mass,
-			    double x, double y, double z,
-			    double u, double v, double w)
-    { accumulate(x, y, z, mass); }
+    virtual void accumulate(double x, double y, double z,
+			    double u, double v, double w,
+			    double mass, unsigned long indx = 0)
+    { accumulate(x, y, z, mass, indx); }
     
     //! Get mass on grid
     double getMass(void) { return totalMass; }
@@ -233,6 +285,51 @@ namespace BasisClasses
       }
 
       return varray;
+    }
+
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
+    virtual std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance()
+    {
+      // Must be overriden; base implementation throws error
+      throw std::runtime_error("BiorthBasis::getCoefCovariance: Not implemented for this basis");
+    }
+
+    //! Get sample counts for the covariance computation
+    virtual std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples()
+    {
+      return std::make_tuple(sampleCounts, sampleMasses);
+    }
+
+    //! Write coefficient covariance data to an HDF5 file
+    void writeCoefCovariance(const std::string& compname,
+			     const std::string& runtag,
+			     double time=0.0);
+
+    //! Choose between float and double storage for covariance
+    void setCovarFloatType(bool flt) { floatType = flt; }
+
+    //! HDF5 compression settings
+    void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle, bool szip=false)
+    {
+      H5compress = level;
+      H5chunk    = chunksize;
+      H5shuffle  = shuffle;
+      H5szip     = szip;
+    }
+
+    //! Make covariance after accumulation
+    virtual void makeCoefCovariance(void) {}
+
+    //! Enable covariance computation with optional sample time
+    virtual void enableCoefCovariance(bool pcavar, int sampT_in)
+    {
+      // Must be overriden; base implementation throws error
+      throw std::runtime_error("BiorthBasis::enableCoefCovariance: "
+			       "Not implemented for this basis");
     }
 
     //! Evaluate acceleration in Cartesian coordinates in centered
@@ -349,6 +446,17 @@ namespace BasisClasses
     virtual void computeAccel(double x, double y, double z, 
 			      Eigen::Ref<Eigen::Vector3d> vstore);
 
+    //@{
+    //! Covariance structures.  First index is T, second is harmonic
+    //! (l,m).
+    std::vector<std::vector<Eigen::VectorXcd>> meanV;
+    std::vector<std::vector<Eigen::MatrixXcd>> covrV;
+    void init_covariance();
+    void zero_covariance();
+    void writeCovarH5Params(HighFive::File& file);
+    int sampT = 100;
+    //@}
+
   public:
     
     //! Constructor from YAML node
@@ -377,7 +485,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     int getLmax() { return lmax; }
@@ -404,6 +513,17 @@ namespace BasisClasses
       return ret;
     }
 
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance();
+
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100)
+    {
+      pcavar = pcavar_in;
+      sampT  = sampT_in;
+      if (pcavar) init_covariance();
+    }
     //! Create and the coefficients from a function callback with the
     //! provided time value.  Set potential=true if function is a
     //! potential field.  Density is assumed if false (default).
@@ -632,7 +752,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     int getMmax() { return mmax; }
@@ -789,7 +910,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     int getMmax() { return mmax; }
@@ -839,8 +961,7 @@ namespace BasisClasses
     int lmaxfid, nmaxfid, mmax, mlim, nmax;
     int ncylodd, ncylnx, ncylny, ncylr, cmap, cmapR, cmapZ, vflag;
     int rnum, pnum, tnum;
-    double rmin, rmax, rcylmin, rcylmax;
-    double acyl, hcyl;
+    double rcylmin, rcylmax, acyl, hcyl;
     bool expcond, logarithmic, density, EVEN_M, sech2 = false;
     
     std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;
@@ -849,8 +970,7 @@ namespace BasisClasses
     bool coefs_defined;
     Eigen::MatrixXd factorial;
     Eigen::MatrixXd expcoef;
-    double rscl;
-    int used;
+    int used, sampT = 1;
     
     std::string cachename;
     bool oldcache = false;
@@ -916,6 +1036,9 @@ namespace BasisClasses
     void computeAccel(double x, double y, double z,
 		      Eigen::Ref<Eigen::Vector3d> vstore);
 
+    //! Needed for covariance writing
+    void writeCovarH5Params(HighFive::File& file);
+
   public:
     
     //! Constructor from YAML node
@@ -934,9 +1057,6 @@ namespace BasisClasses
       return EmpCylSL::cacheInfo(cachefile);
     }
 
-    //! Prescaling factor
-    void set_scale(const double scl) { rscl = scl; }
-    
     //! Zero out coefficients to prepare for a new expansion
     void reset_coefs(void);
     
@@ -944,7 +1064,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     int getMmax() { return mmax; }
@@ -975,6 +1096,31 @@ namespace BasisClasses
       return ret;
     }
 
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance()
+    {
+      return sl->getCoefCovariance();
+    }
+
+    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples()
+    {
+      // Copy to base class members
+      std::tie(sampleCounts, sampleMasses) = sl->getCovarSamples();
+      return {sampleCounts, sampleMasses};
+    }
+
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100)
+    {
+      pcavar = pcavar_in;
+      sampT  = sampT_in;
+      if (pcavar)  {
+	sl->setSampT(std::max(1, sampT));
+	sl->set_covar(true);
+      }
+    }
     //! Create and the coefficients from a function callback with the
     //! provided time value.  Set potential=true if function is a
     //! potential field.  Density is assumed if false (default).
@@ -1040,7 +1186,7 @@ namespace BasisClasses
 
     coefType expcoef;
     
-    //! Notal mass on grid
+    //! Total mass on grid
     double totalMass;
 
     //! Number of particles
@@ -1103,7 +1249,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     Eigen::Vector3i getNmax() { return {nmaxx, nmaxy, nmaxz}; }
@@ -1171,6 +1318,9 @@ namespace BasisClasses
     //! Maximum expansion order for construction
     int nmaxx, nmaxy, nmaxz;
 
+    //! Total number of modes
+    unsigned Itot;
+
     //! Number of integration knots for orthogonal check
     int knots;
 
@@ -1181,7 +1331,7 @@ namespace BasisClasses
 
     coefType expcoef;
     
-    //! Notal mass on grid
+    //! Total mass on grid
     double totalMass;
 
     //! Number of particles
@@ -1222,6 +1372,17 @@ namespace BasisClasses
     void computeAccel(double x, double y, double z, 
 		      Eigen::Ref<Eigen::Vector3d> vstore);
 
+    //@{
+    //! Covariance structures.  First index is T, second is the
+    //! flattened 3-d k vector
+    std::vector<Eigen::VectorXcd> meanV;
+    std::vector<Eigen::MatrixXcd> covrV;
+    void init_covariance();
+    void zero_covariance();
+    void writeCovarH5Params(HighFive::File& file);
+    bool covar = false;
+    int  sampT = 100;
+    //@}
 
   public:
     
@@ -1241,7 +1402,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     Eigen::Vector3i getNmax() { return {nmaxx, nmaxy, nmaxz}; }
@@ -1270,8 +1432,101 @@ namespace BasisClasses
       return true;
     }
 
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    std::vector<std::vector<CoefCovarType>> getCoefCovariance();
+
+    //! Get sample count and mass arrays
+    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples()
+    {
+      return {sampleCounts, sampleMasses};
+    }
+
+    //! Enable coefficient covariance computation
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100)
+    {
+      pcavar = pcavar_in;
+      sampT  = sampT_in;
+      if (pcavar) {
+	init_covariance();
+	zero_covariance();
+      }
+    }
+
+    //! Turn on/off covariance computation
+    void setCovar(bool flag=true)  { covar = flag; }
+
+    //! Return wave-number indices from flattened index
+    std::tuple<int, int, int> index3D(unsigned k);
+
+    //! Get flattened index from wave-number indicies
+    unsigned index1D(int kx, int ky, int kz);
   };
   
+  class CovarianceReader
+  {
+  public:
+    
+    using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
+
+  protected:
+
+    std::vector<double> times;
+    std::vector<Eigen::VectorXi> sampleCounts;
+    std::vector<Eigen::VectorXd> sampleMasses;
+    std::vector<std::vector<std::vector<CoefCovarType>>> covarData;
+
+    const double fixedPointPrecision = 1.0e08;
+    std::map<int, unsigned> timeMap;
+    unsigned timeIndex(double time)
+    {
+      int itime = static_cast<int>(time * fixedPointPrecision + 0.5);
+      auto it = timeMap.find(itime);
+      if (it == timeMap.end())
+	throw std::runtime_error("CovarianceReader: time not found");
+      return it->second;
+    }
+
+    std::string basisID;
+
+  public:
+
+    //! Constructor from HDF5 file
+    CovarianceReader(const std::string& filename, int stride=1);
+
+    //! Get time list
+    std::vector<double> Times() { return times; }
+
+    //@{
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance(unsigned index) { return covarData[index]; }
+
+    std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance(double time) { return covarData[timeIndex(time)]; }
+    //@}
+
+
+    //@{
+    //! Get sample counts for the covariance computation
+    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples(unsigned index)
+    {
+      return {sampleCounts[index], sampleMasses[index]};
+    }
+    
+    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples(double time)
+    {
+      unsigned index = timeIndex(time);
+      return {sampleCounts[index], sampleMasses[index]};
+    }
+    //@}
+    
+    std::string basisIDname() { return basisID; }
+  };
 
   //! Time-dependent potential-density model
   using BasisCoef = std::tuple<std::shared_ptr<Basis>, std::shared_ptr<CoefClasses::Coefs>>;

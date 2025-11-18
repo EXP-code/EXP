@@ -316,9 +316,9 @@ namespace BasisClasses
     }
   }
 
-  void FieldBasis::accumulate(double mass,
-			      double x, double y, double z,
-			      double u, double v, double w)
+  void FieldBasis::accumulate(double x, double y, double z,
+			      double u, double v, double w,
+			      double mass, unsigned long int indx)
   {
     constexpr double fac2 = 0.5*M_2_SQRTPI/M_SQRT2; // 1/sqrt(2*pi)=0.3989422804
 
@@ -580,13 +580,13 @@ namespace BasisClasses
 	use = true;
       }
 
-      if (use) accumulate(p->mass,
-			  p->pos[0]-ctr[0],
+      if (use) accumulate(p->pos[0]-ctr[0],
 			  p->pos[1]-ctr[1],
 			  p->pos[2]-ctr[2],
 			  p->vel[0],
 			  p->vel[1],
-			  p->vel[2]);
+			  p->vel[2],
+			  p->mass, p->indx);
 
     }
     make_coefs();
@@ -672,13 +672,13 @@ namespace BasisClasses
 	  }
 	  coefindx++;
 	  
-	  if (use) accumulate(m(n),
-			      p(0, n)-coefctr[0],
+	  if (use) accumulate(p(0, n)-coefctr[0],
 			      p(1, n)-coefctr[1],
 			      p(2, n)-coefctr[2],
 			      p(3, n),
 			      p(4, n),
-			      p(5, n));
+			      p(5, n),
+			      m(n), n);
 	}
       }
       
@@ -707,13 +707,12 @@ namespace BasisClasses
 	  }
 	  coefindx++;
 	  
-	  if (use) accumulate(m(n),
-			      p(n, 0)-coefctr[0],
+	  if (use) accumulate(p(n, 0)-coefctr[0],
 			      p(n, 1)-coefctr[1],
 			      p(n, 2)-coefctr[2], 
 			      p(n, 3),
 			      p(n, 4),
-			      p(n, 5));
+			      p(n, 5), m(n), n);
 	}
       }
     }

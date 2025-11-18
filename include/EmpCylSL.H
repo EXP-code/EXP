@@ -94,6 +94,13 @@ protected:
   //! EOF variance computation
   using VarMat = std::vector< std::vector< std::vector< std::vector<double> > > >;
   VarMat SC, SS, SCe, SCo, SSe, SSo;
+
+  //! Complex covariance implemenation
+  using CVarMat = std::vector< std::vector< std::vector< Eigen::MatrixXcd> > >;
+  using CVarVec = std::vector< std::vector< std::vector< Eigen::VectorXcd> > >;
+  CVarMat MV;
+  CVarVec VC;
+  bool covar = false;
   //@}
 
   std::vector<Eigen::MatrixXd> var, varE, varO;
@@ -210,7 +217,7 @@ protected:
   //! Coefficient magic number
   inline static const unsigned int cmagic = 0xc0a57a3;
 
-  std::vector<short> coefs_made;
+  std::vector<bool> coefs_made;
   bool eof_made;
 
   SphModTblPtr make_sl();
@@ -630,6 +637,15 @@ public:
   //! Initialize PCA work space
   void init_pca();
 
+  //! Initialize covariance work space
+  void init_covar();
+
+  //! Turn on/off covariance computation
+  void set_covar(bool tf) {
+    covar = tf;
+    if (tf) init_covar();
+  }
+
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
 
@@ -929,6 +945,15 @@ public:
 
   //! Check orthogonality for basis (pyEXP style)
   std::vector<Eigen::MatrixXd> orthoCheck();
+
+  //! Return a vector of tuples of basis coefficients and the
+  //! covariance matrix for subsamples of particles
+  using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
+  std::vector<std::vector<CoefCovarType>> getCoefCovariance();
+
+  //! Covariance statistics
+  std::tuple<Eigen::VectorXi, Eigen::VectorXd> getCovarSamples();
+  
 
 #if HAVE_LIBCUDA==1
   cudaMappingConstants getCudaMappingConstants();
