@@ -1448,14 +1448,14 @@ namespace BasisClasses
     {
       pcavar = pcavar_in;
       sampT  = sampT_in;
-      if (pcavar) {
-	init_covariance();
-	zero_covariance();
-      }
+      if (pcavar) { init_covariance(); }
     }
 
     //! Turn on/off covariance computation
-    void setCovar(bool flag=true)  { covar = flag; }
+    void setCovar(bool flag=true)  {
+      covar = flag;
+      if (covar && pcavar) { init_covariance(); }
+    }
 
     //! Return wave-number indices from flattened index
     std::tuple<int, int, int> index3D(unsigned k);
