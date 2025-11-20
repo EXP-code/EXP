@@ -144,6 +144,9 @@ namespace BasisClasses
     //! poor compression)
     inline static const std::string CovarianceFileVersion = "1.1";
 
+    //! Store full coavariance matrix?
+    bool covar = true;
+
   public:
     
     //! Basis identifier string
@@ -325,7 +328,7 @@ namespace BasisClasses
     virtual void makeCoefCovariance(void) {}
 
     //! Enable covariance computation with optional sample time
-    virtual void enableCoefCovariance(bool pcavar, int sampT_in)
+    virtual void enableCoefCovariance(bool pcavar, int sampT_in, bool covar_in)
     {
       // Must be overriden; base implementation throws error
       throw std::runtime_error("BiorthBasis::enableCoefCovariance: "
@@ -451,6 +454,8 @@ namespace BasisClasses
     //! (l,m).
     std::vector<std::vector<Eigen::VectorXcd>> meanV;
     std::vector<std::vector<Eigen::MatrixXcd>> covrV;
+    std::vector<std::vector<Eigen::VectorXcd>> dvarV;
+
     void init_covariance();
     void zero_covariance();
     void writeCovarH5Params(HighFive::File& file);
@@ -518,10 +523,12 @@ namespace BasisClasses
     std::vector<std::vector<CoefCovarType>>
     getCoefCovariance();
 
-    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100)
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
+				      bool covar_in=true)
     {
       pcavar = pcavar_in;
       sampT  = sampT_in;
+      covar  = covar_in;
       if (pcavar) init_covariance();
     }
     //! Create and the coefficients from a function callback with the
@@ -1112,10 +1119,12 @@ namespace BasisClasses
       return {sampleCounts, sampleMasses};
     }
 
-    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100)
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
+				      bool covar_in=true)
     {
       pcavar = pcavar_in;
       sampT  = sampT_in;
+      covar  = covar_in;
       if (pcavar)  {
 	sl->setSampT(std::max(1, sampT));
 	sl->set_covar(true);
@@ -1377,10 +1386,11 @@ namespace BasisClasses
     //! flattened 3-d k vector
     std::vector<Eigen::VectorXcd> meanV;
     std::vector<Eigen::MatrixXcd> covrV;
+    std::vector<Eigen::VectorXcd> dvarV;
+
     void init_covariance();
     void zero_covariance();
     void writeCovarH5Params(HighFive::File& file);
-    bool covar = false;
     int  sampT = 100;
     //@}
 
@@ -1444,17 +1454,13 @@ namespace BasisClasses
     }
 
     //! Enable coefficient covariance computation
-    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100)
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
+				      bool covar_in=false)
     {
       pcavar = pcavar_in;
       sampT  = sampT_in;
+      covar  = covar_in;
       if (pcavar) { init_covariance(); }
-    }
-
-    //! Turn on/off covariance computation
-    void setCovar(bool flag=true)  {
-      covar = flag;
-      if (covar && pcavar) { init_covariance(); }
     }
 
     //! Return wave-number indices from flattened index

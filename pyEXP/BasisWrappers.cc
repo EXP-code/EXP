@@ -452,8 +452,8 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(Selement, BiorthBasis, getCovarSamples,);
     }
 
-    void enableCoefCovariance(bool pcavar, int nsamples) override {
-      PYBIND11_OVERRIDE(void, BiorthBasis, enableCoefCovariance, pcavar, nsamples);
+    void enableCoefCovariance(bool pcavar, int nsamples, bool covar) override {
+      PYBIND11_OVERRIDE(void, BiorthBasis, enableCoefCovariance, pcavar, nsamples, covar);
     }
 
   };
@@ -521,8 +521,8 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(std::vector<Eigen::MatrixXd>, Spherical, orthoCheck, knots);
     }
 
-    void enableCoefCovariance(bool pcavar, int nsamples) override {
-      PYBIND11_OVERRIDE(void, Spherical, enableCoefCovariance, pcavar, nsamples);
+    void enableCoefCovariance(bool pcavar, int nsamples, bool covar) override {
+      PYBIND11_OVERRIDE(void, Spherical, enableCoefCovariance, pcavar, nsamples, covar);
     }
 
   };
@@ -576,8 +576,8 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(void, Cylindrical, make_coefs,);
     }
 
-    void enableCoefCovariance(bool pcavar, int nsamples) override {
-      PYBIND11_OVERRIDE(void, Cylindrical, enableCoefCovariance, pcavar, nsamples);
+    void enableCoefCovariance(bool pcavar, int nsamples, bool covar) override {
+      PYBIND11_OVERRIDE(void, Cylindrical, enableCoefCovariance, pcavar, nsamples, covar);
     }
 
   };
@@ -884,8 +884,8 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(Selement, Cube, getCovarSamples,);
     }
 
-    void enableCoefCovariance(bool pcavar, int nsamples) override {
-      PYBIND11_OVERRIDE(void, Cube, enableCoefCovariance, pcavar, nsamples);
+    void enableCoefCovariance(bool pcavar, int nsamples, bool covar) override {
+      PYBIND11_OVERRIDE(void, Cube, enableCoefCovariance, pcavar, nsamples, covar);
     }
 
   };
@@ -1475,11 +1475,14 @@ void BasisFactoryClasses(py::module &m)
                     enable (true) or disable (false) the covariance computation
          nsamples : int
                     number of time partitions to use for covariance computation
+         covar:     bool
+		    if true, compute and save covariance to the HDF5 file; if false,
+                    save mean and variance vectors only (default: true)
 
          Returns
          -------
          None
-	)", py::arg("pcavar"), py::arg("nsamples")=100)
+	)", py::arg("pcavar"), py::arg("nsamples")=100, py::arg("covar")=true)
     .def("setCovarH5Compress", &BasisClasses::BiorthBasis::setCovarH5Compress,
          R"(
 	 Set the HDF5 compression level for covariance storage in HDF5.  The Szip
@@ -2446,25 +2449,6 @@ void BasisFactoryClasses(py::module &m)
          Cube
              the new instance
          )", py::arg("YAMLstring"))
-    .def("setCovar", &BasisClasses::Cube::setCovar,
-       R"(
-       Turn on coefficient covariance matrix computation.  Set to OFF by default to
-       save disk space, computatation time, and memory.
-
-       Parameters
-       ----------
-       flag : bool
-              True to enable covariance matrix computation, False to disable it.
-
-       Returns
-       -------
-       None
-
-       Notes
-       -----
-       The covariance matrix computation can use significant memory and disk space
-       for the Cube basis especially and is disabled by default.
-       )", py::arg("flag")=true)
     .def("index1D", &BasisClasses::Cube::index1D,
       R"(
       Returns a flattened 1-d index into the arrays and matrices returned by the
