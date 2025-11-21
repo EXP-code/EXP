@@ -4068,8 +4068,10 @@ namespace BasisClasses
       sampleMasses(T) += mass;
       //
       meanV[T].noalias() += g * mass;
-      if (covar) covrV[T].noalias() += g * g.adjoint() * mass;
-      else       dvarV[T].noalias() += g.cwiseProduct(g.conjugate()) * mass;
+      if (covar) {
+	if (diagcov) dvarV[T].noalias() += g.cwiseProduct(g.conjugate()) * mass;
+	else         covrV[T].noalias() += g * g.adjoint() * mass;
+      }
     }
   }
   
@@ -4100,12 +4102,14 @@ namespace BasisClasses
 	  MPI_Allreduce(MPI_IN_PLACE, meanV[T].data(), meanV[T].size(),
 			MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	  
-	  if (covar)
-	    MPI_Allreduce(MPI_IN_PLACE, covrV[T].data(), covrV[T].size(),
-			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
-	  else
-	    MPI_Allreduce(MPI_IN_PLACE, dvarV[T].data(), dvarV[T].size(),
-			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	  if (covar) {
+	    if (diagcov)
+	      MPI_Allreduce(MPI_IN_PLACE, dvarV[T].data(), dvarV[T].size(),
+			    MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	    else
+	      MPI_Allreduce(MPI_IN_PLACE, covrV[T].data(), covrV[T].size(),
+			    MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	  }
 	}
 	// END: sample loop
       }
@@ -4125,8 +4129,12 @@ namespace BasisClasses
       for (int T=0; T<sampT; T++) {
 	ret[T].resize(1);
 	std::get<0>(ret[T][0]) = meanV[T];
-	if (covar) std::get<1>(ret[T][0]) = covrV[T];
-	else       std::get<1>(ret[T][0]) = dvarV[T].asDiagonal();
+	if (covar) {
+	  if (diagcov)
+	    std::get<1>(ret[T][0]) = dvarV[T].asDiagonal();
+	  else
+	    std::get<1>(ret[T][0]) = covrV[T];
+	}
       }
     }
     
@@ -4250,15 +4258,20 @@ namespace BasisClasses
       }
 
       if (covar) {
-	covrV.resize(sampT);
-	for (auto& v : covrV) {
-	  v.resize(Itot, Itot);
+	if (diagcov) {
+	  dvarV.resize(sampT);
+	  for (auto& v : dvarV) {
+	    v.resize(Itot);
+	  }
+	} else {
+	  covrV.resize(sampT);
+	  for (auto& v : covrV) {
+	    v.resize(Itot, Itot);
+	  }
 	}
       } else {
-	dvarV.resize(sampT);
-	for (auto& v : dvarV) {
-	  v.resize(Itot);
-	}
+	covrV.clear();
+	dvarV.clear();
       }
 
       sampleCounts.resize(sampT);
@@ -4273,8 +4286,10 @@ namespace BasisClasses
   {
     for (int T=0; T<sampT; T++) {
       meanV[T].setZero();
-      if (covar) covrV[T].setZero();
-      else       dvarV[T].setZero();
+      if (covar) {
+	if (diagcov) dvarV[T].setZero();
+	else         covrV[T].setZero();
+      }
     }
 
     sampleCounts.setZero();
@@ -5150,29 +5165,31 @@ namespace BasisClasses
       stanza.createDataSet("coefficients_real", real_part, dcpl2);
       stanza.createDataSet("coefficients_imag", imag_part, dcpl2);
       
-      real_part.resize(ltot*diagonalSize*sampleSize);
-      imag_part.resize(ltot*diagonalSize*sampleSize);
+      if (std::get<1>(covdata[0][0]).size()) {
 
-      for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
-	for (size_t l=0; l<ltot; l++) {
-	  for (size_t n1=0; n1<nmax; n1++) {
-	    // Pack the covariance data in an upper triangular format
-	    //
-	    if (covar) {
-	      for (size_t n2=n1; n2<nmax; n2++, c++) {
-		real_part(c) = std::real(std::get<1>(covdata[T][l])(n1, n2));
-		imag_part(c) = std::imag(std::get<1>(covdata[T][l])(n1, n2));
+	real_part.resize(ltot*diagonalSize*sampleSize);
+	imag_part.resize(ltot*diagonalSize*sampleSize);
+
+	for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
+	  for (size_t l=0; l<ltot; l++) {
+	    for (size_t n1=0; n1<nmax; n1++) {
+	      // Pack the covariance data in an upper triangular format
+	      //
+	      if (covar) {
+		for (size_t n2=n1; n2<nmax; n2++, c++) {
+		  real_part(c) = std::real(std::get<1>(covdata[T][l])(n1, n2));
+		  imag_part(c) = std::imag(std::get<1>(covdata[T][l])(n1, n2));
+		}
 	      }
-	    }
-	    // Pack the diagonal only
-	    //
-	    else {
-	      real_part(c  ) = std::real(std::get<1>(covdata[T][l])(n1, n1));
-	      imag_part(c++) = std::imag(std::get<1>(covdata[T][l])(n1, n1));
+	      // Pack the diagonal only
+	      //
+	      else {
+		real_part(c  ) = std::real(std::get<1>(covdata[T][l])(n1, n1));
+		imag_part(c++) = std::imag(std::get<1>(covdata[T][l])(n1, n1));
+	      }
 	    }
 	  }
 	}
-	
 	// Create two separate, compressed datasets
 	stanza.createDataSet("covariance_real", real_part, dcpl3);
 	stanza.createDataSet("covariance_imag", imag_part, dcpl3);
@@ -5196,34 +5213,37 @@ namespace BasisClasses
       stanza.createDataSet("coefficients_real", real_part, dcpl2);
       stanza.createDataSet("coefficients_imag", imag_part, dcpl2);
       
-      real_part.resize(ltot*diagonalSize*sampleSize);
-      imag_part.resize(ltot*diagonalSize*sampleSize);
+      if (std::get<1>(covdata[0][0]).size()) {
 
-      for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
-	for (size_t l=0; l<ltot; l++) {
-	  for (size_t n1=0; n1<nmax; n1++) {
-	    // Pack the covariance data in an upper triangular format
-	    //
-	    if (covar) {
-	      for (size_t n2=n1; n2<nmax; n2++, c++) {
-		real_part(c) = std::real(std::get<1>(covdata[T][l])(n1, n2));
-		imag_part(c) = std::imag(std::get<1>(covdata[T][l])(n1, n2));
+	real_part.resize(ltot*diagonalSize*sampleSize);
+	imag_part.resize(ltot*diagonalSize*sampleSize);
+
+	for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
+	  for (size_t l=0; l<ltot; l++) {
+	    for (size_t n1=0; n1<nmax; n1++) {
+	      // Pack the covariance data in an upper triangular format
+	      //
+	      if (covar) {
+		for (size_t n2=n1; n2<nmax; n2++, c++) {
+		  real_part(c) = std::real(std::get<1>(covdata[T][l])(n1, n2));
+		  imag_part(c) = std::imag(std::get<1>(covdata[T][l])(n1, n2));
+		}
 	      }
-	    }
-	    // Pack the diagonal only
-	    //
-	    else {
-	      real_part(c  ) = std::real(std::get<1>(covdata[T][l])(n1, n1));
-	      imag_part(c++) = std::imag(std::get<1>(covdata[T][l])(n1, n1));
+	      // Pack the diagonal only
+	      //
+	      else {
+		real_part(c  ) = std::real(std::get<1>(covdata[T][l])(n1, n1));
+		imag_part(c++) = std::imag(std::get<1>(covdata[T][l])(n1, n1));
+	      }
 	    }
 	  }
 	}
-      }
 	
-      // Create two separate, compressed datasets
-      //
-      stanza.createDataSet("covariance_real", real_part, dcpl3);
-      stanza.createDataSet("covariance_imag", imag_part, dcpl3);
+	// Create two separate, compressed datasets
+	//
+	stanza.createDataSet("covariance_real", real_part, dcpl3);
+	stanza.createDataSet("covariance_imag", imag_part, dcpl3);
+      }
     }
     // END: sample loop
 
@@ -5454,7 +5474,7 @@ namespace BasisClasses
 	stanza.getAttribute("rankSize")   .read(rank);
 
 	if (stanza.hasAttribute("fullCovar"))
-	  stanza.getAttribute("fullCovar")  .read(icov);
+	  stanza.getAttribute("fullCovar").read(icov);
 
 	// Full covariance or variance?
 	//

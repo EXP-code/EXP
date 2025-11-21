@@ -2449,6 +2449,32 @@ void BasisFactoryClasses(py::module &m)
          Cube
              the new instance
          )", py::arg("YAMLstring"))
+    .def("enableCoefCovariance", &BasisClasses::BiorthBasis::enableCoefCovariance,
+	 R"(
+         Enable or disable the coefficient covariance computation and set the
+         default number of partitions to use for the covariance computation.
+
+         Parameters
+         ----------
+         pcavar   : bool
+                    enable (true) or disable (false) the covariance computation
+         nsamples : int
+                    number of time partitions to use for covariance computation
+         covar:     bool
+		    if true, compute and save covariance to the HDF5 file; if false,
+                    save mean and variance vectors only (default: false)
+
+         Returns
+         -------
+         None
+
+         Notes
+      	 -----
+      	 The covariance computation for the Cube can be expensive in both time and memory
+         because the number of basis functions can be large. To save disk space, covariance
+         computation is disabled by default.  The user can enable it by calling this member
+         function with covar=True. 
+	)", py::arg("pcavar"), py::arg("nsamples")=100, py::arg("covar")=false)
     .def("index1D", &BasisClasses::Cube::index1D,
       R"(
       Returns a flattened 1-d index into the arrays and matrices returned by the

@@ -1392,6 +1392,7 @@ namespace BasisClasses
     void zero_covariance();
     void writeCovarH5Params(HighFive::File& file);
     int  sampT = 100;
+    bool diagcov = true;
     //@}
 
   public:
