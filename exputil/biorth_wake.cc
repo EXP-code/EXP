@@ -142,7 +142,6 @@ void BiorthWake::reconstruct_2d(double r, double phi,
 				double& potl0, double& potl,
 				int L1, int L2)
 {
-  int l,m;
   double cosm,sinm;
   double fac0 = 1.0/(2.0*M_PI);
 
@@ -151,8 +150,8 @@ void BiorthWake::reconstruct_2d(double r, double phi,
   potl0 = bio->get_potl(r/rscl,0,expcoef.row(0)) * fac0;
   potl = 0.0;
 
-  /*		m loop */
-  for (m=0; m<=lmax; m++) {
+  // m loop
+  for (int m=0; m<=lmax; m++) {
     if (m<L1 || m>L2) continue;
     if (m==0) {
       dens += bio->get_dens(r/rscl, m, expcoef.row(m)) * fac0;
