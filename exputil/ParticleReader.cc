@@ -2336,7 +2336,6 @@ namespace PR {
       std::vector<double> pos_max(3, -std::numeric_limits<double>::max());
       std::vector<double> vel_max(3, -std::numeric_limits<double>::max());
 
-      const double pct = 0.003;
       double mtot = 0.0;
       std::vector<double> p(3), v(3);
 
