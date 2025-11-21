@@ -44,7 +44,7 @@ void BiorthWake::orientation(int L, int M,
   test_transform();
 #endif // DEBUG
 
-  int loffset=0, moffset;
+  int loffset=0;
   int l=0;
   for (; l<L; l++) loffset += 2*l+1;
 
@@ -222,7 +222,7 @@ double BiorthWake::amotry(int ihi, double fac)
 
 void BiorthWake::amoeba(void)
 {
-  int i, j, ilo, ihi, inhi, mpts=ndim+1;
+  int ilo, ihi, inhi, mpts=ndim+1;
   double ytry, ysave, sum, rtol;
   
   nfunk = 0;
