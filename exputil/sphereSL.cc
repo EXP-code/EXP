@@ -17,8 +17,6 @@ SphereSL::SphereSL(int LMAX, int NMAX, int NUMR,
   BiorthID = "SphereSL";
   dof = 3;
 
-  int l;
-
   lmax = LMAX;
   nmax = NMAX;
   numr = NUMR;
