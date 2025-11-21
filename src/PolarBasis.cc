@@ -660,7 +660,7 @@ void PolarBasis::determine_coefficients_particles(void)
   }
 
 
-  int loffset, moffset, use1;
+  int moffset, use1;
 
   if (compute) {
 
@@ -1362,8 +1362,8 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
     norm1 = norm1_3d;
   }
 
-  double r, r0=0.0, phi;
-  double potr, potz, potl, potp, p, pc, drc, drs, dzc, dzs, ps, dfacp, facdp;
+  double r, phi;
+  double potr, potz, potl, potp, p, pc, drc, drs, dzc, dzs, ps;
 
   double pos[3];
   double xx, yy, zz, mfac=1.0;
@@ -1863,7 +1863,6 @@ void PolarBasis::determine_fields_at_point
   *tdens0 = *tpotl0 = *tdens = *tdens0 = 0.0;
   *tpotX  = *tpotY  = *tpotZ = 0.0;
 
-  bool ioff = false;
   if (R>rmax) return;
 
   double tpotR, tpotz, tpotp;
@@ -1901,7 +1900,7 @@ void PolarBasis::determine_fields_at_point_cyl
     return;
   }
 
-  double p, dp, pc, ps, drc, drs, dzc, dzs;
+  double p, pc, ps, drc, drs, dzc, dzs;
 
   sinecosine_R(Mmax, phi, cosm[0], sinm[0]);
 
