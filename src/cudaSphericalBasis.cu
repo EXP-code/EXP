@@ -134,7 +134,7 @@ void testConstantsSph()
   printf("   Dxi    = %f\n", sphDxi   );
   printf("   Numr   = %d\n", sphNumr  );
   printf("   Cmap   = %d\n", sphCmap  );
-  printf("   Feps   = %d\n", sphEPS   );
+  printf("   Feps   = %f\n", sphEPS   );
   printf("-------------------------\n");
 }
 
