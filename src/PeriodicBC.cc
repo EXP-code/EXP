@@ -37,7 +37,9 @@ PeriodicBC::PeriodicBC(const YAML::Node& conf) : ExternalForce(conf)
 
   comp_name = "";		// Default component (must be specified)
 
-  initialize();
+  initialize();			// Assign parameters
+
+  cuda_aware = true;		// Cuda routine is implemented
 
 				// Look for the fiducial component
   bool found = false;
@@ -56,24 +58,7 @@ PeriodicBC::PeriodicBC(const YAML::Node& conf) : ExternalForce(conf)
     throw GenericError(sout.str(), __FILE__, __LINE__, 35, false);
   }
   
-
   userinfo();
-
-  atomic_weights.resize(13, -1.0);
-
-  atomic_weights[0]  = 0.000548579909; // Mass of electron
-  atomic_weights[1]  = 1.0079;
-  atomic_weights[2]  = 4.0026;
-  atomic_weights[3]  = 6.941;
-  atomic_weights[4]  = 9.0122;
-  atomic_weights[5]  = 10.811;
-  atomic_weights[6]  = 12.011;
-  atomic_weights[7]  = 14.007;
-  atomic_weights[8]  = 15.999;
-  atomic_weights[9]  = 18.998;
-  atomic_weights[10] = 20.180;
-  atomic_weights[11] = 22.990;
-  atomic_weights[12] = 24.305;
 
   (*barrier)("Periodic: END construction", __FILE__, __LINE__);
 }
@@ -161,6 +146,13 @@ void PeriodicBC::initialize()
     throw std::runtime_error("PeriodicBC::initialize: error parsing YAML");
   }
     
+
+  // Cuda initialization
+#if HAVE_LIBCUDA==1
+  if (use_cuda) {
+    cuda_initialize();
+  }
+#endif
 }
 
 
@@ -168,9 +160,14 @@ void PeriodicBC::determine_acceleration_and_potential(void)
 {
   if (cC != c0) return;
 #if HAVE_LIBCUDA==1		// Cuda compatibility
+  if (use_cuda) {
+    determine_acceleration_and_potential_cuda();
+  } else
   getParticlesCuda(cC);
+  exp_thread_fork(false);
 #endif
   exp_thread_fork(false);
+  
   print_timings("PeriodicBC: thread timings");
 }
 
