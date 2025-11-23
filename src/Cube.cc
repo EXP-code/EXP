@@ -14,7 +14,8 @@ Cube::valid_keys = {
   "nmaxx",
   "nmaxy",
   "nmaxz",
-  "method"
+  "method",
+  "wrap"
 };
 
 //@{
@@ -114,6 +115,7 @@ void Cube::initialize(void)
     if (conf["nmaxy" ])  nmaxy      = conf["nmaxy" ].as<int>();
     if (conf["nmaxz" ])  nmaxz      = conf["nmaxz" ].as<int>();
     if (conf["method"])  cuMethod   = conf["method"].as<std::string>();
+    if (conf["wrap"  ])  wrap       = conf["wrap"  ].as<bool>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in Cube: "
@@ -125,6 +127,10 @@ void Cube::initialize(void)
 			   << std::string(60, '-') << std::endl;
     throw std::runtime_error("Cube::initialize: error parsing YAML");
   }
+
+  if (myid==0)
+    std::cout << "---- Cube::initialize: wrap="
+	      << std::boolalpha << wrap << std::endl;
 
 #if HAVE_LIBCUDA==1
   cuda_initialize();
@@ -161,6 +167,21 @@ void * Cube::determine_coefficients_thread(void * arg)
       double x = cC->Pos(i, 0);
       double y = cC->Pos(i, 1);
       double z = cC->Pos(i, 2);
+
+      // Truncate to cube with sides in [0,1]
+      //
+      if (wrap) {
+
+	auto unitCube = [](double x) {
+	  if (x<0.0) x += std::floor(-x) + 1.0;
+	  else       x -= std::floor( x);
+	  return x;
+	};
+    
+	x = unitCube(x);
+	y = unitCube(y);
+	z = unitCube(z);
+      }
 
       // Only compute for points inside the unit cube
       //
@@ -380,7 +401,6 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
 	for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
 	  
 	  std::complex<double> fac = facx*facy*facz*expcoef[0](ix, iy, iz);
-	  dens += fac;
 	  
 	  // Compute wavenumber; recall that the coefficients are
 	  // stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
@@ -397,9 +417,10 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
 	  if (abs(ii)<nminx || abs(jj)<nminy || abs(kk)<nminz) continue;
 	  
 	  // Normalization
-	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
+	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 
 	  potl += fac*norm;
+	  // dens += fac/norm;
 	  
 	  accx -= std::complex<double>(0.0, dfac*ii)*fac*norm;
 	  accy -= std::complex<double>(0.0, dfac*jj)*fac*norm;

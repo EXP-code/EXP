@@ -64,7 +64,8 @@ private:
   int imx, imy, imz, osize;
   int use1, use0;
   std::complex<double> kfac;
-  double  dfac;
+  double dfac;
+  bool wrap = true;		// Enforce periodic wrapping
   //@}
 
   //! Valid keys for YAML configurations

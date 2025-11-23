@@ -1721,7 +1721,10 @@ namespace CoefClasses
       for (int ix=0; ix<=2*NmaxX; ix++) {
 	for (int iy=0; iy<=2*NmaxY; iy++) {
 	  for (int iz=0; iz<=2*NmaxZ; iz++) {
-	    ret(ix, iy, iz, t) = (*cof->coefs)(ix, iy, iz);
+	    if (std::isnan(std::abs((*cof->coefs)(ix, iy, iz))))
+	      ret(ix, iy, iz, t) = 0.0;
+	    else
+	      ret(ix, iy, iz, t) = (*cof->coefs)(ix, iy, iz);
 	  }
 	}
       }

@@ -4050,7 +4050,7 @@ namespace BasisClasses
 	  if (abs(ii)<nminx || abs(jj)<nminy || abs(kk)<nminz) continue;
 
 	  // Normalization
-	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
+	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 
 	  expcoef(ix, iy, iz) += - mass * curr(0)*curr(1)*curr(2) * norm;
 

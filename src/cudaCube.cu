@@ -23,6 +23,9 @@ int cubeNumX, cubeNumY, cubeNumZ, cubeNX, cubeNY, cubeNZ, cubeNdim;
 __device__ __constant__
 cuFP_t cubeDfac;
 
+__device__ __constant__
+bool cubeWrap;
+
 // Alias for Thrust complex type to make this code more readable
 //
 using CmplxT = thrust::complex<cuFP_t>;
@@ -76,6 +79,10 @@ void testConstantsCube()
   printf("   Ny     = %d\n", cubeNY   );
   printf("   Nz     = %d\n", cubeNZ   );
   printf("   Dfac   = %e\n", cubeDfac );
+  if (cubeWrap)
+    printf("   Wrap   = true\n");
+  else
+    printf("   Wrap   = false\n");
   printf("-------------------------\n");
 }
 
@@ -106,8 +113,9 @@ void Cube::cuda_initialize()
   if (cuMethod.find("axes")   != std::string::npos) byPlanes = true;
   if (cuMethod.find("1d")     != std::string::npos) byPlanes = true;
 
-  std::cout << "---- Cube::cuda_initialize: byPlanes="
-	    << std::boolalpha << byPlanes << std::endl;
+  if (myid==0)
+    std::cout << "---- Cube::cuda_initialize: byPlanes="
+	      << std::boolalpha << byPlanes << std::endl;
 }
 
 // Copy constants to device
@@ -147,6 +155,10 @@ void Cube::initialize_constants()
   cuda_safe_call(cudaMemcpyToSymbol(cubeDfac, &dfac, sizeof(cuFP_t),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cubeDfac");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cubeWrap, &wrap, sizeof(bool),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cubeWrap");
 }
 
 __global__ void coefKernelCube
@@ -177,8 +189,19 @@ __global__ void coefKernelCube
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
       cuFP_t mm     = p.mass;
 
+      // Enforce periodicity in the unit cube
+      //
+      if (cubeWrap) {
+	for (int k=0; k<3; k++) {
+	  while (pos[k]<0.0)   pos[k] += 1.0;
+	  while (pos[k]>1.0)   pos[k] -= 1.0;
+	}
+      }
+
+      // Are particles inside the unit cube?
+      //
       bool good = true;
-      for (int k=0; k<3; k++) {	// Are particles inside the unit cube?
+      for (int k=0; k<3; k++) {
 	if (pos[k]<0.0 or pos[k]>1.0) good = false;
       }
 
@@ -272,8 +295,19 @@ __global__ void coefKernelCubeX
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
       cuFP_t mm     = p.mass;
 
+      // Enforce periodicity in the unit cube
+      //
+      if (cubeWrap) {
+	for (int k=0; k<3; k++) {
+	  while (pos[k]<0.0)   pos[k] += 1.0;
+	  while (pos[k]>1.0)   pos[k] -= 1.0;
+	}
+      }
+
+      // Are particles inside the unit cube?
+      //
       bool good = true;
-      for (int k=0; k<3; k++) {	// Are particles inside the unit cube?
+      for (int k=0; k<3; k++) {
 	if (pos[k]<0.0 or pos[k]>1.0) good = false;
       }
 
