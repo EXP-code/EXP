@@ -63,7 +63,6 @@ userPeriodicBCKernel(dArray<cudaParticle> P, dArray<int> I,
 	  }
 	}
 
-	//
 	// Periodic BC
 	//
 	if (T == 'p') {
@@ -76,7 +75,6 @@ userPeriodicBCKernel(dArray<cudaParticle> P, dArray<int> I,
 	  }
 	}
 	
-	//
 	// Sanity check
 	//
 	if (p.pos[k] < -offset || p.pos[k] >= L-offset) {
