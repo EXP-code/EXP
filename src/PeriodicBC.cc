@@ -145,14 +145,6 @@ void PeriodicBC::initialize()
 			   << std::string(60, '-') << std::endl;
     throw std::runtime_error("PeriodicBC::initialize: error parsing YAML");
   }
-    
-
-  // Cuda initialization
-#if HAVE_LIBCUDA==1
-  if (use_cuda) {
-    cuda_initialize();
-  }
-#endif
 }
 
 

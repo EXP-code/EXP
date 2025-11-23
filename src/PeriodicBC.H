@@ -28,7 +28,7 @@ private:
 #if HAVE_LIBCUDA==1
   //! Cuda implementation
   void determine_acceleration_and_potential_cuda();
-  void cuda_initialize();
+  bool cuda_initialized = false;
 #endif
 
   std::vector<double> offset, L;

@@ -388,7 +388,7 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
     auto stepy = std::exp(kfac*y);
     auto stepz = std::exp(kfac*z);
     
-    // Initial values (note sign change)
+    // Initial values (note sign change from coefficient accumulation)
     auto startx = std::exp(-kfac*(x*nmaxx));
     auto starty = std::exp(-kfac*(y*nmaxy));
     auto startz = std::exp(-kfac*(z*nmaxz));

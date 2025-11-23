@@ -104,43 +104,45 @@ void testConstantsPeriodicBC(cuFP_t tnow)
 	 cudaBCside[0], cudaBCside[1], cudaBCside[2] );
   printf("Offset = %e, %e, %e\n",
 	 cudaBCoffset[0], cudaBCoffset[1], cudaBCoffset[2] );
-  printf(" BCs   = %c, %c, %c\n", cudaBC[0], cudaBC[1], cudaBC[2] );
+  printf("   BCs = %c, %c, %c\n", cudaBC[0], cudaBC[1], cudaBC[2] );
   printf("-------------------------\n");
-}
-
-void PeriodicBC::cuda_initialize()
-{
-  cuFP_t vec[3];
-  for (int k=0; k<3; k++) vec[k] = offset[k];
-
-  cuda_safe_call(cudaMemcpyToSymbol(cudaBCoffset, vec, sizeof(cuFP_t)*3,
-				    size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cudaBCoffset");
-  
-  for (int k=0; k<3; k++) vec[k] = L[k];
-
-  cuda_safe_call(cudaMemcpyToSymbol(cudaBCside, vec, sizeof(cuFP_t)*3,
-				    size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cudaBCside");
-  
-  char h_cudaBC[3];
-  for (int k=0; k<3; k++) h_cudaBC[k] = bc[k];
-
-  cuda_safe_call(cudaMemcpyToSymbol(cudaBC, h_cudaBC, sizeof(char)*3,
-				    size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cudaBC");
-  
-  if (myid==0 and VERBOSE>4) {
-    auto cr = cC->cuStream;
-    testConstantsPeriodicBC<<<1, 1, 0, cr->stream>>>(tnow);
-    cudaDeviceSynchronize();
-    cuda_check_last_error_mpi("cudaDeviceSynchronize", __FILE__, __LINE__, myid);
-  }
 }
 
 
 void PeriodicBC::determine_acceleration_and_potential_cuda()
 {
+  if (not cuda_initialized) {
+    cuda_initialized = true;
+
+    // Copy the offset, side length, and BC type to device constant memory
+    cuFP_t vec[3];
+    for (int k=0; k<3; k++) vec[k] = offset[k];
+
+    cuda_safe_call(cudaMemcpyToSymbol(cudaBCoffset, vec, sizeof(cuFP_t)*3,
+				      size_t(0), cudaMemcpyHostToDevice),
+		   __FILE__, __LINE__, "Error copying cudaBCoffset");
+  
+    for (int k=0; k<3; k++) vec[k] = L[k];
+    
+    cuda_safe_call(cudaMemcpyToSymbol(cudaBCside, vec, sizeof(cuFP_t)*3,
+				      size_t(0), cudaMemcpyHostToDevice),
+		   __FILE__, __LINE__, "Error copying cudaBCside");
+  
+    char h_cudaBC[3];
+    for (int k=0; k<3; k++) h_cudaBC[k] = bc[k];
+    
+    cuda_safe_call(cudaMemcpyToSymbol(cudaBC, h_cudaBC, sizeof(char)*3,
+				      size_t(0), cudaMemcpyHostToDevice),
+		   __FILE__, __LINE__, "Error copying cudaBC");
+  
+    if (myid==0 and VERBOSE>4) {
+      auto cr = cC->cuStream;
+      testConstantsPeriodicBC<<<1, 1, 0, cr->stream>>>(tnow);
+      cudaDeviceSynchronize();
+      cuda_check_last_error_mpi("cudaDeviceSynchronize", __FILE__, __LINE__, myid);
+    }
+  }
+
   // Sanity check
   //
   int nbodies = cC->Number();
