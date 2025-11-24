@@ -23,6 +23,7 @@ Cube::valid_keys = {
 static bool cudaAccumOverride = false;
 static bool cudaAccelOverride = false;
 static bool deepDebug = false;
+static bool coefDebug = false;
 //@}
 
 Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
@@ -172,7 +173,6 @@ void * Cube::determine_coefficients_thread(void * arg)
       // Truncate to cube with sides in [0,1]
       //
       if (wrap) {
-      
 	auto unitCube = [](double x) {
 	  if (x<0.0) x += std::floor(-x) + 1.0;
 	  else       x -= std::floor( x);
@@ -212,9 +212,9 @@ void * Cube::determine_coefficients_thread(void * arg)
 	    // Compute wavenumber; the coefficients are stored as:
 	    // -nmax,-nmax+1,...,0,...,nmax-1,nmax
 	    //
-	    int ii = ix-nmaxx;
-	    int jj = iy-nmaxy;
-	    int kk = iz-nmaxz;
+	    int ii = ix - nmaxx;
+	    int jj = iy - nmaxy;
+	    int kk = iz - nmaxz;
 	    
 	    if (ii==0 and jj==0 and kk==0) continue;
 	    
@@ -333,7 +333,7 @@ void Cube::determine_coefficients(void)
 
   // Deep debug for checking a single wave number from cubeics
   //
-  if (deepDebug and myid==0) {
+  if (coefDebug and myid==0) {
 
     // Create a wavenumber tuple from a flattened index
     auto indices = [&](int indx)
@@ -346,142 +346,219 @@ void Cube::determine_coefficients(void)
       return std::tuple<int, int, int>{i, j, k};
     };
 
-    std::string ofile = "cube_test_cpu." + runtag + ".dat";
-    std::ofstream out(ofile, ios::app | ios::out);
+    if (multistep==0) {
 
-    if (out) {
-      std::multimap<double, int> biggest;
+      std::string ofile = "cube_test." + runtag + ".dat";
+      std::ofstream out(ofile, ios::app | ios::out);
 
-      for (int n=0; n<expcoef.size(); n++) 
-	biggest.insert({std::abs(expcoef.data()[n]), n});
+      if (out) {
+	std::multimap<double, int> biggest;
 
-      out << std::string(3*4+3*20, '-') << std::endl
-	  << "---- Cube, T=" << tnow    << std::endl
-	  << std::string(3*4+3*20, '-') << std::endl
-	  << std::setprecision(10);
+	for (int n=0; n<expcoef.size(); n++) 
+	  biggest.insert({std::abs(expcoef.data()[n]), n});
+
+	out << std::string(3*4+3*20, '-') << std::endl
+	    << "---- Cube, T=" << tnow    << std::endl
+	    << std::string(3*4+3*20, '-') << std::endl
+	    << std::setprecision(10);
 	
-      out << std::setw(4)  << "i"
-	  << std::setw(4)  << "j"
-	  << std::setw(4)  << "k"
-	  << std::setw(20) << "Real"
-	  << std::setw(20) << "Imag"
-	  << std::setw(20) << "Abs"
-	  << std::endl;
-      
-      int cnt = 0;
-      for (auto it = biggest.rbegin(); it!=biggest.rend() and cnt<20; it++, cnt++) {
-	auto [i, j, k] = indices(it->second);
-	auto a = expcoef(i, j, k);
-	out << std::setw(4)  << i-nmaxx
-	    << std::setw(4)  << j-nmaxy
-	    << std::setw(4)  << k-nmaxz
-	    << std::setw(20) << std::real(a)
-	    << std::setw(20) << std::imag(a)
-	    << std::setw(20) << std::abs(a)
+	out << std::setw(4)  << "i"
+	    << std::setw(4)  << "j"
+	    << std::setw(4)  << "k"
+	    << std::setw(20) << "Real"
+	    << std::setw(20) << "Imag"
+	    << std::setw(20) << "Abs"
 	    << std::endl;
+	
+	int cnt = 0;
+	for (auto it = biggest.rbegin(); it!=biggest.rend() and cnt<20; it++, cnt++) {
+	  auto [i, j, k] = indices(it->second);
+	  auto a = expcoef(i, j, k);
+	  out << std::setw(4)  << i-nmaxx
+	      << std::setw(4)  << j-nmaxy
+	      << std::setw(4)  << k-nmaxz
+	      << std::setw(20) << std::real(a)
+	      << std::setw(20) << std::imag(a)
+	      << std::setw(20) << std::abs(a)
+	      << std::endl;
+	}
+	out << std::string(3*4+4*20, '-') << std::endl;
+      } else {
+	std::cout << "Error opening <" << ofile << ">" << std::endl;
       }
-      out << std::string(3*4+4*20, '-') << std::endl;
+
     } else {
-      std::cout << "Error opening <" << ofile << ">" << std::endl;
+
+      std::string ofile = "cube_multi." + runtag + ".dat";
+      std::ofstream out(ofile, ios::app | ios::out);
+
+      if (out) {
+	// Rank coefficients by absolute value
+	std::multimap<double, int> biggest;
+
+	// Make the DB of absolute values
+	for (int n=0; n<expcoef.size(); n++) 
+	  biggest.insert({std::abs(expcoef.data()[n]), n});
+
+	out << std::string(3*4+3*(2+multistep)*20, '-') << std::endl
+	    << "---- Cube, T=" << tnow    << std::endl
+	    << std::string(3*4+3*20, '-') << std::endl
+	    << std::setprecision(10);
+	
+	out << std::setw(4)  << "i"
+	    << std::setw(4)  << "j"
+	    << std::setw(4)  << "k"
+	    << std::setw(20) << "Real"
+	    << std::setw(20) << "Imag"
+	    << std::setw(20) << "Abs";
+
+	for (int M=0; M<=multistep; M++) {
+	  std::ostringstream ss;  ss << "Real[" << M << "]";
+	  out << std::setw(20) << ss.str();
+	  ss.str(""); ss << "Imag[" << M << "]";
+	  out << std::setw(20) << ss.str();
+	  ss.str(""); ss << "Abs["  << M << "]";
+	  out << std::setw(20) << ss.str();
+	}
+	out << std::endl;
+	
+	int cnt = 0;
+	for (auto it = biggest.rbegin(); it!=biggest.rend() and cnt<20; it++, cnt++) {
+	  auto [i, j, k] = indices(it->second);
+	  auto a = expcoef(i, j, k);
+	  out << std::setw(4)  << i-nmaxx
+	      << std::setw(4)  << j-nmaxy
+	      << std::setw(4)  << k-nmaxz
+	      << std::setw(20) << std::real(a)
+	      << std::setw(20) << std::imag(a)
+	      << std::setw(20) << std::abs(a);
+	  for (int M=0; M<=multistep; M++) {
+	    auto b = (*expcoefN[M])(i, j, k);
+	    out << std::setw(20) << std::real(b)
+		<< std::setw(20) << std::imag(b)
+		<< std::setw(20) << std::abs(b);
+	  }
+	  out << std::endl;
+	}
+	out << std::string(3*4+3*(2+multistep)*20, '-') << std::endl;
+
+      } else {
+	std::cout << "Error opening <" << ofile << ">" << std::endl;
+      }
+
     }
   }
+  // END: deep debug
 }
 
 void * Cube::determine_acceleration_and_potential_thread(void * arg)
 {
-  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
-  int nbeg = nbodies*id/nthrds;
-  int nend = nbodies*(id+1)/nthrds;
 
-  PartMapItr it = cC->Particles().begin();
-  unsigned long i;
+  // If we are multistepping, compute accel only at or above <mlevel>
+  //
+  for (int lev=mlevel; lev<=multistep; lev++) {
 
-  for (int q=0; q<nbeg; q++) it++;
-  for (int q=nbeg; q<nend; q++) {
+    unsigned nbodies = cC->levlist[lev].size();
+
+    if (nbodies==0) continue;
+
+    int nbeg = nbodies*id/nthrds;
+    int nend = nbodies*(id+1)/nthrds;
+
+    for (int q=nbeg; q<nend; q++) {
     
-    i = it->first; it++;
+      int i = cC->levlist[lev][q];
 
-    std::complex<double> accx(0), accy(0), accz(0), dens(0), potl(0);
+      // Local accumulators 
+      //
+      std::complex<double> accx(0), accy(0), accz(0), dens(0), potl(0);
     
-    // Get positions
-    double x = cC->Pos(i, 0);
-    double y = cC->Pos(i, 1);
-    double z = cC->Pos(i, 2);
+      // Get positions
+      //
+      double x = cC->Pos(i, 0);
+      double y = cC->Pos(i, 1);
+      double z = cC->Pos(i, 2);
 
-    // Recursion multipliers
-    auto stepx = std::exp(kfac*x);
-    auto stepy = std::exp(kfac*y);
-    auto stepz = std::exp(kfac*z);
+      // Recursion multipliers
+      //
+      auto stepx = std::exp(kfac*x);
+      auto stepy = std::exp(kfac*y);
+      auto stepz = std::exp(kfac*z);
     
-    // Initial values (note sign change from coefficient accumulation)
-    auto startx = std::exp(-kfac*(x*nmaxx));
-    auto starty = std::exp(-kfac*(y*nmaxy));
-    auto startz = std::exp(-kfac*(z*nmaxz));
+      // Initial values (note sign change from coefficient accumulation)
+      //
+      auto startx = std::exp(-kfac*(x*nmaxx));
+      auto starty = std::exp(-kfac*(y*nmaxy));
+      auto startz = std::exp(-kfac*(z*nmaxz));
     
-    std::complex<double> facx, facy, facz;
-    int ix, iy, iz;
+      std::complex<double> facx, facy, facz;
+      int ix, iy, iz;
+      
+      for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
+	for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
+	  for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
+	  
+	    std::complex<double> fac = facx*facy*facz*expcoef(ix, iy, iz);
+	  
+	    // Compute wavenumber; recall that the coefficients are
+	    // stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+	    //
+	    int ii = ix-nmaxx;
+	    int jj = iy-nmaxy;
+	    int kk = iz-nmaxz;
+	  
+	    // No contribution to acceleration and potential ("swindle")
+	    // for zero wavenumber
+	    if (ii==0 && jj==0 && kk==0) continue;
+	    
+	    // Limit to minimum wave number
+	    if (abs(ii)<nminx || abs(jj)<nminy || abs(kk)<nminz) continue;
+	  
+	    // Normalization
+	    double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 
-    for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
-      for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
-	for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
+	    potl += fac*norm;
+	    // dens += fac/norm;
 	  
-	  std::complex<double> fac = facx*facy*facz*expcoef(ix, iy, iz);
-	  
-	  // Compute wavenumber; recall that the coefficients are
-	  // stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
-	  //
-	  int ii = ix-nmaxx;
-	  int jj = iy-nmaxy;
-	  int kk = iz-nmaxz;
-	  
-	  // No contribution to acceleration and potential ("swindle")
-	  // for zero wavenumber
-	  if (ii==0 && jj==0 && kk==0) continue;
-	  
-	  // Limit to minimum wave number
-	  if (abs(ii)<nminx || abs(jj)<nminy || abs(kk)<nminz) continue;
-	  
-	  // Normalization
-	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
-
-	  potl += fac*norm;
-	  // dens += fac/norm;
-	  
-	  accx -= std::complex<double>(0.0, dfac*ii)*fac*norm;
-	  accy -= std::complex<double>(0.0, dfac*jj)*fac*norm;
-	  accz -= std::complex<double>(0.0, dfac*kk)*fac*norm;
-	  
+	    accx -= std::complex<double>(0.0, dfac*ii)*fac*norm;
+	    accy -= std::complex<double>(0.0, dfac*jj)*fac*norm;
+	    accz -= std::complex<double>(0.0, dfac*kk)*fac*norm;
+	    
+	  }
 	}
       }
-    }
-    
-    cC->AddAcc(i, 0, accx.real());
-    cC->AddAcc(i, 1, accy.real());
-    cC->AddAcc(i, 2, accz.real());
+      
+      cC->AddAcc(i, 0, accx.real());
+      cC->AddAcc(i, 1, accy.real());
+      cC->AddAcc(i, 2, accz.real());
+      
+      cC->AddPot(i, potl.real());
 
-    cC->AddPot(i, potl.real());
-
-    // Deep debugging of acceleration
-    if (deepDebug) {
-      auto part = cC->Part(i);
-      if (part->indx < 10) {
-	std::cout << "accel: [" << std::setw(8) << tnow << "] "
-		  << std::setw(6) << part->indx;
-	for (int k=0; k<3; k++)
-	  std::cout << std::setw(16) << part->pos[k];
-	for (int k=0; k<3; k++)
-	  std::cout << std::setw(16) << part->vel[k];
-	for (int k=0; k<3; k++)
-	  std::cout << std::setw(16) << part->acc[k];
-	std::cout
-	  << std::setw(16) << expcoef(nmaxx+1, nmaxy, nmaxz).real()
-	  << std::setw(16) << expcoef(nmaxx+1, nmaxy, nmaxz).imag()
-	  << std::endl;
+      // Deep debugging of acceleration
+      if (deepDebug) {
+	auto part = cC->Part(i);
+	if (part->indx < 10) {
+	  std::cout << "accel: [" << std::setw(8) << tnow << "] "
+		    << std::setw(6) << part->indx;
+	  for (int k=0; k<3; k++)
+	    std::cout << std::setw(16) << part->pos[k];
+	  for (int k=0; k<3; k++)
+	    std::cout << std::setw(16) << part->vel[k];
+	  for (int k=0; k<3; k++)
+	    std::cout << std::setw(16) << part->acc[k];
+	  std::cout
+	    << std::setw(16) << expcoef(nmaxx+1, nmaxy, nmaxz).real()
+	    << std::setw(16) << expcoef(nmaxx+1, nmaxy, nmaxz).imag()
+	    << std::endl;
+	}
       }
+      // END: deep debugging
     }
+    // END: particle loop
   }
-  
+  // END: multistep levels
+    
   return (NULL);
 }
 
@@ -653,6 +730,20 @@ void Cube::multistep_update(int from, int to, Component *c, int i, int id)
   double y = c->Pos(i, 1);
   double z = c->Pos(i, 2);
   
+  // Truncate to cube with sides in [0,1]
+  //
+  if (wrap) {
+    auto unitCube = [](double x) {
+      if (x<0.0) x += std::floor(-x) + 1.0;
+      else       x -= std::floor( x);
+      return x;
+    };
+    
+    x = unitCube(x);
+    y = unitCube(y);
+    z = unitCube(z);
+  }
+
   // Only compute for points inside the unit cube
   //
   if (x<0.0 or x>1.0) return;
@@ -660,11 +751,13 @@ void Cube::multistep_update(int from, int to, Component *c, int i, int id)
   if (z<0.0 or z>1.0) return;
     
   // Recursion multipliers
+  //
   std::complex<double> stepx = std::exp(-kfac*x);
   std::complex<double> stepy = std::exp(-kfac*y);
   std::complex<double> stepz = std::exp(-kfac*z);
     
   // Initial values for recursion
+  //
   std::complex<double> startx = std::exp(kfac*(x*nmaxx));
   std::complex<double> starty = std::exp(kfac*(y*nmaxy));
   std::complex<double> startz = std::exp(kfac*(z*nmaxz));
@@ -683,6 +776,8 @@ void Cube::multistep_update(int from, int to, Component *c, int i, int id)
 	int jj = iy - nmaxy;
 	int kk = iz - nmaxz;
 	
+	if (ii==0 and jj==0 and kk==0) continue;
+
 	// Normalization
 	double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 	
