@@ -51,6 +51,7 @@ const std::set<std::string> Component::valid_keys_parm =
     "EJkinE",
     "EJext",
     "EJdiag",
+    "EJoutputfreq",
     "EJdryrun",
     "EJx0",
     "EJy0",
@@ -192,6 +193,7 @@ Component::Component(YAML::Node& CONF)
   EJkinE      = true;
   EJext       = false;
   EJdiag      = false;
+  EJoutputfreq= 1;
   EJdryrun    = false;
   EJx0        = 0.0;
   EJy0        = 0.0;
@@ -329,6 +331,7 @@ void Component::set_default_values()
   if (!cconf["EJkinE"])          cconf["EJkinE"]      = EJkinE;
   if (!cconf["EJext"])           cconf["EJext"]       = EJext;
   if (!cconf["EJdiag"])          cconf["EJdiag"]      = EJdiag;
+  if (!cconf["EJoutputfreq"])    cconf["EJoutputfreq"]= EJoutputfreq;
   if (!cconf["EJdryrun"])        cconf["EJdryrun"]    = EJdryrun;
   if (!cconf["EJx0"])            cconf["EJx0"]        = EJx0;
   if (!cconf["EJy0"])            cconf["EJy0"]        = EJy0;
@@ -693,6 +696,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
   EJkinE      = true;
   EJext       = false;
   EJdiag      = false;
+  EJoutputfreq= 1;
   EJdryrun    = false;
   EJx0        = 0.0;
   EJy0        = 0.0;
@@ -862,6 +866,7 @@ Component::Component(YAML::Node& CONF, PR::PSPhdf5& reader) : conf(CONF)
   EJkinE      = true;
   EJext       = false;
   EJdiag      = false;
+  EJoutputfreq= 1;
   EJdryrun    = false;
   EJx0        = 0.0;
   EJy0        = 0.0;
@@ -1016,6 +1021,7 @@ void Component::configure(void)
     if (cconf["EJkinE"  ])     EJkinE  = cconf["EJkinE"  ].as<bool>();
     if (cconf["EJext"   ])      EJext  = cconf["EJext"   ].as<bool>();
     if (cconf["EJdiag"  ])     EJdiag  = cconf["EJdiag"  ].as<bool>();
+    if (cconf["EJoutputfreq"  ])     EJoutputfreq  = cconf["EJoutputfreq"  ].as<int>();
     if (cconf["EJdryrun"])   EJdryrun  = cconf["EJdryrun"].as<bool>();
     if (cconf["EJlinear"])   EJlinear  = cconf["EJlinear"].as<bool>();
     if (cconf["EJdamp"  ])     EJdamp  = cconf["EJdamp"  ].as<double>();
@@ -1353,7 +1359,7 @@ void Component::initialize(void)
     if (EJext)		EJctl |= Orient::EXTERNAL;
 
     orient = new Orient(nEJkeep, nEJwant, nEJaccel,
-			EJ, EJctl, EJlogfile, EJdT, EJdamp);
+			EJ, EJctl, EJlogfile, EJdT, EJdamp, EJoutputfreq);
     
     if (restart && (EJ & Orient::CENTER)) {
       Eigen::VectorXd::Map(&center[0], 3) = orient->currentCenter();

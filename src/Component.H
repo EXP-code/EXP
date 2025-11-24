@@ -120,6 +120,9 @@ struct loadb_datum
 
   @param EJdiag turns on verbose EJ reporting
 
+  @param EJoutputfreq is the frequency (in time steps) at which the EJ 
+  diagnostics are output
+
   @param EJdryrun set to true does not apply EJ centering or rotation but
   computes the transformation
 
@@ -482,6 +485,9 @@ public:
 
   //! Target number of states for pseudo-acceleration estimation
   int nEJaccel;
+
+  //! Target output frequency for EJ diagnostics
+  int EJoutputfreq;
 
   //! Initial EJ center
   //@{

@@ -37,7 +37,7 @@ void EL3::debug() const
 }
 
 Orient::Orient(int n, int nwant, int naccel, unsigned Oflg, unsigned Cflg,
-	       string Logfile, double dt, double damping)
+	       string Logfile, double dt, double damping, int outputfreq)
 {
   keep    = n;
   current = 0;
@@ -49,6 +49,7 @@ Orient::Orient(int n, int nwant, int naccel, unsigned Oflg, unsigned Cflg,
   Nlast   = 0;
   damp    = damping;
   linear  = false;
+  logfreq = outputfreq;
 
   pos = vector<double>(3);
   psa = vector<double>(3);
@@ -743,6 +744,10 @@ void Orient::accumulate(double time, Component *c)
 void Orient::logEntry(double time, Component *c)
 {
   if (myid) return;
+
+  // use global this_step to bypass
+  if (this_step % logfreq) return;
+
 
   ofstream outl(logfile.c_str(), ios::app);
   if (outl) {
