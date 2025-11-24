@@ -57,7 +57,10 @@ private:
   using coefType = Eigen::Tensor<std::complex<double>, 3>;
 
   //! Current coefficient tensor
-  std::vector<coefType> expcoef, expcoefP;
+  std::vector<coefType> expcoef0;
+
+  //! Coefficient tensor
+  coefType expcoef, expcoefP;
 
   //@{
   //! Variables
@@ -232,16 +235,16 @@ private:
   CoefClasses::CubeCoefs cubeCoefs;
 
   //! Swap coefficients
-  void swap_coefs(std::vector<coefType>& from, std::vector<coefType>& to)
+  void swap_coefs(coefType* from, coefType* to)
   {
-    if (from.size() != to.size()) {
+    if (from->size() != to->size()) {
       std::ostringstream sout;
-      sout << "swap_coefs: size(from)=" << from.size() << " != "
-	   << "size(to)=" << to.size();
+      sout << "swap_coefs: size(from)=" << from->size() << " != "
+	   << "size(to)=" << to->size();
       throw std::runtime_error(sout.str());
     }
 
-    std::vector<coefType> tmp(from);
+    coefType* tmp(from);
     from = to;
     to   = tmp;
   }

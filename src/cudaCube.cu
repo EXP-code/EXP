@@ -24,7 +24,7 @@ __device__ __constant__
 cuFP_t cubeDfac;
 
 __device__ __constant__
-bool cubeWrap;
+bool cubeWrap, cubeDeepDebug = false;
 
 // Alias for Thrust complex type to make this code more readable
 //
@@ -330,6 +330,15 @@ __global__ void coefKernelCubeX
 	    cuFP_t norm  = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 	    
 	    coef._v[s*N + i] = -mm*thrust::exp(CmplxT(0.0, -expon))*norm;
+
+	    if (cubeDeepDebug and p.indx < 10 and ii==1 and jj==0 and kk==0) {
+	      CmplxT tst = X*Y*Z*norm;
+	      printf("%d %16.6e %16.6e %16.6e "
+		     "%16.6e %16.6e\n",
+		     p.indx, p.pos[0], p.pos[1], p.pos[2],
+		     tst.real(), tst.imag());
+	    }
+
 	  }
 	}
 	// END: index loop
@@ -352,6 +361,22 @@ __global__ void coefKernelCubeX
 	  if (l2) {		// Only compute for non-zero l-index
 	    cuFP_t norm = -mm/sqrt(M_PI*l2);
 	    coef._v[(ii+cubeNumX)*N + i] = X*Y*Z*norm;
+
+	    if (cubeDeepDebug and p.indx < 10 and ii==1 and jj==0 and kk==0) {
+	      CmplxT tst = X*Y*Z*norm;
+	      printf("coef contrib: %d %16.6e %16.6e %16.6e "
+		     "%16.6e %16.6e "
+		     "%16.6e %16.6e "
+		     "%16.6e %16.6e "
+		     "%16.6e "
+		     "%16.6e %16.6e\n",
+		     p.indx, p.pos[0], p.pos[1], p.pos[2],
+		     X.real(), X.imag(),
+		     Y.real(), Y.imag(),
+		     Z.real(), Z.imag(),
+		     norm,
+		     tst.real(), tst.imag());
+	    }
 	  }
 	}
 	// END: wave number loop
@@ -462,6 +487,22 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
       //
       p.pot = pot.real();
       for (int k=0; k<3; k++) p.acc[k] = acc[k].real();
+
+      // Deep debugging of acceleration
+      if (cubeDeepDebug and p.indx < 10) {
+	int ii=1, jj=0, kk=0;
+	CmplxT tst = coef._v[cubeIndex(ii, jj, kk)];
+	printf("accel: %d "
+	       "%16.6e %16.6e %16.6e "
+	       "%16.6e %16.6e %16.6e "
+	       "%16.6e %16.6e %16.6e "
+	       "%16.6e %16.6e \n",
+	       p.indx,
+	       p.pos[0], p.pos[1], p.pos[2],
+	       p.vel[0], p.vel[1], p.vel[2],
+	       p.acc[0], p.acc[1], p.acc[2],
+	       tst.real(), tst.imag() );
+      }
     }
     // END: particle index limit
   }
@@ -760,7 +801,7 @@ void Cube::determine_coefficients_cuda()
     for (int n=0; n<osize; n++) {
       auto [i, j, k] = indices(n);
       auto a = static_cast<std::complex<double>>(host_coefs[n]);
-      auto b = expcoef[0](i, j, k);
+      auto b = expcoef0[0](i, j, k);
       auto c = std::abs(a - b);
       std::cout << std::setw(4)  << i-nmaxx
 		<< std::setw(4)  << j-nmaxy
@@ -908,7 +949,7 @@ void Cube::determine_coefficients_cuda()
 	
 	std::tie(elem.i, elem.j, elem.k) = indices(n);
 
-	elem.d = expcoef[0](elem.i, elem.j, elem.k);
+	elem.d = expcoef0[0](elem.i, elem.j, elem.k);
 	elem.f = static_cast<std::complex<double>>(host_coefs[n]);
 	  
 	double test = std::abs(elem.d - elem.f);
@@ -1038,7 +1079,7 @@ void Cube::HtoD_coefs()
 
   // Copy from Cube
   for (int i=0; i<host_coefs.size(); i++)
-    host_coefs[i] = expcoef[0].data()[i];
+    host_coefs[i] = expcoef.data()[i];
 
   // Copy to device
   dev_coefs = host_coefs;
@@ -1048,8 +1089,8 @@ void Cube::HtoD_coefs()
 void Cube::DtoH_coefs(unsigned M)
 {
   // Copy from host device to Cube
-  for (int i=0; i<expcoef[0].size(); i++)
-    expcoef[0].data()[i] = host_coefs[i];
+  for (int i=0; i<expcoef.size(); i++)
+    expcoef0[0].data()[i] = host_coefs[i];
 }
 
 void Cube::multistep_update_cuda()

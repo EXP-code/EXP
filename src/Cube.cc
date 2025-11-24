@@ -22,6 +22,7 @@ Cube::valid_keys = {
 //! These are for testing exclusively (should be set false for production)
 static bool cudaAccumOverride = false;
 static bool cudaAccelOverride = false;
+static bool deepDebug = false;
 //@}
 
 Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
@@ -56,8 +57,9 @@ Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 
   // Allocate storage
   //
-  expcoef.resize(nthrds);
-  for (auto & v : expcoef) v.resize(imx, imy, imz);
+  expcoef.resize(imx, imy, imz);
+  expcoef0.resize(nthrds);
+  for (auto & v : expcoef0) v.resize(imx, imy, imz);
 
   // Allocate coefficient matrix (one for each multistep level)
   // and zero-out contents
@@ -220,7 +222,29 @@ void * Cube::determine_coefficients_thread(void * arg)
 	    // Normalization
 	    double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 	    
-	    expcoef[id](ix, iy, iz) += - mass * facx * facy * facz * norm;
+	    expcoef0[id](ix, iy, iz) += - mass * facx * facy * facz * norm;
+
+	    if (deepDebug and ii==1 and jj==0 and kk==0) {
+	      auto part = cC->Part(i);
+	      if (part->indx < 10) {
+		std::complex<double> tst = - mass * facx * facy * facz * norm;
+		std::cout << "coef contrib: "
+			  << std::setw( 6) << part->indx
+			  << std::setw(16) << part->pos[0]
+			  << std::setw(16) << part->pos[1]
+			  << std::setw(16) << part->pos[2]
+			  << std::setw(16) << facx.real()
+			  << std::setw(16) << facx.imag()
+			  << std::setw(16) << facy.real()
+			  << std::setw(16) << facy.imag()
+			  << std::setw(16) << facz.real()
+			  << std::setw(16) << facz.imag()
+			  << std::setw(16) << norm * mass
+			  << std::setw(16) << tst.real()
+			  << std::setw(16) << tst.imag()
+			  << std::endl;
+	      }
+	    }
 	  }
 	}
       }
@@ -240,9 +264,9 @@ void Cube::determine_coefficients(void)
   //  n=-nmax,-nmax+1,...,0,...,nmax-1,nmax in a single array for each
   //  dimension with z dimension changing most rapidly
 
-  // Clean  the coefficients
+  // Zero the coefficients
   //
-  for (auto & v : expcoef) v.setZero();
+  for (auto & v : expcoef0) v.setZero();
 
   // Swap interpolation arrays
   //
@@ -286,16 +310,16 @@ void Cube::determine_coefficients(void)
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   used = use0;
 
-  for (int i=1; i<nthrds; i++) expcoef[0] += expcoef[i];
+  for (int i=1; i<nthrds; i++) expcoef0[0] += expcoef0[i];
   
   if (multistep) {
 
-    MPI_Allreduce( expcoef[0].data(), expcoefN[mlevel]->data(),
-		   expcoef[0].size(),
+    MPI_Allreduce( expcoef0[0].data(), expcoefN[mlevel]->data(),
+		   expcoef0[0].size(),
 		   MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
   } else {
     
-    MPI_Allreduce( MPI_IN_PLACE, expcoef[0].data(), expcoef[0].size(),
+    MPI_Allreduce( expcoef0[0].data(), expcoef.data(), expcoef0[0].size(),
 		   MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
   }
 
@@ -326,8 +350,8 @@ void Cube::determine_coefficients(void)
     if (out) {
       std::multimap<double, int> biggest;
 
-      for (int n=0; n<expcoef[0].size(); n++) 
-	biggest.insert({std::abs(expcoef[0].data()[n]), n});
+      for (int n=0; n<expcoef.size(); n++) 
+	biggest.insert({std::abs(expcoef.data()[n]), n});
 
       out << std::string(3*4+3*20, '-') << std::endl
 	  << "---- Cube, T=" << tnow    << std::endl
@@ -345,7 +369,7 @@ void Cube::determine_coefficients(void)
       int cnt = 0;
       for (auto it = biggest.rbegin(); it!=biggest.rend() and cnt<20; it++, cnt++) {
 	auto [i, j, k] = indices(it->second);
-	auto a = expcoef[0](i, j, k);
+	auto a = expcoef(i, j, k);
 	out << std::setw(4)  << i-nmaxx
 	    << std::setw(4)  << j-nmaxy
 	    << std::setw(4)  << k-nmaxz
@@ -388,7 +412,7 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
     auto stepy = std::exp(kfac*y);
     auto stepz = std::exp(kfac*z);
     
-    // Initial values (note sign change)
+    // Initial values (note sign change from coefficient accumulation)
     auto startx = std::exp(-kfac*(x*nmaxx));
     auto starty = std::exp(-kfac*(y*nmaxy));
     auto startz = std::exp(-kfac*(z*nmaxz));
@@ -400,7 +424,7 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
 	  
-	  std::complex<double> fac = facx*facy*facz*expcoef[0](ix, iy, iz);
+	  std::complex<double> fac = facx*facy*facz*expcoef(ix, iy, iz);
 	  
 	  // Compute wavenumber; recall that the coefficients are
 	  // stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
@@ -435,6 +459,25 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
     cC->AddAcc(i, 2, accz.real());
 
     cC->AddPot(i, potl.real());
+
+    // Deep debugging of acceleration
+    if (deepDebug) {
+      auto part = cC->Part(i);
+      if (part->indx < 10) {
+	std::cout << "accel: "
+		  << std::setw(6) << part->indx;
+	for (int k=0; k<3; k++)
+	  std::cout << std::setw(16) << part->pos[k];
+	for (int k=0; k<3; k++)
+	  std::cout << std::setw(16) << part->vel[k];
+	for (int k=0; k<3; k++)
+	  std::cout << std::setw(16) << part->acc[k];
+	std::cout
+	  << std::setw(16) << expcoef(nmaxx+1, nmaxy, nmaxz).real()
+	  << std::setw(16) << expcoef(nmaxx+1, nmaxy, nmaxz).imag()
+	  << std::endl;
+      }
+    }
   }
   
   return (NULL);
@@ -460,7 +503,7 @@ void Cube::determine_acceleration_and_potential(void)
   exeTimer timer(this, "Force evaluation");
 
   if (play_back) {
-    swap_coefs(expcoefP, expcoef);
+    swap_coefs(&expcoefP, &expcoef);
   }
 
   if (use_external == false) {
@@ -502,7 +545,7 @@ void Cube::determine_acceleration_and_potential(void)
 #endif
 
   if (play_back) {
-    swap_coefs(expcoef, expcoefP);
+    swap_coefs(&expcoef, &expcoefP);
   }
 }
 
@@ -522,7 +565,7 @@ void Cube::dump_coefs_h5(const std::string& file)
 
   cur->allocate();		// Set the storage and copy the
 				// coefficients through the map
-  *cur->coefs   = expcoef[0];
+  *cur->coefs   = expcoef;
 
   // Check if file exists
   //
@@ -656,7 +699,7 @@ void Cube::compute_multistep_coefficients()
 
   // Clean coefficient matrix
   // 
-  expcoef[0].setZero();
+  expcoef.setZero();
     
   // Interpolate to get coefficients above
   // 
@@ -669,7 +712,7 @@ void Cube::compute_multistep_coefficients()
     double a = 1.0 - b;
 
     for (int i=0; i<osize; i++) {
-      expcoef[0].data()[i] +=
+      expcoef.data()[i] +=
 	a*expcoefL[M]->data()[i] + b*expcoefN[M]->data()[i] ;
     }
     
@@ -692,7 +735,7 @@ void Cube::compute_multistep_coefficients()
   for (int M=mfirst[mdrft]; M<=multistep; M++) {
 
     for (int i=0; i<osize; i++) {
-      expcoef[0].data()[i] += expcoefN[M]->data()[i];
+      expcoef.data()[i] += expcoefN[M]->data()[i];
     }
   }
 }
