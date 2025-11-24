@@ -637,6 +637,7 @@ namespace BasisClasses
 	  moffset+=2;
 	}
 
+	// Covariance and subsample computation
 	if (pcavar) {
 	  Eigen::VectorXcd g = std::exp(std::complex<double>(0.0, m*phi)) * 
 	    potd[tid].row(l).transpose() * fac * norm;
@@ -685,10 +686,10 @@ namespace BasisClasses
 	  for (int l=0; l<ltot; l++) {
 	    
 	    MPI_Allreduce(MPI_IN_PLACE, meanV[T][l].data(), meanV[T][l].size(),
-			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 
 	    MPI_Allreduce(MPI_IN_PLACE, covrV[T][l].data(), covrV[T][l].size(),
-			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	  }
 	}
       }
@@ -3526,8 +3527,8 @@ namespace BasisClasses
       MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
 		    MPI_SUM, MPI_COMM_WORLD);
       
-      MPI_Allreduce(MPI_IN_PLACE, expcoef.data(), expcoef.size(), MPI_DOUBLE_COMPLEX,
-		    MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(MPI_IN_PLACE, expcoef.data(), expcoef.size(),
+		    MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
     }
   }
   
@@ -3997,30 +3998,29 @@ namespace BasisClasses
 			unsigned long int indx)
   {
     // Truncate to cube with sides in [0,1]
-    if (x<0.0)
-      x += std::floor(-x) + 1.0;
-    else
-      x -= std::floor( x);
+    //
+    auto trunc = [](double v) {
+      if (v<0.0) v += std::floor(-v) + 1.0;
+      else       v -= std::floor( v);
+      return v;
+    };
     
-    if (y<0.0)
-      y += std::floor(-y) + 1.0;
-    else
-      y -= std::floor( y);
-    
-    if (z<0.0)
-      z += std::floor(-z) + 1.0;
-    else
-      z -= std::floor( z);
+    x = trunc(x);
+    y = trunc(y);
+    z = trunc(z);
     
     // Update counters
+    //
     used++;
     totalMass += mass;
     
     // Recursion multipliers
+    //
     Eigen::Vector3cd step
       {std::exp(-kfac*x), std::exp(-kfac*y), std::exp(-kfac*z)};
     
     // Initial values for recursion
+    //
     Eigen::Vector3cd init
       {std::exp(-kfac*(x*nmaxx)),
        std::exp(-kfac*(y*nmaxy)),
@@ -4033,6 +4033,7 @@ namespace BasisClasses
     }
 
     Eigen::Vector3cd curr(init);
+
     for (int ix=0; ix<=2*nmaxx; ix++, curr(0)*=step(0)) {
       curr(1) = init(1);
       for (int iy=0; iy<=2*nmaxy; iy++, curr(1)*=step(1)) {
@@ -4045,6 +4046,9 @@ namespace BasisClasses
 	  int ii = ix-nmaxx;
 	  int jj = iy-nmaxy;
 	  int kk = iz-nmaxz;
+
+	  // Throw away constant term
+	  if (ii==0 and jj==0 and kk==0) continue;
 
 	  // Limit to minimum wave number
 	  if (abs(ii)<nminx || abs(jj)<nminy || abs(kk)<nminz) continue;
@@ -4085,8 +4089,8 @@ namespace BasisClasses
       MPI_Allreduce(MPI_IN_PLACE, &totalMass, 1, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
       
-      MPI_Allreduce(MPI_IN_PLACE, expcoef.data(), expcoef.size(), MPI_DOUBLE_COMPLEX,
-		    MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(MPI_IN_PLACE, expcoef.data(), expcoef.size(),
+		    MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 
 
       if (pcavar) {
@@ -4100,15 +4104,15 @@ namespace BasisClasses
 	for (int T=0; T<sampT; T++) {
 
 	  MPI_Allreduce(MPI_IN_PLACE, meanV[T].data(), meanV[T].size(),
-			MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+			MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	  
 	  if (covar) {
 	    if (diagcov)
 	      MPI_Allreduce(MPI_IN_PLACE, dvarV[T].data(), dvarV[T].size(),
-			    MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+			    MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	    else
 	      MPI_Allreduce(MPI_IN_PLACE, covrV[T].data(), covrV[T].size(),
-			    MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+			    MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	  }
 	}
 	// END: sample loop
