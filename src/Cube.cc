@@ -144,22 +144,21 @@ void * Cube::determine_coefficients_thread(void * arg)
   int id = *((int*)arg);
   double adb = component->Adiabatic();
 
-  use[id] = 0;
-
-  // If we are multistepping, compute accel only at or above <mlevel>
+  // Number of bodies at this level
   //
-  for (int lev=mlevel; lev<=multistep; lev++) {
+  unsigned nbodies = cC->levlist[mlevel].size();
 
-    unsigned nbodies = cC->levlist[lev].size();
+  // Skip empty levels
+  //
+  if (nbodies) {
 
-    if (nbodies==0) continue;
-
+    // Partion bodies by thread
     int nbeg = nbodies*(id  )/nthrds;
     int nend = nbodies*(id+1)/nthrds;
 
     for (int q=nbeg; q<nend; q++) {
 
-      int i = cC->levlist[lev][q];
+      int i = cC->levlist[mlevel][q];
 
       use[id]++;
       double mass = cC->Mass(i) * adb;
@@ -173,13 +172,13 @@ void * Cube::determine_coefficients_thread(void * arg)
       // Truncate to cube with sides in [0,1]
       //
       if (wrap) {
-
+      
 	auto unitCube = [](double x) {
 	  if (x<0.0) x += std::floor(-x) + 1.0;
 	  else       x -= std::floor( x);
 	  return x;
 	};
-    
+	
 	x = unitCube(x);
 	y = unitCube(y);
 	z = unitCube(z);
@@ -190,7 +189,7 @@ void * Cube::determine_coefficients_thread(void * arg)
       if (x<0.0 or x>1.0) continue;
       if (y<0.0 or y>1.0) continue;
       if (z<0.0 or z>1.0) continue;
-      
+    
       // Recursion multipliers
       //
       std::complex<double> stepx = std::exp(-kfac*x);
@@ -228,7 +227,7 @@ void * Cube::determine_coefficients_thread(void * arg)
 	      auto part = cC->Part(i);
 	      if (part->indx < 10) {
 		std::complex<double> tst = - mass * facx * facy * facz * norm;
-		std::cout << "coef contrib: "
+		std::cout << "coef contrib: [" << std::setw(8) << tnow << "] "
 			  << std::setw( 6) << part->indx
 			  << std::setw(16) << part->pos[0]
 			  << std::setw(16) << part->pos[1]
@@ -251,8 +250,8 @@ void * Cube::determine_coefficients_thread(void * arg)
     }
     // END: particle loop
   }
-  // END: level loop
-    
+  // END: bodies at this level
+  
   return (NULL);
 }
 
@@ -284,7 +283,10 @@ void Cube::determine_coefficients(void)
     
   use1 = 0;
   if (multistep==0) used = 0;
-    
+  if (mlevel==0) {
+    for (int n=0; n<nthrds; n++) use[n] = 0.0;
+  }
+  
 #if HAVE_LIBCUDA==1
   (*barrier)("Cube::entering cuda coefficients", __FILE__, __LINE__);
   if (component->cudaDevice>=0 and use_cuda) {
@@ -331,7 +333,7 @@ void Cube::determine_coefficients(void)
 
   // Deep debug for checking a single wave number from cubeics
   //
-  if (false and myid==0) {
+  if (deepDebug and myid==0) {
 
     // Create a wavenumber tuple from a flattened index
     auto indices = [&](int indx)
@@ -464,7 +466,7 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
     if (deepDebug) {
       auto part = cC->Part(i);
       if (part->indx < 10) {
-	std::cout << "accel: "
+	std::cout << "accel: [" << std::setw(8) << tnow << "] "
 		  << std::setw(6) << part->indx;
 	for (int k=0; k<3; k++)
 	  std::cout << std::setw(16) << part->pos[k];
