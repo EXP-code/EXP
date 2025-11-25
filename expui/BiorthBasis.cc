@@ -423,7 +423,7 @@ namespace BasisClasses
     cf->time   = time;
     cf->normed = true;
 
-    G = cf->G;
+    G = cf->getGravConstant();
 
     // Angular storage dimension
     int ldim = (lmax+1)*(lmax+2)/2;
@@ -482,7 +482,7 @@ namespace BasisClasses
 
     // Set gravitational constant
     //
-    G = cf->G;
+    G = cf->getGravConstant();
 
     // Cache the current coefficient structure
     //
@@ -1708,7 +1708,7 @@ namespace BasisClasses
     cf->nmax   = nmax;
     cf->time   = time;
 
-    G = cf->G;
+    G = cf->getGravConstant();
 
     Eigen::VectorXd cos1(nmax), sin1(nmax);
 
@@ -1741,7 +1741,7 @@ namespace BasisClasses
 
     // Set gravitational constant
     //
-    G = cf->G;
+    G = cf->getGravConstant();
 
     // Cache the current coefficient structure
     //
@@ -1998,7 +1998,7 @@ namespace BasisClasses
     cf->nmax   = nmax;
     cf->time   = time;
 
-    G = cf->G;
+    G = cf->getGravConstant();
 
     // Allocate the coefficient storage
     cf->store.resize((mmax+1)*nmax);
@@ -2049,7 +2049,7 @@ namespace BasisClasses
 
     // Set gravitational constant
     //
-    G = cf->G;
+    G = cf->getGravConstant();
 
     // Cache the current coefficient structure
     //
@@ -2809,7 +2809,7 @@ namespace BasisClasses
     cf->nmax   = nmax;
     cf->time   = time;
 
-    G = cf->G;
+    G = cf->getGravConstant();
 
     // Allocate the coefficient storage
     cf->store.resize((mmax+1)*nmax);
@@ -2860,7 +2860,7 @@ namespace BasisClasses
 
     // Set gravitational constant
     //
-    G = cf->G;
+    G = cf->getGravConstant();
 
     // Cache the current coefficient structure
     coefret = coef;
@@ -3303,7 +3303,7 @@ namespace BasisClasses
     cf->nmaxz   = nmaxz;
     cf->time    = time;
 
-    G = cf->G;
+    G = cf->getGravConstant();
 
     cf->allocate();
 
@@ -3340,7 +3340,7 @@ namespace BasisClasses
 
     // Set gravitational constant
     //
-    G = cf->G;
+    G = cf->getGravConstant();
 
     // Cache the current coefficient structure
     //
@@ -3827,7 +3827,7 @@ namespace BasisClasses
     cf->nmaxz   = nmaxz;
     cf->time    = time;
 
-    G = cf->G;
+    G = cf->getGravConstant();
 
     cf->allocate();
 
@@ -3864,7 +3864,7 @@ namespace BasisClasses
 
     // Set gravitational constant
     //
-    G = cf->G;
+    G = cf->getGravConstant();
 
     // Cache the cuurent coefficient structure
     //

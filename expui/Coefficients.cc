@@ -300,7 +300,7 @@ namespace CoefClasses
       
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<SphStruct>();
+      auto coef = std::make_shared<SphStruct>(this);
       
       coef->ctr   = ctr;
       coef->rot   = rot;
@@ -506,7 +506,7 @@ namespace CoefClasses
       
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<SphFldStruct>();
+      auto coef = std::make_shared<SphFldStruct>(this);
       
       coef->ctr   = ctr;
       coef->rot   = rot;
@@ -611,7 +611,7 @@ namespace CoefClasses
       
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<CylFldStruct>();
+      auto coef = std::make_shared<CylFldStruct>(this);
       
       coef->ctr   = ctr;
       coef->rot   = rot;
@@ -793,7 +793,7 @@ namespace CoefClasses
     int count = 0;
     while (in) {
       try {
-	SphStrPtr c = std::make_shared<SphStruct>();
+	SphStrPtr c = std::make_shared<SphStruct>(this);
 	if (not c->read(in, verbose)) break;
 
 	if (count++ % stride) continue;
@@ -1000,6 +1000,9 @@ namespace CoefClasses
     auto p = std::dynamic_pointer_cast<SphStruct>(coef);
     if (not p) throw std::runtime_error("SphCoefs::add: Null coefficient structure, nothing added!");
 
+    // Reference to this container
+    p->setOwner(static_cast<Coefs*>(this));
+
     Lmax = p->lmax;
     Nmax = p->nmax;
     coefs[roundTime(coef->time)] = p;
@@ -1082,7 +1085,7 @@ namespace CoefClasses
 
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<CylStruct>();
+      auto coef = std::make_shared<CylStruct>(this);
       
       coef->ctr = ctr;
       coef->rot = rot;
@@ -1219,7 +1222,7 @@ namespace CoefClasses
     
     int count = 0;
     while (in) {
-      CylStrPtr c = std::make_shared<CylStruct>();
+      CylStrPtr c = std::make_shared<CylStruct>(this);
       if (not c->read(in, verbose)) break;
       
       if (count++ % stride) continue;
@@ -1466,7 +1469,7 @@ namespace CoefClasses
 
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<SlabStruct>();
+      auto coef = std::make_shared<SlabStruct>(this);
       
       coef->assign(dat);
       coef->time = Time;
@@ -1826,7 +1829,7 @@ namespace CoefClasses
 
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<CubeStruct>();
+      auto coef = std::make_shared<CubeStruct>(this);
       
       coef->assign(dat);
       coef->time = Time;
@@ -2152,7 +2155,7 @@ namespace CoefClasses
     }
 
     for (int i=0; i<times.size(); i++) {
-      TrajStrPtr c = std::make_shared<TrajStruct>();
+      TrajStrPtr c = std::make_shared<TrajStruct>(this);
       c->time = times[i];
       c->traj = traj;
       c->rank = rank;
@@ -2177,7 +2180,7 @@ namespace CoefClasses
     }
     
     while (in) {
-      TrajStrPtr c = std::make_shared<TrajStruct>();
+      TrajStrPtr c = std::make_shared<TrajStruct>(this);
       if (not c->read(in, verbose)) break;
       
       coefs[roundTime(c->time)] = c;
@@ -2212,7 +2215,7 @@ namespace CoefClasses
 
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<TrajStruct>();
+      auto coef = std::make_shared<TrajStruct>(this);
 
       coef->traj  = traj;
       coef->rank  = rank;
@@ -2270,7 +2273,7 @@ namespace CoefClasses
     
     int count = 0;
     while (in) {
-      TrajStrPtr c = std::make_shared<TrajStruct>();
+      TrajStrPtr c = std::make_shared<TrajStruct>(this);
       if (not c->read(in, verbose)) break;
       
       if (count++ % stride) continue;
@@ -2409,7 +2412,7 @@ namespace CoefClasses
   {
     times = Times;
     for (int i=0; i<times.size(); i++) {
-      TblStrPtr c = std::make_shared<TblStruct>();
+      TblStrPtr c = std::make_shared<TblStruct>(this);
       c->time = times[i];
       c->cols = data[i].size();
       c->store.resize(c->cols);
@@ -2429,7 +2432,7 @@ namespace CoefClasses
     }
     
     while (in) {
-      TblStrPtr c = std::make_shared<TblStruct>();
+      TblStrPtr c = std::make_shared<TblStruct>(this);
       if (not c->read(in, verbose)) break;
       
       coefs[roundTime(c->time)] = c;
@@ -2463,7 +2466,7 @@ namespace CoefClasses
 
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<TblStruct>();
+      auto coef = std::make_shared<TblStruct>(this);
       coef->cols  = cols;
       coef->time  = times[n];
       coef->store.resize(cols);
@@ -2518,7 +2521,7 @@ namespace CoefClasses
     
     int count = 0;
     while (in) {
-      TblStrPtr c = std::make_shared<TblStruct>();
+      TblStrPtr c = std::make_shared<TblStruct>(this);
       if (not c->read(in, verbose)) break;
       
       if (count++ % stride) continue;
@@ -2741,15 +2744,15 @@ namespace CoefClasses
   {
     std::shared_ptr<Coefs> ret;
     if (dynamic_cast<SphStruct*>(coef.get())) {
-      ret = std::make_shared<SphCoefs>();
+      ret = std::make_shared<SphCoefs>(ret.get());
     } else if (dynamic_cast<CylStruct*>(coef.get())) {
-      ret = std::make_shared<CylCoefs>();
+      ret = std::make_shared<CylCoefs>(ret.get());
     } else if (dynamic_cast<TblStruct*>(coef.get())) {
-      ret = std::make_shared<TableData>();
+      ret = std::make_shared<TableData>(ret.get());
     } else if (dynamic_cast<SphFldStruct*>(coef.get())) {
-      ret = std::make_shared<SphFldCoefs>();
+      ret = std::make_shared<SphFldCoefs>(ret.get());
     } else if (dynamic_cast<CylFldStruct*>(coef.get())) {
-      ret = std::make_shared<CylFldCoefs>();
+      ret = std::make_shared<CylFldCoefs>(ret.get());
     } else {
       throw std::runtime_error("Coefs::makecoefs: cannot deduce coefficient file type");
     }
@@ -2918,6 +2921,9 @@ namespace CoefClasses
     auto p = std::dynamic_pointer_cast<CylStruct>(coef);
     if (not p) throw std::runtime_error("CylCoefs::add: Null coefficient structure, nothing added!");
 
+    // Reference to this container
+    p->setOwner(this);
+
     Mmax = p->mmax;
     Nmax = p->nmax;
     coefs[roundTime(coef->time)] = p;
@@ -2927,6 +2933,9 @@ namespace CoefClasses
   {
     auto p = std::dynamic_pointer_cast<CubeStruct>(coef);
     if (not p) throw std::runtime_error("CubeCoefs::add: Null coefficient structure, nothing added!");
+
+    // Reference to this container
+    p->setOwner(this);
 
     NmaxX = p->nmaxx;
     NmaxY = p->nmaxy;
@@ -2939,6 +2948,9 @@ namespace CoefClasses
     auto p = std::dynamic_pointer_cast<SlabStruct>(coef);
     if (not p) throw std::runtime_error("SlabCoefs::add: Null coefficient structure, nothing added!");
 
+    // Reference to this container
+    p->setOwner(this);
+
     NmaxX = p->nmaxx;
     NmaxY = p->nmaxy;
     NmaxZ = p->nmaxz;
@@ -2950,6 +2962,8 @@ namespace CoefClasses
     auto p = std::dynamic_pointer_cast<TblStruct>(coef);
     if (not p) throw std::runtime_error("TableData::add: Null coefficient structure, nothing added!");
 
+    p->setOwner(this);
+
     coefs[roundTime(coef->time)] = p;
   }
 
@@ -2958,6 +2972,9 @@ namespace CoefClasses
     auto p = std::dynamic_pointer_cast<TrajStruct>(coef);
     if (not p) throw std::runtime_error("TrajectoryData::add: Null coefficient structure, nothing added!");
 
+    // Reference to this container
+    p->setOwner(this);
+
     coefs[roundTime(coef->time)] = p;
   }
 
@@ -2965,6 +2982,10 @@ namespace CoefClasses
   void SphFldCoefs::add(CoefStrPtr coef)
   {
     auto p = std::dynamic_pointer_cast<SphFldStruct>(coef);
+
+    // Reference to this container
+    p->setOwner(this);
+
     Nfld = p->nfld;
     Lmax = p->lmax;
     Nmax = p->nmax;
@@ -2975,6 +2996,9 @@ namespace CoefClasses
   {
     auto p = std::dynamic_pointer_cast<CylFldStruct>(coef);
     if (not p) throw std::runtime_error("CylFldCoefs::add: Null coefficient structure, nothing added!");
+
+    // Reference to this container
+    p->setOwner(this);
 
     Nfld = p->nfld;
     Mmax = p->mmax;
