@@ -1,4 +1,4 @@
-#include <cudaUtil.cuH>
+#include "cudaUtil.cuH"
 
 #include "UserTestCuda.H"
 

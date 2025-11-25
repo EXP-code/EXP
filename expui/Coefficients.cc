@@ -1914,7 +1914,10 @@ namespace CoefClasses
       for (int ix=0; ix<=2*NmaxX; ix++) {
 	for (int iy=0; iy<=2*NmaxY; iy++) {
 	  for (int iz=0; iz<=2*NmaxZ; iz++) {
-	    ret(ix, iy, iz, t) = (*cof->coefs)(ix, iy, iz);
+	    if (std::isnan(std::abs((*cof->coefs)(ix, iy, iz))))
+	      ret(ix, iy, iz, t) = 0.0;
+	    else
+	      ret(ix, iy, iz, t) = (*cof->coefs)(ix, iy, iz);
 	  }
 	}
       }
@@ -2747,6 +2750,8 @@ namespace CoefClasses
       ret = std::make_shared<SphCoefs>(ret.get());
     } else if (dynamic_cast<CylStruct*>(coef.get())) {
       ret = std::make_shared<CylCoefs>(ret.get());
+    } else if (dynamic_cast<CubeStruct*>(coef.get())) {
+      ret = std::make_shared<CubeCoefs>(ret.get());
     } else if (dynamic_cast<TblStruct*>(coef.get())) {
       ret = std::make_shared<TableData>(ret.get());
     } else if (dynamic_cast<SphFldStruct*>(coef.get())) {

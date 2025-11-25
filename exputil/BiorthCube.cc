@@ -83,7 +83,7 @@ std::complex<double> BiorthCube::pot(Eigen::Vector3d x, Eigen::Vector3i n)
     sum  += x(i)*n(i);
   }
 
-  return std::exp(kfac*sum)/sqrt(M_PI*norm);
+  return std::exp(kfac*sum)/sqrt(nfac*norm);
 }
 
 // Get density basis function
@@ -98,7 +98,7 @@ std::complex<double> BiorthCube::dens(Eigen::Vector3d x, Eigen::Vector3i n)
     sum  += x(i)*n(i);
   }
 
-  return -std::exp(kfac*sum)*sqrt(M_PI*norm);
+  return -std::exp(kfac*sum)*sqrt(nfac*norm);
 }
 
 // Get radial force ffrom basis function
@@ -110,7 +110,7 @@ Eigen::Vector3cd BiorthCube::force(Eigen::Vector3d x, Eigen::Vector3i n)
     sum  += x(i)*n(i);
   }
 
-  std::complex<double> fac = std::exp(kfac*sum)/sqrt(M_PI*norm);
+  std::complex<double> fac = std::exp(kfac*sum)/sqrt(nfac*norm);
   Eigen::Vector3cd force;
   for (int i=0; i<3; i++) force(i) = -dfac*n(i)*fac;
 
@@ -157,7 +157,7 @@ BiorthCube::get_pot(const BiorthCube::coefType& c, Eigen::Vector3d x)
 	    abs(ii(2)) > nmin(2)  ) continue;
 	  
 	// Normalization
-	double norm = 1.0/sqrt(M_PI*ii.dot(ii));
+	double norm = 1.0/sqrt(nfac*ii.dot(ii));
 
 	potl += fac*norm;
       }
@@ -210,7 +210,7 @@ BiorthCube::get_dens(const BiorthCube::coefType& c, Eigen::Vector3d x)
 	    abs(ii(2)) > nmin(2)  ) continue;
 	  
 	// Normalization
-	double norm = -sqrt(M_PI*ii.dot(ii));
+	double norm = -sqrt(nfac*ii.dot(ii));
 
 	dens += fac*norm;
       }
@@ -263,7 +263,7 @@ BiorthCube::get_force(const BiorthCube::coefType& c, Eigen::Vector3d x)
 	    abs(ii(2)) > nmin(2)  ) continue;
 	  
 	// Normalization
-	double norm = 1.0/sqrt(M_PI*ii.dot(ii));
+	double norm = 1.0/sqrt(nfac*ii.dot(ii));
 
 	for (int k=0; k<3; k++)
 	  force(k) -= std::complex<double>(0.0, dfac*i(k))*fac*norm;

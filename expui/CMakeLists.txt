@@ -38,7 +38,8 @@ endif()
 set(expui_SOURCES BasisFactory.cc BiorthBasis.cc FieldBasis.cc
   CoefContainer.cc CoefStruct.cc FieldGenerator.cc expMSSA.cc
   Coefficients.cc KMeans.cc Centering.cc ParticleIterator.cc
-  Koopman.cc BiorthBess.cc SvdSignChoice.cc UnitValidator.cc)
+  Koopman.cc BiorthBess.cc SvdSignChoice.cc KDdensity.cc
+  UnitValidator.cc)
 add_library(expui ${expui_SOURCES})
 set_target_properties(expui PROPERTIES OUTPUT_NAME expui)
 target_include_directories(expui PUBLIC ${common_INCLUDE})
@@ -116,7 +117,10 @@ if(ENABLE_UTILS)
   foreach(program ${bin_PROGRAMS})
     target_link_libraries(${program} expui exputil ${common_LINKLIB})
     target_include_directories(${program} PUBLIC ${common_INCLUDE})
-    target_compile_options(${program} PUBLIC ${OpenMP_CXX_FLAGS})
+    # temporary Apple clang fix
+    if(NOT (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang"))
+      target_compile_options(${program} PUBLIC ${OpenMP_CXX_FLAGS})
+    endif()    
     install(TARGETS ${program} DESTINATION bin)
   endforeach()
 

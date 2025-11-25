@@ -25,6 +25,12 @@ private:
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
+#if HAVE_LIBCUDA==1
+  //! Cuda implementation
+  void determine_acceleration_and_potential_cuda();
+  bool cuda_initialized = false;
+#endif
+
   std::vector<double> offset, L;
   std::string comp_name, bc;
 

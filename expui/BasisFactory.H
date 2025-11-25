@@ -187,13 +187,13 @@ namespace BasisClasses
     { return coefret; }
 
     //! Accumulate new coefficients from full phase space
-    virtual void accumulate(double mass,
-			    double x, double y, double z,
-			    double u, double v, double w) = 0;
+    virtual void accumulate(double x, double y, double z,
+			    double u, double v, double w,
+			    double mass, unsigned long int indx) = 0;
     
     //! Accumulate new coefficients from coordinates only
     virtual void accumulate(double x, double y, double z,
-			    double mass) = 0;
+			    double mass, unsigned long int indx) = 0;
     
     //! Get mass on grid
     double getMass(void) { return totalMass; }

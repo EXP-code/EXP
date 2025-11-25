@@ -1086,7 +1086,7 @@ void CoefficientClasses(py::module &m) {
          type : str
              type of coefficient container
          verbose : bool
-             display verbose information.
+             display verbose information (default=False)
 
          Returns
          -------
@@ -1099,7 +1099,7 @@ void CoefficientClasses(py::module &m) {
          simulation
          )",
          py::arg("type"),
-         py::arg("verbose"))
+         py::arg("verbose")=false)
     .def("__call__",
          &CoefClasses::Coefs::getData,
          R"(
@@ -1521,12 +1521,12 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          verbose : bool
-             display verbose information.
+             display verbose information (default=False)
 
          Returns
          -------
          SphCoefs instance
-         )")
+         )", py::arg("verbose")=false)
     .def("__call__",
          &CoefClasses::SphCoefs::getMatrix,
          R"(
@@ -1596,12 +1596,12 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          verbose : bool
-             display verbose information.
+             display verbose information (default=False)
 
          Returns
          -------
          CylCoefs instance
-         )")
+         )", py::arg("verbose")=false)
     .def("__call__",
          &CoefClasses::CylCoefs::getMatrix,
          R"(
@@ -1698,12 +1698,12 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          verbose : bool
-             display verbose information.
+             display verbose information (default=False)
 
          Returns
          -------
          SphFldCoefs instance
-         )")
+         )", py::arg("verbose")=false)
     .def("__call__",
          [](CoefClasses::SphFldCoefs& A, double time)
          {
@@ -1783,12 +1783,12 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          verbose : bool
-             display verbose information.
+             display verbose information (default=False)
 
          Returns
          -------
          CylFldCoefs instance
-         )")
+         )", py::arg("verbose")=false)
     .def("__call__",
          [](CoefClasses::CylFldCoefs& A, double time)
          {
@@ -1862,12 +1862,12 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          verbose : bool
-             display verbose information.
+             display verbose information (default=False)
 
          Returns
          -------
          SlabCoefs instance
-         )")
+         )", py::arg("verbose")=false)
     .def("__call__",
          &CoefClasses::SlabCoefs::getTensor,
          R"(
@@ -1956,12 +1956,12 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          verbose : bool
-             display verbose information.
+             display verbose information (default=False)
 
          Returns
          -------
          CubeCoefs instance
-         )")
+         )", py::arg("verbose")=false)
     .def("__call__",
          &CoefClasses::CubeCoefs::getTensor,
          R"(
@@ -2049,7 +2049,7 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          verbose : bool
-             display verbose information.
+             display verbose information (default=True)
 
          Returns
          -------
@@ -2077,7 +2077,7 @@ void CoefficientClasses(py::module &m) {
          type : str
              ascii table data file
          verbose : bool
-             display verbose information.
+             display verbose information (default=True)
 
          Returns
          -------
@@ -2094,7 +2094,7 @@ void CoefficientClasses(py::module &m) {
          array : ndarray
              data columns
          verbose : bool
-             display verbose information.
+             display verbose information (default=True)
 
          Returns
          -------
@@ -2119,7 +2119,7 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          verbose : bool
-             display verbose information.
+             display verbose information (default=True)
 
          Returns
          -------
@@ -2147,7 +2147,7 @@ void CoefficientClasses(py::module &m) {
          type : str
              ascii table data file
          verbose : bool
-             display verbose information.
+             display verbose information (default=True)
 
          Returns
          -------
@@ -2164,7 +2164,7 @@ void CoefficientClasses(py::module &m) {
          array : ndarray
              data columns
          verbose : bool
-             display verbose information.
+             display verbose information (default=True)
 
          Returns
          -------

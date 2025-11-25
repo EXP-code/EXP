@@ -1,9 +1,9 @@
 // -*- C++ -*-
 
-#include <cudaUtil.cuH>
-#include <cudaReduce.cuH>
+#include "cudaUtil.cuH"
+#include "cudaReduce.cuH"
 
-#include <Component.H>
+#include "Component.H"
 #include "UserBar.H"
 
 // Global device symbols for CUDA kernel

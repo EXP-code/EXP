@@ -191,6 +191,17 @@ main(int ac, char **av)
       out << std::endl;
     }
 
+    // Print out some info
+    //
+    out << "# Mass=" << mass << " zero-vel=" << vm.count("zerovel")
+	<< " disp=(" << disp[0] << ", " << disp[1] << ", " << disp[2]
+	<< ") bulk=(" << bulk[0] << ", " << bulk[1] << ", " << bulk[2]
+	<< ") seed=" << seed << std::endl;
+
+    // Close the output file
+    //
+    out.close();
+
   } else {
     std::cout << "Error opening output body file <"
 	      << bodyfile << ">" << std::endl;

@@ -51,6 +51,7 @@ protected:
 
   bool verbose;
 
+  static constexpr double nfac = 16.0*M_PI*M_PI*M_PI;
   static constexpr double dfac = 2.0*M_PI;
   static constexpr std::complex<double> kfac{0.0, dfac};
 

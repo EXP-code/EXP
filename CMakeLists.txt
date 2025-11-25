@@ -33,6 +33,10 @@ endif()
 # Required compiler features
 add_compile_options(-D_REENTRANT)
 
+# Add an explicit path to the install library directory (esp. useful
+# for Python bindings)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
 # Bake in library paths (esp. useful for HPC sites with modules)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
@@ -49,7 +53,7 @@ endif()
 option(ENABLE_NBODY "Enable EXP n-body" ON)
 option(ENABLE_PYEXP "Enable the Python bindings" ON)
 option(ENABLE_PYEXP_ONLY "Python bindings and support libraries only" OFF)
-option(ENABLE_UTILS "Enable build of the EXP standalone utilities" OFF)
+option(ENABLE_UTILS "Enable build of the EXP standalone utilities" ON)
 option(ENABLE_PNG "Enable PNG graphics support" FALSE)
 option(ENABLE_CUDA "Enable CUDA" FALSE)
 option(ENABLE_SLURM "Enable SLURM checkpointing support" FALSE)

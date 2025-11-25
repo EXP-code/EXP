@@ -294,6 +294,18 @@ namespace PR {
   
   const Particle* GadgetNative::firstParticle()
   {
+    if (done) {
+      if (myid==0 and _verbose)
+      std::cout << "---- ParticleReader::GadgetNative: "
+		<< "restarting reader" << std::endl;
+      done = false;
+      curfile = _files.begin();
+      if (not nextFile()) {	// Try opening
+	std::cerr << "GadgetNative: no files found; logic error?"
+		  << std::endl;
+      }
+    }
+
     pcount = 0;
     
     return &particles[pcount++];
@@ -305,6 +317,7 @@ namespace PR {
       return &particles[pcount++];
     } else {
       if (nextFile()) return firstParticle();
+      done = true;
       return 0;
     }
   }
@@ -650,6 +663,17 @@ namespace PR {
   
   const Particle* GadgetHDF5::firstParticle()
   {
+    if (done) {
+      if (myid==0 and _verbose)
+      std::cout << "---- ParticleReader::GadgetHDF5: "
+		<< "restarting reader" << std::endl;
+      done = false;
+      curfile = _files.begin();
+      if (not nextFile()) {
+	std::cerr << "GadgetHDF5: no files found; logic error?" << std::endl;
+      }
+    }
+
     pcount = 0;
     
     return & particles[pcount++];
@@ -661,7 +685,8 @@ namespace PR {
       return & particles[pcount++];
     } else {
       if (nextFile()) return firstParticle();
-      else return 0;
+      done = true;
+      return 0;
     }
   }
    
@@ -705,7 +730,7 @@ namespace PR {
   }
   
 
-  PSPhdf5::PSPhdf5(const std::vector<std::string>& files, bool verbose) : ParticleReader()
+  PSPhdf5::PSPhdf5(const std::vector<std::string>& files, bool verbose) : PSP(verbose)
   {
     _files   = files;
     _verbose = verbose;
@@ -1221,6 +1246,17 @@ namespace PR {
 
   const Particle* PSPhdf5::firstParticle()
   {
+    if (done) {
+      if (myid==0 and _verbose)
+	std::cout << "---- ParticleReader::PSPhdf5: "
+		  << "restarting reader" << std::endl;
+      done = false;
+      curfile = _files.begin();
+      if (not nextFile()) {
+	std::cerr << "PSPhdf5: no files found; logic error?" << std::endl;
+      }
+    }
+
     pcount = 0;
     
     return & particles[pcount++];
@@ -1232,7 +1268,8 @@ namespace PR {
       return & particles[pcount++];
     } else {
       if (nextFile()) return firstParticle();
-      else return 0;
+      done = true;
+      return 0;
     }
   }
   
@@ -2299,7 +2336,6 @@ namespace PR {
       std::vector<double> pos_max(3, -std::numeric_limits<double>::max());
       std::vector<double> vel_max(3, -std::numeric_limits<double>::max());
 
-      const double pct = 0.003;
       double mtot = 0.0;
       std::vector<double> p(3), v(3);
 

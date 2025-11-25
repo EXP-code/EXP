@@ -262,6 +262,10 @@ namespace BasisClasses
       if (conf["EVEN_L"])    EVEN_L    = conf["EVEN_L"].as<bool>();
       if (conf["EVEN_M"])    EVEN_M    = conf["EVEN_M"].as<bool>();
       if (conf["M0_ONLY"])   M0_only   = conf["M0_ONLY"].as<bool>();
+      if (conf["pcavar"])    pcavar    = conf["pcavar"].as<bool>();
+      if (conf["subsamp"])   sampT     = conf["subsamp"].as<int>();
+
+      sampT = std::max(1, sampT); // Sanity
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -291,15 +295,23 @@ namespace BasisClasses
     for (auto & v : dpt2) v.resize(lmax+1, nmax);
     for (auto & v : dend) v.resize(lmax+1, nmax);
 
+    // Wasteful but simple factorial table.  Could be done with a
+    // triangular indexing scheme...
+    //
     for (auto & v : legs  ) v.resize(lmax+1, lmax+1);
     for (auto & v : dlegs ) v.resize(lmax+1, lmax+1);
     for (auto & v : d2legs) v.resize(lmax+1, lmax+1);
 
+    // Allocate coefficient storage; stores real and imaginary parts as reals
+    //
     expcoef.resize((lmax+1)*(lmax+1), nmax);
     expcoef.setZero();
       
     work.resize(nmax);
       
+    // Wasteful but simple factorial table.  Could be done with a
+    // triangular indexing scheme...
+    //
     factorial.resize(lmax+1, lmax+1);
       
     for (int l=0; l<=lmax; l++) {
@@ -312,13 +324,57 @@ namespace BasisClasses
 
     used = 0;
 
-    // Set spherical coordindates
+    // Initialize covariance
+    //
+    if (pcavar) init_covariance();
+
+    // Set spherical coordinates
     //
     coordinates = Coord::Spherical;
+    BasisID = "Spherical";
   }
   
+  void Spherical::init_covariance()
+  {
+    if (pcavar) {
+      // Triangular for l,m>=0
+      int Ltot = (lmax+1)*(lmax+2)/2;
+	
+      meanV.resize(sampT);
+      for (auto& v : meanV) {
+	v.resize(Ltot);
+	for (auto& vec : v) vec.resize(nmax);
+      }
+
+      covrV.resize(sampT);
+      for (auto& v : covrV) {
+	v.resize(Ltot);
+	for (auto& mat : v) mat.resize(nmax, nmax);
+      }
+
+      sampleCounts.resize(sampT);
+      sampleMasses.resize(sampT);
+      
+      zero_covariance();
+    }
+  }
+
+  void Spherical::zero_covariance()
+  {
+    for (int T=0; T<sampT; T++) {
+      for (auto& v : meanV[T]) v.setZero();
+      for (auto& v : covrV[T]) v.setZero();
+    }
+
+    sampleCounts.setZero();
+    sampleMasses.setZero();
+  }
+
   void SphericalSL::initialize()
   {
+    // Identifier
+    //
+    BasisID = "SphereSL";
 
     // Assign some defaults
     //
@@ -380,6 +436,10 @@ namespace BasisClasses
   
   void Bessel::initialize()
   {
+    // Identifier
+    //
+    BasisID = "Bessel";
+
     try {
       if (conf["rnum"])
 	rnum = conf["rnum"].as<int>();
@@ -410,6 +470,7 @@ namespace BasisClasses
     totalMass = 0.0;
     used = 0;
     G = 1.0;
+    if (pcavar) zero_covariance();
   }
   
   
@@ -425,11 +486,11 @@ namespace BasisClasses
 
     G = cf->getGravConstant();
 
-    // Angular storage dimension
+    // Angular storage dimension; triangular number
     int ldim = (lmax+1)*(lmax+2)/2;
 
     // Allocate the coefficient storage
-    cf->store.resize((lmax+1)*(lmax+2)/2*nmax);
+    cf->store.resize(ldim*nmax);
 
     // Make the coefficient map
     cf->coefs = std::make_shared<CoefClasses::SphStruct::coefType>
@@ -514,7 +575,8 @@ namespace BasisClasses
       coefctr = {0.0, 0.0, 0.0};
   }
 
-  void Spherical::accumulate(double x, double y, double z, double mass)
+  void Spherical::accumulate(double x, double y, double z, double mass,
+			     unsigned long indx)
   {
     double fac, fac1, fac2, fac4;
     double norm = -4.0*M_PI;
@@ -535,6 +597,7 @@ namespace BasisClasses
     
     if (r < rmin or r > rmax) return;
     
+    // Update counters
     used++;
     totalMass += mass;
     
@@ -542,17 +605,25 @@ namespace BasisClasses
     
     legendre_R(lmax, costh, legs[tid]);
     
+    // Sample index for pcavar
+    int T = 0;
+    if (pcavar) {
+      T = used % sampT;
+      sampleCounts(T) += 1;
+      sampleMasses(T) += mass;
+    }
+    
     // L loop
-    for (int l=0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
+    for (int l=0, loffset=0, L=0; l<=lmax; loffset+=(2*l+1), l++) {
       
       Eigen::VectorXd workE;
-      int esize = (l+1)*nmax;
       
       // M loop
-      for (int m=0, moffset=0, moffE=0; m<=l; m++) {
+      for (int m=0, moffset=0; m<=l; m++, L++) {
 	
+	fac = factorial(l, m) * legs[tid](l, m);
+
 	if (m==0) {
-	  fac = factorial(l, m) * legs[tid](l, m);
 	  for (int n=0; n<nmax; n++) {
 	    fac4 = potd[tid](l, n)*fac;
 	    expcoef(loffset+moffset, n) += fac4 * norm * mass;
@@ -561,9 +632,9 @@ namespace BasisClasses
 	  moffset++;
 	}
 	else {
-	  fac  = factorial(l, m) * legs[tid](l, m);
 	  fac1 = fac*cos(phi*m);
 	  fac2 = fac*sin(phi*m);
+
 	  for (int n=0; n<nmax; n++) {
 	    fac4 = potd[tid](l, n);
 	    expcoef(loffset+moffset  , n) += fac1 * fac4 * norm * mass;
@@ -572,23 +643,62 @@ namespace BasisClasses
 	  
 	  moffset+=2;
 	}
+
+	// Covariance and subsample computation
+	if (pcavar) {
+	  Eigen::VectorXcd g = std::exp(std::complex<double>(0.0, m*phi)) * 
+	    potd[tid].row(l).transpose() * fac * norm;
+	  
+	  meanV[T][L].noalias() += g * mass;
+	  covrV[T][L].noalias() += g * g.adjoint() * mass;
+	}
+
       }
+      // END: m loop
     }
-    
+    // END: l loop
   }
   
   void Spherical::make_coefs()
   {
+    // MPI reduction of coefficients
     if (use_mpi) {
       
+      // Square of total number of angular coefficients in real form
+      int Ltot = (lmax+1)*(lmax+1);
+
       MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
 		    MPI_SUM, MPI_COMM_WORLD);
       
-      for (int l=0; l<(lmax+1)*(lmax+1); l++) {
+      for (int l=0; l<Ltot; l++) {
 	work = expcoef.row(l);
 	MPI_Allreduce(MPI_IN_PLACE, work.data(), nmax, MPI_DOUBLE,
 		      MPI_SUM, MPI_COMM_WORLD);
 	expcoef.row(l) = work;
+      }
+      
+      if (pcavar) {
+
+	// Triangular number of angular coefficients in complex form
+	int ltot = (lmax+1)*(lmax+2)/2;
+
+	MPI_Allreduce(MPI_IN_PLACE, sampleCounts.data(), sampleCounts.size(),
+		      MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	
+	MPI_Allreduce(MPI_IN_PLACE, sampleMasses.data(), sampleMasses.size(),
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+	for (int T=0; T<sampT; T++) {
+
+	  for (int l=0; l<ltot; l++) {
+	    
+	    MPI_Allreduce(MPI_IN_PLACE, meanV[T][l].data(), meanV[T][l].size(),
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+
+	    MPI_Allreduce(MPI_IN_PLACE, covrV[T][l].data(), covrV[T][l].size(),
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	  }
+	}
       }
     }
   }
@@ -905,6 +1015,28 @@ namespace BasisClasses
 	}
       }
     }
+    
+    return ret;
+  }
+
+  
+  /** Return a vector of tuples of basis functions and the covariance
+      matrix for subsamples of particles */
+  std::vector<std::vector<BiorthBasis::CoefCovarType>>
+  Spherical::getCoefCovariance()
+  {
+    std::vector<std::vector<BiorthBasis::CoefCovarType>> ret;
+   if (pcavar) {
+     ret.resize(sampT);
+     for (int T=0; T<sampT; T++) {
+       int ltot = (lmax+1)*(lmax+2)/2;
+       ret[T].resize(ltot);
+       for (int l=0; l<ltot; l++) {
+	 std::get<0>(ret[T][l]) = meanV[T][l];
+	 std::get<1>(ret[T][l]) = covrV[T][l];
+       }
+     }
+   }
     
     return ret;
   }
@@ -1245,6 +1377,10 @@ namespace BasisClasses
 
   void Cylindrical::initialize()
   {
+    // Basis identifier
+    //
+    BasisID = "Cylindrical";
+
     // Assign some defaults
     //
     rcylmin     = 0.001;
@@ -1357,9 +1493,9 @@ namespace BasisClasses
 
       if (conf["aratio"    ])      aratio = conf["aratio"    ].as<double>();
       if (conf["hratio"    ])      hratio = conf["hratio"    ].as<double>();
-      if (conf["dweight"   ])      dweight = conf["dweight"   ].as<double>();
-      if (conf["Mfac"   ])         Mfac = conf["Mfac"   ].as<double>();
-      if (conf["HERNA"   ])        HERNA = conf["HERNA"   ].as<double>();
+      if (conf["dweight"   ])      dweight = conf["dweight"  ].as<double>();
+      if (conf["Mfac"      ])      Mfac   = conf["Mfac"      ].as<double>();
+      if (conf["HERNA"     ])      HERNA  = conf["HERNA"     ].as<double>();
       if (conf["rwidth"    ])      rwidth = conf["rwidth"    ].as<double>();
       if (conf["ashift"    ])      ashift = conf["ashift"    ].as<double>();
       if (conf["rfactor"   ])     rfactor = conf["rfactor"   ].as<double>();
@@ -1369,6 +1505,11 @@ namespace BasisClasses
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
       if (conf["pyname"    ])      pyname = conf["pyname"    ].as<std::string>();
+      if (conf["pcavar"]    )      pcavar = conf["pcavar"    ].as<bool>();
+      if (conf["subsamp"]   )      sampT  = conf["subsamp"   ].as<int>();
+
+      // Sanity
+      sampT = std::max(1, sampT);
 
       // Deprecation warning
       if (conf["density"   ]) {
@@ -1418,7 +1559,7 @@ namespace BasisClasses
     EmpCylSL::CMAPZ       = cmapZ;
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
-    
+
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
     //
@@ -1440,7 +1581,11 @@ namespace BasisClasses
     //
     if (mlim>=0)  sl->set_mlim(mlim);
     if (EVEN_M)   sl->setEven(EVEN_M);
-      
+    if (pcavar)  {
+      sl->setSampT(sampT);
+      sl->set_covar(true);
+    }
+    
     // Cache override for old Eigen cache
     //
     if (oldcache) sl->AllowOldCache();
@@ -1688,11 +1833,12 @@ namespace BasisClasses
     }
   }
   
-  void Cylindrical::accumulate(double x, double y, double z, double mass)
+  void Cylindrical::accumulate(double x, double y, double z, double mass,
+			       unsigned long indx)
   {
     double R   = sqrt(x*x + y*y);
     double phi = atan2(y, x);
-    sl->accumulate(R, z, phi, mass, 0, 0);
+    sl->accumulate(R, z, phi, mass, indx, 0, 0, pcavar);
   }
   
   void Cylindrical::reset_coefs(void)
@@ -1761,7 +1907,7 @@ namespace BasisClasses
 
   void Cylindrical::make_coefs(void)
   {
-    sl->make_coefficients();
+    sl->make_coefficients(pcavar);
   }
   
   
@@ -1866,6 +2012,9 @@ namespace BasisClasses
 
   void FlatDisk::initialize()
   {
+    // Basis identifier
+    //
+    BasisID = "FlatDisk";
 
     // Assign some defaults
     //
@@ -2078,7 +2227,8 @@ namespace BasisClasses
       coefctr = {0.0, 0.0, 0.0};
   }
 
-  void FlatDisk::accumulate(double x, double y, double z, double mass)
+  void FlatDisk::accumulate(double x, double y, double z, double mass,
+			    unsigned long indx)
   {
     // Normalization factors
     //
@@ -2097,6 +2247,7 @@ namespace BasisClasses
 
     if (R < ortho->getRtable() and fabs(z) < ortho->getRtable()) {
     
+      // Update counters
       used++;
       totalMass += mass;
     
@@ -2454,6 +2605,9 @@ namespace BasisClasses
 
   void CBDisk::initialize()
   {
+    // Basis identifier
+    //
+    BasisID = "CBDisk";
 
     // Assign some defaults
     //
@@ -2888,7 +3042,8 @@ namespace BasisClasses
       coefctr = {0.0, 0.0, 0.0};
   }
 
-  void CBDisk::accumulate(double x, double y, double z, double mass)
+  void CBDisk::accumulate(double x, double y, double z, double mass,
+			  unsigned long int idx)
   {
     // Normalization factors
     //
@@ -2905,6 +3060,7 @@ namespace BasisClasses
     // Get thread id
     int tid = omp_get_thread_num();
 
+    // Update counters
     used++;
     totalMass += mass;
     
@@ -3196,6 +3352,10 @@ namespace BasisClasses
 
   void Slab::initialize()
   {
+    // Basis identifier
+    //
+    BasisID = "Slab";
+
     nminx = 0;
     nminy = 0;
 
@@ -3349,7 +3509,8 @@ namespace BasisClasses
     coefctr = {0.0, 0.0, 0.0};
   }
 
-  void Slab::accumulate(double x, double y, double z, double mass)
+  void Slab::accumulate(double x, double y, double z, double mass,
+			unsigned long int idx)
   {
     // Truncate to slab with sides in [0,1]
     if (x<0.0)
@@ -3362,6 +3523,7 @@ namespace BasisClasses
     else
       y -= std::floor( y);
     
+    // Update counters
     used++;
 
     // Storage for basis evaluation
@@ -3420,8 +3582,8 @@ namespace BasisClasses
       MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
 		    MPI_SUM, MPI_COMM_WORLD);
       
-      MPI_Allreduce(MPI_IN_PLACE, expcoef.data(), expcoef.size(), MPI_DOUBLE_COMPLEX,
-		    MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(MPI_IN_PLACE, expcoef.data(), expcoef.size(),
+		    MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
     }
   }
   
@@ -3721,24 +3883,38 @@ namespace BasisClasses
     "knots",
     "verbose",
     "check",
-    "method"
+    "method",
+    "pcavar,"
+    "subsamp"
   };
 
   Cube::Cube(const YAML::Node& CONF) : BiorthBasis(CONF, "cube")
   {
     initialize();
+
+    // Initialize covariance
+    //
+    if (pcavar) init_covariance();
   }
 
   Cube::Cube(const std::string& confstr) : BiorthBasis(confstr, "cube")
   {
     initialize();
+
+    // Initialize covariance
+    //
+    if (pcavar) init_covariance();
   }
 
   void Cube::initialize()
   {
-    nminx = std::numeric_limits<int>::max();
-    nminy = std::numeric_limits<int>::max();
-    nminz = std::numeric_limits<int>::max();
+    // Basis identifier
+    //
+    BasisID = "Cube";
+
+    nminx = 0;
+    nminy = 0;
+    nminz = 0;
 
     nmaxx = 6;
     nmaxy = 6;
@@ -3764,17 +3940,20 @@ namespace BasisClasses
     // Assign values from YAML
     //
     try {
-      if (conf["nminx"])      nminx = conf["nminx"].as<int>();
-      if (conf["nminy"])      nminy = conf["nminy"].as<int>();
-      if (conf["nminz"])      nminz = conf["nminz"].as<int>();
+      if (conf["nminx"])      nminx  = conf["nminx"  ].as<int>();
+      if (conf["nminy"])      nminy  = conf["nminy"  ].as<int>();
+      if (conf["nminz"])      nminz  = conf["nminz"  ].as<int>();
       
-      if (conf["nmaxx"])      nmaxx = conf["nmaxx"].as<int>();
-      if (conf["nmaxy"])      nmaxy = conf["nmaxy"].as<int>();
-      if (conf["nmaxz"])      nmaxz = conf["nmaxz"].as<int>();
+      if (conf["nmaxx"])      nmaxx  = conf["nmaxx"  ].as<int>();
+      if (conf["nmaxy"])      nmaxy  = conf["nmaxy"  ].as<int>();
+      if (conf["nmaxz"])      nmaxz  = conf["nmaxz"  ].as<int>();
       
-      if (conf["knots"])      knots = conf["knots"].as<int>();
+      if (conf["knots"])      knots  = conf["knots"  ].as<int>();
 
-      if (conf["check"])      check = conf["check"].as<bool>();
+      if (conf["check"])      check  = conf["check"  ].as<bool>();
+
+      if (conf["pcavar"])     pcavar = conf["pcavar" ].as<bool>();
+      if (conf["subsamp"])    sampT  = conf["subsamp"].as<int>();
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -3799,10 +3978,17 @@ namespace BasisClasses
     //
     int nthrds = omp_get_max_threads();
 
+    // Total number of wavenumbers
+    //
+    Itot = (2*nmaxx + 1) * (2*nmaxy + 1) * (2*nmaxz + 1);
+
     expcoef.resize(2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1);
     expcoef.setZero();
       
+    // Counters
+    //
     used = 0;
+    totalMass = 0.0;
 
     // Set cartesian coordindates
     //
@@ -3815,6 +4001,7 @@ namespace BasisClasses
     totalMass = 0.0;
     used = 0;
     G = 1.0;
+    if (pcavar) zero_covariance();
   }
   
   
@@ -3873,36 +4060,46 @@ namespace BasisClasses
     coefctr = {0.0, 0.0, 0.0};
   }
 
-  void Cube::accumulate(double x, double y, double z, double mass)
+  void Cube::accumulate(double x, double y, double z, double mass,
+			unsigned long int indx)
   {
     // Truncate to cube with sides in [0,1]
-    if (x<0.0)
-      x += std::floor(-x) + 1.0;
-    else
-      x -= std::floor( x);
+    //
+    auto trunc = [](double v) {
+      if (v<0.0) v += std::floor(-v) + 1.0;
+      else       v -= std::floor( v);
+      return v;
+    };
     
-    if (y<0.0)
-      y += std::floor(-y) + 1.0;
-    else
-      y -= std::floor( y);
+    x = trunc(x);
+    y = trunc(y);
+    z = trunc(z);
     
-    if (z<0.0)
-      z += std::floor(-z) + 1.0;
-    else
-      z -= std::floor( z);
-    
+    // Update counters
+    //
+    used++;
+    totalMass += mass;
     
     // Recursion multipliers
+    //
     Eigen::Vector3cd step
       {std::exp(-kfac*x), std::exp(-kfac*y), std::exp(-kfac*z)};
     
     // Initial values for recursion
+    //
     Eigen::Vector3cd init
       {std::exp(-kfac*(x*nmaxx)),
        std::exp(-kfac*(y*nmaxy)),
        std::exp(-kfac*(z*nmaxz))};
     
+    Eigen::VectorXcd g;
+    if (pcavar) {
+      g.resize(Itot);
+      g.setZero();
+    }
+
     Eigen::Vector3cd curr(init);
+
     for (int ix=0; ix<=2*nmaxx; ix++, curr(0)*=step(0)) {
       curr(1) = init(1);
       for (int iy=0; iy<=2*nmaxy; iy++, curr(1)*=step(1)) {
@@ -3916,11 +4113,34 @@ namespace BasisClasses
 	  int jj = iy-nmaxy;
 	  int kk = iz-nmaxz;
 
+	  // Throw away constant term
+	  if (ii==0 and jj==0 and kk==0) continue;
+
+	  // Limit to minimum wave number
+	  if (abs(ii)<nminx || abs(jj)<nminy || abs(kk)<nminz) continue;
+
 	  // Normalization
-	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));;
+	  double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 
 	  expcoef(ix, iy, iz) += - mass * curr(0)*curr(1)*curr(2) * norm;
+
+	  if (pcavar)
+	    g[index1D(ix, iy, iz)] = - curr(0)*curr(1)*curr(2) * norm;
 	}
+      }
+    }
+
+    if (pcavar) {
+      // Sample index for pcavar
+      int T = 0;
+      T = used % sampT;
+      sampleCounts(T) += 1;
+      sampleMasses(T) += mass;
+      //
+      meanV[T].noalias() += g * mass;
+      if (covar) {
+	if (diagcov) dvarV[T].noalias() += g.cwiseProduct(g.conjugate()) * mass;
+	else         covrV[T].noalias() += g * g.adjoint() * mass;
       }
     }
   }
@@ -3932,11 +4152,66 @@ namespace BasisClasses
       MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
 		    MPI_SUM, MPI_COMM_WORLD);
       
-      MPI_Allreduce(MPI_IN_PLACE, expcoef.data(), expcoef.size(), MPI_DOUBLE_COMPLEX,
+      MPI_Allreduce(MPI_IN_PLACE, &totalMass, 1, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
+      
+      MPI_Allreduce(MPI_IN_PLACE, expcoef.data(), expcoef.size(),
+		    MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+
+
+      if (pcavar) {
+
+	MPI_Allreduce(MPI_IN_PLACE, sampleCounts.data(), sampleCounts.size(),
+		      MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	
+	MPI_Allreduce(MPI_IN_PLACE, sampleMasses.data(), sampleMasses.size(),
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+	for (int T=0; T<sampT; T++) {
+
+	  MPI_Allreduce(MPI_IN_PLACE, meanV[T].data(), meanV[T].size(),
+			MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	  
+	  if (covar) {
+	    if (diagcov)
+	      MPI_Allreduce(MPI_IN_PLACE, dvarV[T].data(), dvarV[T].size(),
+			    MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	    else
+	      MPI_Allreduce(MPI_IN_PLACE, covrV[T].data(), covrV[T].size(),
+			    MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	  }
+	}
+	// END: sample loop
+      }
+      // END: pcavar
     }
+    // END: using mpi
   }
   
+  /** Return a vector of tuples of basis functions and the covariance
+      matrix for subsamples of particles for Cube type */
+  std::vector<std::vector<BiorthBasis::CoefCovarType>>
+  Cube::getCoefCovariance()
+  {
+    std::vector<std::vector<BiorthBasis::CoefCovarType>> ret;
+    if (pcavar) {
+      ret.resize(sampT);
+      for (int T=0; T<sampT; T++) {
+	ret[T].resize(1);
+	std::get<0>(ret[T][0]) = meanV[T];
+	if (covar) {
+	  if (diagcov)
+	    std::get<1>(ret[T][0]) = dvarV[T].asDiagonal();
+	  else
+	    std::get<1>(ret[T][0]) = covrV[T];
+	}
+      }
+    }
+    
+    return ret;
+  }
+
+
   std::vector<double> Cube::crt_eval(double x, double y, double z)
   {
     // Get thread id
@@ -4049,6 +4324,104 @@ namespace BasisClasses
     return ret;
   }
   
+  void Cube::init_covariance()
+  {
+    if (pcavar) {
+
+      meanV.resize(sampT);
+      for (auto& v : meanV) {
+	v.resize(Itot);
+      }
+
+      if (covar) {
+	if (diagcov) {
+	  dvarV.resize(sampT);
+	  for (auto& v : dvarV) {
+	    v.resize(Itot);
+	  }
+	} else {
+	  covrV.resize(sampT);
+	  for (auto& v : covrV) {
+	    v.resize(Itot, Itot);
+	  }
+	}
+      } else {
+	covrV.clear();
+	dvarV.clear();
+      }
+
+      sampleCounts.resize(sampT);
+      sampleMasses.resize(sampT);
+      
+      zero_covariance();
+    }
+  }
+
+
+  void Cube::zero_covariance()
+  {
+    for (int T=0; T<sampT; T++) {
+      meanV[T].setZero();
+      if (covar) {
+	if (diagcov) dvarV[T].setZero();
+	else         covrV[T].setZero();
+      }
+    }
+
+    sampleCounts.setZero();
+    sampleMasses.setZero();
+  }
+
+
+  unsigned Cube::index1D(int kx, int ky, int kz)
+  {
+    if (kx < 0 or kx > 2*nmaxx) {
+      std::ostringstream sout;
+      sout << "Cube::index1D: x index [" << kx << "] must be in [0, "
+	   << 2*nmaxx << "]";
+      throw std::runtime_error(sout.str());
+    }
+
+    if (ky < 0 or ky > 2*nmaxy) {
+      std::ostringstream sout;
+      sout << "Cube::index1D: y index [" << ky << "] must be in [0, "
+	   << 2*nmaxy << "]";
+      throw std::runtime_error(sout.str());
+    }
+
+    if (kz < 0 or kx > 2*nmaxz) {
+      std::ostringstream sout;
+      sout << "Cube::index1D: z index [" << kz << "] must be in [0, "
+	   << 2*nmaxz << "]";
+      throw std::runtime_error(sout.str());
+    }
+
+    return
+      kx*(2*nmaxy+1)*(2*nmaxz+1) +
+      ky*(2*nmaxz+1) +
+      kz;
+  }
+
+  std::tuple<int, int, int> Cube::index3D(unsigned indx)
+  {
+    // Sanity check
+    //
+    if (indx >= Itot) {
+      std::ostringstream sout;
+      sout << "Cube::index3D: index [" << indx << "] must be in 0 <= indx < " << Itot;
+      throw std::runtime_error(sout.str());
+    }
+
+    // Compute the 3d index
+    //
+    int ix = indx/((2*nmaxy+1)*(2*nmaxz+1));
+    int iy = (indx - ix*(2*nmaxy+1)*(2*nmaxz+1))/(2*nmaxz+1);
+    int iz = indx - ix*(2*nmaxy+1)*(2*nmaxz+1)/(2*nmaxz+1) - iy*(2*nmaxz+1);
+  
+    return {ix, iy, iz};
+  }
+
+
   // Generate coeffients from a particle reader
   CoefClasses::CoefStrPtr BiorthBasis::createFromReader
   (PR::PRptr reader, Eigen::Vector3d ctr, RowMatrix3d rot)
@@ -4109,7 +4482,7 @@ namespace BasisClasses
       }
 
       if (use) {
-	accumulate(pp(0), pp(1), pp(2), p->mass);
+	accumulate(pp(0), pp(1), pp(2), p->mass, p->indx);
       }
     }
     make_coefs();
@@ -4228,7 +4601,7 @@ namespace BasisClasses
 	  coefindx++;
 	  
 	  if (use) {
-	    accumulate(pp(0), pp(1), pp(2), m(n));
+	    accumulate(pp(0), pp(1), pp(2), m(n), n);
 	  }
 	}
       }
@@ -4266,7 +4639,7 @@ namespace BasisClasses
 	  coefindx++;
 	  
 	  if (use) {
-	    accumulate(pp(0), pp(1), pp(2), m(n));
+	    accumulate(pp(0), pp(1), pp(2), m(n), n);
 	  }
 	}
       }
@@ -4724,6 +5097,997 @@ namespace BasisClasses
 
     return {times, ret};
   }
+
+  void Spherical::writeCovarH5Params(HighFive::File& file)
+  {
+    file.createAttribute<int>("lmax", HighFive::DataSpace::From(lmax)).write(lmax);
+    file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+    file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
+    file.createAttribute<double>("rmin", HighFive::DataSpace::From(rmin)).write(rmin);
+    file.createAttribute<double>("rmax", HighFive::DataSpace::From(rmax)).write(rmax);
+  }
+  
+  void Cylindrical::writeCovarH5Params(HighFive::File& file)
+  {
+    file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
+    file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+    file.createAttribute<double>("rcylmin", HighFive::DataSpace::From(rcylmin)).write(rcylmin);
+    file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
+    file.createAttribute<double>("acyl", HighFive::DataSpace::From(acyl)).write(acyl);
+    file.createAttribute<double>("hcyl", HighFive::DataSpace::From(hcyl)).write(hcyl);
+  }
+  
+  void Cube::writeCovarH5Params(HighFive::File& file)
+  {
+    file.createAttribute<int>("nminx", HighFive::DataSpace::From(nminx)).write(nminx);
+    file.createAttribute<int>("nminy", HighFive::DataSpace::From(nminy)).write(nminy);
+    file.createAttribute<int>("nminz", HighFive::DataSpace::From(nminz)).write(nminz);
+    file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(nmaxx)).write(nmaxx);
+    file.createAttribute<int>("nmaxy", HighFive::DataSpace::From(nmaxy)).write(nmaxy);
+    file.createAttribute<int>("nmaxz", HighFive::DataSpace::From(nmaxz)).write(nmaxz);
+  }
+  
+  unsigned BiorthBasis::writeCovarH5(HighFive::Group& snaps, unsigned count, double time)
+  {
+    std::ostringstream stim;
+    stim << std::setw(8) << std::setfill('0') << std::right << count++;
+      
+    // Make a new group for this time
+    //
+    HighFive::Group stanza = snaps.createGroup(stim.str());
+      
+    // Add a time attribute
+    //
+    time = roundTime(time);
+    stanza.createAttribute<double>("Time", HighFive::DataSpace::From(time)).write(time);
+      
+    // Enable compression
+    //
+    auto dcpl1 = HighFive::DataSetCreateProps{}; // sample stats
+    auto dcpl2 = HighFive::DataSetCreateProps{}; // coefficients
+    auto dcpl3 = HighFive::DataSetCreateProps{}; // covariance
+
+    // Properties for sample stats
+    if (H5compress) {
+      unsigned int csz = sampleCounts.size();
+      dcpl1.add(HighFive::Chunking({csz, 1}));
+      if (H5shuffle) dcpl1.add(HighFive::Shuffle());
+      dcpl1.add(HighFive::Deflate(H5compress));
+    }
+
+    // Add the sample statistics
+    //
+    HighFive::DataSet s1data = stanza.createDataSet("sampleCounts", sampleCounts, dcpl1);
+    HighFive::DataSet s2data = stanza.createDataSet("sampleMasses", sampleMasses, dcpl1);
+
+    // Covariance data
+    //
+    auto covdata = getCoefCovariance();
+
+    // Number of samples
+    //
+    unsigned sampleSize   = covdata.size();
+    unsigned ltot         = covdata[0].size();
+    unsigned nmax         = std::get<0>(covdata[0][0]).rows();
+    unsigned diagonalSize = nmax;
+
+    // Save variance or full covariance
+    if (covar) diagonalSize = nmax*(nmax + 1)/2;
+
+    // Add data dimensions
+    //
+    stanza.createAttribute<unsigned>
+      ("sampleSize", HighFive::DataSpace::From(sampleSize)).write(sampleSize);
+
+    stanza.createAttribute<unsigned>
+      ("angularSize", HighFive::DataSpace::From(ltot)).write(ltot);
+
+    stanza.createAttribute<unsigned>
+      ("rankSize", HighFive::DataSpace::From(nmax)).write(nmax);
+      
+    int icov = covar ? 1 : 0;
+    stanza.createAttribute<unsigned>
+      ("fullCovar", HighFive::DataSpace::From(icov)).write(icov);
+
+    if (H5compress) {
+      // Szip parameters
+      const int options_mask = H5_SZIP_NN_OPTION_MASK;
+      const int pixels_per_block = 8;
+
+      // Properties for coefficients
+      //
+      unsigned int csz2 = nmax * ltot * sampleSize;
+      HighFive::Chunking data_dims2{std::min<unsigned>(csz2, H5chunk), 1};
+
+      dcpl2.add(data_dims2);
+      if (H5shuffle) dcpl2.add(HighFive::Shuffle());
+      if (H5szip) {
+	dcpl2.add(HighFive::Szip(options_mask, pixels_per_block));
+      } else {
+	dcpl2.add(HighFive::Deflate(H5compress));
+      }
+
+      // Properties for  covariance
+      //
+      unsigned int csz3 = ltot * diagonalSize * sampleSize;
+      HighFive::Chunking data_dims3{std::min<unsigned>(csz3, H5chunk), 1};
+
+      dcpl3.add(data_dims3);
+      if (H5shuffle) dcpl3.add(HighFive::Shuffle());
+      if (H5szip) {
+	dcpl3.add(HighFive::Szip(options_mask, pixels_per_block));
+      } else {
+	dcpl3.add(HighFive::Deflate(H5compress));
+      }
+    }
+
+    // Pack the coefficient data
+    //
+    if (floatType) {
+      // Create a vector of doubles for the real and imaginary parts
+      Eigen::VectorXf real_part(nmax*ltot*sampleSize);
+      Eigen::VectorXf imag_part(nmax*ltot*sampleSize);
+
+      for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
+	for (size_t l=0; l<ltot; l++) {
+	  for (size_t n=0; n<nmax; n++, c++) {
+	    real_part(c) = std::real(std::get<0>(covdata[T][l])(n));
+	    imag_part(c) = std::imag(std::get<0>(covdata[T][l])(n));
+	  }
+	}
+      }
+
+      // Create two separate, compressed datasets
+      stanza.createDataSet("coefficients_real", real_part, dcpl2);
+      stanza.createDataSet("coefficients_imag", imag_part, dcpl2);
+      
+      if (std::get<1>(covdata[0][0]).size()) {
+
+	real_part.resize(ltot*diagonalSize*sampleSize);
+	imag_part.resize(ltot*diagonalSize*sampleSize);
+
+	for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
+	  for (size_t l=0; l<ltot; l++) {
+	    for (size_t n1=0; n1<nmax; n1++) {
+	      // Pack the covariance data in an upper triangular format
+	      //
+	      if (covar) {
+		for (size_t n2=n1; n2<nmax; n2++, c++) {
+		  real_part(c) = std::real(std::get<1>(covdata[T][l])(n1, n2));
+		  imag_part(c) = std::imag(std::get<1>(covdata[T][l])(n1, n2));
+		}
+	      }
+	      // Pack the diagonal only
+	      //
+	      else {
+		real_part(c  ) = std::real(std::get<1>(covdata[T][l])(n1, n1));
+		imag_part(c++) = std::imag(std::get<1>(covdata[T][l])(n1, n1));
+	      }
+	    }
+	  }
+	}
+	// Create two separate, compressed datasets
+	stanza.createDataSet("covariance_real", real_part, dcpl3);
+	stanza.createDataSet("covariance_imag", imag_part, dcpl3);
+      }
+      
+    } else {
+      Eigen::VectorXd real_part(ltot*nmax*sampleSize);
+      Eigen::VectorXd imag_part(ltot*nmax*sampleSize);
+
+      for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
+	for (size_t l=0; l<ltot; l++) {
+	  for (size_t n=0; n<nmax; n++, c++) {
+	    real_part(c) = std::real(std::get<0>(covdata[T][l])(n));
+	    imag_part(c) = std::imag(std::get<0>(covdata[T][l])(n));
+	  }
+	}
+      }
+
+      // Create two separate, compressed datasets
+      //
+      stanza.createDataSet("coefficients_real", real_part, dcpl2);
+      stanza.createDataSet("coefficients_imag", imag_part, dcpl2);
+      
+      if (std::get<1>(covdata[0][0]).size()) {
+
+	real_part.resize(ltot*diagonalSize*sampleSize);
+	imag_part.resize(ltot*diagonalSize*sampleSize);
+
+	for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
+	  for (size_t l=0; l<ltot; l++) {
+	    for (size_t n1=0; n1<nmax; n1++) {
+	      // Pack the covariance data in an upper triangular format
+	      //
+	      if (covar) {
+		for (size_t n2=n1; n2<nmax; n2++, c++) {
+		  real_part(c) = std::real(std::get<1>(covdata[T][l])(n1, n2));
+		  imag_part(c) = std::imag(std::get<1>(covdata[T][l])(n1, n2));
+		}
+	      }
+	      // Pack the diagonal only
+	      //
+	      else {
+		real_part(c  ) = std::real(std::get<1>(covdata[T][l])(n1, n1));
+		imag_part(c++) = std::imag(std::get<1>(covdata[T][l])(n1, n1));
+	      }
+	    }
+	  }
+	}
+	
+	// Create two separate, compressed datasets
+	//
+	stanza.createDataSet("covariance_real", real_part, dcpl3);
+	stanza.createDataSet("covariance_imag", imag_part, dcpl3);
+      }
+    }
+    // END: sample loop
+
+    return count;
+  }
+  
+  void BiorthBasis::writeCoefCovariance(const std::string& compname, const std::string& runtag, double time)
+  {
+    // Check that variance computation is on
+    //
+    if (not pcavar) {
+      std::cout << "BiorthBasis::writeCoefCovariance: covariance computation is disabled.  "
+		<< "Set 'pcavar: true' to enable." << std::endl;
+      return;
+    }
+
+    // Only root process writes
+    //
+    if (myid) return;
+
+    // Check that there is something to write
+    //
+    int totalCount = 0;
+    std::tie(sampleCounts, sampleMasses) = getCovarSamples();
+    totalCount += sampleCounts.sum();
+
+    if (totalCount==0) {
+      std::cout << "BiorthBasis::writeCoefCovariance: no data" << std::endl;
+      return;
+    }
+
+    // Round time
+    //
+    time = roundTime(time);
+
+    // The H5 filename
+    //
+    std::string fname = "coefcovar." + compname + "." + runtag + ".h5";
+
+    // Check if file exists?
+    //
+    try {
+      // Open the HDF5 file in read-write mode, creating if it doesn't
+      // exist
+      HighFive::File file(fname,
+			  HighFive::File::ReadWrite |
+			  HighFive::File::Create);
+
+      // Check for version string
+      std::string path = "CovarianceFileVersion"; 
+
+      // Check for valid HDF file by attribute
+      if (file.hasAttribute(path)) {
+	extendCoefCovariance(fname, time);
+	return;
+      }
+
+      // Write the Version string
+      //
+      file.createAttribute<std::string>("CovarianceFileVersion", HighFive::DataSpace::From(CovarianceFileVersion)).write(CovarianceFileVersion);
+
+      // Write the basis identifier string
+      //
+      file.createAttribute<std::string>("BasisID", HighFive::DataSpace::From(BasisID)).write(BasisID);
+      
+      // Write the data type size
+      //
+      int sz = 8; if (floatType) sz = 4;
+      file.createAttribute<int>("FloatSize", HighFive::DataSpace::From(sz)).write(sz);
+
+      // Write the specific parameters
+      //
+      writeCovarH5Params(file);
+      
+      // Group count variable
+      //
+      unsigned count = 0;
+      HighFive::DataSet dataset = file.createDataSet("count", count);
+      
+      // Create a new group for coefficient snapshots
+      //
+      HighFive::Group group = file.createGroup("snapshots");
+      
+      // Write the coefficients
+      //
+      count = writeCovarH5(group, count, time);
+      
+      // Update the count
+      //
+      dataset.write(count);
+      
+    } catch (const HighFive::Exception& err) {
+      // Handle HighFive specific errors (e.g., file not found)
+      throw std::runtime_error
+	(std::string("BiorthBasis::writeCoefCovariance HighFive Error: ") + err.what());
+    } catch (const std::exception& err) {
+      // Handle other general exceptions
+      throw std::runtime_error
+	(std::string("BiorthBasis::writeCoefCovariance Error: ") + err.what());
+    }
+  }
+  
+  void BiorthBasis::extendCoefCovariance(const std::string& fname, double time)
+  {
+    try {
+      // Open an hdf5 file
+      //
+      HighFive::File file(fname, HighFive::File::ReadWrite);
+      
+      // Get the dataset
+      HighFive::DataSet dataset = file.getDataSet("count");
+      
+      unsigned count;
+      dataset.read(count);
+      
+      HighFive::Group group = file.getGroup("snapshots");
+      
+      // Write the coefficients
+      //
+      count = writeCovarH5(group, count, time);
+      
+      // Update the count
+      //
+      dataset.write(count);
+      
+    } catch (HighFive::Exception& err) {
+      throw std::runtime_error
+	(std::string("BiorthBasis::extendCoefCovariance: HighFive error: ") + err.what());
+    }
+  }
+
+  // Read covariance data
+  CovarianceReader::CovarianceReader(const std::string& filename, int stride)
+  {
+    try {
+      // Open an existing hdf5 file for reading
+      //
+      HighFive::File file(filename, HighFive::File::ReadOnly);
+      
+      // Write the Version string
+      //
+      std::string version;
+      file.getAttribute("CovarianceFileVersion").read(version);
+      // Check for alpha version
+      if (version == std::string("1.0")) {
+	throw std::runtime_error("CovarianceReader: this is an early alpha test version. Please remake your files");
+      }
+      // Test for current version
+      if (version != std::string("1.1")) {
+	throw std::runtime_error(std::string("CovarianceReader: unsupported file version, ") + version);
+      }
+
+      // Read the basis identifier string
+      //
+      file.getAttribute("BasisID").read(basisID);
+      
+      // Get the float size
+      int sz = 8;
+      file.getAttribute("FloatSize").read(sz);
+      if (sz != 4 and sz != 8) {
+	std::ostringstream sout;
+	sout << "CovarianceReader: unsupported float size, " << sz;
+	throw std::runtime_error(sout.str());
+      }
+
+      int lmax, nmax, ltot;
+
+      // Current implemented spherical types
+      const std::set<std::string> sphereType = {"Spherical", "SphereSL", "Bessel"};
+
+      // Currently implemented cylindrical types
+      const std::set<std::string> cylinderType = {"Cylindrical"};
+
+      if (sphereType.find(basisID) != sphereType.end()) {
+	file.getAttribute("lmax").read(lmax);
+	file.getAttribute("nmax").read(nmax);
+	ltot = (lmax+1)*(lmax+2)/2;
+      } else if (cylinderType.find(basisID) != cylinderType.end()) {
+	file.getAttribute("mmax").read(lmax);
+	file.getAttribute("nmax").read(nmax);
+	ltot = lmax + 1;
+      } else if (basisID == "Cube") {
+	int nmaxx, nmaxy, nmaxz;
+	file.getAttribute("nmaxx").read(nmaxx);
+	file.getAttribute("nmaxy").read(nmaxy);
+	file.getAttribute("nmaxz").read(nmaxz);
+	ltot = (2*nmaxx + 1) * (2*nmaxy + 1) * (2*nmaxz + 1);
+      } else {
+	throw std::runtime_error(std::string("CovarianceReader: unknown or unimplemented covariance for basis type, ") + basisID);
+      }
+
+      // Group count variable
+      //
+      unsigned count = 0;
+      file.getDataSet("count").read(count);
+
+      // Open the snapshot group
+      //
+      auto snaps = file.getGroup("snapshots");
+      
+      for (unsigned n=0; n<count; n+=stride) {
+
+	std::ostringstream sout;
+	sout << std::setw(8) << std::setfill('0') << std::right << n;
+      
+	auto stanza = snaps.getGroup(sout.str());
+      
+	double Time;
+	stanza.getAttribute("Time").read(Time);
+
+	int itime = static_cast<int>(Time * fixedPointPrecision + 0.5);
+	timeMap[itime] = times.size();
+	times.push_back(Time);
+
+	// Get sample properties
+	//
+	sampleCounts.push_back(Eigen::VectorXi());
+	stanza.getDataSet("sampleCounts").read(sampleCounts.back());
+	
+	sampleMasses.push_back(Eigen::VectorXd());
+	stanza.getDataSet("sampleMasses").read(sampleMasses.back());
+
+	// Get data attributes
+	//
+	int nT, lSize, rank, icov=1;
+	stanza.getAttribute("sampleSize") .read(nT);
+	stanza.getAttribute("angularSize").read(lSize);
+	stanza.getAttribute("rankSize")   .read(rank);
+
+	if (stanza.hasAttribute("fullCovar"))
+	  stanza.getAttribute("fullCovar").read(icov);
+
+	// Full covariance or variance?
+	//
+	bool covar = icov==1 ? true : false;
+
+	// Allocate sample vector for current time
+	//
+	covarData.push_back(std::vector<std::vector<CoefCovarType>>(nT));
+
+	// Storage
+	//
+	Eigen::VectorXcd data0, data1;
+
+	// Get the flattened coefficient array
+	//
+	if (sz==4) {
+	  // Get the real and imaginary parts
+	  //
+	  Eigen::VectorXf data_real =
+	    stanza.getDataSet("coefficients_real").read<Eigen::VectorXf>();
+
+	  Eigen::VectorXf data_imag =
+	    stanza.getDataSet("coefficients_imag").read<Eigen::VectorXf>();
+	  
+	  // Resize the complex array and assign
+	  //
+	  data0.resize(data_real.size());
+	  data0.real() = data_real.cast<double>();
+	  data0.imag() = data_imag.cast<double>();
+
+	  // Check for existence of covariance
+	  //
+	  if (stanza.exist("covariance_real")) {
+
+	    data_real =
+	      stanza.getDataSet("covariance_real").read<Eigen::VectorXf>();
+
+	    data_imag =
+	      stanza.getDataSet("covariance_imag").read<Eigen::VectorXf>();
+	  
+	    // Resize the complex array and assign
+	    data1.resize(data_real.size());
+	    data1.real() = data_real.cast<double>();
+	    data1.imag() = data_imag.cast<double>();
+	  }
+	} else {
+	  // Get the real and imaginary parts
+	  Eigen::VectorXd data_real =
+	    stanza.getDataSet("coefficients_real").read<Eigen::VectorXd>();
+
+	  Eigen::VectorXd data_imag =
+	    stanza.getDataSet("coefficients_imag").read<Eigen::VectorXd>();
+	  
+	  // Resize the complex array and assign
+	  data0.resize(data_real.size());
+	  data0.real() = data_real;
+	  data0.imag() = data_imag;
+
+	  // Check for existence of covariance
+	  //
+	  if (stanza.exist("covariance_real")) {
+
+	    // Get the real and imaginary parts
+	    data_real =
+	      stanza.getDataSet("covariance_real").read<Eigen::VectorXd>();
+	    
+	    data_imag =
+	      stanza.getDataSet("covariance_imag").read<Eigen::VectorXd>();
+	    
+	    // Resize the complex array and assign
+	    data1.resize(data_real.size());
+	    data1.real() = data_real;
+	    data1.imag() = data_imag;
+	  }
+	}
+
+	// Positions in data stanzas
+	int sCof = 0, sCov = 0;
+
+	// Loop through all indices and repack
+	for (int T=0; T<nT; T++) {
+
+	  // Data element for this time
+	  std::vector<CoefCovarType> elem(lSize);
+	  for (auto & e : elem) {
+	    // Coefficients
+	    std::get<0>(e).resize(rank);
+	    // Covariance matrix
+	    if (data1.size()) std::get<1>(e).resize(rank, rank);
+	  }
+
+	  // Pack the coefficient data
+	  int c = 0;
+	  for (size_t l=0; l<lSize; l++) {
+	    for (size_t n=0; n<rank; n++) {
+	      std::get<0>(elem[l])(n) = data0(sCof + c++);
+	    }
+	  }
+	  sCof += c;
+
+	  // Pack the covariance data
+	  c = 0;
+	  for (size_t l=0; l<lSize; l++) {
+	    if (data1.size()) {
+	      for (size_t n1=0; n1<rank; n1++) {
+		for (size_t n2=n1; n2<rank; n2++) {
+		  if (covar) {
+		    std::get<1>(elem[l])(n1, n2) = data1(sCov + c++);
+		    if (n1 != n2)
+		      std::get<1>(elem[l])(n2, n1) = std::get<1>(elem[l])(n1, n2);
+		  }
+		  else {
+		    if (n1==n2)
+		      std::get<1>(elem[l])(n1, n2) = data1(sCov + c++);
+		    else
+		      std::get<1>(elem[l])(n1, n2) = 0.0;
+		  }
+		}
+	      }
+	    }
+	  }
+	  sCov += c;
+
+	  // Add the data
+	  covarData.back()[T] = std::move(elem);
+	}
+	// END: sample loop
+      }
+      // END: snapshot loop
+    } catch (HighFive::Exception& err) {
+      std::cerr << err.what() << std::endl;
+    }
+  }
+
+  CoefClasses::CoefStrPtr Spherical::makeFromFunction
+  (std::function<double(double, double, double, double time)> func,
+   std::map<std::string, double>& params, double time, bool potential)
+  {
+    // Get mapping constant
+    //
+    double rmapping = rmap;
+    if (params.find("rmapping") == params.end())
+      std::cout << "---- BiorthBasis::makeFromFunction: using default rmapping="
+		<< rmapping << std::endl;
+    else
+      rmapping = params["rmapping"];
+
+    // Quadrature knots
+    //
+    int knots = 200;
+    if (params.find("knots") != params.end())
+      knots = static_cast<int>(params["knots"]);
+    
+    // Define mapping functions
+    //
+    auto r_to_x = [&](double r) -> double
+    {
+      if (r<0.0) throw std::runtime_error("BiorthBasis::makeFromFunction: r<0");
+      return (r/rmapping-1.0)/(r/rmapping+1.0);
+    };
+    
+
+    auto x_to_r = [&](double x) -> double
+    {
+      return (1.0 + x)/(1.0 - x) * rmapping;
+    };
+    
+
+    auto d_x_to_r = [&](double x) -> double
+    {
+      return 0.5*(1.0 - x)*(1.0 - x)/rmapping;
+    };
+    
+    double ximin = r_to_x(rmin);
+    double ximax = r_to_x(rmax);
+    
+    if (ximin <=-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<=-1");
+    if (ximin >= 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>=+1");
+      
+    if (ximax <=-1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x<=-1");
+    if (ximax >= 1.0) throw std::runtime_error("BiorthBasis::makeFromFunction: x>=+1");
+      
+    int Lmax = lmax;
+    int Nmax = nmax;
+
+    // Make the structure
+    //
+    auto scof = std::make_shared<CoefClasses::SphStruct>();
+    
+    // =====================
+    // Begin coordinate loop
+    // =====================
+    
+    LegeQuad lw(knots);
+    
+    // Number of possible threads
+    int nthrds = omp_get_max_threads();
+    std::vector<Eigen::MatrixXd> potd(nthrds), legs(nthrds);
+
+    for (auto & v : legs ) v.resize(Lmax+1, Lmax+1);
+
+    std::vector<Eigen::MatrixXcd> mat(nthrds);
+    for (auto & v : mat) {
+      v.resize((Lmax+1)*(Lmax+2)/2, Nmax);
+      v.setZero();
+    }
+
+#pragma omp parallel for
+    for (int ijk=0; ijk<knots*knots*knots; ijk++) {
+
+      // Get thread id
+      int tid = omp_get_thread_num();
+
+      // Get quadrature indicies
+      int i = floor(ijk/(knots*knots)+1.0e-16);
+      int j = (ijk  - i*knots*knots)/knots;
+      int k = ijk - i*knots*knots - j*knots;
+      
+      double xx    =  ximin + (ximax - ximin)*lw.knot(i);
+      double rr    =  x_to_r(xx);
+      double costh = -1.0 + 2.0*lw.knot(j);
+      double sinth = sqrt(std::abs(1.0 - costh*costh));
+      double phi   = 2.0*M_PI/knots*k;
+      
+      double x = rr*sinth*cos(phi);
+      double y = rr*sinth*sin(phi);
+      double z = rr*costh;
+      
+      if (potential)
+	get_dens(potd[tid], rr);
+      else
+	get_pot (potd[tid], rr);
+
+      legendre_R(Lmax, costh, legs[tid]);
+
+      double fval = func(x, y, z, time) * (ximax - ximin) * rr*rr /
+	d_x_to_r(xx) * 2.0 * lw.weight(i) * lw.weight(j) * 2.0*M_PI/knots;
+
+      for (int L=0, l=0; L<=Lmax; L++) {
+	  
+	for (int M=0; M<=L; M++, l++) {
+	    
+	  double prefac = sqrt( (2.0*L+1.0)/(4.0*M_PI) * exp(lgamma(L-M+1) - lgamma(L+M+1)) );
+	  if (M) prefac *= M_SQRT2;
+
+	  for (int n=0; n<Nmax; n++) {
+
+	    if (M==0) {
+	      mat[tid](l, n) += prefac * legs[tid](L, M) * potd[tid](L, n) * fval;
+	    }
+	    else {
+	      double fac = prefac * legs[tid](L, M) * potd[tid](L, n) * fval;
+	      mat[tid](l, n) += std::complex<double>(cos(phi*M), sin(phi*M)) * fac;
+	    }
+	  }
+	}
+      }
+    }
+
+    // Sum up results from all threads
+    for (int n=1; n<nthrds; n++) mat[0] += mat[n];
+
+    // Assign to CoefStruct
+    scof->assign(mat[0], Lmax, Nmax);
+
+    return scof;
+  }
+
+  double Spherical::computeQuadrature
+  (std::function<double(double, double, double)> func,
+   std::map<std::string, double>& params)
+  {
+    // Get mapping constant
+    //
+    double rmapping = rmap;
+    if (params.find("rmapping") == params.end())
+      std::cout << "---- BiorthBasis::computeQuadrature: using default rmapping="
+		<< rmapping << std::endl;
+    else
+      rmapping = params["rmapping"];
+
+    // Quadrature knots
+    //
+    int knots = 200;
+    if (params.find("knots") != params.end())
+      knots = static_cast<int>(params["knots"]);
+    
+    // Define mapping functions
+    //
+    auto r_to_x = [&](double r) -> double
+    {
+      if (r<0.0) throw std::runtime_error("BiorthBasis::computeQuadrature: r<0");
+      return (r/rmapping-1.0)/(r/rmapping+1.0);
+    };
+    
+
+    auto x_to_r = [&](double x) -> double
+    {
+      return (1.0 + x)/(1.0 - x) * rmapping;
+    };
+    
+
+    auto d_x_to_r = [&](double x) -> double
+    {
+      return 0.5*(1.0 - x)*(1.0 - x)/rmapping;
+    };
+    
+    double ximin = r_to_x(rmin);
+    double ximax = r_to_x(rmax);
+
+    if (ximin<=-1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x<=-1");
+    if (ximax>= 1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x>=+1");
+
+    if (ximax<=-1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x<=-1");
+    if (ximax>= 1.0) throw std::runtime_error("BiorthBasis::computeQuadrature: x>=+1");
+
+    int Lmax = lmax;
+    int Nmax = nmax;
+
+    // =====================
+    // Begin coordinate loop
+    // =====================
+    
+    LegeQuad lw(knots);
+    
+    // Number of possible threads
+    int nthrds = omp_get_max_threads();
+
+    // Storage for multithreading
+    std::vector<double> ret(nthrds);
+
+#pragma omp parallel for
+    for (int ijk=0; ijk<knots*knots*knots; ijk++) {
+
+      // Get thread id
+      int tid = omp_get_thread_num();
+
+      // Get quadrature indicies
+      int i = floor(ijk/(knots*knots)+1.0e-16);
+      int j = (ijk  - i*knots*knots)/knots;
+      int k = ijk - i*knots*knots - j*knots;
+      
+      double xx =  ximin + (ximax - ximin)*lw.knot(i);
+      double rr =  x_to_r(xx);
+      double costh = -1.0 + 2.0*lw.knot(j);
+      double sinth = sqrt(std::abs(1.0 - costh*costh));
+      double phi = 2.0*M_PI/knots*k;
+      
+      double x = rr*sinth*cos(phi);
+      double y = rr*sinth*sin(phi);
+      double z = rr*costh;
+      
+      double fval = func(x, y, z) * (ximax - ximin) * rr*rr /
+	d_x_to_r(xx) * 2.0 * lw.weight(i) * lw.weight(j) * 2.0*M_PI/knots;
+
+      ret[tid] += fval;
+    }
+
+    for (int n=1; n<nthrds; n++) ret[0] += ret[n];
+
+    return ret[0];
+  }
+
+  CoefClasses::CoefStrPtr Cylindrical::makeFromFunction
+  (std::function<double(double, double, double, double time)> func,
+   std::map<std::string, double>& params, double time, bool potential)
+  {
+    CoefClasses::CoefStrPtr coefs;
+
+    // Quadrature knots
+    //
+    int knots = 200;
+    if (params.find("knots") != params.end())
+      knots = static_cast<int>(params["knots"]);
+    
+    // Get from internal cylindrical class instance
+    //
+    double ASCL   = sl->get_ascale();
+    double HSCL   = sl->get_hscale();
+    double Rtable = sl->get_rtable();
+
+    double xmin = sl->r_to_xi(sl->RMIN*ASCL);
+    double xmax = sl->r_to_xi(Rtable*ASCL);
+      
+    double ymin = sl->z_to_y(-Rtable*ASCL);
+    double ymax = sl->z_to_y( Rtable*ASCL);
+
+    int Mmax = sl->get_mmax();
+    int Nmax = sl->get_order();
+
+    // Make the structure
+    //
+    auto scof = std::make_shared<CoefClasses::CylStruct>();
+
+    // =====================
+    // Begin coordinate loop
+    // =====================
+
+    LegeQuad lw(knots);
+
+    // Number of possible threads
+    //
+    int nthrds = omp_get_max_threads();
+
+    std::vector<Eigen::MatrixXcd> mat(nthrds);
+    for (auto & v : mat) {
+      v.resize(Mmax+1, Nmax);
+      v.setZero();
+    }
+
+#pragma omp parallel for
+    for (int ijk=0; ijk<knots*knots*knots; ijk++) {
+
+      // Get thread id
+      int tid = omp_get_thread_num();
+
+      // Get quadrature indicies
+      int i = floor(ijk/(knots*knots)+1.0e-16);
+      int j = (ijk  - i*knots*knots)/knots;
+      int k = ijk - i*knots*knots - j*knots;
+      
+      double xx = xmin + (xmax - xmin)*lw.knot(i);
+      double yy = ymin + (ymax - ymin)*lw.knot(j);
+
+      double R =   sl->xi_to_r(xx);
+      double z =   sl->y_to_z(yy);
+      double phi = 2.0*M_PI/knots*k;
+      
+      double x = R*cos(phi);
+      double y = R*sin(phi);
+
+      double fac = (xmax - xmin)*(ymax - ymin) * lw.weight(i)*lw.weight(j) *
+	2.0*M_PI/knots * func(x, y, z, time) * R /
+	sl->d_xi_to_r(xx) * sl->d_y_to_z(yy);
+
+      for (int mm=0; mm<=Mmax; mm++) {
+
+	double mcos = cos(phi*mm);
+	double msin = sin(phi*mm);
+
+	for (int nn=0; nn<Nmax; nn++) {
+
+	  double pC, pS;
+	  if (potential)
+	    sl->getDensSC(mm, nn, R, z, pC, pS);
+	  else
+	    sl->getPotSC(mm, nn, R, z, pC, pS);
+
+	  mat[tid](mm, nn) += std::complex<double>(pC*mcos, pS*msin) * fac;
+	}
+      }
+    }
+
+    // Sum up results from all threads
+    for (int n=1; n<nthrds; n++) mat[0] += mat[n];
+
+    // Assign to CoefStruct
+    scof->assign(mat[0], Mmax, Nmax);    
+    
+    return scof;
+  }
+
+  double Cylindrical::computeQuadrature
+  (std::function<double(double, double, double)> func,
+   std::map<std::string, double>& params)
+  {
+    CoefClasses::CoefStrPtr coefs;
+
+    // Quadrature knots
+    //
+    int knots = 200;
+    if (params.find("knots") != params.end())
+      knots = static_cast<int>(params["knots"]);
+    
+    // Get from internal cylindrical class instance
+    //
+    double ASCL   = sl->get_ascale();
+    double HSCL   = sl->get_hscale();
+    double Rtable = sl->get_rtable();
+
+    double xmin = sl->r_to_xi(sl->RMIN*ASCL);
+    double xmax = sl->r_to_xi(Rtable*ASCL);
+      
+    double ymin = sl->z_to_y(-Rtable*ASCL);
+    double ymax = sl->z_to_y( Rtable*ASCL);
+
+    int Mmax = sl->get_mmax();
+    int Nmax = sl->get_order();
+
+    // Make the structure
+    //
+    auto scof = std::make_shared<CoefClasses::CylStruct>();
+
+    // =====================
+    // Begin coordinate loop
+    // =====================
+
+    LegeQuad lw(knots);
+
+    double ret = 0.0;
+      
+    // Number of possible threads
+    //
+    int nthrds = omp_get_max_threads();
+
+#pragma omp parallel for
+    for (int ijk=0; ijk<knots*knots*knots; ijk++) {
+
+      // Get thread id
+      int tid = omp_get_thread_num();
+
+      // Get quadrature indicies
+      int i = floor(ijk/(knots*knots)+1.0e-16);
+      int j = (ijk  - i*knots*knots)/knots;
+      int k = ijk - i*knots*knots - j*knots;
+      
+      double xx = xmin + (xmax - xmin)*lw.knot(i);
+      double yy = ymin + (ymax - ymin)*lw.knot(j);
+
+      double R =   sl->xi_to_r(xx);
+      double z =   sl->y_to_z(yy);
+      double phi = 2.0*M_PI/knots*k;
+      
+      double x = R*cos(phi);
+      double y = R*sin(phi);
+
+      double fac = (xmax - xmin)*(ymax - ymin) * lw.weight(i)*lw.weight(j) *
+	2.0*M_PI/knots * func(x, y, z) * R /
+	sl->d_xi_to_r(xx) * sl->d_y_to_z(yy);
+
+#pragma omp critical
+      ret += fac;
+    }
+    
+    return ret;
+  }
+
 
 }
 // END namespace BasisClasses
