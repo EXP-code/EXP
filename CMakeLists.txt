@@ -33,6 +33,10 @@ endif()
 # Required compiler features
 add_compile_options(-D_REENTRANT)
 
+# Add an explicit path to the install library directory (esp. useful
+# for Python bindings)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
 # Bake in library paths (esp. useful for HPC sites with modules)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
