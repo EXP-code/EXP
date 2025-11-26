@@ -4017,14 +4017,16 @@ namespace BasisClasses
     // Recursion multipliers
     //
     Eigen::Vector3cd step
-      {std::exp(-kfac*x), std::exp(-kfac*y), std::exp(-kfac*z)};
+      {std::exp(-kfac*x),
+       std::exp(-kfac*y),
+       std::exp(-kfac*z)};
     
     // Initial values for recursion
     //
     Eigen::Vector3cd init
-      {std::exp(-kfac*(x*nmaxx)),
-       std::exp(-kfac*(y*nmaxy)),
-       std::exp(-kfac*(z*nmaxz))};
+      {std::exp(kfac*(x*nmaxx)),
+       std::exp(kfac*(y*nmaxy)),
+       std::exp(kfac*(z*nmaxz))};
     
     Eigen::VectorXcd g;
     if (pcavar) {
@@ -4043,9 +4045,9 @@ namespace BasisClasses
 	  // Compute wavenumber; recall that the coefficients are
 	  // stored as: -nmax,-nmax+1,...,0,...,nmax-1,nmax
 	  //
-	  int ii = ix-nmaxx;
-	  int jj = iy-nmaxy;
-	  int kk = iz-nmaxz;
+	  int ii = ix - nmaxx;
+	  int jj = iy - nmaxy;
+	  int kk = iz - nmaxz;
 
 	  // Throw away constant term
 	  if (ii==0 and jj==0 and kk==0) continue;
