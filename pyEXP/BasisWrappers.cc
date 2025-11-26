@@ -1844,6 +1844,13 @@ void BasisFactoryClasses(py::module &m)
          -------
          Cylindrical
               the new instance
+
+         Notes
+         -----
+         Similar to SphericalSL, the range of the harmonic orders may be
+         restricted to even harmonic order using the EVEN_M YAML option:
+             EVEN_M : bool
+		      if true, only even m terms are used (default: false)
          )", py::arg("YAMLstring"))
     .def("getBasis", &BasisClasses::Cylindrical::getBasis,
 	 R"(
@@ -1944,6 +1951,23 @@ void BasisFactoryClasses(py::module &m)
          -------
          Spherical
               the new instance
+
+         Notes
+         -----
+         The configuration has a number of options for controlling the range of
+         the harmonic orders and radial basis functions.  These options are:
+             N1     : int
+		      the minimum radial order (default: 0)
+             N2     : int
+		      the maximum radial order (default: nmax-1)
+             EVEN_M : bool
+		      if true, only even m terms are used (default: false)
+             EVEN_L : bool
+		      if true, only even l terms are used (default: false)
+             NO_L1  : bool
+		      turn off the l=1 (dipole) harmonics (default: false)
+             NO_L0  : bool
+		      turn off the l=0 (monopole) harmonics (default: false)
          )", py::arg("YAMLstring"), py::arg("ForceID"))
       .def("getBasis", &BasisClasses::Spherical::getBasis,
 	   R"(

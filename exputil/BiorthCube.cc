@@ -235,7 +235,7 @@ BiorthCube::get_force(const BiorthCube::coefType& c, Eigen::Vector3d x)
   Eigen::Vector3i i;
 
   for (int k=0; k<3; k++) {
-    step(k)  = std::exp(kfac*x(k));
+    step(k) = std::exp(kfac*x(k));
     init(k) = std::exp(-kfac*(x(k)*nmax(k)));
   }
     
