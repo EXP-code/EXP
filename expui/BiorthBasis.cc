@@ -902,9 +902,11 @@ namespace BasisClasses
     pott *= (-potlfac);
     potp *= (-potlfac);
 
-    double tpotx = (potr - pott*costh/(r*r))*x/r - potp*y/R;
-    double tpoty = (potr - pott*costh/(r*r))*y/r + potp*z/R;
-    double tpotz = potr*z/r + pott*sinth/(r*r);
+    // Transform to Cartesian components
+    //
+    double tpotx = (potr - pott*costh/r)*x/r - potp*y/R2;
+    double tpoty = (potr - pott*costh/r)*y/r + potp*x/R2;
+    double tpotz = potr*costh + pott*sinth*sinth/r;
 
     // Return force not potential gradient
     //
