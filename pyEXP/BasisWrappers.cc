@@ -2039,15 +2039,17 @@ void BasisFactoryClasses(py::module &m)
         )",
 	py::arg("cachefile"))
 
-      .def_static("I", [](int l, int m)
+      .def("I", [](BasisClasses::Spherical& A, int l, int m, int n)
       {
 	if (l<0) throw std::runtime_error("l must be greater than 0");
 	if (m<0) throw std::runtime_error("m must be greater than 0");
+	if (n<0) throw std::runtime_error("n must be greater than 0");
 	if (abs(m)>l) throw std::runtime_error("m must be less than or equal to l");
-	return (l * (l + 1) / 2) + m;
+	int lmax = A.getLmax();
+	return (lmax + 1)*(lmax + 2)/2*n + (l * (l + 1) / 2) + m;
       },
 	R"(
-        Calculate the index of a spherical harmonic element given the angular numbers l and m .
+        Calculate the index of a coefficient element given the angular numbers l and m and radial index n
 
         Parameters
         ----------
@@ -2055,35 +2057,47 @@ void BasisFactoryClasses(py::module &m)
             spherical harmonic order l
         m : int
             azimuthal order m
+        n : int
+            radial order n
 
         Returns
         -------
         I : int
             index array packing index
-      )",
-	py::arg("l"), py::arg("m"))
 
-      .def_static("invI", [](int I)
+        Notes
+        -----
+      	The radial index n is optional and defaults to 0.  Use n=0 to get the
+        spherical harmonic index.
+      )",
+	py::arg("l"), py::arg("m"), py::arg("n")=0)
+
+	.def("invI", [](BasisClasses::Spherical& A, int I)
       {
 	if (I<0) std::runtime_error("I must be an integer greater than or equal to 0");
-	int l = std::floor(0.5*(-1.0 + std::sqrt(1.0 + 8.0 * I)));
-	int m = I - int(l * (l + 1) / 2);
-	return std::tuple<int, int>(l, m);
+	int lmax = A.getLmax();			// Largest harmonic order l
+	int Ltot = (lmax + 1) * (lmax + 2) / 2;	// Number of (l,m) pairs
+	int n = I / Ltot;			// Radial index
+	int L = I - n * Ltot;			// Index in l,m set
+	// Solve for l and m (i.e. invert L = l*(l+1)/2 + m)
+	int l = std::floor(0.5*(-1.0 + std::sqrt(1.0 + 8.0 * L)));
+	int m = L - int(l * (l + 1) / 2);
+	// Return the indices
+	return std::tuple<int, int, int>(l, m, n);
       },
 	R"(
-        Calculate the spherical harmonic indices l and m from the coefficient array packing index I
+        Calculate the spherical harmonic indices l and m and radial index n
+        from the coefficient array packing index I
 
         Parameters
         ----------
         I : int
-	  double hold = norm * mass * mcos * vc[id](mm, nn);
-
-            the spherical coefficient array index
+            the coefficient array index
 
         Returns
         -------
-        (l, m) : tuple
-            the harmonic indices (l, m).
+        (l, m, n) : tuple
+            the harmonic indices (l, m) and radial index n
         )", py::arg("I"));
   
     py::class_<BasisClasses::SphericalSL, std::shared_ptr<BasisClasses::SphericalSL>, BasisClasses::Spherical>(m, "SphericalSL")
