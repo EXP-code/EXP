@@ -711,6 +711,7 @@ namespace BasisClasses
     legendre_R(lmax, costh, legs[tid], dlegs[tid]);
     
     double den0, pot0, potr;
+    double sinth = std::sqrt(std::fabs(1.0 - costh*costh));
 
     if (NO_L0) {
       den0 = 0.0;
@@ -788,15 +789,15 @@ namespace BasisClasses
     double potlfac = 1.0/scale;
 
     return
-      {den0 * densfac,		// 0
-       den1 * densfac,		// 1
-       (den0 + den1) * densfac,	// 2
-       pot0 * potlfac,		// 3
-       pot1 * potlfac,		// 4
-       (pot0 + pot1) * potlfac,	// 5
-       potr * (-potlfac)/scale,	// 6
-       pott * (-potlfac),	// 7
-       potp * (-potlfac)};	// 8
+      {den0 * densfac,		     // 0
+       den1 * densfac,		     // 1
+       (den0 + den1) * densfac,	     // 2
+       pot0 * potlfac,		     // 3
+       pot1 * potlfac,		     // 4
+       (pot0 + pot1) * potlfac,	     // 5
+       potr * (-potlfac)/scale,	     // 6
+       pott * (-potlfac)/r,	     // 7
+       potp * (-potlfac)/(r*sinth)}; // 8
     //         ^
     //         |
     // Return force not potential gradient
@@ -806,8 +807,10 @@ namespace BasisClasses
 			       Eigen::Ref<Eigen::Vector3d> acc)
   {
     // Get polar coordinates
-    double R     = sqrt(x*x + y*y);
-    double r     = sqrt(R*R + z*z);
+    double R2    = x*x + y*y;
+    double r2    = R2  + z*z;
+    double R     = sqrt(x*x + y*y) + 1.0e-18;
+    double r     = sqrt(r2) + 1.0e-18;
     double costh = z/r;
     double sinth = R/r;
     double phi   = atan2(y, x);
@@ -816,6 +819,7 @@ namespace BasisClasses
     int tid = omp_get_thread_num();
 
     
+    // Spherical harmonic prefactor
     double fac1 = factorial(0, 0);
     
     get_pot  (potd[tid], r/scale);
@@ -853,6 +857,7 @@ namespace BasisClasses
 	if (M0_only and m) continue;
 	if (EVEN_M and m%2) continue;
 	
+	// Spherical harmonic prefactor
 	fac1 = factorial(l, m);
 	if (m==0) {
 	  double sumR=0.0, sumP=0.0, sumD=0.0;
@@ -897,15 +902,13 @@ namespace BasisClasses
     pott *= (-potlfac);
     potp *= (-potlfac);
 
-    double potR = potr*sinth + pott*costh;
-    double potz = potr*costh - pott*sinth;
-  
-    double tpotx = potR*x/R - potp*y/R ;
-    double tpoty = potR*y/R + potp*x/R ;
+    double tpotx = (potr - pott*costh/(r*r))*x/r - potp*y/R;
+    double tpoty = (potr - pott*costh/(r*r))*y/r + potp*z/R;
+    double tpotz = potr*z/r + pott*sinth/(r*r);
 
     // Return force not potential gradient
     //
-    acc << tpotx, tpoty, potz;
+    acc << tpotx, tpoty, tpotz;
   }
 
 
@@ -917,8 +920,8 @@ namespace BasisClasses
     
     auto v = sph_eval(r, costh, phi);
     
-    double potR = v[6]*sinth + v[7]*costh;
-    double potz = v[6]*costh - v[7]*sinth;
+    double potR = v[6]*sinth - v[7]*costh*R/r;
+    double potz = v[6]*costh + v[7]*sinth*R/r;
 
     return {v[0], v[1], v[2], v[3], v[4], v[5], potR, potz, v[8]};
   }
@@ -968,7 +971,7 @@ namespace BasisClasses
 	for (int n=0; n<nmax;n++){
 	  ret[l][n]["potential"](i) = tabpot(l, n);
 	  ret[l][n]["density"  ](i) = tabden(l, n);
-	  ret[l][n]["rforce"   ](i) = tabfrc(l, n);
+	  ret[l][n]["rforce"   ](i) = tabfrc(l, n) * (-1.0);
 	}
       }
     }
@@ -1004,7 +1007,7 @@ namespace BasisClasses
 	for (int n=0; n<nmax;n++){
 	  ret[l][n]["potential"](i) = tabpot(l, n);
 	  ret[l][n]["density"  ](i) = tabden(l, n);
-	  ret[l][n]["rforce"   ](i) = tabfrc(l, n);
+	  ret[l][n]["rforce"   ](i) = tabfrc(l, n) * (-1.0);
 	}
       }
     }
