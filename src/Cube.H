@@ -250,6 +250,25 @@ private:
   }
 
 
+  /** Return a subsample of the basis coefficients and covariance
+      elements for matrices for PCA analysis. The default
+      implementation returns empty vectors. This parallels the
+      implementation in expui. */
+  virtual CovarElement getSubsample()
+  {
+    std::vector<double>   mass;
+    std::vector<unsigned> count;
+    std::vector<std::vector<std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>>> covar;
+    
+    return std::make_tuple(mass, count, covar);
+  }
+
+  //! Write basis-specific parameters to HDF5 covariance file
+  void writeCovarH5Params(HighFive::File& file);
+
+  //! Write basis-specific parameters to HDF5 covariance file
+  unsigned writeCovarH5(HighFive::Group& group,
+			unsigned count, double time);
 public:
 
   //! Id string

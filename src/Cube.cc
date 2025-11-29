@@ -15,7 +15,8 @@ Cube::valid_keys = {
   "nmaxy",
   "nmaxz",
   "method",
-  "wrap"
+  "wrap",
+  "subsampleFloat"
 };
 
 //@{
@@ -119,6 +120,11 @@ void Cube::initialize(void)
     if (conf["nmaxz" ])  nmaxz      = conf["nmaxz" ].as<int>();
     if (conf["method"])  cuMethod   = conf["method"].as<std::string>();
     if (conf["wrap"  ])  wrap       = conf["wrap"  ].as<bool>();
+
+    if (conf["subsampleFloat"]) {
+      floatType = conf["subsampleFloat"].as<bool>();
+    }
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in Cube: "
@@ -837,3 +843,12 @@ void Cube::compute_multistep_coefficients()
   }
 }
 
+void Cube::writeCovarH5Params(HighFive::File& file)
+{
+  file.createAttribute<int>("nminx", HighFive::DataSpace::From(nminx)).write(nminx);
+  file.createAttribute<int>("nminy", HighFive::DataSpace::From(nminy)).write(nminy);
+  file.createAttribute<int>("nminz", HighFive::DataSpace::From(nminz)).write(nminz);
+  file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(nmaxx)).write(nmaxx);
+  file.createAttribute<int>("nmaxy", HighFive::DataSpace::From(nmaxy)).write(nmaxy);
+  file.createAttribute<int>("nmaxz", HighFive::DataSpace::From(nmaxz)).write(nmaxz);
+}

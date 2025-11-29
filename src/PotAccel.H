@@ -9,10 +9,18 @@
 
 #include <memory>
 #include <yaml-cpp/yaml.h>
+#include <Eigen/Eigen>
+
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
+#include <highfive/eigen.hpp>
 
 #include "Particle.H"
 #include "StringTok.H"
 #include "YamlCheck.H"
+#include "localmpi.H"
 
 #include "config_exp.h"
 
@@ -92,6 +100,74 @@ protected:
 
   //! Current YAML keys to check configuration
   std::set<std::string> current_keys;
+
+  //! @name Subsampling
+  //@{
+  /** Define the type returned by getSubsample
+
+      The outermost vectors contain subsamples of mass per sample,
+      counts per sample, and arrays of coefficients and covariance
+      elements per sample indexed by harmonic
+  */
+  using CovarElement =
+    std::tuple< std::vector<double>, std::vector<unsigned>,
+    std::vector<std::vector<std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>>> >;
+
+  /** Return a subsample of the basis coefficients and covariance
+      elements for matrices for PCA analysis. The default
+      implementation returns empty vectors. */
+  virtual CovarElement getSubsample()
+  {
+    std::vector<double>   mass;
+    std::vector<unsigned> count;
+    std::vector<std::vector<std::tuple<Eigen::VectorXcd,
+				       Eigen::MatrixXcd>>> covar;
+    
+    return std::make_tuple(mass, count, covar);
+  }
+
+  //! Reset subsample data
+  virtual void subsampleReset() { subsampleComputed = false; }
+
+  //! Extend the subsample data
+  virtual void extendSubsample(const std::string& fname, double time);
+
+  //! Write basis-specific parameters to HDF5 covariance file
+  virtual void writeCovarH5Params(HighFive::File& file)
+  {
+    if (myid==0)
+      std::cout << "Basis::writeCovarH5Params: "
+		<< "not implemented for basis type <" << id << ">"
+		<< std::endl;
+  }
+
+  //! Write basis-specific parameters to HDF5 covariance file
+  virtual unsigned writeCovarH5(HighFive::Group& group,
+				unsigned count, double time);
+
+  //! Variance file versioning (Version 1.0 has more granularity and
+  //! poor compression)
+  inline static const std::string CovarianceFileVersion = "1.1";
+
+  //! Use 32-bit floating point type in covariance file
+  bool floatType = false;
+
+  //! Save covariance subsamples to file
+  bool fullCovar = false;
+
+  //! Is subsample computed and ready to write?
+  bool subsampleComputed = false;
+
+  //@}
+
+  //@{
+  //! HDF5 compression settings
+  unsigned H5compress  = 5;
+  unsigned H5chunk     = 1024*1024; // (1 MB)
+  bool     H5shuffle   = true;
+  bool     H5szip      = false;
+  //@}
+
 
 public:
 
@@ -181,6 +257,27 @@ public:
   virtual void dump_coefs(ostream &out) {};
   virtual void dump_coefs_h5(const std::string &file) {};
 
+  //@name Subsampling methods
+  //@{
+  //! Write the subsample to file
+  virtual void writeSubsample();
+
+  //! Indicate whether or not subsamples are available
+  virtual bool subsampleReady() { return subsampleComputed; }
+
+  //! Indicate whether or not subsampling is supported
+  virtual bool hasSubsample() {	return false; }
+  //@}
+
+  //! HDF5 compression settings
+  void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle, bool szip=false)
+  {
+    H5compress = level;
+    H5chunk    = chunksize;
+    H5shuffle  = shuffle;
+    H5szip     = szip;
+  }
+
   /** Update the multi time step force algorithm when moving particle 
       <code>i</code> from level <code>cur</code> to level 
       <code>next</code>
@@ -234,6 +331,9 @@ public:
 
   //! Get unaccounted keys
   std::set<std::string> unmatched() { return current_keys; }
+
+  //! Round time key to emulated fixed-point arithmetic
+  double roundTime(double time);
 
 };
 

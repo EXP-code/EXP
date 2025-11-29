@@ -21,6 +21,7 @@ AxisymmetricBasis::valid_keys =
     "pcaeof",
     "pcadiag",
     "pcavtk",
+    "covar",
     "subsamp",
     "hexp",
     "snr",
