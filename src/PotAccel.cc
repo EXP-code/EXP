@@ -5,6 +5,7 @@
 #include <Eigen/Eigen>
 
 #include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
 
 #include "expand.H"
 #include "PotAccel.H"

@@ -9,13 +9,11 @@
 const std::set<std::string>
 OutSample::valid_keys = {
   "filename",
-  "nint",
   "name"
 };
 
 OutSample::OutSample(const YAML::Node& conf) : Output(conf)
 {
-  nint      = 10;
   nintsub   = std::numeric_limits<int>::max();
   tcomp     = NULL;
 
@@ -36,14 +34,13 @@ void OutSample::initialize()
   // Assign values from YAML
   //
   try {
-    if (conf["nint"])         nint     = conf["nint"].as<int>();
-    if (conf["name"])
-      {				// Search for desired component
-	std::string tmp = conf["name"].as<std::string>();
-	for (auto c : comp->components) {
-	  if (!(c->name.compare(tmp))) tcomp  = c;
-	}
+    // Search for desired component by name
+    if (conf["name"]) {
+      std::string tmp = conf["name"].as<std::string>();
+      for (auto c : comp->components) {
+	if (!(c->name.compare(tmp))) tcomp  = c;
       }
+    }
 
     if (!tcomp) {
       std::string message = "OutSample: no component to trace. Please specify "
@@ -51,14 +48,11 @@ void OutSample::initialize()
       throw std::runtime_error(message);
     }
 
-    if (conf["filename"])
-      {
-	filename = outdir + conf["filename"].as<std::string>();
-      }
-    else
-      {
-	filename = outdir + "outcoef." + tcomp->name + "." + runtag;
-      }
+    if (conf["filename"]) {
+      filename = outdir + conf["filename"].as<std::string>();
+    } else {
+      filename = outdir + "outcoef." + tcomp->name + "." + runtag;
+    }
 
   }
   catch (YAML::Exception & error) {
@@ -78,17 +72,14 @@ void OutSample::Run(int n, int mstep, bool last)
   // Subsampling is not available for output
   //
   if (not tcomp->force->subsampleReady()) return;
-
-  // Skip this master step
-  //
-  if (n % nint != 0 && !last) return;
-
+  
   // Check for repeat time
   //
   if (tnow <= prev) return;
 
+  // Cache the current simulation time
   prev = tnow;
-
+    
   // Write the subsample data
   tcomp->force->writeSubsample();
 }

@@ -65,14 +65,34 @@ private:
   //@{
   //! Variables
   int imx, imy, imz, osize;
-  int use1, use0;
+  int use1, use0, sampT=0, nint=0;
   std::complex<double> kfac;
-  double dfac;
+  double dfac, last=-std::numeric_limits<double>::max();
   bool wrap = true;		// Enforce periodic wrapping
   //@}
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+  //@{
+  //! Covariance structures.  First index is T, second is the
+  //! flattened 3-d k vector
+  std::vector<Eigen::VectorXcd> meanV;
+  std::vector<Eigen::MatrixXcd> covrV;
+
+  //@{
+  //! Per thread covariance structures
+  std::vector<std::vector<Eigen::VectorXcd>> meanV1;
+  std::vector<std::vector<Eigen::MatrixXcd>> covrV1;
+  std::vector<Eigen::VectorXcd> workV1;
+  std::vector<Eigen::VectorXi>  countV1;
+  std::vector<Eigen::VectorXd>  massV1;
+  //@}
+
+  void init_covariance();
+  void zero_covariance();
+  //@}
+
 
 #if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda();
@@ -250,25 +270,9 @@ private:
   }
 
 
-  /** Return a subsample of the basis coefficients and covariance
-      elements for matrices for PCA analysis. The default
-      implementation returns empty vectors. This parallels the
-      implementation in expui. */
-  virtual CovarElement getSubsample()
-  {
-    std::vector<double>   mass;
-    std::vector<unsigned> count;
-    std::vector<std::vector<std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>>> covar;
-    
-    return std::make_tuple(mass, count, covar);
-  }
-
   //! Write basis-specific parameters to HDF5 covariance file
   void writeCovarH5Params(HighFive::File& file);
 
-  //! Write basis-specific parameters to HDF5 covariance file
-  unsigned writeCovarH5(HighFive::Group& group,
-			unsigned count, double time);
 public:
 
   //! Id string
@@ -288,6 +292,15 @@ public:
 
   //! Coefficient output
   void dump_coefs_h5(const std::string& file);
+
+  /** Return a subsample of the basis coefficients and covariance
+      elements for matrices for analysis. The default implementation
+      returns empty vectors. This parallels the implementation in
+      expui. */
+  CovarElement getSubsample();
+
+  //! Indicate whether or not subsampling is supported
+  virtual bool hasSubsample() {	return true; }
 };
 
 

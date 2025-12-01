@@ -3,13 +3,22 @@
 
 #include "OutSample.H"
 
-/** Dump coefficients at each interval
+/** @file OutSample.H
+
+    @brief Dump coefficients at each interval
     
     @param filename of the coefficient file
 
     @param name of the component to dump
   
-    @param nint is the frequency between file updates 
+    @note This output class requires a different strategy than most of
+    the others.  Rather than maintaining its own step counter, it
+    checks the component's subsampling status to determine whether
+    subsample data is available.  Then it updates the HDF5 file.  The
+    `mstep` and `last` parameters in the `Run`.  The component's
+    `PotAccel` instance must support subsampling by overriding and
+    implementing `subsampleReady()` as well as the underlying
+    `getSubsample()` member to retrieve the data.
 */
 class OutSample : public Output
 {

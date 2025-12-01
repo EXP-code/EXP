@@ -42,6 +42,16 @@ public:
   //! For timing
   typedef std::vector<std::time_t> TList;
 
+  /** Define the type returned by getSubsample
+
+      The outermost vectors contain subsamples of mass per sample,
+      counts per sample, and arrays of coefficients and covariance
+      elements per sample indexed by harmonic
+  */
+  using CovarElement =
+    std::tuple< Eigen::VectorXd, Eigen::VectorXi,
+		std::vector<std::vector<std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>>> >;
+
 private:
 
   // Threading stuff
@@ -103,23 +113,14 @@ protected:
 
   //! @name Subsampling
   //@{
-  /** Define the type returned by getSubsample
-
-      The outermost vectors contain subsamples of mass per sample,
-      counts per sample, and arrays of coefficients and covariance
-      elements per sample indexed by harmonic
-  */
-  using CovarElement =
-    std::tuple< std::vector<double>, std::vector<unsigned>,
-    std::vector<std::vector<std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>>> >;
 
   /** Return a subsample of the basis coefficients and covariance
       elements for matrices for PCA analysis. The default
       implementation returns empty vectors. */
   virtual CovarElement getSubsample()
   {
-    std::vector<double>   mass;
-    std::vector<unsigned> count;
+    Eigen::VectorXd   mass;
+    Eigen::VectorXi   count;
     std::vector<std::vector<std::tuple<Eigen::VectorXcd,
 				       Eigen::MatrixXcd>>> covar;
     
@@ -154,6 +155,12 @@ protected:
 
   //! Save covariance subsamples to file
   bool fullCovar = false;
+
+  //! Request to compute subsample data
+  bool requestSubsample = false;
+
+  //! Enable computation of subsample data
+  bool computeSubsample = false;
 
   //! Is subsample computed and ready to write?
   bool subsampleComputed = false;
@@ -262,11 +269,20 @@ public:
   //! Write the subsample to file
   virtual void writeSubsample();
 
+  //! Set flag to compute subsample data
+  virtual void subsampleRequest() { requestSubsample = true; }
+
   //! Indicate whether or not subsamples are available
   virtual bool subsampleReady() { return subsampleComputed; }
 
   //! Indicate whether or not subsampling is supported
   virtual bool hasSubsample() {	return false; }
+  //@}
+
+  //@{
+  //! Sample counts and masses for covariance computation
+  Eigen::VectorXi sampleCounts;
+  Eigen::VectorXd sampleMasses;
   //@}
 
   //! HDF5 compression settings
