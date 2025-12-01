@@ -133,10 +133,6 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
 
     if (conf["noise_model_file"]) noise_model_file = conf["noise_model_file"].as<std::string>();
 
-    if (conf["subsampleFloat"]) {
-      floatType = conf["subsampleFloat"].as<bool>();
-    }
-
     if (conf["seedN"])   seedN   = conf["seedN"].as<int>();
     
     if (conf["ssfrac"]) {

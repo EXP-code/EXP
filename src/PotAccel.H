@@ -114,45 +114,9 @@ protected:
   //! @name Subsampling
   //@{
 
-  /** Return a subsample of the basis coefficients and covariance
-      elements for matrices for PCA analysis. The default
-      implementation returns empty vectors. */
-  virtual CovarElement getSubsample()
-  {
-    Eigen::VectorXd   mass;
-    Eigen::VectorXi   count;
-    std::vector<std::vector<std::tuple<Eigen::VectorXcd,
-				       Eigen::MatrixXcd>>> covar;
-    
-    return std::make_tuple(mass, count, covar);
-  }
-
   //! Reset subsample data
   virtual void subsampleReset() { subsampleComputed = false; }
-
-  //! Extend the subsample data
-  virtual void extendSubsample(const std::string& fname, double time);
-
-  //! Write basis-specific parameters to HDF5 covariance file
-  virtual void writeCovarH5Params(HighFive::File& file)
-  {
-    if (myid==0)
-      std::cout << "Basis::writeCovarH5Params: "
-		<< "not implemented for basis type <" << id << ">"
-		<< std::endl;
-  }
-
-  //! Write basis-specific parameters to HDF5 covariance file
-  virtual unsigned writeCovarH5(HighFive::Group& group,
-				unsigned count, double time);
-
-  //! Variance file versioning (Version 1.0 has more granularity and
-  //! poor compression)
-  inline static const std::string CovarianceFileVersion = "1.1";
-
-  //! Use 32-bit floating point type in covariance file
-  bool floatType = false;
-
+    
   //! Save covariance subsamples to file
   bool fullCovar = false;
 
@@ -167,15 +131,6 @@ protected:
 
   //@}
 
-  //@{
-  //! HDF5 compression settings
-  unsigned H5compress  = 5;
-  unsigned H5chunk     = 1024*1024; // (1 MB)
-  bool     H5shuffle   = true;
-  bool     H5szip      = false;
-  //@}
-
-
 public:
 
   //! For timing data
@@ -186,7 +141,7 @@ public:
   };
 
   //! Id string
-  string id;
+  std::string id;
 
   //! Possible geometries
   enum Geometry {sphere, cylinder, cube, slab, table, other};
@@ -266,9 +221,6 @@ public:
 
   //@name Subsampling methods
   //@{
-  //! Write the subsample to file
-  virtual void writeSubsample();
-
   //! Set flag to compute subsample data
   virtual void subsampleRequest() { requestSubsample = true; }
 
@@ -277,6 +229,15 @@ public:
 
   //! Indicate whether or not subsampling is supported
   virtual bool hasSubsample() {	return false; }
+
+  //! Write basis-specific parameters to HDF5 covariance file
+  virtual void writeCovarH5Params(HighFive::File& file)
+  {
+    if (myid==0)
+      std::cout << "Basis::writeCovarH5Params: "
+		<< "not implemented for basis type <" << id << ">"
+		<< std::endl;
+  }
   //@}
 
   //@{
@@ -285,14 +246,21 @@ public:
   Eigen::VectorXd sampleMasses;
   //@}
 
-  //! HDF5 compression settings
-  void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle, bool szip=false)
+  //@{
+  //! Type for coefficient and covariance matrix tuple
+
+  using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
+    
+  using CovarData = std::tuple<Eigen::VectorXi, Eigen::VectorXd,
+			       std::vector<std::vector<CoefCovarType>>>;
+
+  virtual CovarData getSubsample()
   {
-    H5compress = level;
-    H5chunk    = chunksize;
-    H5shuffle  = shuffle;
-    H5szip     = szip;
+    // Must be overriden; base implementation throws error
+    throw std::runtime_error("PotAccel::getSubsample: Not implemented for this basis");
   }
+  //@}
+
 
   /** Update the multi time step force algorithm when moving particle 
       <code>i</code> from level <code>cur</code> to level 
@@ -331,6 +299,9 @@ public:
   //! Check whether coeffcients are not available
   bool NoCoefs() { return play_back and !play_cnew; }
 
+  //! Get fullCovar flag
+  bool FullCovar() { return fullCovar; }
+
   //! For timing the fraction spent in threaded force methods
   //@{
   void print_timings(const string&, TList& tlist);
@@ -347,10 +318,6 @@ public:
 
   //! Get unaccounted keys
   std::set<std::string> unmatched() { return current_keys; }
-
-  //! Round time key to emulated fixed-point arithmetic
-  double roundTime(double time);
-
 };
 
 //! Helper class to pass info to threaded member

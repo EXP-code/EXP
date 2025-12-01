@@ -275,9 +275,6 @@ private:
 
 public:
 
-  //! Id string
-  std::string id;
-
   //! Constructor
   Cube(Component* c0, const YAML::Node& conf);
 
@@ -297,7 +294,7 @@ public:
       elements for matrices for analysis. The default implementation
       returns empty vectors. This parallels the implementation in
       expui. */
-  CovarElement getSubsample();
+  CovarData getSubsample();
 
   //! Indicate whether or not subsampling is supported
   virtual bool hasSubsample() {	return true; }

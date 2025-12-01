@@ -8,8 +8,13 @@
 
 const std::set<std::string>
 OutSample::valid_keys = {
+  "floatType",
   "filename",
-  "name"
+  "name",
+  "level",
+  "chunksize",
+  "compress",
+  "szip"
 };
 
 OutSample::OutSample(const YAML::Node& conf) : Output(conf)
@@ -23,6 +28,16 @@ OutSample::OutSample(const YAML::Node& conf) : Output(conf)
     throw std::runtime_error("OutSample: no subsampling for this force");
   }
 
+  covarStore = std::make_shared<BasisClasses::SubsampleCovariance>
+    ([this](HighFive::File& file){this->tcomp->force->writeCovarH5Params(file);},
+     this->tcomp->force->id, floatType, this->tcomp->force->FullCovar());
+
+  covarStore->setCovarH5Compress(level, chunksize, shuffle, szip);
+
+  if (myid==0)
+    std::cout << "---- OutSample: writing subsample coefficients for component '"
+	      << tcomp->name << "' to file " << filename << " for force '"
+	      << tcomp->force->id << "'" << std::endl;
 }
 
 void OutSample::initialize()
@@ -54,6 +69,26 @@ void OutSample::initialize()
       filename = outdir + "outcoef." + tcomp->name + "." + runtag;
     }
 
+    if (conf["floatType"]) {
+      floatType = conf["floatType"].as<bool>();
+    }
+
+    if (conf["level"]) {
+      level = conf["level"].as<unsigned>();
+    }
+
+    if (conf["chunksize"]) {
+      chunksize = conf["chunksize"].as<unsigned>();
+    }
+
+    if (conf["shuffle"]) {
+      shuffle = conf["shuffle"].as<bool>();
+    }
+
+    if (conf["szip"]) {
+      szip = conf["szip"].as<bool>();
+    }
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in OutSample: "
@@ -81,5 +116,7 @@ void OutSample::Run(int n, int mstep, bool last)
   prev = tnow;
     
   // Write the subsample data
-  tcomp->force->writeSubsample();
+  auto elem = tcomp->force->getSubsample();
+  covarStore->writeCoefCovariance(tcomp->name, runtag, elem, tnow);
+
 }

@@ -21,6 +21,7 @@
 #include "BiorthBess.H"
 #include "BasisFactory.H"
 #include "BiorthCube.H"
+#include "Covariance.H"
 #include "sltableMP2.H"
 #include "SLGridMP2.H"
 #include "YamlCheck.H"
@@ -106,22 +107,14 @@ namespace BasisClasses
     //! Coefficient variance computation enabled
     bool pcavar = false;
 
-    //! Data type for covariance
-    bool floatType = false;
-
     //@{
     //! Sample counts and masses for covariance computation
     Eigen::VectorXi sampleCounts;
     Eigen::VectorXd sampleMasses;
     //@}
 
-    //@{
-    //! HDF5 compression settings
-    unsigned H5compress  = 5;
-    unsigned H5chunk     = 1024*1024; // (1 MB)
-    bool     H5shuffle   = true;
-    bool     H5szip      = false;
-    //@}
+    //! Covariance storage instance
+    std::shared_ptr<SubsampleCovariance> covarStore;
 
     //! Round time key to emulated fixed-point arithmetic
     double roundTime(double time)
@@ -130,19 +123,6 @@ namespace BasisClasses
       const double multiplier = 1.0e+08;  // std::pow(10.0, 8);
       return std::floor(time * multiplier + 0.5) / multiplier;
     }
-
-    //! Write H5 covariance; returns updated group count
-    virtual unsigned writeCovarH5(HighFive::Group& group, unsigned count, double time);
-    
-    //! Write H5 parameters for coefficient covariance
-    virtual void writeCovarH5Params(HighFive::File& file) {}
-
-    //! Add coefficient covariance data to an HDF5 file
-    virtual void extendCoefCovariance(const std::string& filename, double time);
-
-    //! Variance file versioning (Version 1.0 has more granularity and
-    //! poor compression)
-    inline static const std::string CovarianceFileVersion = "1.1";
 
     //! Store full coavariance matrix?
     bool covar = true;
@@ -290,49 +270,34 @@ namespace BasisClasses
       return varray;
     }
 
-    //! Return a vector of tuples of basis functions and the
-    //! covariance matrix for subsamples of particles
-    using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
-    virtual std::vector<std::vector<CoefCovarType>>
-    getCoefCovariance()
+    //! Write coefficient covariance data to an HDF5 file
+    virtual void writeCoefCovariance(const std::string& compname, const std::string& runtag,
+				     double time=0.0)
     {
       // Must be overriden; base implementation throws error
-      throw std::runtime_error("BiorthBasis::getCoefCovariance: Not implemented for this basis");
-    }
-
-    //! Get sample counts for the covariance computation
-    virtual std::tuple<Eigen::VectorXi, Eigen::VectorXd>
-    getCovarSamples()
-    {
-      return std::make_tuple(sampleCounts, sampleMasses);
-    }
-
-    //! Write coefficient covariance data to an HDF5 file
-    void writeCoefCovariance(const std::string& compname,
-			     const std::string& runtag,
-			     double time=0.0);
-
-    //! Choose between float and double storage for covariance
-    void setCovarFloatType(bool flt) { floatType = flt; }
-
-    //! HDF5 compression settings
-    void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle, bool szip=false)
-    {
-      H5compress = level;
-      H5chunk    = chunksize;
-      H5shuffle  = shuffle;
-      H5szip     = szip;
+      throw std::runtime_error("BiorthBasis::writeCoefCovariance: "
+			       "Not implemented for this basis");
     }
 
     //! Make covariance after accumulation
     virtual void makeCoefCovariance(void) {}
 
     //! Enable covariance computation with optional sample time
-    virtual void enableCoefCovariance(bool pcavar, int sampT_in, bool covar_in)
+    virtual void enableCoefCovariance(bool pcavar, int sampT_in, bool ftype, bool covar_in)
     {
       // Must be overriden; base implementation throws error
       throw std::runtime_error("BiorthBasis::enableCoefCovariance: "
 			       "Not implemented for this basis");
+    }
+
+    //! HDF5 compression settings
+    void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle, bool szip=false)
+    {
+      if (covarStore) {
+	covarStore->setCovarH5Compress(level, chunksize, shuffle, szip);
+      } else {
+	throw std::runtime_error("BiorthBasis::setCovarH5Compress: covariance storage not initialized");
+      }
     }
 
     //! Evaluate acceleration in Cartesian coordinates in centered
@@ -518,18 +483,35 @@ namespace BasisClasses
       return ret;
     }
 
-    //! Return a vector of tuples of basis functions and the
-    //! covariance matrix for subsamples of particles
-    std::vector<std::vector<CoefCovarType>>
-    getCoefCovariance();
+    //! Write coefficient covariance data to an HDF5 file
+    virtual void writeCoefCovariance(const std::string& compname, const std::string& runtag, double time=0.0)
+    {
+      if (covarStore) {
+	std::vector<std::vector<SubsampleCovariance::CoefCovarType>> covarData(meanV.size());
+	for (int T=0; T<meanV.size(); ++T) {
+	  covarData[T].resize(meanV[T].size());
+	  for (int lm=0; lm<meanV[T].size(); ++lm) {
+	    covarData[T][lm] = std::make_tuple(meanV[T][lm], covrV[T][lm]);
+	  }
+	}
+	SubsampleCovariance::CovarData elements = std::make_tuple(sampleCounts, sampleMasses, covarData);
+	covarStore->writeCoefCovariance(compname, runtag, elements, time);
+      } else {
+	throw std::runtime_error("Spherical::writeCoefCovariance: covariance storage not initialized");
+      }
+    }
 
     virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
-				      bool covar_in=true)
+				      bool ftype=false, bool covar_in=true)
     {
       pcavar = pcavar_in;
       sampT  = sampT_in;
       covar  = covar_in;
-      if (pcavar) init_covariance();
+      if (pcavar) {
+	init_covariance();
+	covarStore = std::make_shared<SubsampleCovariance>
+	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, covar);
+      }
     }
     //! Create and the coefficients from a function callback with the
     //! provided time value.  Set potential=true if function is a
@@ -990,7 +972,6 @@ namespace BasisClasses
     //! For coefficient writing
     typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>
     EigenColMajor;
-    
 
     //@{
     //! Basis construction parameters
@@ -1103,24 +1084,8 @@ namespace BasisClasses
       return ret;
     }
 
-    //! Return a vector of tuples of basis functions and the
-    //! covariance matrix for subsamples of particles
-    std::vector<std::vector<CoefCovarType>>
-    getCoefCovariance()
-    {
-      return sl->getCoefCovariance();
-    }
-
-    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
-    getCovarSamples()
-    {
-      // Copy to base class members
-      std::tie(sampleCounts, sampleMasses) = sl->getCovarSamples();
-      return {sampleCounts, sampleMasses};
-    }
-
     virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
-				      bool covar_in=true)
+				      bool ftype=false, bool covar_in=true)
     {
       pcavar = pcavar_in;
       sampT  = sampT_in;
@@ -1128,6 +1093,8 @@ namespace BasisClasses
       if (pcavar)  {
 	sl->setSampT(std::max(1, sampT));
 	sl->set_covar(true);
+	covarStore = std::make_shared<SubsampleCovariance>
+	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, covar);
       }
     }
     //! Create and the coefficients from a function callback with the
@@ -1443,25 +1410,35 @@ namespace BasisClasses
       return true;
     }
 
-    //! Return a vector of tuples of basis functions and the
-    //! covariance matrix for subsamples of particles
-    std::vector<std::vector<CoefCovarType>> getCoefCovariance();
-
-    //! Get sample count and mass arrays
-    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
-    getCovarSamples()
+    //! Write coefficient covariance data to an HDF5 file
+    virtual void writeCoefCovariance(const std::string& compname, const std::string& runtag, double time=0.0)
     {
-      return {sampleCounts, sampleMasses};
+      if (covarStore) {
+	std::vector<std::vector<SubsampleCovariance::CoefCovarType>> covarData(meanV.size());
+	for (int T=0; T<meanV.size(); ++T) {
+	  covarData[T].resize(1);
+	  covarData[T][0] = std::make_tuple(meanV[T], covrV[T]);
+	}
+	SubsampleCovariance::CovarData elements = std::make_tuple(sampleCounts, sampleMasses, covarData);
+	covarStore->writeCoefCovariance(compname, runtag, elements, time);
+      } else {
+	throw std::runtime_error("Spherical::writeCoefCovariance: covariance storage not initialized");
+      }
     }
+
 
     //! Enable coefficient covariance computation
     virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
-				      bool covar_in=false)
+				      bool ftype=false, bool covar_in=false)
     {
       pcavar = pcavar_in;
       sampT  = sampT_in;
       covar  = covar_in;
-      if (pcavar) { init_covariance(); }
+      if (pcavar) {
+	init_covariance();
+	covarStore = std::make_shared<SubsampleCovariance>
+	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, covar);
+      }
     }
 
     //! Return wave-number indices from flattened index

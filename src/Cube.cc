@@ -134,12 +134,8 @@ void Cube::initialize(void)
     if (conf["wrap"  ])  wrap       = conf["wrap"  ].as<bool>();
 
     if (conf["nint"]) {
-      nint = conf["nint"  ].as<int>();
+      nint = conf["nint"].as<int>();
       if (nint>0) computeSubsample = true;
-    }
-
-    if (conf["subsampleFloat"]) {
-      floatType = conf["subsampleFloat"].as<bool>();
     }
 
     if (conf["samplesz"]) {
@@ -1028,7 +1024,7 @@ void Cube::writeCovarH5Params(HighFive::File& file)
 }
 
 
-PotAccel::CovarElement Cube::getSubsample()
+PotAccel::CovarData Cube::getSubsample()
 {
   using covTuple = std::tuple<Eigen::VectorXcd,
 			      Eigen::MatrixXcd>;
@@ -1046,6 +1042,6 @@ PotAccel::CovarElement Cube::getSubsample()
       covar[T][0] = std::make_tuple(meanV[T], Eigen::MatrixXcd::Zero(0,0));
   }
     
-  return {sampleMasses, sampleCounts, covar};
+  return {sampleCounts, sampleMasses, covar};
 }
 

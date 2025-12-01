@@ -1,7 +1,7 @@
 #ifndef _OutSample_H
 #define _OutSample_H
 
-#include "OutSample.H"
+#include "Covariance.H"
 
 /** @file OutSample.H
 
@@ -28,11 +28,19 @@ private:
   std::string filename;
   double prev = -std::numeric_limits<double>::max();
   Component *tcomp;
+  unsigned level=5;
+  unsigned chunksize=1024*1024; // 1 MB
+  bool shuffle=true;
+  bool szip=false;
+  bool floatType = false;
 
   void initialize(void);
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+  //! Coefficient covariance storage instance
+  std::shared_ptr<BasisClasses::SubsampleCovariance> covarStore;
 
 public:
 
