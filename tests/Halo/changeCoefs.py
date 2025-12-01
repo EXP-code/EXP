@@ -40,7 +40,7 @@ basis = pyEXP.basis.Basis.factory(config)
 # Let's zero all of the odd order data
 #
 for k in range(data.shape[0]):
-    l, m = pyEXP.basis.SphericalSL.invI(k)
+    l, m, = basis.invI(k)
     if l%2!=0 or m%2!=0: data[k,:,:] *= 0.0
 
 # Reset the coefficient data
@@ -53,7 +53,7 @@ data1 = coefs.getAllCoefs()
 minZero =  1.0e30
 maxZero = -1.0e30
 for k in range(data1.shape[0]):
-    l, m = pyEXP.basis.SphericalSL.invI(k)
+    l, m, = basis.invI(k)
     if l%2!=0 or m%2!=0:
         for v in data1[k,:,:].flatten():
            minZero = min([minZero, abs(v)])
