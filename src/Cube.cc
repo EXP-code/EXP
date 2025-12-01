@@ -103,7 +103,7 @@ Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   init_covariance();
 
 #if HAVE_LIBCUDA==1
-  cuda_initalize();
+  cuda_initialize();
 #endif
 
 }
