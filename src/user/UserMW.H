@@ -63,7 +63,7 @@ private:
   {
       double dphi_dr, r;
 
-      r = sqrt( pow(x,2) + pow(y,2) );
+      r = sqrt( pow(x,2) + pow(y,2) + pow(z,2) );
       dphi_dr = (G*M_halo)/r * (log( 1 + (r/rs_halo) )/r - (1/(rs_halo + r)));
 
       *ax1 = -dphi_dr * (x/r);
@@ -83,7 +83,7 @@ private:
   {
       double dphi_dr, r;
 
-      r = sqrt( pow(x,2) + pow(y,2) );
+      r = sqrt( pow(x,2) + pow(y,2) + pow(z,2) );
       dphi_dr = G*M_nucl/pow ( (r + c_nucl), 2 );
 
       *ax2 = -dphi_dr * (x/r);
@@ -103,7 +103,7 @@ private:
   {
       double dphi_dr, r;
 
-      r = sqrt( pow(x,2) + pow(y,2) );
+      r = sqrt( pow(x,2) + pow(y,2) + pow(z,2) );
       dphi_dr = G*M_bulge/pow ( (r + c_bulge), 2 );
 
       *ax3 = -dphi_dr * (x/r);
@@ -123,7 +123,7 @@ private:
   {
       double dphi_dR, dphi_dz, R;
 
-      R = sqrt( pow(x,2) + pow(y,2) + pow(z,2) );
+      R = sqrt( pow(x,2) + pow(y,2) );
       double n = 3.0/2.0;
 
       double Rstep3 = sqrt( pow(b_disk,2) + pow(z,2) );
