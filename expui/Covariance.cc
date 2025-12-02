@@ -334,11 +334,11 @@ namespace BasisClasses
       file.getAttribute("CovarianceFileVersion").read(version);
       // Check for alpha version
       if (version == std::string("1.0")) {
-	throw std::runtime_error("CovarianceReader: this is an early alpha test version. Please remake your files");
+	throw std::runtime_error("SubsampleCovariance: this is an early alpha test version. Please remake your files");
       }
       // Test for current version
       if (version != std::string("1.1")) {
-	throw std::runtime_error(std::string("CovarianceReader: unsupported file version, ") + version);
+	throw std::runtime_error(std::string("SubsampleCovariance: unsupported file version, ") + version);
       }
       
       // Read the basis identifier string
@@ -350,7 +350,7 @@ namespace BasisClasses
       file.getAttribute("FloatSize").read(sz);
       if (sz != 4 and sz != 8) {
 	std::ostringstream sout;
-	sout << "CovarianceReader: unsupported float size, " << sz;
+	sout << "SubsampleCovariance: unsupported float size, " << sz;
 	throw std::runtime_error(sout.str());
       }
       
@@ -362,7 +362,7 @@ namespace BasisClasses
       // Currently implemented cylindrical types
       const std::set<std::string> cylinderType = {"Cylindrical"};
       
-      std::cout << "Covariance: reading basis type " << BasisID << std::endl;
+      std::cout << "SubsampleCovariance: reading basis type " << BasisID << std::endl;
 
       if (sphereType.find(BasisID) != sphereType.end()) {
 	file.getAttribute("lmax").read(lmax);
