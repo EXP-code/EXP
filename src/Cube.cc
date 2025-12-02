@@ -410,7 +410,7 @@ void Cube::determine_coefficients(void)
   
   // Determine whether or not to compute a subsample
   if (mstep==0 or mstep==std::numeric_limits<int>::max()) {
-    if (nint>0 and this_step % nint == 0) {
+    if (nint>0 && this_step % nint == 0) {
       if (tnow > last) {
 	requestSubsample = true;
 	last = tnow;
