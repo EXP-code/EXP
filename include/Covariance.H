@@ -16,20 +16,6 @@
 #include <highfive/H5Attribute.hpp>
 #include <highfive/eigen.hpp>
 
-/*
-#include "DiskDensityFunc.H"
-#include "ParticleReader.H"
-#include "Coefficients.H"
-#include "BiorthBess.H"
-#include "BasisFactory.H"
-#include "BiorthCube.H"
-#include "sltableMP2.H"
-#include "SLGridMP2.H"
-#include "YamlCheck.H"
-#include "BiorthCyl.H"
-#include "EmpCylSL.H"
-*/
-
 #include "localmpi.H"
 #include "exputils.H"
 
@@ -62,7 +48,6 @@ namespace BasisClasses
     
     //! Use 32-bit float storage for covariance?
     bool floatType = false;
-    
     
     //! Fixed-point multiplier for time mapping.  Eight decimal places
     //! should be enough here...
