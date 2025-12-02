@@ -379,7 +379,7 @@ namespace BasisClasses
 	file.getAttribute("nmaxz").read(nmaxz);
 	ltot = (2*nmaxx + 1) * (2*nmaxy + 1) * (2*nmaxz + 1);
       } else {
-	throw std::runtime_error(std::string("Covariance: unknown or unimplemented covariance for basis type, ") + BasisID);
+	throw std::runtime_error(std::string("SubsampleCovariance: unknown or unimplemented covariance for basis type, ") + BasisID);
       }
       
       // Group count variable
