@@ -56,104 +56,106 @@ if(ENABLE_NBODY)
   add_test(NAME expExecuteTest
     COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp -v)
 
-  # Makes some spherical ICs using utils/ICs/gensph
-  add_test(NAME makeICTest
-    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 10000 -i SLGridSph.model
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+  if (ENABLE_UTILS)
+    # Makes some spherical ICs using utils/ICs/gensph
+    add_test(NAME makeICTest
+      COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 10000 -i SLGridSph.model
+      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
-  # Runs those ICs using exp
-  add_test(NAME expNbodyTest
-    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp config.yml
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+    # Runs those ICs using exp
+    add_test(NAME expNbodyTest
+      COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp config.yml
+      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
-  set_tests_properties(expNbodyTest PROPERTIES DEPENDS makeICTest)
+    set_tests_properties(expNbodyTest PROPERTIES DEPENDS makeICTest)
 
-  # Check OUTLOG file for a sane 2T/W mean and stdv
-  add_test(NAME expNbodyCheck2TW
-    COMMAND ${CMAKE_COMMAND} -E env
-    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
-    ${PYTHON_EXECUTABLE} check.py
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+    # Check OUTLOG file for a sane 2T/W mean and stdv
+    add_test(NAME expNbodyCheck2TW
+      COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+      ${PYTHON_EXECUTABLE} check.py
+      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
-  set_tests_properties(expNbodyCheck2TW PROPERTIES DEPENDS expNbodyTest LABELS "long")
+    set_tests_properties(expNbodyCheck2TW PROPERTIES DEPENDS expNbodyTest LABELS "long")
 
-  # This adds a coefficient read test using pyEXP only if
-  # expNbodyTest is run and pyEXP has been built
-  if(ENABLE_PYEXP)
-     # Read coefficient file with pyEXP
-     add_test(NAME pyEXPCoefReadTest
-              COMMAND ${CMAKE_COMMAND} -E env
-              PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
-              ${PYTHON_EXECUTABLE} readCoefs.py
-              WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
-     set_tests_properties(pyEXPCoefReadTest PROPERTIES DEPENDS expNbodyTest LABELS "long")
+    # This adds a coefficient read test using pyEXP only if
+    # expNbodyTest is run and pyEXP has been built
+    if(ENABLE_PYEXP)
+       # Read coefficient file with pyEXP
+       add_test(NAME pyEXPCoefReadTest
+                COMMAND ${CMAKE_COMMAND} -E env
+                PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+                ${PYTHON_EXECUTABLE} readCoefs.py
+                WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
+       set_tests_properties(pyEXPCoefReadTest PROPERTIES DEPENDS expNbodyTest LABELS "long")
 
-     add_test(NAME pyEXPCoefMatrixTest
-              COMMAND ${CMAKE_COMMAND} -E env
-              PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
-              ${PYTHON_EXECUTABLE} changeCoefs.py
-              WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
-     set_tests_properties(pyEXPCoefMatrixTest PROPERTIES DEPENDS expNbodyTest LABELS "long")
+       add_test(NAME pyEXPCoefMatrixTest
+                COMMAND ${CMAKE_COMMAND} -E env
+                PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+                ${PYTHON_EXECUTABLE} changeCoefs.py
+                WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
+       set_tests_properties(pyEXPCoefMatrixTest PROPERTIES DEPENDS expNbodyTest LABELS "long")
 
-     add_test(NAME pyEXPCoefCreateTest
-              COMMAND ${CMAKE_COMMAND} -E env
-              PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
-              ${PYTHON_EXECUTABLE} createCoefs.py
-              WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
-     set_tests_properties(pyEXPCoefCreateTest PROPERTIES LABELS "quick")
+       add_test(NAME pyEXPCoefCreateTest
+                COMMAND ${CMAKE_COMMAND} -E env
+                PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+                ${PYTHON_EXECUTABLE} createCoefs.py
+                WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Halo")
+       set_tests_properties(pyEXPCoefCreateTest PROPERTIES LABELS "quick")
+    endif()
+
+    # A separate test to remove the generated files if they all exist;
+    # perhaps there is a better way?
+    add_test(NAME removeTempFiles
+      COMMAND ${CMAKE_COMMAND} -E remove
+      config.run0.yml current.processor.rates.run0 new.bods
+      OUTLOG.run0 run0.levels SLGridSph.cache.run0 test.grid
+      outcoef.halo.run0 SLGridSph.cache.run0
+      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+
+    # Remove the temporary files
+    set_tests_properties(removeTempFiles PROPERTIES DEPENDS expNbodyCheck2TW
+      REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods;run0.levels;SLGridSph.cache.run0;test.grid;"
+      )
+
+    # Makes some cube ICs using utils/ICs/cubeics
+    add_test(NAME makeCubeICTest
+      COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/cubeics -N 4000 -z -d 2,2,2
+      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
+
+    # Runs those ICs using exp
+    add_test(NAME expCubeTest
+      COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp
+      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
+
+    set_tests_properties(expCubeTest PROPERTIES DEPENDS makeCubeICTest)
+
+    # Check OUTLOG file for mean position
+    add_test(NAME expCubeCheckPos
+      COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
+      ${PYTHON_EXECUTABLE} check.py
+      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
+
+    set_tests_properties(expCubeCheckPos PROPERTIES DEPENDS expCubeTest)
+
+    # A separate test to remove the generated files if they all exist
+    add_test(NAME removeCubeFiles
+      COMMAND ${CMAKE_COMMAND} -E remove
+      config.runS.yml current.processor.rates.runS cube.bods
+      OUTLOG.runS runS.levels
+      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
+
+    # Remove the temporary files
+    set_tests_properties(removeCubeFiles PROPERTIES DEPENDS expCubeCheckPos
+      REQUIRED_FILES "config.runS.yml;current.processor.rates.runS;cube.bods;OUTLOG.runS;runS.levels;")
+
+    # Set labels for pyEXP tests
+    set_tests_properties(expExecuteTest PROPERTIES LABELS "quick")
+    set_tests_properties(makeICTest expNbodyTest expNbodyCheck2TW
+    removeTempFiles makeCubeICTest expCubeTest removeCubeFiles
+    PROPERTIES LABELS "long")
   endif()
-
-  # A separate test to remove the generated files if they all exist;
-  # perhaps there is a better way?
-  add_test(NAME removeTempFiles
-    COMMAND ${CMAKE_COMMAND} -E remove
-    config.run0.yml current.processor.rates.run0 new.bods
-    OUTLOG.run0 run0.levels SLGridSph.cache.run0 test.grid
-    outcoef.halo.run0 SLGridSph.cache.run0
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
-
-  # Remove the temporary files
-  set_tests_properties(removeTempFiles PROPERTIES DEPENDS expNbodyCheck2TW
-    REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods;run0.levels;SLGridSph.cache.run0;test.grid;"
-    )
-
-  # Makes some cube ICs using utils/ICs/cubeics
-  add_test(NAME makeCubeICTest
-    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/cubeics -N 4000 -z -d 2,2,2
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
-
-  # Runs those ICs using exp
-  add_test(NAME expCubeTest
-    COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
-
-  set_tests_properties(expCubeTest PROPERTIES DEPENDS makeCubeICTest)
-
-  # Check OUTLOG file for mean position
-  add_test(NAME expCubeCheckPos
-    COMMAND ${CMAKE_COMMAND} -E env
-    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
-    ${PYTHON_EXECUTABLE} check.py
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
-
-  set_tests_properties(expCubeCheckPos PROPERTIES DEPENDS expCubeTest)
-
-  # A separate test to remove the generated files if they all exist
-  add_test(NAME removeCubeFiles
-    COMMAND ${CMAKE_COMMAND} -E remove
-    config.runS.yml current.processor.rates.runS cube.bods
-    OUTLOG.runS runS.levels
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
-
-  # Remove the temporary files
-  set_tests_properties(removeCubeFiles PROPERTIES DEPENDS expCubeCheckPos
-    REQUIRED_FILES "config.runS.yml;current.processor.rates.runS;cube.bods;OUTLOG.runS;runS.levels;")
-
-  # Set labels for pyEXP tests
-  set_tests_properties(expExecuteTest PROPERTIES LABELS "quick")
-  set_tests_properties(makeICTest expNbodyTest expNbodyCheck2TW
-  removeTempFiles makeCubeICTest expCubeTest removeCubeFiles
-  PROPERTIES LABELS "long")
 
 endif()
 

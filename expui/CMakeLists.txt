@@ -1,4 +1,4 @@
-set(bin_PROGRAMS nativetoh5 h5compare viewcoefs h5power makecoefs testread)
+set(bin_PROGRAMS nativetoh5 h5compare viewcoefs h5power makecoefs testread testunits)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp exputil
   ${VTK_LIBRARIES} ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
@@ -38,7 +38,8 @@ endif()
 set(expui_SOURCES BasisFactory.cc BiorthBasis.cc FieldBasis.cc
   CoefContainer.cc CoefStruct.cc FieldGenerator.cc expMSSA.cc
   Coefficients.cc KMeans.cc Centering.cc ParticleIterator.cc
-  Koopman.cc BiorthBess.cc SvdSignChoice.cc KDdensity.cc)
+  Koopman.cc BiorthBess.cc SvdSignChoice.cc KDdensity.cc
+  UnitValidator.cc)
 add_library(expui ${expui_SOURCES})
 set_target_properties(expui PROPERTIES OUTPUT_NAME expui)
 target_include_directories(expui PUBLIC ${common_INCLUDE})
@@ -111,6 +112,7 @@ if(ENABLE_UTILS)
   add_executable(h5power    h5power.cc)
   add_executable(makecoefs  makecoefs.cc)
   add_executable(testread   testread.cc)
+  add_executable(testunits  testunits.cc)
 
   foreach(program ${bin_PROGRAMS})
     target_link_libraries(${program} expui exputil ${common_LINKLIB})
