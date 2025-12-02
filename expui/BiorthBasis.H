@@ -501,6 +501,7 @@ namespace BasisClasses
       }
     }
 
+    //! Request and initialize covariance computation
     virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
 				      bool ftype=false, bool covar_in=true)
     {
@@ -513,6 +514,7 @@ namespace BasisClasses
 	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, covar);
       }
     }
+
     //! Create and the coefficients from a function callback with the
     //! provided time value.  Set potential=true if function is a
     //! potential field.  Density is assumed if false (default).
@@ -1082,6 +1084,18 @@ namespace BasisClasses
       if (myid==0)
 	std::cout << "---- Cylindrical::orthoTest: worst=" << worst << std::endl;
       return ret;
+    }
+
+    //! Write coefficient covariance data to an HDF5 file
+    virtual void writeCoefCovariance(const std::string& compname, const std::string& runtag, double time=0.0)
+    {
+      if (covarStore) {
+	auto covarData = sl->getCoefCovariance();
+	SubsampleCovariance::CovarData elements = std::make_tuple(sampleCounts, sampleMasses, covarData);
+	covarStore->writeCoefCovariance(compname, runtag, elements, time);
+      } else {
+	throw std::runtime_error("Spherical::writeCoefCovariance: covariance storage not initialized");
+      }
     }
 
     virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
