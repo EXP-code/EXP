@@ -66,7 +66,7 @@ void OutSample::initialize()
     if (conf["filename"]) {
       filename = outdir + conf["filename"].as<std::string>();
     } else {
-      filename = outdir + "outcoef." + tcomp->name + "." + runtag;
+      filename = outdir + "coefcovar." + tcomp->name + "." + runtag;
     }
 
     if (conf["floatType"]) {
