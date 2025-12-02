@@ -47,6 +47,17 @@
     dimensions at once and planes, axes, and 1d which compute wave
     vectors by plane.  This may be extended to specific algorithms in
     the future.  This does nothing for the CPU-only computation.
+
+    @param wrap boolean to enforce periodic wrapping (default: true)
+
+    @param nint integer number of steps between subsample computations
+    (default: 0, no subsampling)
+
+    @param samplesz integer number of particles in subsample (default:
+    100)
+
+    @param subsampleFloat boolean to use single precision in HDF5
+    files (default: false)
 */
 class Cube : public PotAccel
 {
