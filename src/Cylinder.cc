@@ -461,9 +461,9 @@ void Cylinder::initialize()
     // Deprecation warning
     if (not sech2 and not conf["pyname"]) {
       if (myid==0)
-	std::cout << "---- Cylinder uses sech^2(z/h) rather than the more common sech^2(z/(2h))" << std::endl
-		  << "---- Use the 'sech2: true' in your YAML config to use sech^2(z/(2h))" << std::endl
-		  << "---- Cylinder will assume sech^2(z/(2h)) by default in v 7.9.0 and later" << std::endl;
+	std::cout << "---- Cylinder assumes sech^2(z/(2h)) by default in v7.9.0 and later" << std::endl
+		        << "---- Use the 'sech2: true' in your YAML config to use sech^2(z/(2h))" << std::endl
+            << "---- This warning will be removed in v7.10.0." << std::endl;
     }
 
     // Deprecation warning
