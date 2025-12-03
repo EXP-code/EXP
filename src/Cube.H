@@ -135,7 +135,16 @@ private:
     thrust::device_vector<thrust::complex<cuFP_t>> dw_coef;
     thrust::device_vector<thrust::complex<cuFP_t>> df_coef;
 
-    void resize_coefs(int N, int osize, int gridSize, int stride);
+    thrust::device_vector<thrust::complex<cuFP_t>> dN_tvar;
+    thrust::device_vector<thrust::complex<cuFP_t>> dc_tvar;
+    thrust::device_vector<thrust::complex<cuFP_t>> dw_tvar;
+
+    thrust::device_vector<cuFP_t> u_d;
+    
+    std::vector<thrust::device_vector<thrust::complex<cuFP_t>>> T_covr;
+
+    void resize_coefs(int N, int osize, int gridSize,
+		      int stride, int sampT);
   };
 
   //! A storage instance
