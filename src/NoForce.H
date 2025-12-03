@@ -14,6 +14,9 @@
 */
 class NoForce : public PotAccel
 {
+  //! Pull in base-class overrides
+  using PotAccel::determine_coefficients;
+
 private:
 
   void initialize() {}

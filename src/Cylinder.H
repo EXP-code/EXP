@@ -125,6 +125,10 @@ class MixtureBasis;
 */
 class Cylinder : public Basis
 {
+
+  //! Pull in base-class overrides
+  using PotAccel::determine_coefficients;
+
 private:
 
   bool precond, EVEN_M, subsamp, sech2 = false;
