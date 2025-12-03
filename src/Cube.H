@@ -139,7 +139,7 @@ private:
     
     std::vector<thrust::device_vector<thrust::complex<cuFP_t>>> T_samp;
 
-    void resize_coefs(int N, int osize, int gridSize,
+    void resize_coefs(int N, int osize, int psize, int gridSize,
 		      int stride, int sampT);
   };
 
@@ -296,6 +296,9 @@ public:
 
   //! Destructor
   virtual ~Cube();
+
+  //! Bring in base-class overloads
+  using PotAccel::determine_coefficients;
 
   //! Compute the coefficients
   void determine_coefficients(void);
