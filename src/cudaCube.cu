@@ -421,8 +421,6 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
       
       CmplxT acc[3] = {0.0, 0.0, 0.0}, pot = 0.0;
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
-      cuFP_t mm = p.mass;
-      int ind[3];
 
 #ifdef NORECURSION
       // Index loop
@@ -544,13 +542,12 @@ void Cube::cudaStorage::resize_coefs(int N, int osize, int gridSize, int stride,
   dc_coef.resize(osize*gridSize);
   dw_coef.resize(osize);	// This will stay fixed
 
+  u_d.resize(N);
+
+  // Resize covariance storage, if sampT>0
   if (sampT) {
-    T_covr.resize(sampT);
-    for (int T=0; T<sampT; T++) T_covr[T].resize(osize);
-    dN_tvar.resize(osize*N);
-    dc_tvar.resize(osize*gridSize);
-    dw_tvar.resize(osize);
-    u_d.resize(N);
+    T_samp.resize(sampT);
+    for (int T=0; T<sampT; T++) T_samp[T].resize(osize);
   }
 }
 
@@ -565,6 +562,13 @@ void Cube::cuda_zero_coefs()
   //
   thrust::fill(thrust::cuda::par.on(cr->stream),
 	       cuS.df_coef.begin(), cuS.df_coef.end(), 0.0);
+
+  if (requestSubsample) {
+    for (int T=0; T<sampT; T++) {
+      thrust::fill(thrust::cuda::par.on(cr->stream),
+		   cuS.T_samp[T].begin(), cuS.T_samp[T].end(), 0.0);
+    }
+  }
 }
 
 void Cube::determine_coefficients_cuda()
@@ -685,7 +689,7 @@ void Cube::determine_coefficients_cuda()
     std::vector<thrust::device_vector<CmplxT>::iterator> bm;
     if (requestSubsample) {
       for (int T=0; T<sampT; T++) {
-	bm.push_back(cuS.T_covr[T].begin());
+	bm.push_back(cuS.T_samp[T].begin());
       }
     }
 
@@ -785,7 +789,7 @@ void Cube::determine_coefficients_cuda()
 	      //
 	      reduceSumS<CmplxT, BLOCK_SIZE>
 		<<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
-		(toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), imx, N, k, k+s);
+		(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), imx, N, k, k+s);
 		
 	      // Finish the reduction for this order in parallel
 	      //
@@ -797,12 +801,12 @@ void Cube::determine_coefficients_cuda()
 		 thrust::cuda::par.on(cs->stream),
 		 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 		 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-		 cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
+		 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 		 );
 
 	      
 	      thrust::transform(thrust::cuda::par.on(cs->stream),
-				cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
+				cuS.dw_coef.begin(), cuS.dw_coef.end(),
 				bm[T], bm[T], thrust::plus<CmplxT>());
 	      
 	      thrust::advance(bm[T], imx);
@@ -905,7 +909,7 @@ void Cube::determine_coefficients_cuda()
 	  //
 	  reduceSumS<CmplxT, BLOCK_SIZE>
 	    <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
-	    (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), osize, N, k, k+s);
+	    (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N, k, k+s);
 		
 	  // Finish the reduction for this order in parallel
 	  //
@@ -917,12 +921,12 @@ void Cube::determine_coefficients_cuda()
 	     thrust::cuda::par.on(cs->stream),
 	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-	     cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
+	     cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	     );
 
 	      
 	  thrust::transform(thrust::cuda::par.on(cs->stream),
-			    cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
+			    cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			    bm[T], bm[T], thrust::plus<CmplxT>());
 	  
 	  thrust::advance(bm[T], osize);
@@ -941,7 +945,7 @@ void Cube::determine_coefficients_cuda()
     // T loop
     //
     for (int T=0; T<sampT; T++) {
-      thrust::host_vector<CmplxT> retV = cuS.T_covr[T];
+      thrust::host_vector<CmplxT> retV = cuS.T_samp[T];
 	  
       for (int n=0; n<osize; n++) {
 	meanV1[0][T][n] += std::complex<cuFP_t>(retV[n]);
