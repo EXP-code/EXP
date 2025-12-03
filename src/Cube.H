@@ -58,6 +58,13 @@
 
     @param subsampleFloat boolean to use single precision in HDF5
     files (default: false)
+
+    @note The subsampling for the cpu implemtation is round-robin
+    while the subsampling for the gpu implementation is a partition.
+    This implies that the coefficient values will agree but the
+    subsamples contain different particles.  Since the goal of
+    subsampling is statistical assessment, this should not be a
+    limitation.
 */
 class Cube : public PotAccel
 {
