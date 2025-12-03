@@ -38,29 +38,16 @@ int cubeIndex(int i, int j, int k)
   i += cubeNumX;
   j += cubeNumY;
   k += cubeNumZ;
-  return k*cubeNX*cubeNY + j*cubeNX + i;
-}
 
-/*
-// Index function for modulus coefficients
-//
-__device__
-thrust::tuple<int, int, int> TensorIndices(int indx)
-{
-  int k = indx/(cubeNX*cubeNY);
-  int j = (indx - k*cubeNX*cubeNY)/cubeNX;
-  int i = indx - (j + k*cubeNY)*cubeNX;
-
-  return {i, j, k};
+  return (i*cubeNY + j)*cubeNZ + k;
 }
-*/
 
 __device__
 thrust::tuple<int, int, int> cubeWaveNumbers(int indx)
 {
-  int k = indx/(cubeNX*cubeNY);
-  int j = (indx - k*cubeNX*cubeNY)/cubeNX;
-  int i = indx - (j + k*cubeNY)*cubeNX;
+  int i = indx/(cubeNY*cubeNZ);
+  int j = (indx - i*cubeNY*cubeNZ)/cubeNY;
+  int k = indx - (j + i*cubeNY)*cubeNX;
 
   return {i-cubeNumX, j-cubeNumY, k-cubeNumZ};
 }
