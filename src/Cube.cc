@@ -414,7 +414,7 @@ void Cube::determine_coefficients(void)
       if (tnow > last) {
 	requestSubsample = true;
 	last = tnow;
-	init_covariance();
+	zero_covariance();
       }
     }
   } else {
