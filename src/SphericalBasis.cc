@@ -492,7 +492,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	if (pcavar) {
 	  whch = indx % sampT;
 	  pthread_mutex_lock(&cc_lock);
-	  massT1[whch] += mass;
+	  countT1[whch] += 1;
+	  massT1 [whch] += mass;
 	  pthread_mutex_unlock(&cc_lock);
 	}
       }
@@ -683,8 +684,12 @@ void SphericalBasis::determine_coefficients_particles(void)
   if (pcavar or pcaeof) {
     if (this_step >= npca0) 
       compute = (mstep == 0) && !( (this_step-npca0) % npca);
-    else
+    else if (nint) 
+      compute = (mstep == 0) && !(this_step % nint);
+    else {
       compute = false;
+      subsampleComputed = false;
+    }
   }
 
 
@@ -692,11 +697,15 @@ void SphericalBasis::determine_coefficients_particles(void)
 
   if (compute) {
 
+    requestSubsample = true;
+
     if (massT.size() == 0) {	// Allocate storage for subsampling
       if (defSampT) sampT = defSampT;
       else          sampT = floor(sqrt(component->CurTotal()));
       massT    .resize(sampT, 0);
       massT1   .resize(sampT, 0);
+      countT   .resize(sampT, 0);
+      countT1  .resize(sampT, 0);
       
       expcoefT .resize(sampT);
       for (auto & t : expcoefT ) {
@@ -735,6 +744,7 @@ void SphericalBasis::determine_coefficients_particles(void)
       if (pcavar) {
 	for (auto & t : expcoefT1) { for (auto & v : t) v->setZero(); }
 	for (auto & t : expcoefM1) { for (auto & v : t) v->setZero(); }
+	for (auto & v : countT1)   v = 0;
 	for (auto & v : massT1)    v = 0;
       }
 
@@ -893,6 +903,9 @@ void SphericalBasis::determine_coefficients_particles(void)
     }
 
     pca_hall(compute);
+
+    requestSubsample  = false;
+    subsampleComputed = true;
   }
 
   print_timings("SphericalBasis: coefficient timings");
@@ -2348,4 +2361,58 @@ void SphericalBasis::biorthogonality_check()
       MPI_Reduce(one[myid][L].data(), 0, one[myid][L].size(),
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   }
+}
+
+PotAccel::CovarData SphericalBasis::getSubsample()
+{
+  using covTuple = std::tuple<Eigen::VectorXcd,
+			      Eigen::MatrixXcd>;
+  // Prepare the covariance structure
+  std::vector< std::vector<covTuple> > covar(sampT);
+
+  // Resize the inner vector to 1 (one component for Cube)
+  int totL = (Lmax+1)*(Lmax+2)/2;
+  for (auto & v : covar) v.resize(totL);
+
+  // Fill the covariance structure with subsamples
+  for (int T=0; T<sampT; T++) {
+    Eigen::VectorXcd meanV = Eigen::VectorXcd::Zero(nmax);
+    Eigen::MatrixXcd covrV = Eigen::MatrixXcd::Zero(0,0);
+    if (fullCovar) covrV = Eigen::MatrixXcd::Zero(nmax, nmax);
+
+    // l,m loop
+    for (int l=0, L=0; l<=Lmax; l++) {
+      for (int m=0; m<=l; m++, L++) {
+	for (int n=0; n<nmax; n++) {
+	  if (m==0)
+	    meanV(n) = std::complex<double>((*expcoefT[T][L  ])(n));
+	  else 
+	    meanV(n) = std::complex<double>((*expcoefT[T][L  ])(n),
+					    (*expcoefT[T][L+1])(n));
+	  if (fullCovar) {
+	    for (int nn=0; nn<nmax; nn++) {
+	      if (m==0)
+		covrV(n, nn) = std::complex<double>((*expcoefM[T][L  ])(n, nn));
+	      else
+		covrV(n, nn) = std::complex<double>((*expcoefM[T][L  ])(n, nn),
+						    (*expcoefM[T][L+1])(n, nn));
+	    }
+	  }
+	}
+
+	covar[T][L] = std::make_tuple(meanV, covrV);
+
+	if (m==0) L++;
+	else 	  L+=2;
+      }
+      // END: m loop
+    }
+    // END: l loop
+
+    sampleCounts[T] = countT[T];
+    sampleMasses[T] = massT [T];
+  }
+  // END: T loop
+    
+  return {sampleCounts, sampleMasses, covar};
 }

@@ -17,6 +17,7 @@ AxisymmetricBasis::valid_keys =
     "dof",
     "npca",
     "npca0",
+    "nint",
     "pcavar",
     "pcaeof",
     "pcadiag",
@@ -45,6 +46,7 @@ AxisymmetricBasis:: AxisymmetricBasis(Component* c0, const YAML::Node& conf) :
   dof       = 3;
   npca      = 500;
   npca0     = 0;
+  nint      = 0;
   pcavar    = false;
   pcaeof    = false;
   pcadiag   = false;
@@ -83,6 +85,15 @@ AxisymmetricBasis:: AxisymmetricBasis(Component* c0, const YAML::Node& conf) :
     if (conf["tk_type"])   tk_type    = setTK(conf["tk_type"].as<std::string>());
 
     if (conf["Mmax"] and not conf["Lmax"]) Lmax = Mmax;
+
+    if (conf["nint"]) {		// For OutSample support
+      nint = conf["nint"].as<int>();
+      if (nint>0) {
+	pcavar  = true;
+	subsamp = true;
+      }
+    }
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in AxisymmetricBasis: "
@@ -1207,10 +1218,12 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 
       // Report mass used [with storage sanity checks]
       //
-      if (massT1.size() == massT.size() and massT.size()==sampT)
+      if (massT1.size() == massT.size() and massT.size()==sampT) {
+	MPI_Allreduce(&countT1[0], &countT[0], sampT,
+		      MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(&massT1[0], &massT[0], sampT,
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      else {
+      } else {
 	std::cout << "[" << myid << "] AxisymmetricBasis: "
 		  << "coef2 out of bounds in mass" << std::endl;
       }

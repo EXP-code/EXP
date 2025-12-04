@@ -62,6 +62,7 @@ Cylinder::valid_keys = {
   "pcavtk",
   "pcadiag",
   "subsamp",
+  "nint",
   "try_cache",
   "density",
   "EVEN_M",
@@ -137,6 +138,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   pcadiag         = false;
   pcaeof          = false;
   subsamp         = false;
+  nint            = 0;
   nvtk            = 1;
   pcainit         = true;
   coef_dump       = true;
@@ -451,6 +453,7 @@ void Cylinder::initialize()
     if (conf["pcavtk"    ])     pcavtk  = conf["pcavtk"    ].as<bool>();
     if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
     if (conf["subsamp"   ])    subsamp  = conf["subsamp"   ].as<bool>();
+    if (conf["nint"      ])       nint  = conf["nint"      ].as<int>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["EVEN_M"    ])     EVEN_M  = conf["EVEN_M"    ].as<bool>();
     if (conf["cmap"      ])      cmapR  = conf["cmap"      ].as<int>();
@@ -941,6 +944,18 @@ void Cylinder::determine_coefficients_particles(void)
       std::cout << std::endl;
     }
     pcainit = false;
+  }
+
+  if (nint) {
+    compute = (mstep == 0) && (!(this_step % nint));
+    if (compute) {
+      ortho->setSampT(sampT);
+      ortho->set_covar(true);
+      requestSubsample = true;
+    } else {
+      ortho->set_covar(false);
+      subsampleComputed = false;
+    }
   }
 
   if (pcavar or pcaeof) {
