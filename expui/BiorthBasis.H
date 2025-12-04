@@ -494,7 +494,7 @@ namespace BasisClasses
 	    covarData[T][lm] = std::make_tuple(meanV[T][lm], covrV[T][lm]);
 	  }
 	}
-	std::cout << "Spherical::writeCoefCovariance: #, mass=" << sampleCounts.sum() << ", " << sampleMasses.sum() << std::endl;
+
 	SubsampleCovariance::CovarData elements = std::make_tuple(sampleCounts, sampleMasses, covarData);
 	covarStore->writeCoefCovariance(compname, runtag, elements, time);
       } else {
