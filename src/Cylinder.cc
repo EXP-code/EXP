@@ -185,7 +185,11 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   if (mlim>=0)  ortho->set_mlim(mlim);
   if (EVEN_M)   ortho->setEven(EVEN_M);
   ortho->setSampT(defSampT);
-
+  if (nint>0) {
+    EmpCylSL::PCAVAR = true;
+    ortho->init_pca();
+  }
+  
   try {
     if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
   }
@@ -947,9 +951,9 @@ void Cylinder::determine_coefficients_particles(void)
   }
 
   if (nint) {
+    // Determine if we need to compute covariance this step
     compute = (mstep == 0) && (!(this_step % nint));
     if (compute) {
-      ortho->setSampT(sampT);
       ortho->set_covar(true);
       requestSubsample = true;
     } else {
@@ -1830,4 +1834,12 @@ void Cylinder::occt_output()
       std::cout << std::string(8*(multistep+1), '-') << std::endl;
     }
   }
+}
+
+
+PotAccel::CovarData Cylinder::getSubsample()
+{
+  std::tie(sampleCounts, sampleMasses) = ortho->getCovarSamples();
+  auto covarData = ortho->getCoefCovariance();
+  return {sampleCounts, sampleMasses, covarData};
 }

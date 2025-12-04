@@ -484,6 +484,14 @@ public:
   //! Sanity check on grid: dumps SM-style images of initial field
   void dump_mzero(const string& name, int step);
 
+  /** Return a subsample of the basis coefficients and covariance
+      elements for matrices for analysis. The default implementation
+      returns empty vectors. This parallels the implementation in
+      expui. */
+  CovarData getSubsample();
+
+  //! Indicate whether or not subsampling is supported
+  virtual bool hasSubsample() {	return true; }
 };
 
 
