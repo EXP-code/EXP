@@ -2370,49 +2370,68 @@ PotAccel::CovarData SphericalBasis::getSubsample()
   // Prepare the covariance structure
   std::vector< std::vector<covTuple> > covar(sampT);
 
-  // Resize the inner vector to 1 (one component for Cube)
+  // Number of real angular terms l in [0, Lmax], m in [0, l]
   int totL = (Lmax+1)*(Lmax+2)/2;
+
+  // Sanity check
+  if (expcoefT[0].size() != totL) {
+    std::ostringstream ss;
+    ss << "SphericalBasis::getSubsample() "
+       << "internal error: unexpected number of absolute angular terms, "
+       << expcoefT[0].size() << " != " << totL;
+    throw std::runtime_error(ss.str());
+  }
+
+  // Resize the covariance structure
   for (auto & v : covar) v.resize(totL);
+
+  // Resize the sample counts and masses
+  sampleCounts.resize(sampT);
+  sampleMasses.resize(sampT);
 
   // Fill the covariance structure with subsamples
   for (int T=0; T<sampT; T++) {
     Eigen::VectorXcd meanV = Eigen::VectorXcd::Zero(nmax);
     Eigen::MatrixXcd covrV = Eigen::MatrixXcd::Zero(0,0);
-    if (fullCovar) covrV = Eigen::MatrixXcd::Zero(nmax, nmax);
+    if (fullCovar)   covrV = Eigen::MatrixXcd::Zero(nmax, nmax);
 
-    // l,m loop
-    for (int l=0, L=0; l<=Lmax; l++) {
-      for (int m=0; m<=l; m++, L++) {
+    // l loop
+    for (int l=0, k=0; l<=Lmax; l++) {
+      // m loop
+      for (int m=0; m<=l; m++) {
+	// outer n loop
 	for (int n=0; n<nmax; n++) {
-	  if (m==0)
-	    meanV(n) = std::complex<double>((*expcoefT[T][L  ])(n));
-	  else 
-	    meanV(n) = std::complex<double>((*expcoefT[T][L  ])(n),
-					    (*expcoefT[T][L+1])(n));
+	  meanV(n) = std::complex<double>((*expcoefT[T][k])(n));
+
 	  if (fullCovar) {
+	    // inner n loop
 	    for (int nn=0; nn<nmax; nn++) {
-	      if (m==0)
-		covrV(n, nn) = std::complex<double>((*expcoefM[T][L  ])(n, nn));
-	      else
-		covrV(n, nn) = std::complex<double>((*expcoefM[T][L  ])(n, nn),
-						    (*expcoefM[T][L+1])(n, nn));
+	      covrV(n, nn) = std::complex<double>((*expcoefM[T][k])(n, nn));
 	    }
 	  }
 	}
-
-	covar[T][L] = std::make_tuple(meanV, covrV);
-
-	if (m==0) L++;
-	else 	  L+=2;
+	// Assign data to return structure
+	covar[T][k++] = std::make_tuple(meanV, covrV);
       }
       // END: m loop
     }
     // END: l loop
 
     sampleCounts[T] = countT[T];
-    sampleMasses[T] = massT [T];
+    sampleMasses[T] =  massT[T];
   }
   // END: T loop
     
   return {sampleCounts, sampleMasses, covar};
 }
+
+
+void SphericalBasis::writeCovarH5Params(HighFive::File& file)
+{
+  file.createAttribute<int>("lmax", HighFive::DataSpace::From(Lmax)).write(Lmax);
+  file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+  file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
+  file.createAttribute<double>("rmin", HighFive::DataSpace::From(rmin)).write(rmin);
+  file.createAttribute<double>("rmax", HighFive::DataSpace::From(rmax)).write(rmax);
+}
+

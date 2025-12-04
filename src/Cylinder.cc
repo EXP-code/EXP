@@ -1843,3 +1843,14 @@ PotAccel::CovarData Cylinder::getSubsample()
   auto covarData = ortho->getCoefCovariance();
   return {sampleCounts, sampleMasses, covarData};
 }
+
+void Cylinder::writeCovarH5Params(HighFive::File& file)
+{
+  file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
+  file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+  file.createAttribute<double>("rcylmin", HighFive::DataSpace::From(rcylmin)).write(rcylmin);
+  file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
+  file.createAttribute<double>("acyl", HighFive::DataSpace::From(acyl)).write(acyl);
+  file.createAttribute<double>("hcyl", HighFive::DataSpace::From(hcyl)).write(hcyl);
+}
+  

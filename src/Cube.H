@@ -292,7 +292,6 @@ private:
     to   = tmp;
   }
 
-
   //! Write basis-specific parameters to HDF5 covariance file
   void writeCovarH5Params(HighFive::File& file);
 

@@ -324,6 +324,9 @@ protected:
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
 
+  //! Write basis-specific parameters to HDF5 covariance file
+  void writeCovarH5Params(HighFive::File& file);
+
 public:
 
   //! Mutexes for multithreading

@@ -407,6 +407,9 @@ protected:
   void biorthogonality_check();
   //@}
 
+  //! Write basis-specific parameters to HDF5 covariance file
+  void writeCovarH5Params(HighFive::File& file);
+
 public:
 
   //! Use YAML header in coefficient file
