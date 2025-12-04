@@ -494,6 +494,7 @@ namespace BasisClasses
 	    covarData[T][lm] = std::make_tuple(meanV[T][lm], covrV[T][lm]);
 	  }
 	}
+	std::cout << "Spherical::writeCoefCovariance: #, mass=" << sampleCounts.sum() << ", " << sampleMasses.sum() << std::endl;
 	SubsampleCovariance::CovarData elements = std::make_tuple(sampleCounts, sampleMasses, covarData);
 	covarStore->writeCoefCovariance(compname, runtag, elements, time);
       } else {
@@ -1091,6 +1092,7 @@ namespace BasisClasses
     {
       if (covarStore) {
 	auto covarData = sl->getCoefCovariance();
+	std::tie(sampleCounts, sampleMasses) = sl->getCovarSamples();
 	SubsampleCovariance::CovarData elements = std::make_tuple(sampleCounts, sampleMasses, covarData);
 	covarStore->writeCoefCovariance(compname, runtag, elements, time);
       } else {
@@ -1462,69 +1464,6 @@ namespace BasisClasses
     unsigned index1D(int kx, int ky, int kz);
   };
   
-  class CovarianceReader
-  {
-  public:
-    
-    using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
-
-  protected:
-
-    std::vector<double> times;
-    std::vector<Eigen::VectorXi> sampleCounts;
-    std::vector<Eigen::VectorXd> sampleMasses;
-    std::vector<std::vector<std::vector<CoefCovarType>>> covarData;
-
-    const double fixedPointPrecision = 1.0e08;
-    std::map<int, unsigned> timeMap;
-    unsigned timeIndex(double time)
-    {
-      int itime = static_cast<int>(time * fixedPointPrecision + 0.5);
-      auto it = timeMap.find(itime);
-      if (it == timeMap.end())
-	throw std::runtime_error("CovarianceReader: time not found");
-      return it->second;
-    }
-
-    std::string basisID;
-
-  public:
-
-    //! Constructor from HDF5 file
-    CovarianceReader(const std::string& filename, int stride=1);
-
-    //! Get time list
-    std::vector<double> Times() { return times; }
-
-    //@{
-    //! Return a vector of tuples of basis functions and the
-    //! covariance matrix for subsamples of particles
-    std::vector<std::vector<CoefCovarType>>
-    getCoefCovariance(unsigned index) { return covarData[index]; }
-
-    std::vector<std::vector<CoefCovarType>>
-    getCoefCovariance(double time) { return covarData[timeIndex(time)]; }
-    //@}
-
-
-    //@{
-    //! Get sample counts for the covariance computation
-    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
-    getCovarSamples(unsigned index)
-    {
-      return {sampleCounts[index], sampleMasses[index]};
-    }
-    
-    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
-    getCovarSamples(double time)
-    {
-      unsigned index = timeIndex(time);
-      return {sampleCounts[index], sampleMasses[index]};
-    }
-    //@}
-    
-    std::string basisIDname() { return basisID; }
-  };
 
   //! Time-dependent potential-density model
   using BasisCoef = std::tuple<std::shared_ptr<Basis>, std::shared_ptr<CoefClasses::Coefs>>;
