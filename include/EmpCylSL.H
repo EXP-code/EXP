@@ -243,6 +243,10 @@ protected:
 
   //@{
   //! H5 compression
+  /*! 
+   * H5compress: Compression level for HDF5 cache.
+   * Valid range: 0-9 (0 = no compression, 9 = maximum compression)
+   */
   unsigned H5compress = 7;
   bool     H5shuffle  = true;
   bool     H5szip     = false;
