@@ -950,10 +950,16 @@ void Cylinder::determine_coefficients_particles(void)
     pcainit = false;
   }
 
+  // No covarance by default
+  //
+  compute = false;
+
+  // Subsample computation flag
+  //
   if (nint) {
-    // Determine if we need to compute covariance this step
-    compute = (mstep == 0) && (!(this_step % nint));
-    if (compute) {
+    // Computed only for mstep==0 and every nint steps
+    if (mstep==0 and this_step % nint == 0) {
+      compute = true;
       ortho->set_covar(true);
       requestSubsample = true;
     } else {
@@ -1059,6 +1065,12 @@ void Cylinder::determine_coefficients_particles(void)
   //=========================
 
   if ((pcavar or pcaeof) and mlevel==0) ortho->pca_hall(compute, subsamp);
+
+  // If subsample requested and computed, turn off for next time
+  if (nint and compute and mlevel==multistep) {
+    requestSubsample = false;
+    subsampleComputed = true;
+  }
 
   //=========================
   // Apply Hall smoothing

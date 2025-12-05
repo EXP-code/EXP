@@ -681,17 +681,29 @@ void SphericalBasis::determine_coefficients_particles(void)
   //
   if (!self_consistent && !firstime_coef && !initializing) return;
 
-  if (pcavar or pcaeof) {
-    if (this_step >= npca0) 
-      compute = (mstep == 0) && !( (this_step-npca0) % npca);
-    else if (nint) 
-      compute = (mstep == 0) && !(this_step % nint);
+  // No covarance by default
+  //
+  compute = false;
+
+  // Subsample computation flag
+  //
+  if (nint) {
+    // Computed only for mstep==0 and every nint steps
+    if (mstep==0 and this_step % nint == 0) {
+      compute = true;
+      requestSubsample = true;
+    }
     else {
-      compute = false;
+      requestSubsample  = false;
       subsampleComputed = false;
+
     }
   }
 
+  if (pcavar or pcaeof) {
+    if (this_step >= npca0) 
+      compute = (mstep == 0) && !( (this_step-npca0) % npca);
+  }
 
   int loffset, moffset, use1;
 
@@ -900,12 +912,12 @@ void SphericalBasis::determine_coefficients_particles(void)
       for (int i=0; i<nthrds; i++) muse0 += muse1[i];
       MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       parallel_gather_coef2();
+
+      requestSubsample  = false;
+      subsampleComputed = true;
     }
 
     pca_hall(compute);
-
-    requestSubsample  = false;
-    subsampleComputed = true;
   }
 
   print_timings("SphericalBasis: coefficient timings");
@@ -2422,6 +2434,18 @@ PotAccel::CovarData SphericalBasis::getSubsample()
   }
   // END: T loop
     
+  if (myid==0) {
+    std::cout << "SphericalBasis::getSubsample(): "
+	      << "returning " << sampT << " subsamples, "
+	      << (fullCovar ? "full" : "diagonal") << " covariance"
+	      << ", with counts=" << sampleCounts.size()*sizeof(int)
+	      << ", masses=" << sampleMasses.size()*sizeof(double)
+      	      << ", data="
+	      << covar.size()*covar[0].size()*
+      (std::get<0>(covar[0][0]).size() + std::get<1>(covar[0][0]).size())*sizeof(std::complex<double>)
+	      << std::endl;
+  }
+
   return {sampleCounts, sampleMasses, covar};
 }
 
