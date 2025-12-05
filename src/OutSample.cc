@@ -117,6 +117,6 @@ void OutSample::Run(int n, int mstep, bool last)
     
   // Write the subsample data
   auto elem = tcomp->force->getSubsample();
-  covarStore->writeCoefCovariance(tcomp->name, runtag, elem, tnow);
+  covarStore->writeCoefCovariance(filename, elem, tnow);
 
 }
