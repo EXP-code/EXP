@@ -948,6 +948,13 @@ public:
   //! Set HDF5 compression parameters for cache files
   void setH5Params(unsigned compress, bool shuffle=true, bool szip=false)
   {
+    if (compress > 9) {
+      if (myid==0) {
+	cout << "EmpCylSL: compression level " << compress
+	     << " out of range [0,9], using 9" << std::endl;
+      }
+      compress = 9;
+    }
     H5compress = compress;
     H5shuffle  = shuffle;
     H5szip     = szip;
