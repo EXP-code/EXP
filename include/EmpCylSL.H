@@ -945,6 +945,14 @@ public:
     }
   }
 
+  //! Set HDF5 compression parameters for cache files
+  void setH5Params(unsigned compress, bool shuffle=true, bool szip=false)
+  {
+    H5compress = compress;
+    H5shuffle  = shuffle;
+    H5szip     = szip;
+  }
+
   vector<double> sanity() { 
     vector<double> ret;
     for (int m=0; m<=MMAX; m++) ret.push_back(accum_cos[0][m]);
