@@ -7382,17 +7382,17 @@ void EmpCylSL::WriteH5Cache()
     auto dcpl = HighFive::DataSetCreateProps{};
 
     if (H5compress) {
-      // Szip parameters
-      const int options_mask = H5_SZIP_NN_OPTION_MASK;
-      const int pixels_per_block = 8;
       // Chunking
       unsigned long nx = NUMX + 1, ny = NUMY + 1;
       dcpl.add(HighFive::Chunking({nx, ny}));
       if (H5shuffle) dcpl.add(HighFive::Shuffle());
-      if (H5szip)
-	dcpl.add(HighFive::Szip(options_mask, pixels_per_block));
-      else
-	dcpl.add(HighFive::Deflate(H5compress));
+      if (H5szip) {
+        const int options_mask = H5_SZIP_NN_OPTION_MASK;
+        const int pixels_per_block = 8;
+        dcpl.add(HighFive::Szip(options_mask, pixels_per_block));
+      } else {
+        dcpl.add(HighFive::Deflate(H5compress));
+      }
     }
 
     // Cosine functions
