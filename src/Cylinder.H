@@ -122,6 +122,11 @@ class MixtureBasis;
 
     @param dumpbasis set to true dumps the basis to a file for
     diagnostic examination (default: false)
+
+    @param compress sets the HDF5 cache file compression level.  The
+     HDF5 disk basis cache is gzip compressed by default at compress=5
+     to save disk space. The user may turn off compression usin the
+     compress=0, although we have no particular use case.
 */
 class Cylinder : public Basis
 {
