@@ -1261,7 +1261,8 @@ namespace BasisClasses
     "playback",
     "coefCompute",
     "coefMaster",
-    "pyname"
+    "pyname",
+    "compress"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
@@ -1591,6 +1592,13 @@ namespace BasisClasses
       sl->set_covar(true);
     }
     
+    // Set HDF5 compression parameters for cache files
+    //
+    if (conf["compress"]) {
+      unsigned compress = conf["compress"].as<unsigned>();
+      sl->setH5Params(compress);
+    }
+
     // Cache override for old Eigen cache
     //
     if (oldcache) sl->AllowOldCache();

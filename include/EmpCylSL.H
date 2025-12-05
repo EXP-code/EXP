@@ -247,7 +247,7 @@ protected:
    * H5compress: Compression level for HDF5 cache.
    * Valid range: 0-9 (0 = no compression, 9 = maximum compression)
    */
-  unsigned H5compress = 7;
+  unsigned H5compress = 5;
   bool     H5shuffle  = true;
   bool     H5szip     = false;
   //@}
@@ -954,8 +954,8 @@ public:
     // Validate compression level (unsigned type prevents negative values)
     if (compress > 9) {
       if (myid==0) {
-	cout << "EmpCylSL: compression level " << compress
-	     << " out of range [0,9], using 9" << std::endl;
+	std::cout << "EmpCylSL: compression level " << compress
+		  << " out of range [0,9], using 9" << std::endl;
       }
       compress = 9;
     }

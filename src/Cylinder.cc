@@ -74,7 +74,8 @@ Cylinder::valid_keys = {
   "coefCompute",
   "coefMaster",
   "pyname",
-  "dumpbasis"
+  "dumpbasis",
+  "compress"
 };
 
 Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
@@ -183,6 +184,12 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   if (mlim>=0)  ortho->set_mlim(mlim);
   if (EVEN_M)   ortho->setEven(EVEN_M);
   ortho->setSampT(defSampT);
+
+  // Set HDF5 compression parameters for cache files
+  if (conf["compress"]) {
+    unsigned compress = conf["compress"].as<unsigned>();
+    ortho->setH5Params(compress);
+  }
 
   try {
     if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
