@@ -945,6 +945,25 @@ public:
     }
   }
 
+  //! Set HDF5 compression parameters for cache files
+  //! @param compress Compression level (valid range: 0-9, where 0=no compression, 9=max compression)
+  //! @param shuffle Enable byte shuffle filter (default: true)
+  //! @param szip Enable szip compression (default: false)
+  void setH5Params(unsigned compress, bool shuffle=true, bool szip=false)
+  {
+    // Validate compression level (unsigned type prevents negative values)
+    if (compress > 9) {
+      if (myid==0) {
+	cout << "EmpCylSL: compression level " << compress
+	     << " out of range [0,9], using 9" << std::endl;
+      }
+      compress = 9;
+    }
+    H5compress = compress;
+    H5shuffle  = shuffle;
+    H5szip     = szip;
+  }
+
   vector<double> sanity() { 
     vector<double> ret;
     for (int m=0; m<=MMAX; m++) ret.push_back(accum_cos[0][m]);
