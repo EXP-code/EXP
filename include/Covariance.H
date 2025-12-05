@@ -120,7 +120,8 @@ namespace BasisClasses
     {
       auto it = covarData.find(roundTime(time));
       if (it == covarData.end())
-	throw std::runtime_error("SubsampleCovariance::getCoefCovariance: time not found");
+	throw std::runtime_error("SubsampleCovariance::getCoefCovariance: "
+				 "time not found");
       return std::get<2>(it->second);
     }
     
@@ -130,16 +131,24 @@ namespace BasisClasses
     {
       auto it = covarData.find(roundTime(time));
       if (it == covarData.end())
-	throw std::runtime_error("SubsampleCovariance::getCovarSamples: time not found");
+	throw std::runtime_error("SubsampleCovariance::getCovarSamples: "
+				 "time not found");
       return std::make_tuple(std::get<0>(it->second), std::get<1>(it->second));
     }
     
-    //! Write coefficient covariance data to an HDF5 file
+    //! Write coefficient covariance data to an HDF5 file, creating a
+    //! filename based on component name and run tag
     void writeCoefCovariance(const std::string& compname,
 			     const std::string& runtag,
 			     CovarData& covarElem,
 			     double time=0.0);
     
+    //! Write coefficient covariance data to an HDF5 file with a
+    //! supplied path + filename
+    void writeCoefCovariance(const std::string& filename,
+			     CovarData& covarElem,
+			     double time=0.0);
+
     //! Choose between float and double storage for covariance
     void setCovarFloatType(bool flt) { floatType = flt; }
     

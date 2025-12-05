@@ -207,6 +207,20 @@ namespace BasisClasses
     // Only root process writes
     //
     if (myid) return;
+
+    // The H5 filename
+    //
+    std::string fname = "coefcovar." + compname + "." + runtag + ".h5";
+    
+    writeCoefCovariance(fname, elem, time);
+  }
+  
+  void SubsampleCovariance::writeCoefCovariance
+  (const std::string& fname, CovarData& elem, double time)
+  {
+    // Only root process writes
+    //
+    if (myid) return;
     
     // Check that there is something to write
     //
@@ -221,10 +235,6 @@ namespace BasisClasses
     // Round time
     //
     time = roundTime(time);
-    
-    // The H5 filename
-    //
-    std::string fname = "coefcovar." + compname + "." + runtag + ".h5";
     
     // Check if file exists?
     //
