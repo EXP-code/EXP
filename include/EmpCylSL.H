@@ -241,6 +241,13 @@ protected:
   //! Cache versioning
   inline static const std::string Version = "1.0";
 
+  //@{
+  //! H5 compression
+  unsigned H5compress = 7;
+  bool     H5shuffle  = true;
+  bool     H5szip     = false;
+  //@}
+
   //! The cache file name
   std::string cachefile;
 				// 1=write, 0=read

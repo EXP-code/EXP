@@ -7377,8 +7377,26 @@ void EmpCylSL::WriteH5Cache()
     file.createAttribute<double>     ("hscl",    HighFive::DataSpace::From(HSCALE)).  write(HSCALE);
     file.createAttribute<double>     ("cmass",   HighFive::DataSpace::From(cylmass)). write(cylmass);
       
-    // Cosine functions
+    // Enable compression
+    //
+    auto dcpl = HighFive::DataSetCreateProps{};
 
+    if (H5compress) {
+      // Szip parameters
+      const int options_mask = H5_SZIP_NN_OPTION_MASK;
+      const int pixels_per_block = 8;
+      // Chunking
+      unsigned long nx = NUMX + 1, ny = NUMY + 1;
+      dcpl.add(HighFive::Chunking({nx, ny}));
+      if (H5shuffle) dcpl.add(HighFive::Shuffle());
+      if (H5szip)
+	dcpl.add(HighFive::Szip(options_mask, pixels_per_block));
+      else
+	dcpl.add(HighFive::Deflate(H5compress));
+    }
+
+    // Cosine functions
+    //
     auto cosine = file.createGroup("Cosine");
 
     // Harmonic order
@@ -7394,15 +7412,15 @@ void EmpCylSL::WriteH5Cache()
 	sout << n;
 	auto order = harmonic.createGroup(sout.str());
       
-	order.createDataSet("potC",    potC   [m][n]);
-	order.createDataSet("rforceC", rforceC[m][n]);
-	order.createDataSet("zforceC", zforceC[m][n]);
-	order.createDataSet("densC",   densC  [m][n]);
+	order.createDataSet("potC",    potC   [m][n], dcpl);
+	order.createDataSet("rforceC", rforceC[m][n], dcpl);
+	order.createDataSet("zforceC", zforceC[m][n], dcpl);
+	order.createDataSet("densC",   densC  [m][n], dcpl);
       }
     }
 
     // Sine functions
-
+    //
     auto sine = file.createGroup("Sine");
 
     // Harmonic order
@@ -7418,10 +7436,10 @@ void EmpCylSL::WriteH5Cache()
 	sout << n;
 	auto order = harmonic.createGroup(sout.str());
       
-	order.createDataSet("potS",    potS   [m][n]);
-	order.createDataSet("rforceS", rforceS[m][n]);
-	order.createDataSet("zforceS", zforceS[m][n]);
-	order.createDataSet("densS",   densS  [m][n]);
+	order.createDataSet("potS",    potS   [m][n], dcpl);
+	order.createDataSet("rforceS", rforceS[m][n], dcpl);
+	order.createDataSet("zforceS", zforceS[m][n], dcpl);
+	order.createDataSet("densS",   densS  [m][n], dcpl);
       }
     }
 
