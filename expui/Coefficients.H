@@ -18,7 +18,7 @@
 #include "CoefStruct.H"
 
 // Unit validation
-#include <UnitValidator.H>
+#include "UnitValidator.H"
 
 // All coefficient classes are in this namespace
 namespace CoefClasses
