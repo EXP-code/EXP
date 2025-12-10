@@ -6,10 +6,10 @@
 using namespace std;
 
 #include "expand.H"
-#include <global.H>
+#include "global.H"
 
-#include <AxisymmetricBasis.H>
-#include <OutAscii.H>
+#include "AxisymmetricBasis.H"
+#include "OutAscii.H"
 
 const std::set<std::string>
 OutAscii::valid_keys = {

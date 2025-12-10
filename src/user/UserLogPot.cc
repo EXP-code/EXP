@@ -3,7 +3,7 @@
 
 #include "expand.H"
 
-#include <UserLogPot.H>
+#include "UserLogPot.H"
 
 const std::set<std::string>
 UserLogPot::valid_keys = {

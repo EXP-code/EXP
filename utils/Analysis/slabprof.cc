@@ -37,13 +37,14 @@
 #include <string>
 
                                 // System libs
+#include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
 				// EXP classes
-#include <ParticleReader.H>
-#include <cxxopts.H>
-#include <libvars.H>
+#include "ParticleReader.H"
+#include "cxxopts.H"
+#include "libvars.H"
 
 //=============================================================================
 // Global variables

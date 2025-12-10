@@ -123,6 +123,20 @@ The most important of these are:
    If you would like either of the native graphic support enabled set
    `-DENABLE_PNG=ON` and/or `-DENABLE_VTK=ON`.
 
+7. We provide an option, `-DENABLE_MINIMAL=ON`, to compile a minimal
+   for clients who wish to use the EXP C++ user interface to access
+   the classes used by `pyEXP`. The minimal library set and public
+   headers will be installed in the destination target.
+   
+8. A related option, `-DENABLE_PYEXP_ONLY`, builds only the `pyEXP`
+   interface its dependencies without any other support binaries.
+   
+9. The CMake configuration makes shared-object libraries by
+   default. This is necessary for compiling `pyEXP` and user
+   modules. If you need static libraries for some reason, EXP will
+   compile with `-DBUILD_SHARED_LIBS=OFF -DENABLE_PYEXP=NO
+   -DENABLE_USER=NO`.
+
 
 ## Configuring Eigen3
 

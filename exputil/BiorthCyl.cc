@@ -16,15 +16,15 @@
 #include <omp.h>		// For multithreading basis construction
 #endif
 
-#include <BiorthCyl.H>		// Definition for this class
-#include <PotRZ.H>		// Hankel computation for potential
-#include <EXPException.H>	// For GenericError
+#include "BiorthCyl.H"		// Definition for this class
+#include "PotRZ.H"		// Hankel computation for potential
+#include "EXPException.H"	// For GenericError
 
-#include <numerical.H>
-#include <Progress.H>		// Progress bar
-#include <gaussQ.H>
+#include "numerical.H"
+#include "Progress.H"		// Progress bar
+#include "gaussQ.H"
 
-#include <libvars.H>
+#include "libvars.H"
 using namespace __EXP__;	// For reference to n-body globals
 
 // Cache version

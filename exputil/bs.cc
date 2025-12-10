@@ -1,7 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
-#include <numerical.H>
+#include "numerical.H"
 
 #define IMAX 11
 #define NUSE 7

@@ -3,9 +3,9 @@
 #include <iomanip>
 #include <sstream>
 
-#include <expand.H>
-#include <Timer.H>
-#include <OutCalbr.H>
+#include "expand.H"
+#include "Timer.H"
+#include "OutCalbr.H"
 
 const std::set<std::string>
 OutCalbr::valid_keys = {
@@ -50,7 +50,7 @@ void OutCalbr::set_energies()
     double Emin1=1e30, Emax1=-1e30, v2, E;
 
     PartMapItr it = tcomp->Particles().begin();
-    unsigned long n;
+    unsigned long n=0;
     Particle *p = tcomp->Part(n);
 
     for (int q=0; q<tcomp->Number(); q++) {
@@ -194,8 +194,6 @@ void OutCalbr::Run(int ns, int mstep, bool last)
       }
     }
 #endif
-
-  MPI_Status status;
 
   Timer timer;
 

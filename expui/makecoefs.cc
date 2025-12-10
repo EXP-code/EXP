@@ -4,13 +4,13 @@
 #include <fstream>
 #include <memory>
 
-#include <cxxopts.H>
-#include <libvars.H>
+#include "cxxopts.H"
+#include "libvars.H"
 
-#include <Coefficients.H>
-#include <BiorthBasis.H>
-#include <FieldGenerator.H>
-#include <ParticleReader.H>
+#include "Coefficients.H"
+#include "BiorthBasis.H"
+#include "FieldGenerator.H"
+#include "ParticleReader.H"
 
 int main(int argc, char **argv)
 {

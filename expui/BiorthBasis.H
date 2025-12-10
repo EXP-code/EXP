@@ -3,24 +3,31 @@
 
 #include <functional>
 #include <tuple>
+#include <map>
+#include <set>
 
 #include <Eigen/Eigen>
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 #include <yaml-cpp/yaml.h>
 
-#include <DiskDensityFunc.H>
-#include <ParticleReader.H>
-#include <Coefficients.H>
-#include <BiorthBess.H>
-#include <BasisFactory.H>
-#include <BiorthCube.H>
-#include <sltableMP2.H>
-#include <SLGridMP2.H>
-#include <YamlCheck.H>
-#include <BiorthCyl.H>
-#include <EmpCylSL.H>
-#include <localmpi.H>
-#include <exputils.H>
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
+
+#include "DiskDensityFunc.H"
+#include "ParticleReader.H"
+#include "Coefficients.H"
+#include "BiorthBess.H"
+#include "BasisFactory.H"
+#include "BiorthCube.H"
+#include "sltableMP2.H"
+#include "SLGridMP2.H"
+#include "YamlCheck.H"
+#include "BiorthCyl.H"
+#include "EmpCylSL.H"
+#include "localmpi.H"
+#include "exputils.H"
 
 namespace Field
 {
@@ -39,6 +46,12 @@ namespace BasisClasses
   class BiorthBasis : public Basis
   {
     friend class Field::FieldGenerator;
+
+  private:
+
+    //! Helper for factory
+    static std::shared_ptr<BiorthBasis>
+    factory_initialize(const YAML::Node& node);
 
   protected:
     
@@ -78,8 +91,67 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() = 0;
 
+    //@{
+    //! Compute acceleration helper for each derived class
+    virtual void computeAccel(double x, double y, double z,
+			      Eigen::Ref<Eigen::Vector3d> vstore) = 0;
+
+    //! C++ local storage for computeAccel
+    Eigen::Vector3d vstore;
+
+    //! C++ local storage for the array version of getAccel
+    RowMatrixXd varray;
+    //@}
+
+    //! Coefficient variance computation enabled
+    bool pcavar = false;
+
+    //! Data type for covariance
+    bool floatType = false;
+
+    //@{
+    //! Sample counts and masses for covariance computation
+    Eigen::VectorXi sampleCounts;
+    Eigen::VectorXd sampleMasses;
+    //@}
+
+    //@{
+    //! HDF5 compression settings
+    unsigned H5compress  = 5;
+    unsigned H5chunk     = 1024*1024; // (1 MB)
+    bool     H5shuffle   = true;
+    bool     H5szip      = false;
+    //@}
+
+    //! Round time key to emulated fixed-point arithmetic
+    double roundTime(double time)
+    {
+      // Eight decimal places should be enough here...
+      const double multiplier = 1.0e+08;  // std::pow(10.0, 8);
+      return std::floor(time * multiplier + 0.5) / multiplier;
+    }
+
+    //! Write H5 covariance; returns updated group count
+    virtual unsigned writeCovarH5(HighFive::Group& group, unsigned count, double time);
+    
+    //! Write H5 parameters for coefficient covariance
+    virtual void writeCovarH5Params(HighFive::File& file) {}
+
+    //! Add coefficient covariance data to an HDF5 file
+    virtual void extendCoefCovariance(const std::string& filename, double time);
+
+    //! Variance file versioning (Version 1.0 has more granularity and
+    //! poor compression)
+    inline static const std::string CovarianceFileVersion = "1.1";
+
+    //! Store full coavariance matrix?
+    bool covar = true;
+
   public:
     
+    //! Basis identifier string
+    std::string BasisID = "BiorthBasis";
+
     //! Constructor from YAML node
     BiorthBasis(const YAML::Node& conf,
 		const std::string& name="BiorthBasis") : Basis(conf, name) {}
@@ -94,13 +166,15 @@ namespace BasisClasses
     //! Generate coeffients from a particle reader and optional center
     //! location for the expansion
     CoefClasses::CoefStrPtr createFromReader
-    (PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
+    (PR::PRptr reader, Eigen::Vector3d center=Eigen::Vector3d::Zero(),
+     RowMatrix3d rot=RowMatrix3d::Identity());
     
     //! Generate coeffients from an array and optional center location
     //! for the expansion
     CoefClasses::CoefStrPtr createFromArray
     (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
-     std::vector<double> center={0.0, 0.0, 0.0},
+     Eigen::Vector3d center=Eigen::Vector3d::Zero(),
+     RowMatrix3d rot=RowMatrix3d::Identity(),
      bool roundrobin=true, bool posvelrows=false);
     
     //! Generate coeffients from an array and optional center location
@@ -110,7 +184,8 @@ namespace BasisClasses
     //! Initialize accumulating coefficients from arrays with an optional
     //! center vector.  This is called once to initialize the accumulation.
     void initFromArray
-    (std::vector<double> center={0.0, 0.0, 0.0});
+    (Eigen::Vector3d center=Eigen::Vector3d::Zero(),
+     RowMatrix3d rot=RowMatrix3d::Identity());
     
     //! Initialize accumulating coefficients from arrays.  This is
     //! called once to initialize the accumulation.
@@ -123,14 +198,36 @@ namespace BasisClasses
     CoefClasses::CoefStrPtr makeFromArray(double time=0.0);
     //@}
     
-    //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass) = 0;
+    //! Create and the coefficients from a function callback with the
+    //! provided time value.  Set potential=true if function is a
+    //! potential field.  Density is assumed if false (default).
+    virtual CoefClasses::CoefStrPtr makeFromFunction
+    (std::function<double(double x, double y, double z, double time)> func,
+     std::map<std::string, double>& params, double time=0.0, bool potential=false)
+    {
+      throw std::runtime_error("Error: BiorthBasis::makeFromFunction is not implemented");
+      return nullptr;
+    }
+    
+    //! Compute a quadrature over the basis domain using function
+    //! callback for the integrand
+    virtual double computeQuadrature
+    (std::function<double(double x, double y, double z)> func,
+     std::map<std::string, double>& params)
+    {
+      throw std::runtime_error("Error: BiorthBasis::computeQuadrature is not implemented");
+      return 0.0;
+    }
     
     //! Accumulate new coefficients
-    virtual void accumulate(double mass,
-			    double x, double y, double z,
-			    double u, double v, double w)
-    { accumulate(x, y, z, mass); }
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0) = 0;
+    
+    //! Accumulate new coefficients
+    virtual void accumulate(double x, double y, double z,
+			    double u, double v, double w,
+			    double mass, unsigned long indx = 0)
+    { accumulate(x, y, z, mass, indx); }
     
     //! Get mass on grid
     double getMass(void) { return totalMass; }
@@ -154,8 +251,8 @@ namespace BasisClasses
     //@{
     //! The coefficient factory.  Creates a shared pointer to derived
     //! instance of the desired type and returns it.
-    // static std::shared_ptr<Basis> factory(const YAML::Node&  conf);
-    // static std::shared_ptr<Basis> factory_string(const std::string& conf);
+    static std::shared_ptr<BiorthBasis> factory(const YAML::Node&  conf);
+    static std::shared_ptr<BiorthBasis> factory_string(const std::string& conf);
     //@}
     
     //! Set the particle selector callback
@@ -166,9 +263,99 @@ namespace BasisClasses
 
     //! Evaluate acceleration in Cartesian coordinates in centered
     //! coordinate system
-    virtual std::vector<double> getAccel(double x, double y, double z) = 0;
+    virtual Eigen::Vector3d& getAccel(double x, double y, double z)
+    {
+      computeAccel(x, y, z, vstore);
+      return vstore;
+    }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system for a collections of points
+    virtual RowMatrixXd& getAccel(Eigen::Ref<const Eigen::VectorXd> x,
+				  Eigen::Ref<const Eigen::VectorXd> y,
+				  Eigen::Ref<const Eigen::VectorXd> z)
+    {
+      // Sanity check
+      if (x.size() != y.size() || x.size() != z.size())
+	throw std::runtime_error("BiorthBasis::getAccel: "
+				 "x, y, z vectors must be of the same size");
+      
+      // Resize the return array
+      varray.resize(x.size(), 3);
+#pragma omp parallel for
+      for (int i=0; i<x.size(); ++i) {
+	computeAccel(x(i), y(i), z(i), varray.row(i));
+      }
+
+      return varray;
+    }
+
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
+    virtual std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance()
+    {
+      // Must be overriden; base implementation throws error
+      throw std::runtime_error("BiorthBasis::getCoefCovariance: Not implemented for this basis");
+    }
+
+    //! Get sample counts for the covariance computation
+    virtual std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples()
+    {
+      return std::make_tuple(sampleCounts, sampleMasses);
+    }
+
+    //! Write coefficient covariance data to an HDF5 file
+    void writeCoefCovariance(const std::string& compname,
+			     const std::string& runtag,
+			     double time=0.0);
+
+    //! Choose between float and double storage for covariance
+    void setCovarFloatType(bool flt) { floatType = flt; }
+
+    //! HDF5 compression settings
+    void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle, bool szip=false)
+    {
+      H5compress = level;
+      H5chunk    = chunksize;
+      H5shuffle  = shuffle;
+      H5szip     = szip;
+    }
+
+    //! Make covariance after accumulation
+    virtual void makeCoefCovariance(void) {}
+
+    //! Enable covariance computation with optional sample time
+    virtual void enableCoefCovariance(bool pcavar, int sampT_in, bool covar_in)
+    {
+      // Must be overriden; base implementation throws error
+      throw std::runtime_error("BiorthBasis::enableCoefCovariance: "
+			       "Not implemented for this basis");
+    }
+
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system for a collections of points
+    virtual RowMatrixXd& getAccel(Eigen::Ref<const RowMatrixXd> pos)
+    {
+      // Sanity check
+      if (pos.cols() != 3)
+	throw std::runtime_error("BiorthBasis::getAccel: "
+				 "input array must have 3 columns");
+      
+      // Resize the return array
+      varray.resize(pos.rows(), 3);
+#pragma omp parallel for
+      for (int i=0; i<pos.rows(); ++i) {
+	computeAccel(pos(i, 0), pos(i, 1), pos(i, 2), varray.row(i));
+      }
+      
+      return varray;
+    }
   };
-  
+
+
   /**
      An abstract spherical basis to evaluate expansion coeffients and
      provide potential and density basis fields
@@ -257,6 +444,24 @@ namespace BasisClasses
 
     //@}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    virtual void computeAccel(double x, double y, double z, 
+			      Eigen::Ref<Eigen::Vector3d> vstore);
+
+    //@{
+    //! Covariance structures.  First index is T, second is harmonic
+    //! (l,m).
+    std::vector<std::vector<Eigen::VectorXcd>> meanV;
+    std::vector<std::vector<Eigen::MatrixXcd>> covrV;
+    std::vector<std::vector<Eigen::VectorXcd>> dvarV;
+
+    void init_covariance();
+    void zero_covariance();
+    void writeCovarH5Params(HighFive::File& file);
+    int sampT = 100;
+    //@}
+
   public:
     
     //! Constructor from YAML node
@@ -285,7 +490,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     int getLmax() { return lmax; }
@@ -312,9 +518,32 @@ namespace BasisClasses
       return ret;
     }
 
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    virtual std::vector<double> getAccel(double x, double y, double z);
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance();
+
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
+				      bool covar_in=true)
+    {
+      pcavar = pcavar_in;
+      sampT  = sampT_in;
+      covar  = covar_in;
+      if (pcavar) init_covariance();
+    }
+    //! Create and the coefficients from a function callback with the
+    //! provided time value.  Set potential=true if function is a
+    //! potential field.  Density is assumed if false (default).
+    virtual CoefClasses::CoefStrPtr makeFromFunction
+    (std::function<double(double x, double y, double z, double time)> func,
+     std::map<std::string, double>& params, double time=0.0, bool potential=false);
+
+
+    //! Compute a quadrature over the basis domain using function
+    //! callback for the integrand
+    double computeQuadrature
+    (std::function<double(double x, double y, double z)> func,
+     std::map<std::string, double>& params);
   };
 
   /**
@@ -371,6 +600,7 @@ namespace BasisClasses
     //! produce matrices
     std::vector<Eigen::MatrixXd> orthoCheck(int knots=40)
     { return sl->orthoCheck(knots); }
+
   };
   
   /**
@@ -499,6 +729,11 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() { return "m";}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -524,7 +759,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     int getMmax() { return mmax; }
@@ -550,10 +786,6 @@ namespace BasisClasses
 	std::cout << "---- FlatDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
     }
-
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
 
   };
   
@@ -655,6 +887,11 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() { return "m";}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -680,7 +917,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     int getMmax() { return mmax; }
@@ -707,10 +945,6 @@ namespace BasisClasses
       return ret;
     }
 
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
-
   };
   
   /**
@@ -734,9 +968,8 @@ namespace BasisClasses
     int lmaxfid, nmaxfid, mmax, mlim, nmax;
     int ncylodd, ncylnx, ncylny, ncylr, cmap, cmapR, cmapZ, vflag;
     int rnum, pnum, tnum;
-    double rmin, rmax, rcylmin, rcylmax;
-    double acyl, hcyl;
-    bool expcond, logarithmic, density, EVEN_M, sech2 = false;
+    double rcylmin, rcylmax, acyl, hcyl;
+    bool expcond, logarithmic, density, EVEN_M, sech2 = true;
     
     std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;
     std::vector<Eigen::MatrixXd> legs, dlegs, d2legs;
@@ -744,8 +977,7 @@ namespace BasisClasses
     bool coefs_defined;
     Eigen::MatrixXd factorial;
     Eigen::MatrixXd expcoef;
-    double rscl;
-    int used;
+    int used, sampT = 1;
     
     std::string cachename;
     bool oldcache = false;
@@ -806,6 +1038,14 @@ namespace BasisClasses
     //! Subspace index
     virtual const std::string harmonic() { return "m";}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> vstore);
+
+    //! Needed for covariance writing
+    void writeCovarH5Params(HighFive::File& file);
+
   public:
     
     //! Constructor from YAML node
@@ -824,9 +1064,6 @@ namespace BasisClasses
       return EmpCylSL::cacheInfo(cachefile);
     }
 
-    //! Prescaling factor
-    void set_scale(const double scl) { rscl = scl; }
-    
     //! Zero out coefficients to prepare for a new expansion
     void reset_coefs(void);
     
@@ -834,7 +1071,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     int getMmax() { return mmax; }
@@ -865,10 +1103,45 @@ namespace BasisClasses
       return ret;
     }
 
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance()
+    {
+      return sl->getCoefCovariance();
+    }
 
+    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples()
+    {
+      // Copy to base class members
+      std::tie(sampleCounts, sampleMasses) = sl->getCovarSamples();
+      return {sampleCounts, sampleMasses};
+    }
+
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
+				      bool covar_in=true)
+    {
+      pcavar = pcavar_in;
+      sampT  = sampT_in;
+      covar  = covar_in;
+      if (pcavar)  {
+	sl->setSampT(std::max(1, sampT));
+	sl->set_covar(true);
+      }
+    }
+    //! Create and the coefficients from a function callback with the
+    //! provided time value.  Set potential=true if function is a
+    //! potential field.  Density is assumed if false (default).
+    virtual CoefClasses::CoefStrPtr makeFromFunction
+    (std::function<double(double x, double y, double z, double time)> func,
+     std::map<std::string, double>& params, double time=0.0, bool potential=false);
+
+    //! Compute a quadrature over the basis domain using function
+    //! callback for the integrand
+    double computeQuadrature
+    (std::function<double(double x, double y, double z)> func,
+     std::map<std::string, double>& params);
   };
   
   /**
@@ -922,7 +1195,7 @@ namespace BasisClasses
 
     coefType expcoef;
     
-    //! Notal mass on grid
+    //! Total mass on grid
     double totalMass;
 
     //! Number of particles
@@ -962,6 +1235,11 @@ namespace BasisClasses
     std::tuple<double, double, double, double, double>
     eval(double x, double y, double z);
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> vstore);
+
   public:
     
     //! Constructor from YAML node
@@ -980,7 +1258,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     Eigen::Vector3i getNmax() { return {nmaxx, nmaxy, nmaxz}; }
@@ -1017,10 +1296,6 @@ namespace BasisClasses
       return true;
     }
 
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
-
   };
   
   /**
@@ -1052,6 +1327,9 @@ namespace BasisClasses
     //! Maximum expansion order for construction
     int nmaxx, nmaxy, nmaxz;
 
+    //! Total number of modes
+    unsigned Itot;
+
     //! Number of integration knots for orthogonal check
     int knots;
 
@@ -1062,7 +1340,7 @@ namespace BasisClasses
 
     coefType expcoef;
     
-    //! Notal mass on grid
+    //! Total mass on grid
     double totalMass;
 
     //! Number of particles
@@ -1098,6 +1376,25 @@ namespace BasisClasses
     //! Readable index name
     virtual const std::string harmonic()  { return "n";}
 
+    //! Evaluate acceleration in Cartesian coordinates in centered
+    //! coordinate system
+    void computeAccel(double x, double y, double z, 
+		      Eigen::Ref<Eigen::Vector3d> vstore);
+
+    //@{
+    //! Covariance structures.  First index is T, second is the
+    //! flattened 3-d k vector
+    std::vector<Eigen::VectorXcd> meanV;
+    std::vector<Eigen::MatrixXcd> covrV;
+    std::vector<Eigen::VectorXcd> dvarV;
+
+    void init_covariance();
+    void zero_covariance();
+    void writeCovarH5Params(HighFive::File& file);
+    int  sampT = 100;
+    bool diagcov = true;
+    //@}
+
   public:
     
     //! Constructor from YAML node
@@ -1116,7 +1413,8 @@ namespace BasisClasses
     void make_coefs(void);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double x, double y, double z, double mass);
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0);
     
     //! Return current maximum harmonic order in expansion
     Eigen::Vector3i getNmax() { return {nmaxx, nmaxy, nmaxz}; }
@@ -1145,12 +1443,97 @@ namespace BasisClasses
       return true;
     }
 
-    //! Evaluate acceleration in Cartesian coordinates in centered
-    //! coordinate system
-    std::vector<double> getAccel(double x, double y, double z);
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    std::vector<std::vector<CoefCovarType>> getCoefCovariance();
 
+    //! Get sample count and mass arrays
+    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples()
+    {
+      return {sampleCounts, sampleMasses};
+    }
+
+    //! Enable coefficient covariance computation
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
+				      bool covar_in=false)
+    {
+      pcavar = pcavar_in;
+      sampT  = sampT_in;
+      covar  = covar_in;
+      if (pcavar) { init_covariance(); }
+    }
+
+    //! Return wave-number indices from flattened index
+    std::tuple<int, int, int> index3D(unsigned k);
+
+    //! Get flattened index from wave-number indicies
+    unsigned index1D(int kx, int ky, int kz);
   };
   
+  class CovarianceReader
+  {
+  public:
+    
+    using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
+
+  protected:
+
+    std::vector<double> times;
+    std::vector<Eigen::VectorXi> sampleCounts;
+    std::vector<Eigen::VectorXd> sampleMasses;
+    std::vector<std::vector<std::vector<CoefCovarType>>> covarData;
+
+    const double fixedPointPrecision = 1.0e08;
+    std::map<int, unsigned> timeMap;
+    unsigned timeIndex(double time)
+    {
+      int itime = static_cast<int>(time * fixedPointPrecision + 0.5);
+      auto it = timeMap.find(itime);
+      if (it == timeMap.end())
+	throw std::runtime_error("CovarianceReader: time not found");
+      return it->second;
+    }
+
+    std::string basisID;
+
+  public:
+
+    //! Constructor from HDF5 file
+    CovarianceReader(const std::string& filename, int stride=1);
+
+    //! Get time list
+    std::vector<double> Times() { return times; }
+
+    //@{
+    //! Return a vector of tuples of basis functions and the
+    //! covariance matrix for subsamples of particles
+    std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance(unsigned index) { return covarData[index]; }
+
+    std::vector<std::vector<CoefCovarType>>
+    getCoefCovariance(double time) { return covarData[timeIndex(time)]; }
+    //@}
+
+
+    //@{
+    //! Get sample counts for the covariance computation
+    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples(unsigned index)
+    {
+      return {sampleCounts[index], sampleMasses[index]};
+    }
+    
+    std::tuple<Eigen::VectorXi, Eigen::VectorXd>
+    getCovarSamples(double time)
+    {
+      unsigned index = timeIndex(time);
+      return {sampleCounts[index], sampleMasses[index]};
+    }
+    //@}
+    
+    std::string basisIDname() { return basisID; }
+  };
 
   //! Time-dependent potential-density model
   using BasisCoef = std::tuple<std::shared_ptr<Basis>, std::shared_ptr<CoefClasses::Coefs>>;

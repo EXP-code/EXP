@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <iomanip>
-#include <sphereSL.H>
+#include "sphereSL.H"
 
 
 int  SphereSL::mpi   = 0;
@@ -16,8 +16,6 @@ SphereSL::SphereSL(int LMAX, int NMAX, int NUMR,
 {
   BiorthID = "SphereSL";
   dof = 3;
-
-  int l;
 
   lmax = LMAX;
   nmax = NMAX;

@@ -1,8 +1,8 @@
 #ifndef _ExternalForce_H
 #define _ExternalForce_H
 
-#include <PotAccel.H>
-#include <Component.H>
+#include "PotAccel.H"
+#include "Component.H"
 
 //! External force PotAccel members
 /*! 

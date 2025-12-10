@@ -41,22 +41,23 @@
 #include <set>
 
                                 // System libs
+#include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
+#include "numerical.H"
 #include "Particle.h"
-#include <interp.H>
-#include <SphSL.H>
+#include "interp.H"
+#include "SphSL.H"
 
-#include <writePVD.H>
-#include <localmpi.H>
-#include <foarray.H>
+#include "writePVD.H"
+#include "localmpi.H"
+#include "foarray.H"
 
-#include <DataGrid.H>
-#include <EXPini.H>
-#include <libvars.H>
+#include "DataGrid.H"
+#include "EXPini.H"
+#include "libvars.H"
 using namespace __EXP__;	// Reference exputils globals
 
 				// Program info string

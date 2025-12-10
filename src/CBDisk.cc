@@ -4,9 +4,9 @@
 
 #include "expand.H"
 
-#include <gaussQ.H>
-#include <CBDisk.H>
-#include <interp.H>
+#include "gaussQ.H"
+#include "CBDisk.H"
+#include "interp.H"
 
 const std::set<std::string>
 CBDisk::valid_keys = {

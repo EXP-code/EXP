@@ -18,12 +18,12 @@
 
 // MDW classes
 //
-#include <numerical.H>
-#include <gaussQ.H>
-#include <EmpCylSL.H>
-#include <DiskModels.H>
+#include "numerical.H"
+#include "gaussQ.H"
+#include "EmpCylSL.H"
+#include "DiskModels.H"
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 double  plgndr(int l, int m, double x);
 double dplgndr(int l, int m, double x);
@@ -76,7 +76,7 @@ private:
   EmpCylSL::AxiDiskPtr model;
   double xmin, xmax, dx, ascl;
   int    lmax, numr;
-  bool   logr, xscl;
+  bool   logr, xscl, prenorm=true;
 
   static const std::string cachefile;
 
@@ -94,42 +94,126 @@ private:
       exp(0.5*(lgamma(1.0+l-m) - lgamma(1.0+l+m)));
   }
 
-  //! Ylm evaluation
-  // CAUTION: this will fail at l>150 owing to double precision issues.
-  double Ylm(int l, int m, double cosx)
+
+  //! Standard recursion
+  //! CAUTION: this will fail at l>150 owing to double precision issues.
+  double Ylm_standard(int l, int m, double cosx)
   {
     int M = abs(m);
     double plm = plgndr(l, M, cosx);
-    if (std::isnan(plm) or std::isinf(plm))
-      std::cout << "Failure in pldndr at l=" << l
+    if (std::isnan(plm) or std::isinf(plm)) // Check for failure in plgndr
+      std::cout << "Failure in plgndr at l=" << l
 		<< " m=" << m << " cosx=" << cosx << std::endl;
     return Nlm(l, M) * plm * pow(-1.0, M);
   }
 
   //! Partial derivative of Ylm in theta
-  double Zlm(int l, int m, double cosx)
+  //! Standard version
+  double Zlm_standard(int l, int m, double cosx)
   {
     if (l==0 or fabs(cosx)>=1.0) return 0.0;
 
     int M = abs(m);
     double dplm = dplgndr(l, M, cosx);
     if (std::isnan(dplm) or std::isinf(dplm))
-      std::cout << "Failure in pldndr at l=" << l
-		<< " m=" << m << " cosx=" << cosx << std::endl;
+      std::cout << "Failure in dplgndr at l=" << l
+		<< " m=" << m << " cosx=" << cosx << std::endl; // Correct function name is dplgndr
 
     return -Nlm(l, M) * dplm * pow(-1.0, M) * sqrt(1.0 - cosx*cosx);
   }
 
+
+  //! Prenormalized Ylm evaluation
+  double Ylm_prenorm(int L, int m, double x)
+  {
+    int M = abs(m);
+  
+    // Initial value precompile
+    constexpr double ylm00 = 0.25/M_2_SQRTPI;
+  
+    // Assign initial value
+    double pmm = ylm00;
+  
+    // Recurrence to get l=m=M
+    if (M>0) {
+      double somx2 = std::sqrt( (1.0 - x)*(1.0 + x) );
+      for (int l=1; l<=M; l++) {
+	pmm = -std::sqrt(1.0 + 0.5/l)*somx2*pmm;
+      }
+    }
+    
+    // Even or odd M?
+    double facM = 1.0;
+    if (M & 0x1) facM = -1.0;
+  
+    // We are done if L equals M
+    if (L == M) {
+      return pmm * facM;
+    }
+    else {
+      // L=M+1
+      double pmmp1 = std::sqrt(1.0 + 2.0*(M+1))*x*pmm, pll = 0.0;
+      if (L == M+1) {
+	return pmmp1 * facM;
+      }
+      // L>M+1 recursion
+      else {
+	for (int l=M+2; l<=L; l++) {
+	  // Recursion constants
+	  double pfac  = (2.0*l + 1.0)/(2.0*l - 3.0)/(l*l - M*M);
+	  double alpha = std::sqrt( pfac * (4*(l-1)*(l-1) - 1 ) );
+	  double beta  = std::sqrt( pfac * ((l-1)*(l-1) - M*M ) );
+	  // Compute next term
+	  pll   = alpha*x*pmmp1 - beta*pmm;
+	  pmm   = pmmp1;
+	  pmmp1 = pll;
+	}
+	return pll * facM;
+      }
+    }
+  }
+  
+  //! Derivative of Ylm prenormalized
+  double Zlm_prenorm(int L, int m, double x)
+  {
+    int M = abs(m);
+    double Ylmp = Ylm_prenorm(L+1, M, x), Ylm = Ylm_prenorm(L, M, x);
+    double fac = -1.0/std::sqrt(1.0 - x*x);
+    double fac2 = 2.0*L + 1.0, fac3 = 2.0*L + 3.0;
+    return fac*( Ylm*x*(1.0 + L) - Ylmp*std::sqrt( fac2/fac3*(fac2 + L*L - M*M) ) );
+  }
+
+  //! Ylm evaluation
+  double Ylm(int l, int m, double cosx)
+  {
+    if (prenorm)
+      return Ylm_prenorm(l, m, cosx);
+    else
+      return Ylm_standard(l, m, cosx);
+  }
+
+  //! Ylm derivative
+  double Zlm(int l, int m, double cosx)
+  {
+    if (prenorm)
+      return Zlm_prenorm(l, m, cosx);
+    else
+      return Zlm_standard(l, m, cosx);
+  }
+
+  //! Coordinate scaling: scaled to physical
   double x_to_r(double x)
   {
     return ascl * x/(1.0 - x);
   }
 
+  //! Coordinate scaling: physical to scaled
   double r_to_x(double r)
   {
     return r/(r + ascl);
   }
 
+  // Coordinate scaling: Jacobian
   double dr_to_dx(double x)
   {
     return ascl/(1.0 - x)/(1.0 - x);
@@ -148,6 +232,9 @@ public:
 
   //! Evaluation where the return tuple is potential, dPhi/dR, dPhi/dz, dPhi/dphi
   std::tuple<double, double, double, double> operator()(double R, double z, double phi=0);
+
+  //! Set prenorm (true) standard (false) evaluation
+  void setPrenorm(bool b) { prenorm = b; }
 
 };
 

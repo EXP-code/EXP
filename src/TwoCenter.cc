@@ -2,9 +2,9 @@
 
 #include "expand.H"
 
-#include <gaussQ.H>
-#include <TwoCenter.H>
-#include <MixtureBasis.H>
+#include "gaussQ.H"
+#include "TwoCenter.H"
+#include "MixtureBasis.H"
 
 const std::set<std::string> TwoCenter::valid_keys = {
   "nhisto",

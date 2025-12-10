@@ -41,22 +41,23 @@
 #include <yaml-cpp/yaml.h>	// YAML support
 
                                 // System libs
+#include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <Particle.H>
-#include <interp.H>
-#include <EmpCylSL.H>
+#include "numerical.H"
+#include "Particle.H"
+#include "interp.H"
+#include "EmpCylSL.H"
 
-#include <writePVD.H>
-#include <localmpi.H>
-#include <EXPini.H>		// Option parsing
-#include <libvars.H>		// EXP global variables
-#include <foarray.H>
+#include "writePVD.H"
+#include "localmpi.H"
+#include "EXPini.H"		// Option parsing
+#include "libvars.H"		// EXP global variables
+#include "foarray.H"
 
-#include <DataGrid.H>
+#include "DataGrid.H"
 
 const std::string overview = "Compute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
 

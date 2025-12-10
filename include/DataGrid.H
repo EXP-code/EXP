@@ -5,10 +5,10 @@
 #include <sstream>
 #include <memory>
 
-#include <config_exp.h>
+#include "config_exp.h"
 
-#include <TableGrid.H>
-#include <VtkGrid.H>
+#include "TableGrid.H"
+#include "VtkGrid.H"
 
 /**
    This implementation of ThreeDGrid instantiates at VtkGrid if VTK is

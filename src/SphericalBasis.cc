@@ -7,8 +7,8 @@
 #include <vector>
 #include <set>
 
-#include <SphericalBasis.H>
-#include <MixtureBasis.H>
+#include "SphericalBasis.H"
+#include "MixtureBasis.H"
 
 // #define TMP_DEBUG
 // #define MULTI_DEBUG
@@ -1906,6 +1906,9 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
   //
   cur->ctr = component->getCenter(Component::Local | Component::Centered);
 
+  // Add the orientation
+  cur->rot = component->getRotation();
+
   // Check if file exists
   //
   if (std::filesystem::exists(file)) {
@@ -1922,6 +1925,11 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
 
     // Add the name attribute.  We only need this on the first call.
     sphCoefs.setName(component->name);
+
+    // Add the default units
+    sphCoefs.setUnits({{"length", "none", 1.0},
+		       {"mass",   "none", 1.0},
+		       {"time",   "none", 1.0}});
 
     // And the new coefficients and write the new HDF5
     sphCoefs.clear();

@@ -1,5 +1,5 @@
 
-set(bin_PROGRAMS testBarrier expyaml)
+set(bin_PROGRAMS testBarrier expyaml orthoTest)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX expui exputil
   yaml-cpp ${VTK_LIBRARIES})
@@ -31,6 +31,7 @@ endif()
 
 add_executable(testBarrier    test_barrier.cc)
 add_executable(expyaml        test_config.cc)
+add_executable(orthoTest      orthoTest.cc Biorth2Ortho.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})

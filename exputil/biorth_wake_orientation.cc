@@ -3,10 +3,10 @@
 #include <iostream>
 #include <cmath>
 
-#include <euler.H>
-#include <biorth.H>
-#include <biorth_wake.H>
-#include <SimAnn.H>
+#include "euler.H"
+#include "biorth.H"
+#include "biorth_wake.H"
+#include "SimAnn.H"
 
 double factrl(int n);
 double plgndr(int l, int m, double x);
@@ -44,7 +44,7 @@ void BiorthWake::orientation(int L, int M,
   test_transform();
 #endif // DEBUG
 
-  int loffset=0, moffset;
+  int loffset=0;
   int l=0;
   for (; l<L; l++) loffset += 2*l+1;
 
@@ -222,7 +222,7 @@ double BiorthWake::amotry(int ihi, double fac)
 
 void BiorthWake::amoeba(void)
 {
-  int i, j, ilo, ihi, inhi, mpts=ndim+1;
+  int ilo, ihi, inhi, mpts=ndim+1;
   double ytry, ysave, sum, rtol;
   
   nfunk = 0;
@@ -275,7 +275,7 @@ void BiorthWake::amoeba(void)
   
 #ifdef DEBUG
 
-#include <gaussQ.H>
+#include "gaussQ.H"
 #include <iomanip>
 
 std::complex<double> BiorthWake::test_fct(double theta, double phi)

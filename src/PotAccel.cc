@@ -3,7 +3,7 @@
 #include <time.h>
 
 #include "expand.H"
-#include <PotAccel.H>
+#include "PotAccel.H"
 
 extern "C"
 void *

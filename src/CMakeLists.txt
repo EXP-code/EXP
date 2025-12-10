@@ -17,7 +17,7 @@ if (ENABLE_CUDA)
   list(APPEND exp_SOURCES cudaPolarBasis.cu cudaSphericalBasis.cu
     cudaCylinder.cu cudaEmpCylSL.cu cudaComponent.cu NVTX.cc
     cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu cudaOrient.cu
-    cudaBiorthCyl.cu cudaCube.cu cudaSlabSL.cu)
+    cudaBiorthCyl.cu cudaCube.cu cudaSlabSL.cu cudaPeriodicBC.cu)
 endif()
 
 set(common_INCLUDE_DIRS 

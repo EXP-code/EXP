@@ -5,7 +5,7 @@
 #include <sstream>
 #include <cmath>
 
-#include <numerical.H>
+#include "numerical.H"
 
 #define ITMAX 100
 #define EPS 1.0e-16

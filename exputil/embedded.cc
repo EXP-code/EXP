@@ -6,8 +6,8 @@
 #include <string>
 #include <memory>
 
-#include <QPDistF.H>
-#include <massmodel.H>
+#include "QPDistF.H"
+#include "massmodel.H"
 
 EmbeddedDiskModel::EmbeddedDiskModel (std::vector<AxiSymModPtr>& T, 
 				      std::vector<double>& M_scale,

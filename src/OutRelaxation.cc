@@ -2,10 +2,10 @@
 #include <iomanip>
 #include <fstream>
 
-#include <global.H>
-#include <Component.H>
-#include <ComponentContainer.H>
-#include <OutRelaxation.H>
+#include "global.H"
+#include "Component.H"
+#include "ComponentContainer.H"
+#include "OutRelaxation.H"
 
 const std::set<std::string>
 OutRelaxation::valid_keys = {

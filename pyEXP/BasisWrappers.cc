@@ -5,11 +5,11 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include <BiorthBasis.H>
-#include <FieldBasis.H>
+#include "BiorthBasis.H"
+#include "FieldBasis.H"
 
 namespace py = pybind11;
-#include <TensorToArray.H>
+#include "TensorToArray.H"
 
 void BasisFactoryClasses(py::module &m)
 {
@@ -51,12 +51,12 @@ void BasisFactoryClasses(py::module &m)
         a phase-space snapshot.  This is a specialized version of FieldBasis.
 
     Each of these bases take a YAML configuration file as input. These parameter
-    lists are as subset of and have the same structure as thosed used by EXP.
+    lists are as subset of and have the same structure as those used by EXP.
     The factory and the individual constructors will check the parameters keys
     and warn of mismatches for safety.  See the EXP documentation and the pyEXP
     examples for more detail.  The first four bases are the most often used bi-
     orthogonal basis types used for computing the potential and forces from
-    density distributions.  Other biorthgonal bases in EXP but not in pyEXP
+    density distributions.  Other biorthogonal bases in EXP but not in pyEXP
     include those for cubic and slab geometries and other special-purpose bases
     such as the Hernquist, Clutton-Brock sphere and two-dimensional disk basis.
     These will be made available in a future release if there is demand.  Note
@@ -102,7 +102,7 @@ void BasisFactoryClasses(py::module &m)
 
        def myFunctor(m, pos, vel, index):
           ret = False  # Default return value
-          # some caculation with scalar mass, pos array, vel array and
+          # some calculation with scalar mass, pos array, vel array and
           # integer index that sets ret to True if desired . . . 
           return ret
 
@@ -128,7 +128,7 @@ void BasisFactoryClasses(py::module &m)
     phase-space field functor to cylindrical or spherical velocities
     based on the 'dof' parameter.  More on 'dof' below.
 
-    Scalablility
+    Scalability
     ------------
     createFromArray() is a convenience method allows you to transform
     coordinates and preprocess phase space using your own methods and
@@ -148,7 +148,10 @@ void BasisFactoryClasses(py::module &m)
     you to scale your phase-space processing to snapshots of any size.
     For reference, the createFromReader() method uses a producer-consumer
     pattern internally to provide scalability.  These three methods allow
-    you to provide the same pattern in your own pipeline.
+    you to provide the same pattern in your own pipeline. Finally, the
+    makeFromFunction() creates coefficients from a user-supplied
+    density or potential field function.
+
 
     Coordinate systems
     -------------------
@@ -195,7 +198,7 @@ void BasisFactoryClasses(py::module &m)
     Coefs data base and installs the interpolated coefficients for the
     current time in the basis instance.  The SingleTimeFunc interpolates on
     the Coefs data base for a single fixed time and sets the interpolated
-    coefficients once at the beginning of the integration.  This implementes
+    coefficients once at the beginning of the integration.  This implements
     a fixed potential model.  AccelFunc can be inherited by a native Python
     class and the evalcoefs() may be implemented in Python and passed to
     IntegrateOrbits in the same way as a native C++ class.
@@ -279,8 +282,8 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(FCReturn, Basis, getFieldsCoefs, x, y, z, coefs);
     }
     
-    void accumulate(double x, double y, double z, double mass) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, accumulate, mass, x, y, z, mass);
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override {
@@ -292,13 +295,15 @@ void BasisFactoryClasses(py::module &m)
     }
 
     virtual CoefClasses::CoefStrPtr
-    createFromReader(PR::PRptr reader, std::vector<double> ctr) override {
-      PYBIND11_OVERRIDE_PURE(CoefClasses::CoefStrPtr, Basis, createFromReader, reader, ctr);
+    createFromReader(PR::PRptr reader, Eigen::Vector3d ctr,
+		     RowMatrix3d rot) override {
+      PYBIND11_OVERRIDE_PURE(CoefClasses::CoefStrPtr, Basis, createFromReader, reader, ctr, rot);
     }
 
 
-    virtual void initFromArray(std::vector<double> ctr) override {
-      PYBIND11_OVERRIDE_PURE(void, Basis, initFromArray, ctr);
+    void initFromArray
+    (Eigen::Vector3d ctr, RowMatrix3d rot) override {
+      PYBIND11_OVERRIDE_PURE(void, Basis, initFromArray, ctr, rot);
     }
 
     virtual void
@@ -358,9 +363,10 @@ void BasisFactoryClasses(py::module &m)
     }
 
     void accumulate(double m, double x, double y, double z,
-		    double u, double v, double w) override
+		    double u, double v, double w,
+		    unsigned long int indx) override
     {
-      PYBIND11_OVERRIDE(void, FieldBasis, accumulate, m, x, y, z, u, v, w);
+      PYBIND11_OVERRIDE(void, FieldBasis, accumulate, m, x, y, z, u, v, w, indx);
     }
     
     void reset_coefs(void) override {
@@ -394,7 +400,8 @@ void BasisFactoryClasses(py::module &m)
 			crt_eval, x, y, z);
     }
     
-    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override {
+    void load_coefs(CoefClasses::CoefStrPtr coefs, double time) override
+    {
       PYBIND11_OVERRIDE_PURE(void, BiorthBasis, load_coefs, coefs, time);
     }
     
@@ -406,12 +413,18 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(std::string, BiorthBasis, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE_PURE(void, BiorthBasis, computeAccel, x, y, z, v);
+    }
+
   public:
     // Inherit the constructors
     using BasisClasses::BiorthBasis::BiorthBasis;
 
-    void accumulate(double x, double y, double z, double mass) override {
-      PYBIND11_OVERRIDE_PURE(void, BiorthBasis, accumulate, x, y, z, mass);
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override {
+      PYBIND11_OVERRIDE_PURE(void, BiorthBasis, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override {
@@ -426,10 +439,21 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(void, BiorthBasis, set_coefs, coefs);
     }
 
-    std::vector<double> getAccel(double x, double y, double z) override
-    {
-      PYBIND11_OVERRIDE_PURE(std::vector<double>, BiorthBasis,
-			     getAccel, x, y, z);
+    using CCelement = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
+    using CCreturn  = std::vector<std::vector<CCelement>>;
+
+    CCreturn getCoefCovariance(void) override {
+      PYBIND11_OVERRIDE(CCreturn, BiorthBasis, getCoefCovariance,);
+    }
+
+    using Selement = std::tuple<Eigen::VectorXi, Eigen::VectorXd>;
+
+    Selement getCovarSamples() override {
+      PYBIND11_OVERRIDE(Selement, BiorthBasis, getCovarSamples,);
+    }
+
+    void enableCoefCovariance(bool pcavar, int nsamples, bool covar) override {
+      PYBIND11_OVERRIDE(void, BiorthBasis, enableCoefCovariance, pcavar, nsamples, covar);
     }
 
   };
@@ -466,6 +490,11 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(void, Spherical, get_force, tab, x);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, Spherical, computeAccel, x, y, z, v);
+    }
 
   public:
 
@@ -476,12 +505,8 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, Spherical, getFields, x, y, z);
     }
 
-    std::vector<double> getAccel(double x, double y, double z) override {
-      PYBIND11_OVERRIDE(std::vector<double>, Spherical, getAccel, x, y, z);
-    }
-
-    void accumulate(double x, double y, double z, double mass) override {
-      PYBIND11_OVERRIDE(void, Spherical, accumulate, x, y, z, mass);
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override {
+      PYBIND11_OVERRIDE(void, Spherical, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override {
@@ -494,6 +519,10 @@ void BasisFactoryClasses(py::module &m)
 
     std::vector<Eigen::MatrixXd> orthoCheck(int knots) override {
       PYBIND11_OVERRIDE_PURE(std::vector<Eigen::MatrixXd>, Spherical, orthoCheck, knots);
+    }
+
+    void enableCoefCovariance(bool pcavar, int nsamples, bool covar) override {
+      PYBIND11_OVERRIDE(void, Spherical, enableCoefCovariance, pcavar, nsamples, covar);
     }
 
   };
@@ -519,6 +548,13 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, Cylindrical, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, Cylindrical, computeAccel, x, y, z, v);
+    }
+
+
   public:
 
     // Inherit the constructors
@@ -528,12 +564,8 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getFields, x, y, z);
     }
 
-    std::vector<double> getAccel(double x, double y, double z) override {
-      PYBIND11_OVERRIDE(std::vector<double>, Cylindrical, getAccel, x, y, z);
-    }
-
-    void accumulate(double x, double y, double z, double mass) override {
-      PYBIND11_OVERRIDE(void, Cylindrical, accumulate, x, y, z, mass);
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override {
+      PYBIND11_OVERRIDE(void, Cylindrical, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override {
@@ -542,6 +574,10 @@ void BasisFactoryClasses(py::module &m)
 
     void make_coefs(void) override {
       PYBIND11_OVERRIDE(void, Cylindrical, make_coefs,);
+    }
+
+    void enableCoefCovariance(bool pcavar, int nsamples, bool covar) override {
+      PYBIND11_OVERRIDE(void, Cylindrical, enableCoefCovariance, pcavar, nsamples, covar);
     }
 
   };
@@ -584,6 +620,13 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, FlatDisk, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, FlatDisk, computeAccel, x, y, z, v);
+    }
+
+
   public:
 
     // Inherit the constructors
@@ -594,14 +637,9 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getFields, x, y, z);
     }
 
-    std::vector<double> getAccel(double x, double y, double z) override
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override
     {
-      PYBIND11_OVERRIDE(std::vector<double>, FlatDisk, getAccel, x, y, z);
-    }
-
-    void accumulate(double x, double y, double z, double mass) override
-    {
-      PYBIND11_OVERRIDE(void, FlatDisk, accumulate, x, y, z, mass);
+      PYBIND11_OVERRIDE(void, FlatDisk, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override
@@ -654,6 +692,12 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, CBDisk, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, CBDisk, computeAccel, x, y, z, v);
+    }
+
   public:
 
     // Inherit the constructors
@@ -664,14 +708,9 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, CBDisk, getFields, x, y, z);
     }
 
-    std::vector<double> getAccel(double x, double y, double z) override
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override
     {
-      PYBIND11_OVERRIDE(std::vector<double>, CBDisk, getAccel, x, y, z);
-    }
-
-    void accumulate(double x, double y, double z, double mass) override
-    {
-      PYBIND11_OVERRIDE(void, CBDisk, accumulate, x, y, z, mass);
+      PYBIND11_OVERRIDE(void, CBDisk, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override
@@ -727,6 +766,12 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, Slab, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, Slab, computeAccel, x, y, z, v);
+    }
+
   public:
 
     // Inherit the constructors
@@ -737,14 +782,9 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, Slab, getFields, x, y, z);
     }
 
-    std::vector<double> getAccel(double x, double y, double z) override
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override
     {
-      PYBIND11_OVERRIDE(std::vector<double>, Slab, getAccel, x, y, z);
-    }
-
-    void accumulate(double x, double y, double z, double mass) override
-    {
-      PYBIND11_OVERRIDE(void, Slab, accumulate, x, y, z, mass);
+      PYBIND11_OVERRIDE(void, Slab, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override
@@ -800,6 +840,12 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::string, Cube, harmonic);
     }
 
+    void computeAccel(double x, double y, double z,
+		      Eigen::Ref<Eigen::Vector3d> v) override
+    {
+      PYBIND11_OVERRIDE(void, Cube, computeAccel, x, y, z, v);
+    }
+
   public:
 
     // Inherit the constructors
@@ -810,14 +856,9 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(std::vector<double>, Cube, getFields, x, y, z);
     }
 
-    std::vector<double> getAccel(double x, double y, double z) override
+    void accumulate(double x, double y, double z, double mass, unsigned long int indx) override
     {
-      PYBIND11_OVERRIDE(std::vector<double>, Cube, getAccel, x, y, z);
-    }
-
-    void accumulate(double x, double y, double z, double mass) override
-    {
-      PYBIND11_OVERRIDE(void, Cube, accumulate, x, y, z, mass);
+      PYBIND11_OVERRIDE(void, Cube, accumulate, x, y, z, mass, indx);
     }
 
     void reset_coefs(void) override
@@ -828,6 +869,23 @@ void BasisFactoryClasses(py::module &m)
     void make_coefs(void) override
     {
       PYBIND11_OVERRIDE(void, Cube, make_coefs,);
+    }
+
+    using CCelement = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
+    using CCreturn  = std::vector<std::vector<CCelement>>;
+
+    CCreturn getCoefCovariance(void) override {
+      PYBIND11_OVERRIDE(CCreturn, Cube, getCoefCovariance,);
+    }
+
+    using Selement = std::tuple<Eigen::VectorXi, Eigen::VectorXd>;
+
+    Selement getCovarSamples() override {
+      PYBIND11_OVERRIDE(Selement, Cube, getCovarSamples,);
+    }
+
+    void enableCoefCovariance(bool pcavar, int nsamples, bool covar) override {
+      PYBIND11_OVERRIDE(void, Cube, enableCoefCovariance, pcavar, nsamples, covar);
     }
 
   };
@@ -848,7 +906,7 @@ void BasisFactoryClasses(py::module &m)
 
   py::class_<BasisClasses::Basis, std::shared_ptr<BasisClasses::Basis>, PyBasis>
     (m, "Basis")
-    .def("factory", &BasisClasses::BiorthBasis::factory_string,
+    .def("factory", &BasisClasses::Basis::factory_string,
 	 R"(
          Generate a basis from a YAML configuration supplied as a string
 
@@ -884,14 +942,7 @@ void BasisFactoryClasses(py::module &m)
          This is an experimental feature
          )"
       )
-    .def("createFromArray",
-	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& ps,
-	    double time, std::vector<double> center,
-	    bool roundrobin, bool posvelrows)
-	 {
-	   return A.createFromArray(mass, ps, time, center,
-				    roundrobin, posvelrows);
-	 },
+    .def("createFromArray", &BasisClasses::Basis::createFromArray,
 	 R"(
          Generate the coefficients from a mass and position array or,
 	 phase-space array, time, and an optional expansion center location. 
@@ -903,6 +954,11 @@ void BasisFactoryClasses(py::module &m)
          ps   : numpy.ndarray
              an array with n rows and 6 columns (x, y, z, u, v, w)
              or 3 columns (x, y, z) for a biorthogonal basis
+         center : numpy.ndarray
+             the center of expansion for the basis functions
+         rotation : numpy.ndarray
+             the rotation matrix for the basis functions
+             (default is identity matrix)
          roundrobin : bool
              the particles will be accumulated for each process 
              round-robin style with MPI by default.  This may be 
@@ -925,13 +981,54 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
-	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("rotation") = RowMatrix3d::Identity(),
 	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
-    .def("makeFromArray",
-	 [](BasisClasses::Basis& A, double time)
+    .def("createFromArray",
+	 [](BasisClasses::Basis& A, Eigen::VectorXd& mass, RowMatrixXd& ps,
+	    double time, Eigen::Vector3d center, bool roundrobin, bool posvelrows)
 	 {
-	   return A.makeFromArray(time);
+	   return A.createFromArray(mass, ps, time, center, RowMatrix3d::Identity(),
+				    roundrobin, posvelrows);
 	 },
+	 R"(
+         Generate the coefficients from a mass and position array or,
+	 phase-space array, time, and an optional expansion center location. 
+
+         Parameters
+         ----------
+         mass : list
+             vector containing the masses for the n particles
+         ps   : numpy.ndarray
+             an array with n rows and 6 columns (x, y, z, u, v, w)
+             or 3 columns (x, y, z) for a biorthogonal basis
+         center : numpy.ndarray
+             the center of expansion for the basis functions
+         roundrobin : bool
+             the particles will be accumulated for each process 
+             round-robin style with MPI by default.  This may be 
+             disabled with 'roundrobin=False'.
+         posvelrows : bool
+             positions (and optionally velocities) will be packed
+             in rows instead of columns.  This accommodates the numpy
+             construction [xpos, ypos, zpos] where xpos, ypos, zpos are
+             arrays.  Defaults to True.
+
+         Returns
+         -------
+         CoefStruct
+             the coefficient structure derived from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray  : add contribution for particles
+         makeFromArray : create coefficients contributions
+         )",
+	 py::arg("mass"), py::arg("pos"), py::arg("time"),
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
+    .def("makeFromArray", &BasisClasses::Basis::makeFromArray,
 	 R"(
          Make the coefficients
 
@@ -1037,7 +1134,7 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          setNonInertial : set non-inertial data from an Orient file
-         setNonInertialAccel : set the non-inertial acceration
+         setNonInertialAccel : set the non-inertial acceleration
          )",
 	 py::arg("N"), py::arg("times"), py::arg("pos")
          )
@@ -1064,7 +1161,7 @@ void BasisFactoryClasses(py::module &m)
          See also
          --------
          setNonInertial : set non-inertial data from a time series of values
-         setNonInertialAccel : set the non-inertial acceration
+         setNonInertialAccel : set the non-inertial acceleration
          )",
 	 py::arg("N"), py::arg("orient")
          )
@@ -1120,6 +1217,8 @@ void BasisFactoryClasses(py::module &m)
              the ParticleReader instance
          center : list, default=[0, 0, 0]
 	     an optional expansion center location
+         rotation : numpy.ndarray, default=Identity
+             rotation matrix to apply to the phase-space coordinates
 
          Returns
          -------
@@ -1127,15 +1226,9 @@ void BasisFactoryClasses(py::module &m)
              the basis coefficients computed from the particles
          )",
 	 py::arg("reader"), 
-	 py::arg("center") = std::vector<double>(3, 0.0))
-    .def("createFromArray",
-	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
-	    double time, std::vector<double> center,
-	    bool roundrobin, bool posvelrows)
-	 {
-	   return A.createFromArray(mass, pos, time, center,
-				    roundrobin, posvelrows);
-	 },
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("rotation") = RowMatrix3d::Identity())
+    .def("createFromArray", &BasisClasses::BiorthBasis::createFromArray,
 	 R"(
          Generate the coefficients from a mass and position array,
 	 time, and an optional expansion center location. 
@@ -1168,13 +1261,53 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"), py::arg("time"),
-	 py::arg("center") = std::vector<double>(3, 0.0),
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("rotation") = RowMatrix3d::Identity(),
 	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
-    .def("initFromArray",
-	 [](BasisClasses::BiorthBasis& A, std::vector<double> center)
+    .def("createFromArray",
+	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos,
+	    double time, Eigen::Vector3d center, bool roundrobin, bool posvelrows)
 	 {
-	   return A.initFromArray(center);
+	   return A.createFromArray(mass, pos, time, center, RowMatrix3d::Identity(),
+				    roundrobin, posvelrows);
 	 },
+	 R"(
+         Generate the coefficients from a mass and position array,
+	 time, and an optional expansion center location. 
+
+         Parameters
+         ----------
+         mass : list
+             vector containing the masses for the n particles
+         pos  : numpy.ndarray
+             an array with n rows and 3 columns (x, y, z)
+      	 center : numpy.ndarray
+             the center of expansion for the basis functions
+         roundrobin : bool
+             the particles will be accumulated for each process 
+             round-robin style with MPI by default.  This may be 
+             disabled with 'roundrobin=false'.
+         posvelrows : bool
+             positions (and optionally velocities) will be packed
+             in rows instead of columns.  This accommodates the numpy
+             construction [xpos, ypos, zpos] where xpos, ypos, zpos are
+             arrays.  Defaults to True.
+
+         Returns
+         -------
+         CoefStruct
+             the coefficient structure derived from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray  : add contribution for particles
+         makeFromArray : create coefficients contributions
+         )",
+	 py::arg("mass"), py::arg("pos"), py::arg("time"),
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("roundrobin") = true, py::arg("posvelrows") = true)
+    .def("initFromArray", &BasisClasses::BiorthBasis::initFromArray,
 	 R"(
          Initialize coefficient accumulation
 
@@ -1182,6 +1315,9 @@ void BasisFactoryClasses(py::module &m)
          ----------
          center : list, default=[0, 0, 0]
              vector of center positions
+         rotation : numpy.ndarray
+             the rotation matrix for the basis functions
+             (default is identity matrix)
 
          Returns
          -------
@@ -1198,11 +1334,13 @@ void BasisFactoryClasses(py::module &m)
          phase space arrays but allows for generation from very large 
          phase-space sets that can not be stored in physical memory.
          )",
-	 py::arg("center") = std::vector<double>(3, 0.0))
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("rotation") = RowMatrix3d::Identity())
     .def("addFromArray",
-	 [](BasisClasses::BiorthBasis& A, Eigen::VectorXd& mass, RowMatrixXd& pos)
+	 [](BasisClasses::BiorthBasis& A,
+	    Eigen::VectorXd& mass, RowMatrixXd& pos)
 	 {
-	   return A.addFromArray(mass, pos);
+	   A.addFromArray(mass, pos);
 	 },
 	 R"(
          Add particle contributions to coefficients
@@ -1224,15 +1362,212 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
+    .def("getCoefCovariance", &BasisClasses::BiorthBasis::getCoefCovariance,
+         R"(
+         Return the coefficient vectors and covariance matrices for each partition of the
+         accumulated particles. The number of partitions is set by the configuration
+         parameter 'sampT' (default: 100).
+
+         The first dimension are the time samples.  The second dimension is the angular
+         index. Each element is a tuple of the coefficient vector and covariance.
+         The values are complex128 and represents the full amplitude and phase information.
+
+         Returns
+         -------
+         arrays: list[list[tuple[np.ndarray, np.ndarray]]]
+             Each element is a tuple (coef_vector, coef_covariance_matrix),
+             where coef_vector and coef_covariance_matrix are numpy.ndarray.
+             Each coef_covariance_matrix is of shape (nmax, nmax). All values are
+             complex128.
+
+         Shape and Indexing
+         ------------------
+         - The first list index is the number of time samples.
+         - The second list index is the angular elements.  For spherical bases, all (l, m) pairs
+           are in triangular index order with l in [0,...,lmax] and m in [0,...,l] for a total of
+           (lmax+1)*(lmax+2)/2 entries.  For cylindrical bases, there are (mmax+1) harmonic
+           entries for each value m in [0,...,mmax].
+         - Each covariance matrix is of shape (nmax, nmax), where nmax is the number of basis
+           functions
+
+         See also
+         --------
+         getCovarSamples     : get counts and mass in each partition
+         writeCoefCovariance : write the coefficient vectors, covariance
+                               matrices, and metadata to an HDF5 file.
+         )")
+    .def("getCovarSamples", &BasisClasses::BiorthBasis::getCovarSamples,
+         R"(
+         Return a vector of counts and mass used to compute the partitioned 
+         vectors and covariance.  The length of both returned vectors equals 'sampT'
+
+         Parameters
+         ----------
+         None
+
+         Returns
+         -------
+         arrays: tuple(ndarray, ndarray)
+              a tuple of arrays containing the counts and mass in each
+              partitioned sample
+
+         See also
+         --------
+         getCoefCovariance   : get the coefficient vectors and covariance matrices
+                               for the partitioned phase space.
+         writeCoefCovariance : write the coefficient vectors, covariance
+                               matrices, and metadata to an HDF5 file.
+         )")
+    .def("writeCoefCovariance", &BasisClasses::BiorthBasis::writeCoefCovariance,
+         R"(
+         Write the partitioned coefficient vectors and covariance matrices
+         to a specified HDF5 file.  The number of partitions is set by the
+         configuration parameter 'sampT' and defaults to 100.
+
+         On first call, the file is created, metadata is written, and the
+         coefficient vectors and covariance matrices are stored.  On subsequent
+         calls, the file is updated with new covariance datasets.
+
+         The file will be called 'coefcovar.<compname>.<runtag>.h5'.
+
+         Parameters
+         ----------
+         compname : str
+                    the component/basis name segment used in the output HDF5 filename
+         runtag   : str
+                    the run identifier tag
+         time     : float
+                    the snapshot time
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         getCoefCovariance : get the coefficient vectors and covariance matrices
+                             for the partitioned phase space.
+         getCovarSamples   : get counts and mass in each partition
+         )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
+    .def("setCovarFloatType", &BasisClasses::BiorthBasis::setCovarFloatType,
+         R"(
+         Set the floating point type used for covariance storage in HDF5. Set to
+         true for float4.  Type float8 is the default (false).  This does not affect
+         the return type in getCoefCovariance().
+
+         Parameters
+         ----------
+         floatType : bool
+                 Use 'float32' rather than 'float64' if true
+
+         Returns
+         -------
+         None
+         )")
+    .def("enableCoefCovariance", &BasisClasses::BiorthBasis::enableCoefCovariance,
+	 R"(
+         Enable or disable the coefficient covariance computation and set the
+         default number of partitions to use for the covariance computation.
+
+         Parameters
+         ----------
+         pcavar   : bool
+                    enable (true) or disable (false) the covariance computation
+         nsamples : int
+                    number of time partitions to use for covariance computation
+         covar:     bool
+		    if true, compute and save covariance to the HDF5 file; if false,
+                    save mean and variance vectors only (default: true)
+
+         Returns
+         -------
+         None
+	)", py::arg("pcavar"), py::arg("nsamples")=100, py::arg("covar")=true)
+    .def("setCovarH5Compress", &BasisClasses::BiorthBasis::setCovarH5Compress,
+         R"(
+	 Set the HDF5 compression level for covariance storage in HDF5.  The Szip
+     	 compression algorithm may also be enabled but seems to not have better
+         performance for these data than the standard Gzip compression.  Gzip with
+      	 level 5 and shuffling is enabled by default.
+
+         Parameters
+         ----------
+         compress : int
+		 HDF5 Gzip compression level 0-9 (default: 5)
+         chunkSize : int
+		 HDF5 chunk size for dataset storage (default: 1024*1024)
+         shuffle : bool
+		 Use shuffle filter if true (default: true)
+         szip : bool
+		 Use Szip compression algorithm (default: false)
+
+         Returns
+         -------
+         None
+         )", py::arg("compress")=5, py::arg("chunkSize")=1024*1024, py::arg("shuffle")=true, py::arg("azip")=false)
+    .def("makeFromFunction", &BasisClasses::BiorthBasis::makeFromFunction,
+	 py::call_guard<py::gil_scoped_release>(),
+	 R"(
+         Make coefficients from a density function callback
+
+         Parameters
+         ----------
+         func : function
+                the density function callback with the signature:
+                func(float x, float y, float time) -> float
+         params : dict
+                dictionary of parameters to pass to the function.  Default is
+                empty.
+         time : float
+                snapshot time (default=0.0)
+         potential : bool
+		if True, function is assumed to be a potential field.  Default
+                is False, and the function is assumed to be a density field.
+
+         Returns
+         -------
+         CoefStruct
+             the coefficient structure created from the particles
+
+         See also
+         --------
+         initFromArray : initialize for coefficient contributions
+         addFromArray  : add contribution for particles
+         )",
+	 py::arg("func"), py::arg("params")=std::map<std::string, double>(),
+	 py::arg("time")=0.0, py::arg("potential")=false
+	 )
+    .def("computeQuadrature", &BasisClasses::BiorthBasis::computeQuadrature,
+	 py::call_guard<py::gil_scoped_release>(),
+	 R"(
+	 Compute the quadrature of a function of the basis domain
+
+         Parameters
+         ----------
+         func : function
+                the integrand with all signature 
+                func(x, y, z) -> float
+         params : dict
+                dictionary of parameters to pass to the function.  Default is
+                empty.
+
+         Returns
+         -------
+         float
+             the quadrature value
+
+         )",
+	 py::arg("func"), py::arg("params")=std::map<std::string, double>()
+	 )
     .def("getFields", &BasisClasses::BiorthBasis::getFields,
 	 R"(
-         Return the field evaluations for a given cartesian position. The
+         Return the field evaluations for a given Cartesian position. The
          fields include density, potential, and force.  The density and
          potential evaluations are separated into full, axisymmetric and
          non-axisymmetric contributions.
 
          You can get the fields labels by using the __call__ method of the
-         basis object.  This is equilevalent to a tuple of the getFields()
+         basis object.  This is equivalent to a tuple of the getFields()
          output with a list of field labels.
 
          Parameters
@@ -1254,9 +1589,9 @@ void BasisFactoryClasses(py::module &m)
          __call__       : same as getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
-    .def("getAccel", &BasisClasses::BiorthBasis::getAccel,
+    .def("getAccel", py::overload_cast<double, double, double>(&BasisClasses::BiorthBasis::getAccel),
 	 R"(
-         Return the acceleration for a given cartesian position
+         Return the acceleration for a given Cartesian position
 
          Parameters
          ----------
@@ -1278,9 +1613,77 @@ void BasisFactoryClasses(py::module &m)
          __call__       : same as getFields() but provides field labels in a tuple
          )",
 	 py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("getAccel", py::overload_cast<Eigen::Ref<const Eigen::VectorXd>, Eigen::Ref<const Eigen::VectorXd>, Eigen::Ref<const Eigen::VectorXd>>(&BasisClasses::BiorthBasis::getAccel),
+	 R"(
+         Return the acceleration for a given Cartesian position
+
+         Parameters
+         ----------
+         x : ndarray
+             x-axis positions
+         y : ndarray
+             y-axis positions
+         z : ndarray
+             z-axis positions
+
+         Returns
+         -------
+         accel: numpy.ndarray
+
+         See also
+         --------
+         getFields      : returns density, potential and acceleration
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same as getFields() but provides field labels in a tuple
+         )",
+	 py::arg("x"), py::arg("y"), py::arg("z"))
+    .def("getAccel", py::overload_cast<Eigen::Ref<const RowMatrixXd>>(&BasisClasses::BiorthBasis::getAccel),
+	 R"(
+         Return the acceleration for an array of Cartesian positions
+
+         Parameters
+         ----------
+         pos : ndarray (N, 3
+             x, y, z positions
+
+         Returns
+         -------
+         accel: numpy.ndarray
+
+         See also
+         --------
+         getFields      : returns density, potential and acceleration
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same as getFields() but provides field labels in a tuple
+         )",
+	 py::arg("pos"))
+    .def("getAccelArray", py::overload_cast<Eigen::Ref<const Eigen::VectorXd>, Eigen::Ref<const Eigen::VectorXd>, Eigen::Ref<const Eigen::VectorXd>>(&BasisClasses::BiorthBasis::getAccel),
+	 R"(
+         Return the acceleration for a given Cartesian position
+
+         Parameters
+         ----------
+         x : ndarray
+             x-axis positions
+         y : ndarray
+             y-axis positions
+         z : ndarray
+             z-axis positions
+
+         Returns
+         -------
+         accel: numpy.ndarray
+
+         See also
+         --------
+         getFields      : returns density, potential and acceleration
+         getFieldsCoefs : get fields for each coefficient set
+         __call__       : same as getFields() but provides field labels in a tuple
+         )",
+	 py::arg("x"), py::arg("y"), py::arg("z"))
     .def("getFieldsCoefs", &BasisClasses::BiorthBasis::getFieldsCoefs,
 	 R"(
-         Return the field evaluations for a given cartesian position
+         Return the field evaluations for a given Cartesian position
          for every frame in a coefficient set.  The field evaluations are
          produced by a call to getFields().
 
@@ -1317,7 +1720,7 @@ void BasisFactoryClasses(py::module &m)
          coordinates for SphericalSL and Bessel, cylindrical coordinates for
          Cylindrical, FlatDisk, and CBDisk, and Cartesian coordinates for the 
          Slab and Cube. This member function can be used to override the
-         default. The available coorindates are: 'spherical', 'cylindrical', 
+         default. The available coordinates are: 'spherical', 'cylindrical', 
          'cartesian'.
 
          Parameters
@@ -1342,9 +1745,9 @@ void BasisFactoryClasses(py::module &m)
          -------
          None
          )")
-    .def("accumulate", [](BasisClasses::BiorthBasis& A, double x, double y, double z, double mass)
+    .def("accumulate", [](BasisClasses::BiorthBasis& A, double x, double y, double z, double mass, unsigned long int indx)
     {
-      return A.accumulate(x, y, z, mass);
+      return A.accumulate(x, y, z, mass, indx);
     },
       R"(
          Add the contribution of a single particle to the coefficients
@@ -1359,12 +1762,14 @@ void BasisFactoryClasses(py::module &m)
              z-axis position
          mass : float
              particle mass
+         indx : unsigned long int
+             particle index for selection functor
 
          Returns
          -------
          None
         )", 
-	 py::arg("x"), py::arg("y"), py::arg("z"), py::arg("mass"))
+      py::arg("x"), py::arg("y"), py::arg("z"), py::arg("mass"), py::arg("indx")=0)
     .def("getMass",            &BasisClasses::BiorthBasis::getMass,
 	 R"(
          Return the total mass of particles contributing the current coefficient set
@@ -1384,7 +1789,7 @@ void BasisFactoryClasses(py::module &m)
          )")
     .def("make_coefs",         &BasisClasses::BiorthBasis::make_coefs,
 	 R"(
-         Create the coefficients after particle accumuluation is complete
+         Create the coefficients after particle accumulation is complete
 
          Returns
          -------
@@ -1401,7 +1806,29 @@ void BasisFactoryClasses(py::module &m)
          Returns
          -------
          None
-         )", py::arg("coefs"));
+         )", py::arg("coefs"))
+    .def("get_shared_ptr_capsule", [](const std::shared_ptr<BasisClasses::BiorthBasis> &self) -> py::capsule {
+      return py::capsule(
+        new std::shared_ptr(self),
+        "BiorthBasis_shared_ptr",
+        [](void *v) { delete static_cast<std::shared_ptr<BasisClasses::BiorthBasis> *>(v); }
+      );
+    },
+    R"(
+        Get a capsule containing a shared pointer to the BiorthBasis instance.
+
+        Returns
+        -------
+        capsule: PyCapsule
+            A PyCapsule containing a shared pointer to the BiorthBasis instance with
+            the name "BiorthBasis_shared_ptr".
+
+        Notes
+        -----
+        This can be used to pass the BiorthBasis instance to non-Pybind11 C extensions
+        in a lifetime-safe manner.
+        )"
+    );
 
   py::class_<BasisClasses::Cylindrical, std::shared_ptr<BasisClasses::Cylindrical>, PyCylindrical, BasisClasses::BiorthBasis>(m, "Cylindrical")
     .def(py::init<const std::string&>(),
@@ -1417,6 +1844,13 @@ void BasisFactoryClasses(py::module &m)
          -------
          Cylindrical
               the new instance
+
+         Notes
+         -----
+         Similar to SphericalSL, the range of the harmonic orders may be
+         restricted to even harmonic order using the EVEN_M YAML option:
+             EVEN_M : bool
+		      if true, only even m terms are used (default: false)
          )", py::arg("YAMLstring"))
     .def("getBasis", &BasisClasses::Cylindrical::getBasis,
 	 R"(
@@ -1466,7 +1900,7 @@ void BasisFactoryClasses(py::module &m)
 	   return A.orthoCheck(knots);
 	 },
 	R"(
-        Check orthgonality of basis functions by quadrature
+        Check orthogonality of basis functions by quadrature
 
         Inner-product matrix of Sturm-Liouville solutions indexed by
         harmonic order used to assess fidelity.
@@ -1500,6 +1934,7 @@ void BasisFactoryClasses(py::module &m)
       )",
       py::arg("cachefile"));
 
+
     py::class_<BasisClasses::Spherical, std::shared_ptr<BasisClasses::Spherical>, PySpherical, BasisClasses::BiorthBasis>(m, "Spherical")
       .def(py::init<const std::string&, const std::string&>(),
 	 R"(
@@ -1516,6 +1951,23 @@ void BasisFactoryClasses(py::module &m)
          -------
          Spherical
               the new instance
+
+         Notes
+         -----
+         The configuration has a number of options for controlling the range of
+         the harmonic orders and radial basis functions.  These options are:
+             N1     : int
+		      the minimum radial order (default: 0)
+             N2     : int
+		      the maximum radial order (default: nmax-1)
+             EVEN_M : bool
+		      if true, only even m terms are used (default: false)
+             EVEN_L : bool
+		      if true, only even l terms are used (default: false)
+             NO_L1  : bool
+		      turn off the l=1 (dipole) harmonics (default: false)
+             NO_L0  : bool
+		      turn off the l=0 (monopole) harmonics (default: false)
          )", py::arg("YAMLstring"), py::arg("ForceID"))
       .def("getBasis", &BasisClasses::Spherical::getBasis,
 	   R"(
@@ -1552,7 +2004,7 @@ void BasisFactoryClasses(py::module &m)
 	return A.orthoCheck(knots);
       },
 	R"(
-        Check orthgonality of basis functions by quadrature
+        Check orthogonality of basis functions by quadrature
 
         Inner-product matrix of Sturm-Liouville solutions indexed by
         harmonic order used to assess fidelity.
@@ -1586,15 +2038,18 @@ void BasisFactoryClasses(py::module &m)
             cache parameters
         )",
 	py::arg("cachefile"))
-      .def_static("I", [](int l, int m)
+
+      .def("I", [](BasisClasses::Spherical& A, int l, int m, int n)
       {
 	if (l<0) throw std::runtime_error("l must be greater than 0");
 	if (m<0) throw std::runtime_error("m must be greater than 0");
+	if (n<0) throw std::runtime_error("n must be greater than 0");
 	if (abs(m)>l) throw std::runtime_error("m must be less than or equal to l");
-	return (l * (l + 1) / 2) + m;
+	int lmax = A.getLmax();
+	return (lmax + 1)*(lmax + 2)/2*n + (l * (l + 1) / 2) + m;
       },
 	R"(
-        Calculate the index of a spherical harmonic element given the angular numbers l and m .
+        Calculate the index of a coefficient element given the angular numbers l and m and radial index n
 
         Parameters
         ----------
@@ -1602,34 +2057,48 @@ void BasisFactoryClasses(py::module &m)
             spherical harmonic order l
         m : int
             azimuthal order m
+        n : int
+            radial order n
 
         Returns
         -------
         I : int
             index array packing index
+
+        Notes
+        -----
+      	The radial index n is optional and defaults to 0.  Use n=0 to get the
+        spherical harmonic index.
       )",
-	py::arg("l"), py::arg("m"))
-      .def_static("invI", [](int I)
+	py::arg("l"), py::arg("m"), py::arg("n")=0)
+
+	.def("invI", [](BasisClasses::Spherical& A, int I)
       {
-	if (I<0) std::runtime_error("I must be an interger greater than or equal to 0");
-	int l = std::floor(0.5*(-1.0 + std::sqrt(1.0 + 8.0 * I)));
-	int m = I - int(l * (l + 1) / 2);
-	return std::tuple<int, int>(l, m);
+	if (I<0) std::runtime_error("I must be an integer greater than or equal to 0");
+	int lmax = A.getLmax();			// Largest harmonic order l
+	int Ltot = (lmax + 1) * (lmax + 2) / 2;	// Number of (l,m) pairs
+	int n = I / Ltot;			// Radial index
+	int L = I - n * Ltot;			// Index in l,m set
+	// Solve for l and m (i.e. invert L = l*(l+1)/2 + m)
+	int l = std::floor(0.5*(-1.0 + std::sqrt(1.0 + 8.0 * L)));
+	int m = L - int(l * (l + 1) / 2);
+	// Return the indices
+	return std::tuple<int, int, int>(l, m, n);
       },
 	R"(
-        Calculate the spherical harmonic indices l and m from the coefficient array packing index I
+        Calculate the spherical harmonic indices l and m and radial index n
+        from the coefficient array packing index I
 
         Parameters
         ----------
         I : int
-            the spherical coefficient array index
+            the coefficient array index
 
         Returns
         -------
-        (l, m) : tuple
-            the harmonic indices (l, m).
-      )", py::arg("I"));
-
+        (l, m, n) : tuple
+            the harmonic indices (l, m) and radial index n
+        )", py::arg("I"));
   
     py::class_<BasisClasses::SphericalSL, std::shared_ptr<BasisClasses::SphericalSL>, BasisClasses::Spherical>(m, "SphericalSL")
       .def(py::init<const std::string&>(),
@@ -1682,7 +2151,7 @@ void BasisFactoryClasses(py::module &m)
 	return A.orthoCheck(knots);
       },
 	R"(
-        Check orthgonality of basis functions by quadrature
+        Check orthogonality of basis functions by quadrature
 
         Inner-product matrix of Sturm-Liouville solutions indexed by
         harmonic order used to assess fidelity.
@@ -1724,7 +2193,7 @@ void BasisFactoryClasses(py::module &m)
 	return A.orthoCheck(knots);
       },
 	R"(
-        Check orthgonality of basis functions by quadrature
+        Check orthogonality of basis functions by quadrature
 
         Inner-product matrix of Sturm-Liouville solutions indexed by
         harmonic order used to assess fidelity.
@@ -1794,7 +2263,7 @@ void BasisFactoryClasses(py::module &m)
       return A.orthoCheck();
     },
       R"(
-      Check orthgonality of basis functions by quadrature
+      Check orthogonality of basis functions by quadrature
 
       Inner-product matrix of Sturm-Liouville solutions indexed by
       harmonic order used to assess fidelity.
@@ -1882,7 +2351,7 @@ void BasisFactoryClasses(py::module &m)
       return A.orthoCheck();
     },
       R"(
-      Check orthgonality of basis functions by quadrature
+      Check orthogonality of basis functions by quadrature
 
       Inner-product matrix of Sturm-Liouville solutions indexed by
       harmonic order used to assess fidelity.
@@ -1933,7 +2402,7 @@ void BasisFactoryClasses(py::module &m)
 
          Returns
          -------
-         Cube
+         Slab
              the new instance
          )", py::arg("YAMLstring"))
     .def("getBasis", &BasisClasses::Slab::getBasis,
@@ -1980,7 +2449,7 @@ void BasisFactoryClasses(py::module &m)
       return A.orthoCheck();
     },
       R"(
-      Check orthgonality of basis functions by quadrature
+      Check orthogonality of basis functions by quadrature
 
       Inner-product matrix of indexed by flattened wave number (nx, ny, nz) where
       each of nx is in [-nmaxx, nmaxx], ny is in [-nmaxy, nmaxy] and nz is in 
@@ -2018,18 +2487,86 @@ void BasisFactoryClasses(py::module &m)
          Cube
              the new instance
          )", py::arg("YAMLstring"))
+    .def("enableCoefCovariance", &BasisClasses::BiorthBasis::enableCoefCovariance,
+	 R"(
+         Enable or disable the coefficient covariance computation and set the
+         default number of partitions to use for the covariance computation.
+
+         Parameters
+         ----------
+         pcavar   : bool
+                    enable (true) or disable (false) the covariance computation
+         nsamples : int
+                    number of time partitions to use for covariance computation
+         covar:     bool
+		    if true, compute and save covariance to the HDF5 file; if false,
+                    save mean and variance vectors only (default: false)
+
+         Returns
+         -------
+         None
+
+         Notes
+      	 -----
+      	 The covariance computation for the Cube can be expensive in both time and memory
+         because the number of basis functions can be large. To save disk space, covariance
+         computation is disabled by default.  The user can enable it by calling this member
+         function with covar=True. 
+	)", py::arg("pcavar"), py::arg("nsamples")=100, py::arg("covar")=false)
+    .def("index1D", &BasisClasses::Cube::index1D,
+      R"(
+      Returns a flattened 1-d index into the arrays and matrices returned by the
+      getCoefCovariance() routines from wave number indexing.
+
+      Parameters
+      ----------
+      nx : int
+           wave-number index in [0, 2*nmax_x]
+      ny : int
+           wave-number index in [0, 2*nmax_y]
+      nz : int
+           wave-number index in [0, 2*nmax_z]
+
+      Returns
+      -------
+      indx : int
+           flattened index for coefficient array and covariance matrix
+
+      Notes
+      -----
+      Wave-numbers range from 2*pi/L*[-nmax, nmax] in each dimension.  The indices
+      nx, ny, nz describe the wave-number offset by nmax.
+
+      )",
+	 py::arg("nx"), py::arg("ny"), py::arg("nz"))
+    .def("index3D", &BasisClasses::Cube::index3D,
+      R"(
+      Returns a tuple of indices for the wave-numbers (kx, ky, kz) from the flattened
+      1-d index for the arrays and matrices returned by the getCoefCovariance() routines
+
+      Parameters
+      ----------
+      index : int
+              flattened index for coefficient array and covariance matrix
+
+      Returns
+      -------
+      indices : tuple(int, int, int)
+              wave-number indices for each dimension in the ranges [0, 2*nmax-x],
+              [0, 2*nmax_y], [0, 2*nmax_z]
+      )", py::arg("index"))
     .def("orthoCheck", [](BasisClasses::Cube& A)
     {
       return A.orthoCheck();
     },
       R"(
-      Check orthgonality of basis functions by quadrature
+      Check orthogonality of basis functions by quadrature
 
       Inner-product matrix of indexed by flattened wave number (nx, ny, nz) where
       each of nx is in [-nmaxx, nmaxx], and so on for ny and nz.  Each dimension 
       has dx=2*nmaxx+1 wave numbers and similarly for dy and dz.  The index into the
       array is index=(nx+nmaxx)*dx*dy + (ny+nmaxy)*dy + (nz+nmaxz).   This is an 
-      analyic basis so the orthogonality matrix is not a check of any numerical
+      analytic basis so the orthogonality matrix is not a check of any numerical
       computation other than the quadrature itself.  It is included for completeness.
 
       Parameters
@@ -2105,6 +2642,9 @@ void BasisFactoryClasses(py::module &m)
              the ParticleReader instance
          center : list, default=[0, 0, 0]
 	     an optional expansion center location
+         rotation : numpy.ndarray
+             the rotation matrix for the basis functions
+             (default is identity matrix)
 
          Returns
          -------
@@ -2112,12 +2652,9 @@ void BasisFactoryClasses(py::module &m)
              the basis coefficients computed from the particles
          )",
 	 py::arg("reader"), 
-	 py::arg("center") = std::vector<double>(3, 0.0))
-    .def("initFromArray",
-	 [](BasisClasses::FieldBasis& A, std::vector<double> center)
-	 {
-	   return A.initFromArray(center);
-	 },
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("rotation") = RowMatrix3d::Identity())
+    .def("initFromArray", &BasisClasses::FieldBasis::initFromArray,
 	 R"(
          Initialize coefficient accumulation
 
@@ -2125,6 +2662,8 @@ void BasisFactoryClasses(py::module &m)
          ----------
          center : list, default=[0, 0, 0]
              vector of center positions
+         rotation : numpy.ndarray, default=Identity
+             rotation matrix to apply to the phase-space coordinates
 
          Returns
          -------
@@ -2141,11 +2680,44 @@ void BasisFactoryClasses(py::module &m)
          phase space arrays but allows for generation from very large 
          phase-space sets that can not be stored in physical memory.
          )",
-	 py::arg("center") = std::vector<double>(3, 0.0))
-    .def("addFromArray",
-	 [](BasisClasses::FieldBasis& A, Eigen::VectorXd& mass, RowMatrixXd& ps)
+	 py::arg("center") = Eigen::Vector3d::Zero(),
+	 py::arg("rotation") = RowMatrix3d::Identity())
+    .def("initFromArray",
+	 [](BasisClasses::FieldBasis& A, Eigen::Vector3d center)
 	 {
-	   return A.addFromArray(mass, ps);
+	   return A.initFromArray(center, RowMatrix3d::Identity());
+	 },
+	 R"(
+         Initialize coefficient accumulation
+
+         Parameters
+         ----------
+         center : list, default=[0, 0, 0]
+             vector of center positions
+         rotation : numpy.ndarray, default=Identity
+             rotation matrix to apply to the phase-space coordinates
+
+         Returns
+         -------
+         None
+
+         Notes
+         -----
+	 After initialization, phase-space data is then added with 
+         addFromArray() call.  addFromArray() may be called multiple times 
+         with any unique partition of phase space. The final generation is 
+         finished with a call to makeFromArray() with the snapshot time.  
+         This final call returns the coefficient set. This sequence of 
+         calls is identical to createFromArray() for a single set of 
+         phase space arrays but allows for generation from very large 
+         phase-space sets that can not be stored in physical memory.
+         )",
+	 py::arg("center") = Eigen::Vector3d::Zero())
+    .def("addFromArray",
+	 [](BasisClasses::FieldBasis& A,
+	    Eigen::VectorXd& mass, RowMatrixXd& pos)
+	 {
+	   A.addFromArray(mass, pos);
 	 },
 	 R"(
          Add particle contributions to coefficients
@@ -2167,11 +2739,7 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
-    .def("makeFromArray",
-	 [](BasisClasses::FieldBasis& A, double time)
-	 {
-	   return A.makeFromArray(time);
-	 },
+    .def("makeFromArray", &BasisClasses::FieldBasis::makeFromArray,
 	 R"(
          Make the coefficients
 
@@ -2231,7 +2799,7 @@ void BasisFactoryClasses(py::module &m)
 	return A.orthoCheck();
       },
       R"(
-        Check orthgonality of basis functions by quadrature
+        Check orthogonality of basis functions by quadrature
 
         Inner-product matrix of orthogonal functions
 
@@ -2393,4 +2961,114 @@ void BasisFactoryClasses(py::module &m)
 	py::arg("tinit"), py::arg("tfinal"), py::arg("h"),
 	py::arg("ps"), py::arg("basiscoef"), py::arg("func"),
 	py::arg("nout")=0);
+
+  py::class_<BasisClasses::CovarianceReader, std::shared_ptr<BasisClasses::CovarianceReader>>
+    (m, "CovarianceReader")
+    .def(py::init<const std::string&, int>(),
+       R"(
+       Read a covariance database from an HDF5 file
+
+       Parameters
+       ----------
+       filename : str
+                The HDF5 filename
+       stride   : int, default=1
+                The stride for reading datasets
+
+       Returns
+       -------
+       CovarianceReader
+            the new instance
+
+       )", py::arg("filename"), py::arg("stride")=1)
+    .def("Times", &BasisClasses::CovarianceReader::Times,
+       R"(
+       Get the list of evaluation times
+
+       Parameters
+       ----------
+       None
+
+       Returns
+       -------
+       times : list(float)
+            a list of evaluation times
+      )")
+  .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>>>
+       (BasisClasses::CovarianceReader::*)(unsigned)>(&BasisClasses::CovarianceReader::getCoefCovariance),
+     R"(
+     Get the covariance matrices for the basis coefficients
+
+     Parameters
+     ----------
+     index : int
+             the time index
+     Returns
+     -------
+      list(list(tuple(numpy.ndarray, numpy.ndarray)))
+	    list of partitioned coefficients and their covariance matrices for
+            each subsample
+    )",
+    py::arg("index"))
+  .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>>>
+       (BasisClasses::CovarianceReader::*)(double)>(&BasisClasses::CovarianceReader::getCoefCovariance),
+     R"(
+     Get the covariance matrices for the basis coefficients
+
+     Parameters
+     ----------
+     time  : float
+             the evaluation time
+
+     Returns
+     -------
+      list(list(tuple(numpy.ndarray, numpy.ndarray)))
+	    List of partitioned coefficients and their covariance matrices for
+            each subsample. The returns are complex-valued.
+    )",
+    py::arg("time"))
+   .def("getCovarSamples",
+	py::overload_cast<unsigned>(&BasisClasses::CovarianceReader::getCovarSamples),
+      R"(
+      Get sample counts for the covariance computation
+
+      Parameters
+      ----------
+      index : unsigned int
+              the time index
+
+      Returns
+      -------
+      tuple(numpy.ndarray, numpy.ndarray)
+          sample counts and masses for the covariance computation
+      )",
+      py::arg("index"))
+    .def("getCovarSamples", py::overload_cast<double>(&BasisClasses::CovarianceReader::getCovarSamples),
+      R"(
+      Get sample counts for the covariance computation
+
+      Parameters
+      ----------
+      time  : float
+              the evaluation time
+
+      Returns
+      -------
+      tuple(numpy.ndarray, numpy.ndarray)
+          sample counts and masses for the covariance computation
+      )",
+      py::arg("time"))
+   .def("basisIDname", &BasisClasses::CovarianceReader::basisIDname,
+     R"(
+     Get the basis ID name
+
+     Parameters
+     ----------
+     None
+
+     Returns
+     -------
+     BasisID : str
+               the basis ID name
+     )");
 }

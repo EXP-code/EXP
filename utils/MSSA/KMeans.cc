@@ -1,7 +1,7 @@
 #include <random>
 #include <chrono>
 
-#include <KMeans.H>
+#include "KMeans.H"
 
 void KMeans::kMeansClustering::iterate(KMeans::KMeansDistance& distance,
 				       int niter, int k, int s, bool verbose)

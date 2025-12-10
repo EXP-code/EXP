@@ -5,7 +5,7 @@
 #ifndef _DiskWithHalo_H
 #define _DiskWithHalo_H
 
-#include <massmodel.H>
+#include "massmodel.H"
 
 class DiskWithHalo : public AxiSymModel
 {

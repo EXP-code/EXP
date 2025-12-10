@@ -14,7 +14,7 @@
 #include <vector>
 #include <array>
 
-#include <cxxopts.H>
+#include "cxxopts.H"
 
 int 
 main(int ac, char **av)
@@ -190,6 +190,17 @@ main(int ac, char **av)
       for (int k=0; k<3; k++) out << std::setw(18) << vel[i][k];
       out << std::endl;
     }
+
+    // Print out some info
+    //
+    out << "# Mass=" << mass << " zero-vel=" << vm.count("zerovel")
+	<< " disp=(" << disp[0] << ", " << disp[1] << ", " << disp[2]
+	<< ") bulk=(" << bulk[0] << ", " << bulk[1] << ", " << bulk[2]
+	<< ") seed=" << seed << std::endl;
+
+    // Close the output file
+    //
+    out.close();
 
   } else {
     std::cout << "Error opening output body file <"

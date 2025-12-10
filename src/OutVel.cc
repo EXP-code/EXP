@@ -3,9 +3,9 @@
 #include <fstream>
 #include <iomanip>
 
-#include <expand.H>
+#include "expand.H"
 
-#include <OutVel.H>
+#include "OutVel.H"
 
 const std::set<std::string>
 OutVel::valid_keys = {
@@ -186,7 +186,7 @@ void OutVel::Run(int n, int mstep, bool last)
 	double v = it->second->vel[1];
 	double w = it->second->vel[2];
 	
-	basis->accumulate(M, x, y, z, u, v, w);
+	basis->accumulate(x, y, z, u, v, w, M);
       }
     }
   }

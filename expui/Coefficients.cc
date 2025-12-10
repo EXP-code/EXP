@@ -5,9 +5,10 @@
 #include <sstream>
 #include <iomanip>
 #include <complex>
+#include <cstring>
 
-#include <config_exp.h>
-#include <localmpi.H>
+#include "config_exp.h"
+#include "localmpi.H"
 
 #include <Eigen/Dense>
 #include <yaml-cpp/yaml.h>
@@ -15,11 +16,50 @@
 #include <highfive/highfive.hpp>
 #include <highfive/eigen.hpp>
 
-#include <Coefficients.H>
+#include "Coefficients.H"
+
+// Create a helper function to describe the compound type
+HighFive::CompoundType create_compound_Unit() {
+  return {
+    {"name",  HighFive::AtomicType<char[16]>()},
+    {"unit",  HighFive::AtomicType<char[16]>()},
+    {"value", HighFive::AtomicType<float>()}
+  };
+}
+
+// Register the type with HighFive.
+HIGHFIVE_REGISTER_TYPE(CoefClasses::Unit, create_compound_Unit)
+
+
+// Helper ostream manipulator for debugging Unit info
+std::ostream& operator<< (std::ostream& out,
+			  const std::vector<CoefClasses::Unit>& t)
+{
+  out << std::string(48, '-') << std::endl
+      << std::setw(16) << "Name"
+      << std::setw(16) << "Unit"
+      << std::setw(16) << "Value"
+      << std::endl
+      << std::setw(16) << std::string(10, '-')
+      << std::setw(16) << std::string(10, '-')
+      << std::setw(16) << std::string(10, '-')
+      << std::endl;
+  for (auto p : t)
+    out << std::setw(16) << p.name
+	<< std::setw(16) << p.unit
+	<< std::setw(16) << p.value
+	<< std::endl;
+  out << std::string(48, '-') << std::endl;
+  
+  return out;
+}
 
 namespace CoefClasses
 {
-  
+
+  // Static instance of the unit validator
+  UnitValidator Coefs::check = UnitValidator();
+
   void Coefs::copyfields(std::shared_ptr<Coefs> p)
   {
     // These variables will copy data, not pointers
@@ -29,6 +69,115 @@ namespace CoefClasses
     p->name     = name;
     p->verbose  = verbose;
     p->times    = times;
+  }
+
+  void Coefs::removeUnits(const std::string name)
+  {
+    // Lambda test for matching name
+    auto test = [&name](Unit& elem) -> bool{return elem.name==name; };
+
+    // Explanation: std::remove_if shifts elements to be removed to
+    // the end of the range and returns an iterator to the new logical
+    // end. units.erase() then removes the elements from that point to
+    // the end.
+    units.erase(std::remove_if(units.begin(), units.end(), test), units.end()); 
+  }
+  
+
+  void Coefs::setUnits
+  (const std::string Name, const std::string Unit, const float Value)
+  {
+    auto copy_s = [](std::string& s, char* c) -> void {
+      const size_t sz = 16;
+      strncpy(c, s.c_str(), std::min(s.length()+1, sz));
+    };
+      
+    // Run the type validation
+    //
+    auto [valid, name, unit] = check(Name, Unit);
+
+    if (not valid) {
+      throw std::runtime_error(std::string("Coefs::setUnits: Warning, type '")
+			       + Name + "' with unit '" + Unit +
+			       "' is incompatible or not recognized.");
+    }
+
+    // Check for existing unit and update
+    //
+    for (auto & p : units) {
+      std::string p_name(p.name);
+
+      if (name == p_name) {
+	copy_s(unit, &p.unit[0]);
+	p.value = Value;
+	return;
+      }
+    }
+
+    // No matches
+    //
+    units.push_back({name, unit, Value});
+  }
+
+  // Set units using a vector of tuples (name, unit, value)
+  // Converts to a list of tuples in Python
+  void Coefs::setUnits
+  (const std::vector<std::tuple<std::string, std::string, float>>& units)
+  {
+    for (auto p : units) {
+      setUnits(std::get<0>(p), std::get<1>(p), std::get<2>(p));
+    }
+  }
+
+  //! Get units
+  std::vector<std::tuple<std::string, std::string, float>> Coefs::getUnits()
+  {
+    std::vector<std::tuple<std::string, std::string, float>> ret;
+    for (auto p : units) ret.push_back({p.name, p.unit, p.value});
+    return ret;
+  }
+
+
+  //! Get gravitational constant
+  double Coefs::getGravConstant()
+  {
+    for (auto p : units) {
+      std::string G(p.name);
+      if (G == "G") return p.value;
+    }
+    // Default if "G" is removed or not set for some unforseen reason
+    return 1.0;
+  }
+
+  void Coefs::WriteH5Units(HighFive::File& file)
+  {
+    if (unitsRequired() and units.size() != 4) {
+      std::ostringstream sout;
+      sout << "---- Coefs::WriteH5Units: Warning, expected 4 units: "
+	   << "(length, mass, time, G) or (length, mass, velocity, G), etc. "
+	   << "I found " << units.size() << " units instead.  Please "
+	   << " provide a consistent unit set.";
+      throw std::runtime_error(sout.str());
+    }
+
+    HighFive::DataSet dataset = file.createDataSet("Units", units);
+
+    if (units.size() == 4) {
+      std::cout << "Coefs::WriteH5Units: wrote units to HDF5 file:" << std::endl
+		<< units << std::endl;
+    }
+  }
+
+  void Coefs::ReadH5Units(HighFive::File& file)
+  {
+    if (file.exist("Units")) {
+      HighFive::DataSet dataset = file.getDataSet("Units");
+      units = dataset.read<std::vector<Unit>>();
+      if (verbose and myid==0) {
+	std::cout << "Coefs::ReadH5Units: read units from HDF5 file:" << std::endl;
+	std::cout << units;
+      }
+    }
   }
 
   std::tuple<Eigen::VectorXcd&, bool> Coefs::interpolate(double time)
@@ -82,6 +231,10 @@ namespace CoefClasses
     unsigned count;
     double scale;
     
+    // Check for units
+    ReadH5Units(file);
+    double G = getGravConstant();
+
     file.getAttribute("name"    ).read(name    );
     file.getAttribute("lmax"    ).read(Lmax    );
     file.getAttribute("nmax"    ).read(Nmax    );
@@ -113,9 +266,17 @@ namespace CoefClasses
       
       // Check for center data
       //
-      std::vector<double> ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
+      }
+
+      // Check for rotation matrix
+      //
+      Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
+      if (stanza.hasAttribute("Rotation")) {
+	stanza.getAttribute("Rotation").read(rot);
       }
 
       if (Time < Tmin or Time > Tmax) continue;
@@ -139,16 +300,17 @@ namespace CoefClasses
       
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<SphStruct>();
+      auto coef = std::make_shared<SphStruct>(this);
       
-      if (ctr.size()) coef->ctr = ctr;
-
+      coef->ctr   = ctr;
+      coef->rot   = rot;
       coef->lmax  = Lmax;
       coef->nmax  = Nmax;
       coef->time  = Time;
       coef->scale = scale;
       coef->geom  = geometry;
       coef->id    = forceID;
+      coef->setGravConstant(G);
 
       coef->allocate();
       *coef->coefs = in;
@@ -173,8 +335,10 @@ namespace CoefClasses
       ret->coefs[v.first] =
 	std::dynamic_pointer_cast<SphStruct>(v.second->deepcopy());
 
-    ret->Lmax = Lmax;
-    ret->Nmax = Nmax;
+    ret->Lmax  = Lmax;
+    ret->Nmax  = Nmax;
+    ret->units = units;
+
 
     return ret;
   }
@@ -195,6 +359,7 @@ namespace CoefClasses
     ret->Mmax  = Mmax;
     ret->Nmax  = Nmax;
     ret->angle = angle;
+    ret->units = units;
 
     return ret;
   }
@@ -215,6 +380,7 @@ namespace CoefClasses
     ret->NmaxX  = NmaxX;
     ret->NmaxY  = NmaxY;
     ret->NmaxZ  = NmaxZ;
+    ret->units  = units;
 
     return ret;
   }
@@ -235,6 +401,7 @@ namespace CoefClasses
     ret->NmaxX  = NmaxX;
     ret->NmaxY  = NmaxY;
     ret->NmaxZ  = NmaxZ;
+    ret->units  = units;
 
     return ret;
   }
@@ -287,6 +454,10 @@ namespace CoefClasses
     unsigned count;
     double scale;
     
+    // Check for units
+    ReadH5Units(file);
+    double G = getGravConstant();
+
     file.getAttribute("name"    ).read(name    );
     file.getAttribute("nfld"    ).read(Nfld    );
     file.getAttribute("lmax"    ).read(Lmax    );
@@ -313,9 +484,17 @@ namespace CoefClasses
       
       // Check for center data
       //
-      std::vector<double> ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
+      }
+
+      // Check for rotation matrix
+      //
+      Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
+      if (stanza.hasAttribute("Rotation")) {
+	stanza.getAttribute("Rotation").read(rot);
       }
 
       if (Time < Tmin or Time > Tmax) continue;
@@ -327,10 +506,10 @@ namespace CoefClasses
       
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<SphFldStruct>();
+      auto coef = std::make_shared<SphFldStruct>(this);
       
-      if (ctr.size()) coef->ctr = ctr;
-
+      coef->ctr   = ctr;
+      coef->rot   = rot;
       coef->nfld  = Nfld;
       coef->lmax  = Lmax;
       coef->nmax  = Nmax;
@@ -338,6 +517,7 @@ namespace CoefClasses
       coef->scale = scale;
       coef->geom  = geometry;
       coef->id    = fieldID;
+      coef->setGravConstant(G);
 
       coef->allocate();
       coef->store = in;
@@ -378,6 +558,10 @@ namespace CoefClasses
     unsigned count;
     double scale;
     
+    // Check for units
+    ReadH5Units(file);
+    double G = getGravConstant();
+
     file.getAttribute("name"    ).read(name    );
     file.getAttribute("nfld"    ).read(Nfld    );
     file.getAttribute("mmax"    ).read(Mmax    );
@@ -404,10 +588,19 @@ namespace CoefClasses
       
       // Check for center data
       //
-      std::vector<double> ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
       }
+
+      // Check for rotation matrix
+      //
+      Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
+      if (stanza.hasAttribute("Rotation")) {
+	stanza.getAttribute("Rotation").read(rot);
+      }
+
 
       if (Time < Tmin or Time > Tmax) continue;
 
@@ -418,10 +611,10 @@ namespace CoefClasses
       
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<CylFldStruct>();
+      auto coef = std::make_shared<CylFldStruct>(this);
       
-      if (ctr.size()) coef->ctr = ctr;
-
+      coef->ctr   = ctr;
+      coef->rot   = rot;
       coef->nfld  = Nfld;
       coef->mmax  = Mmax;
       coef->nmax  = Nmax;
@@ -429,6 +622,7 @@ namespace CoefClasses
       coef->scale = scale;
       coef->geom  = geometry;
       coef->id    = fieldID;
+      coef->setGravConstant(G);
 
       coef->allocate();
       coef->store = in;
@@ -599,7 +793,7 @@ namespace CoefClasses
     int count = 0;
     while (in) {
       try {
-	SphStrPtr c = std::make_shared<SphStruct>();
+	SphStrPtr c = std::make_shared<SphStruct>(this);
 	if (not c->read(in, verbose)) break;
 
 	if (count++ % stride) continue;
@@ -634,6 +828,8 @@ namespace CoefClasses
   
   void SphCoefs::WriteH5Params(HighFive::File& file)
   {
+    WriteH5Units(file);
+
     double scale = coefs.begin()->second->scale;
     
     std::string forceID(coefs.begin()->second->id);
@@ -662,9 +858,13 @@ namespace CoefClasses
       
       // Add a center attribute
       //
-      if (C->ctr.size()>0)
-	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+      stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
       
+      // Add a rotation matrix attribute
+      //
+      Eigen::Matrix3d rot = C->getRotation();
+      stanza.createAttribute<double>("Rotation", HighFive::DataSpace::From(rot)).write(rot);
+
       // Index counters
       //
       unsigned I = 0, L = 0;
@@ -800,6 +1000,9 @@ namespace CoefClasses
     auto p = std::dynamic_pointer_cast<SphStruct>(coef);
     if (not p) throw std::runtime_error("SphCoefs::add: Null coefficient structure, nothing added!");
 
+    // Reference to this container
+    p->setOwner(static_cast<Coefs*>(this));
+
     Lmax = p->lmax;
     Nmax = p->nmax;
     coefs[roundTime(coef->time)] = p;
@@ -812,6 +1015,10 @@ namespace CoefClasses
     unsigned count;
     std::string config;
     
+    ReadH5Units(file);
+    double G = getGravConstant();
+
+
     file.getAttribute("name"   ).read(name  );
     file.getAttribute("mmax"   ).read(Mmax  );
     file.getAttribute("nmax"   ).read(Nmax  );
@@ -840,9 +1047,17 @@ namespace CoefClasses
       
       // Check for center data
       //
-      std::vector<double> ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
+      }
+
+      // Check for rotation data
+      //
+      Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
+      if (stanza.hasAttribute("Rotation")) {
+	stanza.getAttribute("Rotation").read(rot);
       }
 
       if (Time < Tmin or Time > Tmax) continue;
@@ -870,12 +1085,13 @@ namespace CoefClasses
 
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<CylStruct>();
+      auto coef = std::make_shared<CylStruct>(this);
       
-      if (ctr.size()) coef->ctr = ctr;
-
+      coef->ctr = ctr;
+      coef->rot = rot;
       coef->assign(in, Mmax, Nmax);
       coef->time = Time;
+      coef->setGravConstant(G);
       
       coefs[roundTime(Time)] = coef;
     }
@@ -1006,7 +1222,7 @@ namespace CoefClasses
     
     int count = 0;
     while (in) {
-      CylStrPtr c = std::make_shared<CylStruct>();
+      CylStrPtr c = std::make_shared<CylStruct>(this);
       if (not c->read(in, verbose)) break;
       
       if (count++ % stride) continue;
@@ -1031,6 +1247,8 @@ namespace CoefClasses
   
   void CylCoefs::WriteH5Params(HighFive::File& file)
   {
+    WriteH5Units(file);
+
     std::string forceID(coefs.begin()->second->id);
 
     file.createAttribute<int>("mmax", HighFive::DataSpace::From(Mmax)).write(Mmax);
@@ -1053,8 +1271,12 @@ namespace CoefClasses
       
       // Add center attribute
       //
-      if (C->ctr.size()>0)
-	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+      stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+
+      // Add a rotation matrix attribute
+      //
+      Eigen::Matrix3d rot = C->getRotation();
+      stanza.createAttribute<double>("Rotation", HighFive::DataSpace::From(rot)).write(rot);
 
       // Add coefficient data
       //
@@ -1206,6 +1428,10 @@ namespace CoefClasses
     unsigned count;
     std::string config;
     
+    // Check for units
+    ReadH5Units(file);
+    double G = getGravConstant();
+
     file.getAttribute("name"   ).read(name  );
     file.getAttribute("nmaxx"  ).read(NmaxX );
     file.getAttribute("nmaxy"  ).read(NmaxY );
@@ -1229,9 +1455,10 @@ namespace CoefClasses
       
       // Check for center data
       //
-      std::vector<double> ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
       }
 
       if (Time < Tmin or Time > Tmax) continue;
@@ -1242,10 +1469,11 @@ namespace CoefClasses
 
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<SlabStruct>();
+      auto coef = std::make_shared<SlabStruct>(this);
       
       coef->assign(dat);
       coef->time = Time;
+      coef->setGravConstant(G);
       
       coefs[roundTime(Time)] = coef;
     }
@@ -1353,6 +1581,8 @@ namespace CoefClasses
 
   void SlabCoefs::WriteH5Params(HighFive::File& file)
   {
+    WriteH5Units(file);
+
     std::string forceID(coefs.begin()->second->id);
 
     file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(NmaxX)).write(NmaxX);
@@ -1558,6 +1788,10 @@ namespace CoefClasses
     unsigned count;
     std::string config;
     
+    // Check for units
+    ReadH5Units(file);
+    double G = getGravConstant();
+
     file.getAttribute("name"   ).read(name  );
     file.getAttribute("nmaxx"  ).read(NmaxX );
     file.getAttribute("nmaxy"  ).read(NmaxY );
@@ -1581,9 +1815,10 @@ namespace CoefClasses
       
       // Check for center data
       //
-      std::vector<double> ctr;
+      Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
       if (stanza.hasAttribute("Center")) {
-	stanza.getAttribute("Center").read(ctr);
+	// Read three values, ignoring dimensionality
+	stanza.getAttribute("Center").read_raw<double>(ctr.data());
       }
 
       if (Time < Tmin or Time > Tmax) continue;
@@ -1594,11 +1829,12 @@ namespace CoefClasses
 
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<CubeStruct>();
+      auto coef = std::make_shared<CubeStruct>(this);
       
       coef->assign(dat);
       coef->time = Time;
-      
+      coef->setGravConstant(G);
+    
       coefs[roundTime(Time)] = coef;
     }
 
@@ -1678,7 +1914,10 @@ namespace CoefClasses
       for (int ix=0; ix<=2*NmaxX; ix++) {
 	for (int iy=0; iy<=2*NmaxY; iy++) {
 	  for (int iz=0; iz<=2*NmaxZ; iz++) {
-	    ret(ix, iy, iz, t) = (*cof->coefs)(ix, iy, iz);
+	    if (std::isnan(std::abs((*cof->coefs)(ix, iy, iz))))
+	      ret(ix, iy, iz, t) = 0.0;
+	    else
+	      ret(ix, iy, iz, t) = (*cof->coefs)(ix, iy, iz);
 	  }
 	}
       }
@@ -1705,6 +1944,8 @@ namespace CoefClasses
 
   void CubeCoefs::WriteH5Params(HighFive::File& file)
   {
+    WriteH5Units(file);
+
     std::string forceID(coefs.begin()->second->id);
 
     file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(NmaxX)).write(NmaxX);
@@ -1917,7 +2158,7 @@ namespace CoefClasses
     }
 
     for (int i=0; i<times.size(); i++) {
-      TrajStrPtr c = std::make_shared<TrajStruct>();
+      TrajStrPtr c = std::make_shared<TrajStruct>(this);
       c->time = times[i];
       c->traj = traj;
       c->rank = rank;
@@ -1942,7 +2183,7 @@ namespace CoefClasses
     }
     
     while (in) {
-      TrajStrPtr c = std::make_shared<TrajStruct>();
+      TrajStrPtr c = std::make_shared<TrajStruct>(this);
       if (not c->read(in, verbose)) break;
       
       coefs[roundTime(c->time)] = c;
@@ -1977,7 +2218,8 @@ namespace CoefClasses
 
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<TrajStruct>();
+      auto coef = std::make_shared<TrajStruct>(this);
+
       coef->traj  = traj;
       coef->rank  = rank;
       coef->time  = times[n];
@@ -2034,7 +2276,7 @@ namespace CoefClasses
     
     int count = 0;
     while (in) {
-      TrajStrPtr c = std::make_shared<TrajStruct>();
+      TrajStrPtr c = std::make_shared<TrajStruct>(this);
       if (not c->read(in, verbose)) break;
       
       if (count++ % stride) continue;
@@ -2055,6 +2297,8 @@ namespace CoefClasses
   
   void TrajectoryData::WriteH5Params(HighFive::File& file)
   {
+    WriteH5Units(file);
+
     int traj = coefs.begin()->second->traj;
     int rank = coefs.begin()->second->rank;
     
@@ -2171,7 +2415,7 @@ namespace CoefClasses
   {
     times = Times;
     for (int i=0; i<times.size(); i++) {
-      TblStrPtr c = std::make_shared<TblStruct>();
+      TblStrPtr c = std::make_shared<TblStruct>(this);
       c->time = times[i];
       c->cols = data[i].size();
       c->store.resize(c->cols);
@@ -2191,7 +2435,7 @@ namespace CoefClasses
     }
     
     while (in) {
-      TblStrPtr c = std::make_shared<TblStruct>();
+      TblStrPtr c = std::make_shared<TblStruct>(this);
       if (not c->read(in, verbose)) break;
       
       coefs[roundTime(c->time)] = c;
@@ -2225,7 +2469,7 @@ namespace CoefClasses
 
       // Pack the data into the coefficient variable
       //
-      auto coef = std::make_shared<TblStruct>();
+      auto coef = std::make_shared<TblStruct>(this);
       coef->cols  = cols;
       coef->time  = times[n];
       coef->store.resize(cols);
@@ -2280,7 +2524,7 @@ namespace CoefClasses
     
     int count = 0;
     while (in) {
-      TblStrPtr c = std::make_shared<TblStruct>();
+      TblStrPtr c = std::make_shared<TblStruct>(this);
       if (not c->read(in, verbose)) break;
       
       if (count++ % stride) continue;
@@ -2412,6 +2656,8 @@ namespace CoefClasses
       HighFive::Attribute geom = h5file.getAttribute("geometry");
       geom.read(geometry);
       
+      // Now try to deduce the coefficient type
+      //
       try {
 	// Is the set a biorthogonal basis (has the forceID attribute)
 	// or general basis (fieldID attribute)?
@@ -2449,6 +2695,10 @@ namespace CoefClasses
 	throw std::runtime_error(msg + err.what());
       }
 	
+      // Attempt to red units
+      //
+      coefs->ReadH5Units(h5file);
+
       return coefs;
       
     } catch (HighFive::Exception& err) {
@@ -2497,15 +2747,17 @@ namespace CoefClasses
   {
     std::shared_ptr<Coefs> ret;
     if (dynamic_cast<SphStruct*>(coef.get())) {
-      ret = std::make_shared<SphCoefs>();
+      ret = std::make_shared<SphCoefs>(ret.get());
     } else if (dynamic_cast<CylStruct*>(coef.get())) {
-      ret = std::make_shared<CylCoefs>();
+      ret = std::make_shared<CylCoefs>(ret.get());
+    } else if (dynamic_cast<CubeStruct*>(coef.get())) {
+      ret = std::make_shared<CubeCoefs>(ret.get());
     } else if (dynamic_cast<TblStruct*>(coef.get())) {
-      ret = std::make_shared<TableData>();
+      ret = std::make_shared<TableData>(ret.get());
     } else if (dynamic_cast<SphFldStruct*>(coef.get())) {
-      ret = std::make_shared<SphFldCoefs>();
+      ret = std::make_shared<SphFldCoefs>(ret.get());
     } else if (dynamic_cast<CylFldStruct*>(coef.get())) {
-      ret = std::make_shared<CylFldCoefs>();
+      ret = std::make_shared<CylFldCoefs>(ret.get());
     } else {
       throw std::runtime_error("Coefs::makecoefs: cannot deduce coefficient file type");
     }
@@ -2643,6 +2895,10 @@ namespace CoefClasses
       //
       HighFive::File file(prefix, HighFive::File::ReadWrite);
       
+      // Attempt to read units
+      //
+      ReadH5Units(file);
+
       // Get the dataset
       HighFive::DataSet dataset = file.getDataSet("count");
       
@@ -2670,6 +2926,9 @@ namespace CoefClasses
     auto p = std::dynamic_pointer_cast<CylStruct>(coef);
     if (not p) throw std::runtime_error("CylCoefs::add: Null coefficient structure, nothing added!");
 
+    // Reference to this container
+    p->setOwner(this);
+
     Mmax = p->mmax;
     Nmax = p->nmax;
     coefs[roundTime(coef->time)] = p;
@@ -2679,6 +2938,9 @@ namespace CoefClasses
   {
     auto p = std::dynamic_pointer_cast<CubeStruct>(coef);
     if (not p) throw std::runtime_error("CubeCoefs::add: Null coefficient structure, nothing added!");
+
+    // Reference to this container
+    p->setOwner(this);
 
     NmaxX = p->nmaxx;
     NmaxY = p->nmaxy;
@@ -2691,6 +2953,9 @@ namespace CoefClasses
     auto p = std::dynamic_pointer_cast<SlabStruct>(coef);
     if (not p) throw std::runtime_error("SlabCoefs::add: Null coefficient structure, nothing added!");
 
+    // Reference to this container
+    p->setOwner(this);
+
     NmaxX = p->nmaxx;
     NmaxY = p->nmaxy;
     NmaxZ = p->nmaxz;
@@ -2702,6 +2967,8 @@ namespace CoefClasses
     auto p = std::dynamic_pointer_cast<TblStruct>(coef);
     if (not p) throw std::runtime_error("TableData::add: Null coefficient structure, nothing added!");
 
+    p->setOwner(this);
+
     coefs[roundTime(coef->time)] = p;
   }
 
@@ -2710,6 +2977,9 @@ namespace CoefClasses
     auto p = std::dynamic_pointer_cast<TrajStruct>(coef);
     if (not p) throw std::runtime_error("TrajectoryData::add: Null coefficient structure, nothing added!");
 
+    // Reference to this container
+    p->setOwner(this);
+
     coefs[roundTime(coef->time)] = p;
   }
 
@@ -2717,6 +2987,10 @@ namespace CoefClasses
   void SphFldCoefs::add(CoefStrPtr coef)
   {
     auto p = std::dynamic_pointer_cast<SphFldStruct>(coef);
+
+    // Reference to this container
+    p->setOwner(this);
+
     Nfld = p->nfld;
     Lmax = p->lmax;
     Nmax = p->nmax;
@@ -2727,6 +3001,9 @@ namespace CoefClasses
   {
     auto p = std::dynamic_pointer_cast<CylFldStruct>(coef);
     if (not p) throw std::runtime_error("CylFldCoefs::add: Null coefficient structure, nothing added!");
+
+    // Reference to this container
+    p->setOwner(this);
 
     Nfld = p->nfld;
     Mmax = p->mmax;
@@ -2893,6 +3170,8 @@ namespace CoefClasses
     
     double scale = coefs.begin()->second->scale;
 
+    WriteH5Units(file);
+
     // Write the remaining parameters
     //
     file.createAttribute<int>   ("nfld",  HighFive::DataSpace::From(Nfld)  ).write(Nfld);
@@ -2917,9 +3196,12 @@ namespace CoefClasses
     
       // Add a center attribute
       //
-      if (C->ctr.size()>0)
-	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+      stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
       
+      // Add a rotation matrix attribute
+      //
+      Eigen::Matrix3d rot = C->getRotation();
+      stanza.createAttribute<double>("Rotation", HighFive::DataSpace::From(rot)).write(rot);
 
       // Coefficient size (allow Eigen::Tensor to be easily recontructed from metadata)
       //
@@ -3011,6 +3293,8 @@ namespace CoefClasses
     std::string fieldID("polar velocity orthgonal function coefficients");
     file.createAttribute<std::string>("fieldID", HighFive::DataSpace::From(fieldID)).write(fieldID);
     
+    WriteH5Units(file);
+
     double scale = coefs.begin()->second->scale;
 
     // Write the remaining parameters
@@ -3037,10 +3321,8 @@ namespace CoefClasses
     
       // Add a center attribute
       //
-      if (C->ctr.size()>0)
-	stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
+      stanza.createAttribute<double>("Center", HighFive::DataSpace::From(C->ctr)).write(C->ctr);
       
-
       // Coefficient size (allow Eigen::Tensor to be easily recontructed from metadata)
       //
       const auto& d = C->coefs->dimensions();

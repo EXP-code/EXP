@@ -2,10 +2,10 @@
 #include <Eigen/Eigenvalues>
 
 #include "expand.H"
-#include <AxisymmetricBasis.H>
+#include "AxisymmetricBasis.H"
 
 #ifdef HAVE_VTK
-#include <VtkPCA.H>
+#include "VtkPCA.H"
 #endif
 
 const std::set<std::string>

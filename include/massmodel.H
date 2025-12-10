@@ -8,8 +8,8 @@
 
 #include <Eigen/Eigen>
 
-#include <interp.H>
-#include <orbit.H>
+#include "interp.H"
+#include "orbit.H"
 
 class QPDistF;
 
@@ -568,6 +568,6 @@ typedef std::shared_ptr<EmbeddedDiskModel>   EmbDiskModPtr;
 typedef std::shared_ptr<SphericalModelMulti> SphModMultPtr;
 typedef std::shared_ptr<SphericalModelTable> SphModTblPtr;
 
-#include <QPDistF.H>
+#include "QPDistF.H"
 
 #endif

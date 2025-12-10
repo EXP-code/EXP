@@ -6,11 +6,11 @@
 #include <sstream>
 #include <cmath>
 
-#include <numerical.H>
-#include <interp.H>
-#include <massmodel.H>
-#include <orbit.H>
-#include <biorth.H>
+#include "numerical.H"
+#include "interp.H"
+#include "massmodel.H"
+#include "orbit.H"
+#include "biorth.H"
 
 int    SphericalOrbit::Nseg = 40;     // Number of trial segments for root finding 
 double SphericalOrbit::tol = 1.0e-8;  // root finder tolerance
@@ -73,7 +73,7 @@ void SphericalOrbit::compute_freq(void)
   xmin = ZFRAC*model->get_min_radius();
   xmax = model->get_max_radius();
 
-  // Functor whose zero locates radius of circular orbit with energy EE
+  // Functor whose zero locates radius of circular orbit
   //
   auto Ecirc = [&](double r)
   {
@@ -123,7 +123,7 @@ void SphericalOrbit::compute_freq(void)
   if (dudr>0.0) jmax = sqrt(r_circ*r_circ*r_circ*dudr);
   else          jmax = 0.0;
 
-  // Functor whose zero locates turning points for orbit (EE,JJ) 
+  // Functor whose zero locates turning points for orbit
   //
   auto denom = [&](double r)
   {
@@ -266,7 +266,7 @@ void SphericalOrbit::compute_freq(void)
       ostringstream msg;
 
       msg << "\t\tdenominator [1] out of bounds" << endl;
-      msg << "E=" << EE << "  K=" << KK << 
+      msg << "E=" << energy << "  K=" << kappa << 
 	" r=" << r << " i=" << i << "/" << FRECS << " val=" << tmp2 << endl;
 
       tmp2 = 2.0*(energy-model->get_pot(r_peri)) - 
@@ -299,7 +299,7 @@ void SphericalOrbit::compute_freq(void)
       ostringstream msg;
 
       msg << "\t\t denominator [2] out of bounds" << endl;
-      msg << "\t\tE=" << EE << "  K=" << KK << 
+      msg << "\t\tE=" << energy << "  K=" << kappa << 
 	" r=" << r << " i=" << i << "/" << FRECS << " val=" << tmp2 << endl;
 
       tmp2 = 2.0*(energy-model->get_pot(r_peri)) - 

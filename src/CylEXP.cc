@@ -7,7 +7,7 @@
 #include <limits>
 #include <string>
 
-#include <CylEXP.H>
+#include "CylEXP.H"
 
 CylEXP::CylEXP(int numr, int lmax, int mmax, int nord,
 	       double ascale, double hscale, int Nodd,
@@ -278,7 +278,7 @@ void CylEXP::compute_multistep_coefficients(unsigned mlevel)
     }
   }
 
-  coefs_made = vector<short>(multistep+1, true);
+  coefs_made = std::vector<bool>(multistep+1, true);
 }
 
 

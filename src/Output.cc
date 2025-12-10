@@ -1,5 +1,5 @@
 #include "expand.H"
-#include <Output.H>
+#include "Output.H"
 
 
 Output::Output(const YAML::Node& CONF) : conf(CONF)

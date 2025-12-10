@@ -9,8 +9,8 @@
 #include <Eigen/Eigen>
 #include <unsupported/Eigen/CXX11/Tensor>
 
-#include <Coefficients.H>
-#include <PotAccel.H>
+#include "Coefficients.H"
+#include "PotAccel.H"
 
 #if HAVE_LIBCUDA==1
 #include <thrust/complex.h>
@@ -18,7 +18,36 @@
 #include <cudaMappingConstants.cuH>
 #endif
 
-//! Periodic cube basis
+/** @class Cube
+
+    @brief Periodic cube basis
+
+    @details **YAML configuration**
+
+    @param nminx is the minimum absoulte value of the wave number in
+    the x direction (default: 0)
+
+    @param nminy is the minimum absoulte value of the wave number in
+    the y direction (default: 0)
+
+    @param nminz is the minimum absoulte value of the wave number in
+    the z direction (default: 0)
+
+    @param nmaxx is the maximum absoulte value of the wave number in
+    the x direction (default: 16)
+
+    @param nmaxy is the maximum absoulte value of the wave number in
+    the y direction (default: 16)
+
+    @param nmaxz is the maximum absoulte value of the wave number in
+    the z direction (default: 16)
+
+    @param method string sets the evaluation method for the CUDA
+    kernel.  Available methods are: all, full, 3d which compute all
+    dimensions at once and planes, axes, and 1d which compute wave
+    vectors by plane.  This may be extended to specific algorithms in
+    the future.  This does nothing for the CPU-only computation.
+*/
 class Cube : public PotAccel
 {
 
@@ -28,14 +57,18 @@ private:
   using coefType = Eigen::Tensor<std::complex<double>, 3>;
 
   //! Current coefficient tensor
-  std::vector<coefType> expcoef, expcoefP;
+  std::vector<coefType> expcoef0;
+
+  //! Coefficient tensor
+  coefType expcoef, expcoefP;
 
   //@{
   //! Variables
   int imx, imy, imz, osize;
   int use1, use0;
   std::complex<double> kfac;
-  double  dfac;
+  double dfac;
+  bool wrap = true;		// Enforce periodic wrapping
   //@}
 
   //! Valid keys for YAML configurations
@@ -202,16 +235,16 @@ private:
   CoefClasses::CubeCoefs cubeCoefs;
 
   //! Swap coefficients
-  void swap_coefs(std::vector<coefType>& from, std::vector<coefType>& to)
+  void swap_coefs(coefType* from, coefType* to)
   {
-    if (from.size() != to.size()) {
+    if (from->size() != to->size()) {
       std::ostringstream sout;
-      sout << "swap_coefs: size(from)=" << from.size() << " != "
-	   << "size(to)=" << to.size();
+      sout << "swap_coefs: size(from)=" << from->size() << " != "
+	   << "size(to)=" << to->size();
       throw std::runtime_error(sout.str());
     }
 
-    std::vector<coefType> tmp(from);
+    coefType* tmp(from);
     from = to;
     to   = tmp;
   }

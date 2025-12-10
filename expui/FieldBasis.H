@@ -6,14 +6,14 @@
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 #include <yaml-cpp/yaml.h>
 
-#include <ParticleReader.H>
-#include <OrthoFunction.H>
-#include <Coefficients.H>
-#include <YamlCheck.H>
-#include <localmpi.H>
-#include <interp.H>
+#include "ParticleReader.H"
+#include "OrthoFunction.H"
+#include "Coefficients.H"
+#include "YamlCheck.H"
+#include "localmpi.H"
+#include "interp.H"
 
-#include <BasisFactory.H>
+#include "BasisFactory.H"
 
 namespace BasisClasses
 {
@@ -135,7 +135,8 @@ namespace BasisClasses
     //! Generate coeffients from a particle reader and optional center
     //! location for the expansion
     CoefClasses::CoefStrPtr createFromReader
-    (PR::PRptr reader, std::vector<double> center={0.0, 0.0, 0.0});
+    (PR::PRptr reader, Eigen::Vector3d center=Eigen::Vector3d::Zero(),
+     RowMatrix3d rot=RowMatrix3d::Identity());
     
     
     //! Generate coeffients from an array and optional center location
@@ -145,7 +146,9 @@ namespace BasisClasses
     //! Initialize accumulating coefficients from arrays with an optional
     //! center vector.  This is called once to initialize the accumulation.
     void initFromArray
-    (std::vector<double> center={0.0, 0.0, 0.0});
+    (Eigen::Vector3d center=Eigen::Vector3d::Zero(),
+     RowMatrix3d rot=RowMatrix3d::Identity());
+    
     
     //! Initialize accumulating coefficients from arrays.  This is
     //! called once to initialize the accumulation.
@@ -153,12 +156,13 @@ namespace BasisClasses
     (Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin=true, bool posvelrows=false);
     
     //! Accumulate new coefficients
-    virtual void accumulate(double mass,
-			    double x, double y, double z,
-			    double u, double v, double w);
+    virtual void accumulate(double x, double y, double z,
+			    double u, double v, double w,
+			    double mass, unsigned long int indx = 0);
 			    
     [[deprecated("not relevant for this class")]]
-    virtual void accumulate(double x, double y, double z, double mass)
+    virtual void accumulate(double x, double y, double z, double mass,
+			    unsigned long indx = 0)
     {
     }
 

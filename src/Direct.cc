@@ -1,6 +1,6 @@
 #include "expand.H"
 
-#include <Direct.H>
+#include "Direct.H"
 
 #ifdef DEBUG
 static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;

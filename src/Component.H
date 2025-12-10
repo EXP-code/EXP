@@ -13,19 +13,19 @@
 #include <highfive/H5DataSpace.hpp>
 #include <highfive/H5Attribute.hpp>
 
-#include <EXPException.H>
-#include <global.H>
-#include <Orient.H>
-#include <header.H>
-#include <localmpi.H>
-#include <ParticleReader.H>
-#include <ParticleFerry.H>
-#include <CenterFile.H>
-#include <PotAccel.H>
-#include <Circular.H>
-#include <Timer.H>
+#include "EXPException.H"
+#include "global.H"
+#include "Orient.H"
+#include "header.H"
+#include "localmpi.H"
+#include "ParticleReader.H"
+#include "ParticleFerry.H"
+#include "CenterFile.H"
+#include "PotAccel.H"
+#include "Circular.H"
+#include "Timer.H"
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>  
@@ -95,7 +95,7 @@ struct loadb_datum
   ensemble used to determine the paramters.  The energy cutoff is
   dynamically adjusted to achieve this target.
 
-  @param nEJwant is the size of the past states used to estimate the
+  @param nEJaccel is the size of the past states used to estimate the
   the acceleration of the expansion frame
 
   @param EJx0 is the initial EJ center x-coordinate (default: 0)
@@ -191,6 +191,8 @@ class Component
   friend class ScatterMFP;
   friend class OrbTrace;
   friend class ComponentContainer;
+
+  using RowMatrix3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
 
 private:
 
@@ -311,7 +313,7 @@ protected:
   //! Use center from this component
   Component *c0;
 
-  //! Locagte centering component
+  //! Locate centering component
   void find_ctr_component();
 
   //! Name of the centering component
@@ -755,14 +757,22 @@ public:
   }
 
   //! Get rectified component center
-  std::vector<double> getCenter(unsigned flags=Inertial)
+  Eigen::Vector3d getCenter(unsigned flags=Inertial)
   {
-    std::vector<double> ret(3, 0.0);
+    Eigen::Vector3d ret = Eigen::Vector3d::Zero();
     for (int j=0; j<3; j++) {
       if (com_system and flags & Local) ret[j] += com0[j];
       if (flags & Centered) ret[j] += center[j];
     }
 
+    return ret;
+  }
+
+  //! Get rotation matrix
+  RowMatrix3d getRotation()
+  {
+    RowMatrix3d ret = RowMatrix3d::Identity();
+    if ( (EJ & Orient::AXIS) and !EJdryrun) ret = orient->transformBody();
     return ret;
   }
 

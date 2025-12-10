@@ -2,7 +2,7 @@
    Wrap slurm lib call to protect incompatible C structures from C++
  */
 
-#include <config_exp.h>
+#include "config_exp.h"
 #ifdef HAVE_LIBSLURM
 #include <printf.h>
 #include <slurm/slurm.h>

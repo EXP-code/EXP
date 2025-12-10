@@ -5,9 +5,9 @@
 
 #include <unistd.h>		// for unlink
 
-#include <expand.H>
-#include <Timer.H>
-#include <OutFrac.H>
+#include "expand.H"
+#include "Timer.H"
+#include "OutFrac.H"
 
 
 const double default_quant[] = {0.001, 0.003, 0.01, 0.03, 0.1, 0.2, 0.4, 0.5, 0.6, 0.8, 0.9, 0.97, 0.99, 0.993, 0.999};

@@ -20,7 +20,7 @@
 #include <cmath>
 #include <map>
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 #include <Eigen/Dense>
 
@@ -35,20 +35,20 @@
 
 #include <omp.h>
 
-#include <KMeans.H>
+#include "KMeans.H"
 
-#include <expMSSA.H>
+#include "expMSSA.H"
 
-#include <RedSVD.H>
-#include <YamlConfig.H>
-#include <YamlCheck.H>
-#include <EXPException.H>
-#include <libvars.H>
+#include "RedSVD.H"
+#include "YamlConfig.H"
+#include "YamlCheck.H"
+#include "EXPException.H"
+#include "libvars.H"
 
-#include <TransformFFT.H>
+#include "TransformFFT.H"
 
 #ifdef HAVE_LIBPNGPP
-#include <ColorGradient.H>
+#include "ColorGradient.H"
 #endif
 
 #include "expMSSA.H"
@@ -1436,6 +1436,12 @@ namespace MSSA {
       if (params["output"] ) prefix   = params["output"].as<std::string>();
       else                   prefix   = "exp_mssa";
 
+      if (params["totVar"] ) varFlag  = params["totVar"].as<bool>();
+      else                   varFlag  = false;
+
+      if (params["totPow"] ) powFlag  = params["totPow"].as<bool>();
+      else                   powFlag  = false;
+
     }
     catch (const YAML::ParserException& e) {
       std::cout << "expMSSA::assignParameters, parsing error=" << e.what()
@@ -1521,9 +1527,12 @@ namespace MSSA {
       if (reconstructed) {
 	HighFive::Group recon = file.createGroup("reconstruction");
 
-	recon.createAttribute<int>   ("ncomp",  HighFive::DataSpace::From(ncomp) ).write(ncomp);
-	recon.createAttribute<bool>("totVar", HighFive::DataSpace::From(totVar)).write(totVar);
-	recon.createAttribute<bool>("totPow", HighFive::DataSpace::From(totPow)).write(totPow);
+	recon.createAttribute<int> ("ncomp",   HighFive::DataSpace::From(ncomp) ).write(ncomp);
+	recon.createAttribute<bool>("varFlag", HighFive::DataSpace::From(varFlag)).write(varFlag);
+	recon.createAttribute<bool>("powFlag", HighFive::DataSpace::From(powFlag)).write(powFlag);
+	recon.createAttribute<double>("totVar",  HighFive::DataSpace::From(totVar)).write(totVar);
+	recon.createAttribute<double>("totPow",  HighFive::DataSpace::From(totPow)).write(totPow);
+
 
 	for (int n=0; n<keylist.size(); n++) {
 	  std::ostringstream scnt;
@@ -1669,6 +1678,14 @@ namespace MSSA {
 	auto recon = h5file.getGroup("reconstruction");
 
 	recon.getAttribute("ncomp" ).read(ncomp);
+	if (recon.hasAttribute("varFlag"))
+	  recon.getAttribute("varFlag").read(varFlag);
+	else
+	  varFlag = false;
+	if (recon.hasAttribute("powFlag"))
+	  recon.getAttribute("powFlag").read(powFlag);
+	else
+	  powFlag = false;
 	recon.getAttribute("totVar").read(totVar);
 	recon.getAttribute("totPow").read(totPow);
 
@@ -1961,17 +1978,17 @@ namespace MSSA {
     // Detrending style (totVar and totPow are only useful, so far, for
     // noise computation)
     //
-    if (params["totVar"]) totVar = params["totVar"].as<bool>();
-    if (params["totPow"]) totPow = params["totPow"].as<bool>();
+    if (params["totVar"]) varFlag = params["totVar"].as<bool>();
+    if (params["totPow"]) powFlag = params["totPow"].as<bool>();
 
-    if (totPow==true) {
-      if (totVar==true) {
-        std::cerr << "expMSSA: both totVar and totPow are set to true."
+    if (powFlag==true) {
+      if (varFlag==true) {
+        std::cerr << "expMSSA: both totVar and totPow are set to true. "
                   << "Using totPow." << std::endl;
-        totVar = false;
+        varFlag = false;
       }
       type = TrendType::totPow;
-    } else if (totVar==true) {
+    } else if (varFlag==true) {
       type = TrendType::totVar;
     } else {
       // if nothing set go default

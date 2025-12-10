@@ -1,7 +1,7 @@
 #ifndef _mestel_H
 #define _mestel_H
 
-#include <massmodel.H>
+#include "massmodel.H"
 
 //! Infiinte Mestel Disk
 class MestelDisk : public AxiSymModel

@@ -31,34 +31,34 @@
 
 #include <fenv.h>
 
-#include <config_exp.h>
+#include "config_exp.h"
 #ifdef HAVE_OMP_H
 #include <omp.h>
 #endif
 
 // EXP classes
 //
-#include <numerical.H>
-#include <gaussQ.H>
-#include <isothermal.H>
-#include <hernquist_model.H>
-#include <model3d.H>
-#include <biorth.H>
-#include <SphericalSL.H>
-#include <interp.H>
-#include <Disk2d.H>
-#include <libvars.H>		// Library globals
-#include <cxxopts.H>		// Command-line parsing
-#include <EXPini.H>		// Ini-style config
+#include "numerical.H"
+#include "gaussQ.H"
+#include "isothermal.H"
+#include "hernquist_model.H"
+#include "model3d.H"
+#include "biorth.H"
+#include "SphericalSL.H"
+#include "interp.H"
+#include "Disk2d.H"
+#include "libvars.H"		// Library globals
+#include "cxxopts.H"		// Command-line parsing
+#include "EXPini.H"		// Ini-style config
 
-#include <norminv.H>
+#include "norminv.H"
 
 using namespace __EXP__;	// Reference to n-body globals
 
                                 // For debugging
 #ifdef DEBUG
 #include <fenv.h>
-#include <fpetrap.h>
+#include "fpetrap.h"
 
 //===========================================
 // Handlers defined in exputil/stack.cc
@@ -175,10 +175,10 @@ void set_fpu_gdb_handler(void)
 #endif
 
                                 // Local headers
-#include <SphericalSL.H>
-#include <Disk2dHalo.H>
-#include <localmpi.H>
-#include <Particle.H>
+#include "SphericalSL.H"
+#include "Disk2dHalo.H"
+#include "localmpi.H"
+#include "Particle.H"
 
 int
 main(int ac, char **av)
@@ -495,7 +495,7 @@ main(int ac, char **av)
   std::cout << "Processor " << myid << ": n_particlesH=" << n_particlesH
 	    << std::endl
 	    << "Processor " << myid << ": n_particlesD=" << n_particlesD
-	    << std::endl
+	    << std::endl;
 #endif
 
   if (nhalo + ndisk <= 0) {

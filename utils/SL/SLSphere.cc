@@ -1,4 +1,4 @@
-#include <SLSphere.H>
+#include "SLSphere.H"
 
 SLSphere::SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
 		   int cmap, double rs)

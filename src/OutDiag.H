@@ -1,7 +1,7 @@
 #ifndef _OutDiag_H
 #define _OutDiag_H
 
-#include <OutDiag.H>
+#include "OutDiag.H"
 
 //! Print field quantities for spherical and cylindrical bases
 class OutDiag : public Output

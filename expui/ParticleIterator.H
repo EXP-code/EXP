@@ -1,8 +1,9 @@
 #ifndef _ParticleIterator_H_
 #define _ParticleIterator_H_
 
-#include <ParticleReader.H>
+#include "ParticleReader.H"
 #include <functional>
+#include <cstdint>
 
 namespace Utility
 {

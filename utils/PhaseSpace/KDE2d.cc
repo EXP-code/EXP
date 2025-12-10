@@ -1,4 +1,4 @@
-#include <KDE2d.H>
+#include "KDE2d.H"
 
 namespace KDE
 {
@@ -114,7 +114,7 @@ namespace KDE
       for (int j=0; j<numy; j++) {
 	for (int i=0; i<numx; i++) {
 	  gdat << std::setw(18) << xmin + delx*i/numx
-	       << std::setw(18) << ymin + dely*i/numy
+	       << std::setw(18) << ymin + dely*j/numy
 	       << std::setw(18) << grid(i, j) << std::endl;
 	}
       }

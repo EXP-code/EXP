@@ -6,8 +6,8 @@
 #include <tuple>
 #include <cmath>
 
-#include <Bess.H>
-#include <EXPmath.H>
+#include "Bess.H"
+#include "EXPmath.H"
 
 /**
    Brent's algorithm root finder

@@ -6,13 +6,13 @@
 #include <vector>
 #include <string>
 
-#include <config_exp.h>
+#include "config_exp.h"
 #ifdef HAVE_HDF5
 #include <H5Cpp.h>
 #include <H5public.h>		// For version info
 #endif
 
-#include <cxxopts.H>
+#include "cxxopts.H"
 
 int 
 main(int ac, char **av)

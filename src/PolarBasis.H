@@ -7,19 +7,19 @@
 #include <string>
 #include <set>
 
-#include <AxisymmetricBasis.H>
-#include <Coefficients.H>
+#include "AxisymmetricBasis.H"
+#include "Coefficients.H"
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
-#include <NVTX.H>
+#include "NVTX.H"
 
-#include <CoefContainer.H>
-#include <BiorthCyl.H>
+#include "CoefContainer.H"
+#include "BiorthCyl.H"
 
 class MixtureBasis;
 

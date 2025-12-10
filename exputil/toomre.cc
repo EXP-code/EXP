@@ -7,8 +7,8 @@
 #include <cmath>
 #include <cstdlib>
 
-#include <massmodel.H>
-#include <toomre.H>
+#include "massmodel.H"
+#include "toomre.H"
 
 const double TOL=1.0e-10;
 const double TOL2=1.0e-14;

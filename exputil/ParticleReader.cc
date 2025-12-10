@@ -20,11 +20,11 @@
 
 #include <H5Cpp.h>		// HDF5 C++ support
 
-#include <ParticleReader.H>
-#include <EXPException.H>
-#include <P2Quantile.H>
-#include <gadget.H>
-#include <Sutils.H>		// For string trimming
+#include "ParticleReader.H"
+#include "EXPException.H"
+#include "P2Quantile.H"
+#include "gadget.H"
+#include "Sutils.H"		// For string trimming
 
 namespace PR {
 
@@ -35,7 +35,7 @@ namespace PR {
   { {"Gas", 0}, {"Halo", 1}, {"Disk", 2}, {"Bulge", 3}, {"Stars", 4}, {"Bndry", 5}};
   
   
-  GadgetNative::GadgetNative(const std::vector<std::string>& files, bool verbose)
+  GadgetNative::GadgetNative(const std::vector<std::string>& files, bool verbose) : ParticleReader()
   {
     _files   = files;		// Copy file list (bunch)
     _verbose = verbose;
@@ -294,6 +294,18 @@ namespace PR {
   
   const Particle* GadgetNative::firstParticle()
   {
+    if (done) {
+      if (myid==0 and _verbose)
+      std::cout << "---- ParticleReader::GadgetNative: "
+		<< "restarting reader" << std::endl;
+      done = false;
+      curfile = _files.begin();
+      if (not nextFile()) {	// Try opening
+	std::cerr << "GadgetNative: no files found; logic error?"
+		  << std::endl;
+      }
+    }
+
     pcount = 0;
     
     return &particles[pcount++];
@@ -305,6 +317,7 @@ namespace PR {
       return &particles[pcount++];
     } else {
       if (nextFile()) return firstParticle();
+      done = true;
       return 0;
     }
   }
@@ -317,7 +330,7 @@ namespace PR {
   { {"Gas", 0}, {"Halo", 1}, {"Disk", 2}, {"Bulge", 3}, {"Stars", 4}, {"Bndry", 5}};
   
   
-  GadgetHDF5::GadgetHDF5(const std::vector<std::string>& files, bool verbose)
+  GadgetHDF5::GadgetHDF5(const std::vector<std::string>& files, bool verbose) : ParticleReader()
   {
     _files   = files;
     _verbose = verbose;
@@ -650,6 +663,17 @@ namespace PR {
   
   const Particle* GadgetHDF5::firstParticle()
   {
+    if (done) {
+      if (myid==0 and _verbose)
+      std::cout << "---- ParticleReader::GadgetHDF5: "
+		<< "restarting reader" << std::endl;
+      done = false;
+      curfile = _files.begin();
+      if (not nextFile()) {
+	std::cerr << "GadgetHDF5: no files found; logic error?" << std::endl;
+      }
+    }
+
     pcount = 0;
     
     return & particles[pcount++];
@@ -661,7 +685,8 @@ namespace PR {
       return & particles[pcount++];
     } else {
       if (nextFile()) return firstParticle();
-      else return 0;
+      done = true;
+      return 0;
     }
   }
    
@@ -705,7 +730,7 @@ namespace PR {
   }
   
 
-  PSPhdf5::PSPhdf5(const std::vector<std::string>& files, bool verbose)
+  PSPhdf5::PSPhdf5(const std::vector<std::string>& files, bool verbose) : PSP(verbose)
   {
     _files   = files;
     _verbose = verbose;
@@ -1221,6 +1246,17 @@ namespace PR {
 
   const Particle* PSPhdf5::firstParticle()
   {
+    if (done) {
+      if (myid==0 and _verbose)
+	std::cout << "---- ParticleReader::PSPhdf5: "
+		  << "restarting reader" << std::endl;
+      done = false;
+      curfile = _files.begin();
+      if (not nextFile()) {
+	std::cerr << "PSPhdf5: no files found; logic error?" << std::endl;
+      }
+    }
+
     pcount = 0;
     
     return & particles[pcount++];
@@ -1232,7 +1268,8 @@ namespace PR {
       return & particles[pcount++];
     } else {
       if (nextFile()) return firstParticle();
-      else return 0;
+      done = true;
+      return 0;
     }
   }
   
@@ -1896,7 +1933,7 @@ namespace PR {
   
   std::vector<std::string> ParticleReader::readerTypes
     {"PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "PSPhdf5",
-     "TipsyNative", "TipsyXDR", "Bonsai"};
+     "TipsyNative", "TipsyXDR", "Bonsai1", "Bonsai"};
   
   
   std::vector<std::vector<std::string>>
@@ -2031,7 +2068,8 @@ namespace PR {
       exit(1);
     }
 #endif
-
+    else if (reader.find("Bonsai1") == 0)
+      ret = std::make_shared<Tipsy>(file, Tipsy::TipsyType::bonsai1, verbose);
     else if (reader.find("Bonsai") == 0)
       ret = std::make_shared<Tipsy>(file, Tipsy::TipsyType::bonsai, verbose);
     else {
@@ -2070,6 +2108,8 @@ namespace PR {
 	ps = std::make_shared<TipsyReader::TipsyNative>(file);
       // Native tipsy with ID conversion
       else if (ttype == TipsyType::bonsai)
+	ps = std::make_shared<TipsyReader::TipsyNative>(file);
+      else if (ttype == TipsyType::bonsai1)
 	ps = std::make_shared<TipsyReader::TipsyNative>(file);
       // Make a tipsy xdr reader
       else {
@@ -2110,6 +2150,8 @@ namespace PR {
       ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
     else if (ttype == TipsyType::bonsai)
       ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
+    else if (ttype == TipsyType::bonsai1)
+      ps = std::make_shared<TipsyReader::TipsyNative>(*curfile);
     else {
 #ifdef HAVE_XDR
       ps = std::make_shared<TipsyReader::TipsyXDR>(*curfile);
@@ -2125,7 +2167,7 @@ namespace PR {
   }
 
   Tipsy::Tipsy(const std::string& file, TipsyType Type,
-	       bool verbose)
+	       bool verbose) : ParticleReader()
   {
     ttype = Type;
     files.push_back(file);
@@ -2137,7 +2179,7 @@ namespace PR {
   }
   
   Tipsy::Tipsy(const std::vector<std::string>& filelist, TipsyType Type,
-	       bool verbose)
+	       bool verbose) : ParticleReader()
   {
     files = filelist;
 
@@ -2184,7 +2226,8 @@ namespace PR {
 	P.pos[k] = ps->gas_particles[pcount].pos[k];
 	P.vel[k] = ps->gas_particles[pcount].vel[k];
       }
-      if (ttype == TipsyType::bonsai) P.indx = ps->gas_particles[pcount].ID();
+      P.indx = ps->getIndexOffset(TipsyReader::Ptype::gas) + pcount + 1;
+
       pcount++;
       return;
     }
@@ -2196,7 +2239,13 @@ namespace PR {
 	P.pos[k] = ps->dark_particles[pcount].pos[k];
 	P.vel[k] = ps->dark_particles[pcount].vel[k];
       }
-      if (ttype == TipsyType::bonsai) P.indx = ps->dark_particles[pcount].ID();
+      if (ttype == TipsyType::bonsai)
+	P.indx = ps->dark_particles[pcount].ID2();
+      else if (ttype == TipsyType::bonsai1)
+	P.indx = ps->dark_particles[pcount].ID();
+      else
+	P.indx = ps->getIndexOffset(TipsyReader::Ptype::dark) + pcount + 1;
+
       pcount++;
       return;
     }
@@ -2208,7 +2257,13 @@ namespace PR {
 	P.pos[k] = ps->star_particles[pcount].pos[k];
 	P.vel[k] = ps->star_particles[pcount].vel[k];
       }
-      if (ttype == TipsyType::bonsai) P.indx = ps->star_particles[pcount].ID();
+      if (ttype == TipsyType::bonsai)
+	P.indx = ps->star_particles[pcount].ID2();
+      else if (ttype == TipsyType::bonsai1)
+	P.indx = ps->star_particles[pcount].ID();
+      else
+	P.indx = ps->getIndexOffset(TipsyReader::Ptype::star) + pcount + 1;
+
       pcount++;
       return;
     }
@@ -2281,7 +2336,6 @@ namespace PR {
       std::vector<double> pos_max(3, -std::numeric_limits<double>::max());
       std::vector<double> vel_max(3, -std::numeric_limits<double>::max());
 
-      const double pct = 0.003;
       double mtot = 0.0;
       std::vector<double> p(3), v(3);
 

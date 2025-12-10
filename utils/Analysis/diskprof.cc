@@ -43,20 +43,21 @@
 #include <yaml-cpp/yaml.h>	// YAML support
 
                                 // System libs
+#include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
 				// EXP classes
-#include <numerical.H>
-#include <ParticleReader.H>
-#include <interp.H>
-#include <EmpCylSL.H>
-#include <localmpi.H>
-#include <foarray.H>
-#include <DataGrid.H>
-#include <writePVD.H>
-#include <EXPini.H>
-#include <libvars.H>
+#include "numerical.H"
+#include "ParticleReader.H"
+#include "interp.H"
+#include "EmpCylSL.H"
+#include "localmpi.H"
+#include "foarray.H"
+#include "DataGrid.H"
+#include "writePVD.H"
+#include "EXPini.H"
+#include "libvars.H"
 
 #ifdef DEBUG
 #ifndef _REDUCED

@@ -42,14 +42,14 @@
 #include <sys/resource.h>
 
 				// EXP classes
-#include <libvars.H>
-#include <numerical.H>
-#include <interp.H>
-#include <EmpCylSL.H>
-#include <cxxopts.H>
+#include "libvars.H"
+#include "numerical.H"
+#include "interp.H"
+#include "EmpCylSL.H"
+#include "cxxopts.H"
 
-#include <localmpi.H>
-#include <foarray.H>
+#include "localmpi.H"
+#include "foarray.H"
 
 #ifdef DEBUG
 #ifndef _REDUCED

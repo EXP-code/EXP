@@ -1,7 +1,7 @@
 #ifndef _OUTCHKPTQ_H
 #define _OUTCHKPTQ_H
 
-#include <Output.H>
+#include "Output.H"
 
 /** Writes a checkpoint file at regular intervals from each node in
     component pieces.  These pieces may be reassembled from the info

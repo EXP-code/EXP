@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <ParticleReader.H>
+#include "ParticleReader.H"
 
 namespace py = pybind11;
 
@@ -15,11 +15,12 @@ void ParticleReaderClasses(py::module &m) {
     "The available particle readers are:\n"
     "  1. PSPout         The monolithic EXP phase-space snapshot format\n"
     "  2. PSPspl         Like PSPout, but split into multiple file chunks\n"
-    "  3. GadgetNative   The original Gadget native format\n"
-    "  4  GadgetHDF5     The newer HDF5 Gadget format\n"
-    "  5. TipsyNative    The original Tipsy format\n"
-    "  6. TipsyXDR       The original XDR Tipsy format\n"
-    "  7. Bonsai         This is the Bonsai varient of Tipsy files\n\n"
+    "  3. PSPhdf5        The HDF5 version of the EXP phase-space format\n"
+    "  4. GadgetNative   The original Gadget native format\n"
+    "  5  GadgetHDF5     The newer HDF5 Gadget format\n"
+    "  6. TipsyNative    The original Tipsy format\n"
+    "  7. TipsyXDR       The original XDR Tipsy format\n"
+    "  8. Bonsai         This is the Bonsai varient of Tipsy files\n\n"
     "We have a helper function, getReaders, to get a list to help you\n"
     "remember.  Try: pyEXP.read.ParticleReader.getReaders()\n\n"
     "Each reader can manage snapshots split into many files by parallel,\n"
@@ -216,6 +217,38 @@ void ParticleReaderClasses(py::module &m) {
     }
   };
 
+  class PyPSPhdf5 : public PSPhdf5
+  {
+  public:
+
+    // Inherit the constructors
+    using PSPhdf5::PSPhdf5;
+
+    void SelectType(const std::string& type) override {
+      PYBIND11_OVERRIDE(void, PSPhdf5, SelectType, type);
+    }
+    
+    std::vector<std::string> GetTypes() override {
+      PYBIND11_OVERRIDE(std::vector<std::string>, PSPhdf5, GetTypes,);
+    }
+    
+    unsigned long CurrentNumber() override {
+      PYBIND11_OVERRIDE(unsigned long, PSPhdf5, CurrentNumber,);
+    }
+    
+    double CurrentTime() override {
+      PYBIND11_OVERRIDE(double, PSPhdf5, CurrentTime,);
+    }
+    
+    const Particle* firstParticle() override {
+      PYBIND11_OVERRIDE(const Particle*, PSPhdf5, firstParticle,);
+    }
+
+    const Particle* nextParticle() override {
+      PYBIND11_OVERRIDE(const Particle*, PSPhdf5, nextParticle,);
+    }
+  };
+
   class PyTipsy : public Tipsy
   {
   public:
@@ -401,8 +434,8 @@ void ParticleReaderClasses(py::module &m) {
   pr.def_static("getReaders", []()
   {
     const std::vector<std::string> formats = {
-      "PSPout", "PSPspl", "GadgetNative", "GadgetHDF5", "TipsyNative",
-      "TipsyXDR", "Bonsai"};
+      "PSPout", "PSPspl", "PSPhdf5", "GadgetNative", "GadgetHDF5",
+      "TipsyNative", "TipsyXDR", "Bonsai"};
 
     return formats;
     },
@@ -431,7 +464,7 @@ void ParticleReaderClasses(py::module &m) {
          Returns
          -------
          ParticleReader
-         )");
+         )", py::arg("files"), py::arg("verbose")=false);
 
   py::class_<GadgetNative, std::shared_ptr<GadgetNative>, PyGadgetNative, ParticleReader>(m, "GadgetNative")
     .def(py::init<const std::vector<std::string>&, bool>(),
@@ -448,7 +481,7 @@ void ParticleReaderClasses(py::module &m) {
          Returns
          -------
          ParticleReader
-         )");
+         )", py::arg("files"), py::arg("verbose")=false);
 
   py::class_<PSP, std::shared_ptr<PSP>, PyPSP, ParticleReader>(m, "PSP")
     .def(py::init<bool>(), "Base class for PSP reader")
@@ -464,7 +497,20 @@ void ParticleReaderClasses(py::module &m) {
 
   py::class_<PSPout, std::shared_ptr<PSPout>, PyPSPout, PSP>(m, "PSPout")
     .def(py::init<const std::vector<std::string>&, bool>(),
-	 "Reader for monolitic PSP format (single file written by root process)")
+	 R"(
+         Read PSP ascii monolithic format snapshot files
+
+         Parameters
+         ----------
+         files : list(str)
+             List of files with phase-space segments comprising a single snapshot
+         verbose : bool, default=False
+             Verbose, diagnostic output
+
+         Returns
+         -------
+         ParticleReader
+         )", py::arg("files"), py::arg("verbose")=false)
     .def("CurrentNumber",   &PSPout::CurrentNumber)
     .def("GetTypes",        &PSPout::GetTypes)
     .def("CurrentTime",     &PSPout::CurrentTime);
@@ -472,10 +518,45 @@ void ParticleReaderClasses(py::module &m) {
 
   py::class_<PSPspl, std::shared_ptr<PSPspl>, PyPSPspl, PSP>(m, "PSPspl")
     .def(py::init<const std::vector<std::string>&, bool>(),
-	 "Reader for split PSP files (multiple files written by each process)")
+	 R"(
+	 Reader for split PSP files (multiple files written by each process)
+
+         Parameters
+         ----------
+         files : list(str)
+             List of files with phase-space segments comprising a single snapshot
+         verbose : bool, default=False
+             Verbose, diagnostic output
+
+         Returns
+         -------
+         ParticleReader
+         )", py::arg("files"), py::arg("verbose")=false)
     .def("CurrentNumber",   &PSPspl::CurrentNumber)
     .def("GetTypes",        &PSPspl::GetTypes)
     .def("CurrentTime",     &PSPspl::CurrentTime);
+	 
+  py::class_<PSPhdf5, std::shared_ptr<PSPhdf5>, PyPSPhdf5, PSP>(m, "PSPhdf5")
+    .def(py::init<const std::vector<std::string>&, bool>(),
+	 R"(
+	 Reader for HDF5 PSP files (both single and multiple files)
+
+         Parameters
+         ----------
+         files : list(str)
+             List of files with phase-space segments comprising a single snapshot
+         verbose : bool, default=False
+             Verbose, diagnostic output
+
+         Returns
+         -------
+         ParticleReader
+         )", py::arg("files"), py::arg("verbose")=false)
+    .def("SelectType",      &PSPhdf5::SelectType)
+    .def("NumFiles",        &PSPhdf5::NumFiles)
+    .def("CurrentNumber",   &PSPhdf5::CurrentNumber)
+    .def("GetTypes",        &PSPhdf5::GetTypes)
+    .def("CurrentTime",     &PSPhdf5::CurrentTime);
 	 
   py::class_<Tipsy, std::shared_ptr<Tipsy>, PyTipsy, ParticleReader> tipsy(m, "Tipsy");
   
@@ -485,7 +566,24 @@ void ParticleReaderClasses(py::module &m) {
     .value("bonsai", Tipsy::TipsyType::bonsai)
     .export_values();
 
-  tipsy.def(py::init<const std::string&, Tipsy::TipsyType, bool>())
+  tipsy.def(py::init<const std::string&, Tipsy::TipsyType, bool>(),
+	    R"(
+            Read Tipsy format snapshots
+
+            Parameters
+            ----------
+            file : str
+                   The Tipsy snapshot file
+            type : TipsyType
+                   The Tipsy file type (native, xdr, bonsai)
+            verbose : bool, default=False
+                   Verbose, diagnostic output
+
+            Returns
+            -------
+            ParticleReader
+
+            )", py::arg("file"), py::arg("type"), py::arg("verbose")=false)
     .def(py::init<const std::vector<std::string>&, Tipsy::TipsyType, bool>())
     .def("SelectType",      &Tipsy::SelectType)
     .def("CurrentNumber",   &Tipsy::CurrentNumber)
@@ -493,4 +591,3 @@ void ParticleReaderClasses(py::module &m) {
     .def("CurrentTime",     &Tipsy::CurrentTime);
 
 }
-

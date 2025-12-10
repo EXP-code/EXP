@@ -8,10 +8,10 @@
 #include <unistd.h>		// for unlink
 
 #include "expand.H"
-#include <global.H>
+#include "global.H"
 
-#include <AxisymmetricBasis.H>
-#include <OutCHKPTQ.H>
+#include "AxisymmetricBasis.H"
+#include "OutCHKPTQ.H"
 
 
 const std::set<std::string>

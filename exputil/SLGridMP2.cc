@@ -17,16 +17,16 @@
 #include <cstdlib>
 #include <vector>
 
-#include <EXPException.H>
-#include <SLGridMP2.H>
-#include <massmodel.H>
-#include <EXPmath.H>
+#include "EXPException.H"
+#include "SLGridMP2.H"
+#include "massmodel.H"
+#include "EXPmath.H"
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
 #endif
 
-#include <config_exp.h>		// For config macros
+#include "config_exp.h"		// For config macros
 
 // For reading and writing cache file
 //
@@ -119,6 +119,13 @@ double sphdens(double r)
   //        v       v
   return 4.0*M_PI * model->get_density(r);
 }
+
+// Use entire grid for l<Lswitch
+int SLGridSph::Lswitch = 32;
+  
+// For l>=Lswitch: rmin=rmap/rfac, rmax=rmap*rfac with rfac=pow(10,
+// Lalpha/l)
+double SLGridSph::Lalpha = 100.0;
 
 
 void SLGridSph::bomb(string oops)
@@ -1109,10 +1116,25 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   if (myid==0) VERBOSE = SLEDGE_VERBOSE;
 #endif
 
-  cons[6] = rmin;
-  cons[7] = rmax;
+  // Inner radial boundary heuristic
+  //
+  int Nlo = 0, Nhi = numr;
+  if (l>Lswitch) {
+    double Rfac = std::pow(10.0, Lalpha/l);
+    double Rmin = std::max(rmin, rmap/Rfac);
+    double Rmax = std::min(rmax, rmap*Rfac);
+
+    // Find index boundaries in r grid
+    auto lower = std::lower_bound(r.data(), r.data() + r.size(), Rmin);
+    Nlo = std::distance(r.data(), lower);
+    auto upper = std::upper_bound(r.data(), r.data() + r.size(), Rmax);
+    Nhi = std::distance(r.data(), upper);
+  }
+
+  cons[6] = r[Nlo];
+  cons[7] = r[Nhi-1];
   L2 = l*(l+1);
-  NUM = numr;
+  NUM = Nhi - Nlo;
   N = nmax;
   
   // integer iflag[nmax], invec[nmax+3];
@@ -1164,7 +1186,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   //
   //     Output mesh
   //
-  for (int i=0; i<NUM; i++) xef[i] = r[i];
+  for (int i=0; i<NUM; i++) xef[i] = r[i+Nlo];
 
   //     
   //     Open file for output.
@@ -1197,6 +1219,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
     
       std::cout << std::endl
 		<< "Tolerance errors in Sturm-Liouville solver for l=" << l
+		<< ", rmin=" << cons[6] << ", rmax=" << cons[7]
 		<<  std::endl << std::endl;
 
       std::cout << std::setw(15) << "order"
@@ -1216,6 +1239,32 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
       }
       std::cout << std::endl;
       
+      // Additional diagnostic output for a failed l-value computation
+      //
+      if (VERBOSE) {
+	
+	for (int i=0; i<N; i++) {
+
+	  if (iflag[i] > -10) {
+	    std::cout << "# order=" << i
+		      << " error: " << sledge_error(iflag[i])
+		      << std::endl << "#" << std::endl;
+
+	    std::cout << std::setw(14) << "x"
+		      << std::setw(25) << "u(x)"
+		      << std::setw(25) << "(pu`)(x)"
+		      << std::endl;
+	    int k = NUM*i;
+	    for (int j=0; j<NUM; j++) {
+	      std::cout << std::setw(25) << xef[j]
+			<< std::setw(25) << ef[j+k]
+			<< std::setw(25) << pdef[j+k]
+			<< std::endl;
+	    }
+	  }
+	}
+      }
+
       sout << std::endl
 	   << "SLGridSph found " << bad
 	   << " tolerance errors in computing SL solutions." << std::endl
@@ -1273,6 +1322,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   for (int i=0; i<N; i++) table->ev[i] = ev[i];
 
   table->ef.resize(N, numr);
+  table->ef.setZero();
 
   // Choose sign conventions for the ef table
   //
@@ -1282,9 +1332,11 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
     if (ef[j*NUM+nfid]<0.0) sgn(j) = -1;
   }
   
-  for (int i=0; i<numr; i++) {
+  // Pack offset eigen function values
+  //
+  for (int i=0; i<NUM; i++) {
     for(int j=0; j<N; j++) 
-      table->ef(j, i) = ef[j*NUM+i] * sgn(j);
+      table->ef(j, i+Nlo) = ef[j*NUM+i] * sgn(j);
   }
 
   table->l = l;
@@ -1374,11 +1426,26 @@ void SLGridSph::compute_table_worker(void)
     if (tbdbg)
       std::cout << "Worker " <<  mpi_myid << ": ordered to compute l = " << L << "" << std::endl;
 
+    // Inner radial boundary heuristic
+    //
+    int Nlo = 0, Nhi = numr;
+    if (L>Lswitch) {
+      double Rfac = std::pow(10.0, Lalpha/L);
+      double Rmin = std::max(rmin, rmap/Rfac);
+      double Rmax = std::min(rmax, rmap*Rfac);
+
+      // Find index boundaries in r grid
+      auto lower = std::lower_bound(r.data(), r.data() + r.size(), Rmin);
+      Nlo = std::distance(r.data(), lower);
+      auto upper = std::upper_bound(r.data(), r.data() + r.size(), Rmax);
+      Nhi = std::distance(r.data(), upper);
+    }
+
     cons[0] = cons[1] = cons[2] = cons[3] = cons[4] = cons[5] = 0.0;
-    cons[6] = rmin;
-    cons[7] = rmax;
+    cons[6] = r[Nlo];
+    cons[7] = r[Nhi-1];
     L2 = L*(L+1);
-    NUM = numr;
+    NUM = Nhi - Nlo;
     N = nmax;
 
     // integer iflag[nmax], invec[nmax+3];
@@ -1422,7 +1489,7 @@ void SLGridSph::compute_table_worker(void)
     //
     //     Output mesh
     //
-    for (int i=0; i<NUM; i++) xef[i] = r[i];
+    for (int i=0; i<NUM; i++) xef[i] = r[i+Nlo];
 
     //     
     //     Open file for output.
@@ -1454,6 +1521,7 @@ void SLGridSph::compute_table_worker(void)
     
       std::cout << std::endl
 		<< "Tolerance errors in Sturm-Liouville solver for l=" << L
+		<< ", rmin=" << cons[6] << ", rmax=" << cons[7]
 		<<  std::endl << std::endl;
 
       std::cout << std::setw(15) << "order"
@@ -1523,10 +1591,16 @@ void SLGridSph::compute_table_worker(void)
       if (ef[j*NUM+nfid]<0.0) sgn(j) = -1;
     }
 
+    // Allocate table
+    //
     table.ef.resize(N, numr);
-    for (int i=0; i<numr; i++) {
-      for (int j=0; j<N; j++) 
-	table.ef(j, i) = ef[j*NUM+i] * sgn(j);
+    table.ef.setZero();
+
+    // Pack offset eigen function values
+    //
+    for (int i=0; i<NUM; i++) {
+      for(int j=0; j<N; j++) 
+	table.ef(j, i+Nlo) = ef[j*NUM+i] * sgn(j);
     }
 
     table.l = L;
@@ -2833,7 +2907,9 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 		<< std::setw( 5) << iflag[i]
 		<< std::endl;
   
-      if (VERBOSE) {
+
+  if (VERBOSE && iflag[i] != 0) {
+
 
 	if (iflag[i] > -10) {
 	  cout << std::setw(14) << "x"

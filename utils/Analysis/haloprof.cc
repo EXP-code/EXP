@@ -41,22 +41,23 @@
 using namespace std;
 
                                 // System libs
+#include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <ParticleReader.H>
-#include <interp.H>
-#include <massmodel.H>
-#include <SphSL.H>
-#include <DataGrid.H>
+#include "numerical.H"
+#include "ParticleReader.H"
+#include "interp.H"
+#include "massmodel.H"
+#include "SphSL.H"
+#include "DataGrid.H"
 				// Library support
-#include <localmpi.H>
-#include <foarray.H>
-#include <EXPini.H>
-#include <KDtree.H>
-#include <libvars.H>
+#include "localmpi.H"
+#include "foarray.H"
+#include "EXPini.H"
+#include "KDtree.H"
+#include "libvars.H"
 
 using namespace __EXP__;
   

@@ -1,9 +1,9 @@
 #ifndef _UserDisk_H
 #define _UserDisk_H
 
-#include <Particle.H>
-#include <AxisymmetricBasis.H>
-#include <ExternalCollection.H>
+#include "Particle.H"
+#include "AxisymmetricBasis.H"
+#include "ExternalCollection.H"
 
 /** Potential and force of a thin exponential disk.  The force
     is tabulated on a two-dimensional grid with positive Z and

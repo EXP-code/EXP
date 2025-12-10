@@ -22,8 +22,8 @@
 */
 
 /* provide an extended spherical model for point mass */
-#include <AxisymmetricBasis.H>
-#include <massmodel.H>
+#include "AxisymmetricBasis.H"
+#include "massmodel.H"
 
 class Shells : public PotAccel
 {

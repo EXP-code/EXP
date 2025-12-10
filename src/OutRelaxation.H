@@ -1,7 +1,7 @@
 #ifndef _OutRelaxation_H
 #define _OutRelaxation_H
 
-#include <Output.H>
+#include "Output.H"
 
 //! Output routine for generateRelaxation ("external force") module
 class OutRelaxation : public Output

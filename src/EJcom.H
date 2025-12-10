@@ -1,7 +1,7 @@
 #ifndef _EJcom_H
 #define _EJcom_H
 
-#include <TwoCenter.H>
+#include "TwoCenter.H"
 
 /** Computes the potential, acceleration and density using basis
     expansion solutions fitting to peak potential and COM.  This

@@ -3,8 +3,8 @@
 #include <fstream>
 #include <memory>
 
-#include <cxxopts.H>
-#include <libvars.H>
+#include "cxxopts.H"
+#include "libvars.H"
 #include "Coefs.H"
 
 int main(int argc, char **argv)

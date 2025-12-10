@@ -6,7 +6,7 @@
 
 #include <Eigen/Eigen>
 
-#include <QuadLS.H>
+#include "QuadLS.H"
 
 class PseudoAccel
 {

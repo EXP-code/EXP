@@ -2,9 +2,9 @@
 
 #include <cmath>
 
-#include <interp.H>
-#include <Bessel.H>
-#include <EXPmath.H>
+#include "interp.H"
+#include "Bessel.H"
+#include "EXPmath.H"
 
 const std::set<std::string>
 Bessel::valid_keys = {

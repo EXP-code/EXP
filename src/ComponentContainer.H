@@ -2,8 +2,8 @@
 #define _ComponentContainer_H
 
 #include <list>
-#include <Component.H>
-#include <Timer.H>
+#include "Component.H"
+#include "Timer.H"
 
 //! Class to keep track of the interactions between components
 /** Maintains a list of component that feel the force from 

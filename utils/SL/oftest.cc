@@ -8,9 +8,9 @@
 #include <string>
 #include <cmath>
 
-#include <OrthoFunction.H>	// Orthogonal basis
-#include <interp.H>		// Linear interpolation
-#include <cxxopts.H>
+#include "OrthoFunction.H"	// Orthogonal basis
+#include "interp.H"		// Linear interpolation
+#include "cxxopts.H"
 
 
 // Recursion relation evaluation for generalized Laguerre functions

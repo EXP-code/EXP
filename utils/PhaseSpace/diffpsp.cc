@@ -49,13 +49,13 @@
 
 #include <H5Cpp.h>
 
-#include <ParticleReader.H>
-#include <Centering.H>
-#include <massmodel.H>
-#include <localmpi.H>
-#include <EXPini.H>		// Enhanced option parsing
-#include <libvars.H>		// EXP library globals
-#include <interp.H>
+#include "ParticleReader.H"
+#include "Centering.H"
+#include "massmodel.H"
+#include "localmpi.H"
+#include "EXPini.H"		// Enhanced option parsing
+#include "libvars.H"		// EXP library globals
+#include "interp.H"
 #include "KDE2d.H"		// Kernel density estimation
 
 void p_rec(std::ofstream& out, double E, double K, double V)
@@ -630,10 +630,9 @@ main(int argc, char **argv)
 
   // Number of paths
   //
-  int npath1 = 1, npath2 = 1;
+  int npath1 = 1;
   if (fileType != "PSPhdf5") {
     npath1 = INFILE1.size();
-    npath2 = INFILE2.size();
   }
 
   // Iterate through file list

@@ -2,13 +2,15 @@ cmake_minimum_required(VERSION 3.25) # Needed for CUDA, MPI, and CTest features
 
 project(
   EXP
-  VERSION "7.9.1"
+  VERSION "7.9.0"
   HOMEPAGE_URL https://github.com/EXP-code/EXP
   LANGUAGES C CXX Fortran)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Compiler flags.  Not all tested thoroughly...
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -31,6 +33,10 @@ endif()
 # Required compiler features
 add_compile_options(-D_REENTRANT)
 
+# Add an explicit path to the install library directory (esp. useful
+# for Python bindings)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
 # Bake in library paths (esp. useful for HPC sites with modules)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
@@ -46,18 +52,41 @@ endif()
 # Build options
 option(ENABLE_NBODY "Enable EXP n-body" ON)
 option(ENABLE_PYEXP "Enable the Python bindings" ON)
+option(ENABLE_PYEXP_ONLY "Python bindings and support libraries only" OFF)
+option(ENABLE_UTILS "Enable build of the EXP standalone utilities" ON)
 option(ENABLE_PNG "Enable PNG graphics support" FALSE)
 option(ENABLE_CUDA "Enable CUDA" FALSE)
 option(ENABLE_SLURM "Enable SLURM checkpointing support" FALSE)
 option(ENABLE_XDR "Enable RPC/XDR support for Tipsy standard" FALSE)
 option(ENABLE_VTK "Configure VTK if available" FALSE)
 option(ENABLE_CUDA_SINGLE "Use real*4 instead of real*8 for CUDA" FALSE)
-option(ENABLE_USER "Enable basic user modules" ON)
+option(ENABLE_USER "Enable compilation of user modules" ON)
 option(ENABLE_SLCHECK "Enable *careful* Sturm-Liouville solutions" TRUE)
 option(ENABLE_TESTS "Enable build tests for EXP, pyEXP and helpers" ON)
+option(ENABLE_MINIMAL "Compile EXP support libraries only" OFF)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
 
+# Metaflag for minimal build
+
+if(ENABLE_MINIMAL)
+  set(ENABLE_NBODY OFF)
+  set(ENABLE_PYEXP OFF)
+  set(ENABLE_USER  OFF)
+  set(ENABLE_UTILS OFF)
+  set(ENABLE_TESTS OFF)
+endif()
+  
+# Metaflag for pyEXP only
+
+if(ENABLE_PYEXP_ONLY)
+  set(ENABLE_NBODY OFF)
+  set(ENABLE_PYEXP ON)
+  set(ENABLE_USER  OFF)
+  set(ENABLE_UTILS OFF)
+  set(ENABLE_TESTS OFF)
+endif()
+  
 # Set mpirun launcher for CTest
 
 set(EXP_MPI_LAUNCH "mpirun" CACHE STRING "Command to run an MPI application (for unit tests only)")
@@ -252,12 +281,15 @@ add_subdirectory(expui)
 if (ENABLE_NBODY)
   add_subdirectory(src)
 endif()
-add_subdirectory(utils)
+if (ENABLE_UTILS)
+  add_subdirectory(utils)
+endif()
 if (ENABLE_PYEXP)
   add_subdirectory(pyEXP)
 endif()
-
-add_subdirectory(extern/user-modules)
+if (ENABLE_USER)
+  add_subdirectory(extern/user-modules)
+endif()
 
 # Build the tests; set ENABLE_TEST=OFF to disable
 if(ENABLE_TESTS)
@@ -278,6 +310,14 @@ endif()
 
 # Force installation of the yaml-cpp libraries
 install(TARGETS yaml-cpp DESTINATION lib)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+                FILES_MATCHING PATTERN "*.h")
+
+# Install HighFive headers
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/extern/HighFive/include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    PATTERN "*.in" EXCLUDE)
 
 # Check for doxygen is the user wants web docs
 if (BUILD_DOCS)

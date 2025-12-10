@@ -82,36 +82,36 @@
 
 #include <fenv.h>
 
-#include <config_exp.h>
+#include "config_exp.h"
 #ifdef HAVE_OMP_H
 #include <omp.h>
 #endif
 
 // EXP classes
 //
-#include <numerical.H>
-#include <gaussQ.H>
-#include <isothermal.H>
-#include <DiskDensityFunc.H>
-#include <hernquist_model.H>
-#include <model3d.H>
-#include <biorth.H>
-#include <SphericalSL.H>
-#include <interp.H>
-#include <EmpCylSL.H>
-#include <DiskModels.H>
-#include <libvars.H>		// Library globals
-#include <cxxopts.H>		// Command-line parsing
-#include <EXPini.H>		// Ini-style config
+#include "numerical.H"
+#include "gaussQ.H"
+#include "isothermal.H"
+#include "DiskDensityFunc.H"
+#include "hernquist_model.H"
+#include "model3d.H"
+#include "biorth.H"
+#include "SphericalSL.H"
+#include "interp.H"
+#include "EmpCylSL.H"
+#include "DiskModels.H"
+#include "libvars.H"		// Library globals
+#include "cxxopts.H"		// Command-line parsing
+#include "EXPini.H"		// Ini-style config
 
-#include <norminv.H>
+#include "norminv.H"
 
 #define M_SQRT1_3 (0.5773502691896257645091487)
 
                                 // For debugging
 #ifdef DEBUG
 #include <fenv.h>
-#include <fpetrap.h>
+#include "fpetrap.h"
 
 //===========================================
 // Handlers defined in exputil/stack.cc
@@ -228,9 +228,9 @@ void set_fpu_gdb_handler(void)
 #endif
 
                                 // Local headers
-#include <SphericalSL.H>
-#include <DiskHalo.H>
-#include <localmpi.H>
+#include "SphericalSL.H"
+#include "DiskHalo.H"
+#include "localmpi.H"
 
 
 // Hydrogen fraction
@@ -264,8 +264,9 @@ double       HRATIO  = 1.0;
 double       DWEIGHT = 1.0;
 double       Mfac  = 1.0;
 double       HERNA = 0.10;
+bool         sech2 = true;
 
-#include <Particle.H>
+#include "Particle.H"
 
 double DiskDens(double R, double z, double phi)
 {
@@ -298,8 +299,8 @@ double DiskDens(double R, double z, double phi)
     {
       double a1 = ASCALE;
       double a2 = ASCALE*ARATIO;
-      double h1 = HSCALE;
-      double h2 = HSCALE*HRATIO;
+      double h1 = sech2 ? 0.5*HSCALE : HSCALE;
+      double h2 = sech2 ? 0.5*HSCALE*HRATIO : HSCALE*HRATIO;
       double w1 = 1.0/(1.0+DWEIGHT);
       double w2 = DWEIGHT/(1.0+DWEIGHT);
 
@@ -315,7 +316,7 @@ double DiskDens(double R, double z, double phi)
   case DiskType::diskbulge:
     {
       double acyl = ASCALE;
-      double hcyl = HSCALE;
+      double hcyl = sech2 ? 0.5*HSCALE : HSCALE;
       double f = cosh(z/HSCALE);
       double rr = pow(pow(R, 2) + pow(z,2), 0.5);
       double w1 = Mfac;
@@ -335,8 +336,9 @@ double DiskDens(double R, double z, double phi)
   case DiskType::exponential:
   default:
     {
-      double f = cosh(z/HSCALE);
-      ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f);
+      double h = sech2 ? 0.5*HSCALE : HSCALE;
+      double f = cosh(z/h);
+      ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*h*f*f);
     }
     break;
   }
@@ -399,7 +401,7 @@ main(int ac, char **av)
   bool         const_height, images, multi, basis, zeropos, zerovel;
   bool         report, ignore, evolved, diskmodel;
   int          nhalo, ndisk, ngas, ngparam;
-  std::string  hbods, dbods, gbods, suffix, centerfile, halofile1, halofile2;
+  std::string  hbods, dbods, gbods, outtag, runtag, centerfile, halofile1, halofile2;
   std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
 
   const std::string mesg("Generates a Monte Carlo realization of a halo with an\n embedded disk using Jeans' equations\n");
@@ -409,6 +411,12 @@ main(int ac, char **av)
   options.add_options()
     ("h,help", "Print this help message")
     ("T,template", "Write template options file with current and all default values")
+    ("sech2", "Use sech^2 vertical profile for disk density",
+     cxxopts::value<bool>()->default_value("true"))
+    ("mtype", "EmpCylSL spherical model type (one of: Exponential, Gaussian, Plummer, Power)",
+     cxxopts::value<string>(mtype)->default_value("Exponential"))
+    ("ppow", "Power-law index for EmpCylSL Power spherical model",
+     cxxopts::value<double>(PPower)->default_value("2.0"))
     ("c,config", "Parameter configuration file",
      cxxopts::value<string>(config))
     ("deproject", "The EmpCylSL deprojection from specified disk model (EXP or MN)",
@@ -599,10 +607,10 @@ main(int ac, char **av)
      cxxopts::value<double>(Tmin)->default_value("500.0"))
     ("centerfile", "File containing phase-space center",
      cxxopts::value<std::string>(centerfile))
-    ("runtag", "Prefix for output files",
-     cxxopts::value<std::string>(runtag)->default_value("gendisk"))
-    ("suffix", "Suffix for output files (none by default)",
-     cxxopts::value<std::string>(suffix))
+    ("suffix", "Prefix for output files",
+     cxxopts::value<std::string>(outtag)->default_value("gendisk"))
+    ("runtag", "Suffix for output files (none by default)",
+     cxxopts::value<std::string>(runtag))
     ("threads", "Number of threads to run",
      cxxopts::value<int>(nthrds)->default_value("1"))
     ("allow", "Allow multimass algorithm to generature negative masses for testing")
@@ -799,10 +807,10 @@ main(int ac, char **av)
 
   int n_particlesH, n_particlesD, n_particlesG;
 
-  if (suffix.size()>0) {
-    hbods = hbods + "." + suffix;
-    dbods = dbods + "." + suffix;
-    gbods = gbods + "." + suffix;
+  if (runtag.size()>0) {
+    hbods = hbods + "." + runtag;
+    dbods = dbods + "." + runtag;
+    gbods = gbods + "." + runtag;
   }
 
   // Divvy up the particles by core
@@ -866,7 +874,7 @@ main(int ac, char **av)
   if (vm.count("itmax"))  DiskHalo::ITMAX    = itmax;
   if (vm.count("allow"))  DiskHalo::ALLOW    = true;
   if (vm.count("nomono")) DiskHalo::use_mono = false;
-  if (suffix.size())      DiskHalo::RUNTAG   = suffix;
+  if (runtag.size())      DiskHalo::RUNTAG   = runtag;
 
   AddDisk::use_mpi      = true;
   AddDisk::Rmin         = RMIN;
@@ -978,7 +986,7 @@ main(int ac, char **av)
     // Basis orthgonality check
     //
     if (vm.count("ortho")) {
-      std::ofstream out(runtag + ".ortho_check");
+      std::ofstream out(outtag + ".ortho_check");
       expandd->ortho_check(out);
     }
   }
@@ -1179,7 +1187,7 @@ main(int ac, char **av)
 	std::cout << "Dumping coefficients halo . . . " << std::flush;
 	ostringstream sout;
 	sout << "halo_coefs.";
-	if (suffix.size()>0) sout << suffix;
+	if (outtag.size()>0) sout << outtag;
 	else                 sout << "dump";
 	ofstream out(sout.str());
 	if (out) expandh->dump_coefs(out, false);
@@ -1189,7 +1197,7 @@ main(int ac, char **av)
 	std::cout << "Dumping a probe through the halo . . . " << std::flush;
 	ostringstream sout;
 	sout << "halo_probe.";
-	if (suffix.size()>0) sout << suffix;
+	if (outtag.size()>0) sout << outtag;
 	else                 sout << "dump";
 	ofstream out(sout.str());
 	if (out) {
@@ -1279,7 +1287,7 @@ main(int ac, char **av)
 	std::cout << "Dumping coefficients . . . " << std::flush;
 	ostringstream sout;
 	sout << "disk_coefs.";
-	if (suffix.size()>0) sout << suffix;
+	if (outtag.size()>0) sout << outtag;
 	else                 sout << "dump";
 	ofstream out(sout.str());
 	if (out) expandd->dump_coefs(out);
@@ -1325,11 +1333,11 @@ main(int ac, char **av)
 
     if (ndisk) {
       int nout = 200;
-      string dumpstr = runtag + ".dump";
+      string dumpstr = outtag + ".dump";
       expandd->dump_basis(dumpstr, 0);
-      expandd->dump_images(runtag, 5.0*scale_length, 5.0*scale_height,
+      expandd->dump_images(outtag, 5.0*scale_length, 5.0*scale_height,
 			   nout, nout, false);
-      expandd->dump_images_basis(runtag, 5.0*scale_length, 5.0*scale_height,
+      expandd->dump_images_basis(outtag, 5.0*scale_length, 5.0*scale_height,
 				 nout, nout, false, 0, MMAX, 0, NMAXD-1);
     }
 

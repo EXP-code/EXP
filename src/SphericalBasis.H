@@ -7,28 +7,93 @@
 #include <string>
 #include <set>
 
-#include <AxisymmetricBasis.H>
-#include <Coefficients.H>
+#include "AxisymmetricBasis.H"
+#include "Coefficients.H"
 
-#include <config_exp.h>
+#include "config_exp.h"
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
-#include <NVTX.H>
+#include "NVTX.H"
 
-#include <CoefContainer.H>
+#include "CoefContainer.H"
 
 // This prints out the level switch matrix.  For deep debugging only.
 // #define SPH_UPDATE_TABLE
 
 class MixtureBasis;
 
-//! Defines a spherical basis with members specific to spherical symmetry
+/** @class SphericalBasis
+    @brief Defines a spherical basis with members specific to spherical symmetry
+
+
+    @details **YAML configuration**
+
+    @param scale Radial scale factor between particle coordinates and
+    the basis coorindates.  The default is 1 and should be 1 if the
+    input basis model matches the phase-space coordinates of the
+    particles.
+
+    @param rmin is the lower-bound of the target basis.  This will be
+    set to minimum radius in the input model by default.
+
+    @param rmax is the upper-bound of the target basis.  This will be
+    set to maximum radius in the input model by default.
+
+    @param self_consistent set to true allows the particles to evolve
+    under the time-dependent basis expansion. For a basis fixed in
+    time to the initial time: set to false.
+
+    @param FIX_L0 set to true saves the monopole coefficients on the
+    first evaluation
+
+    @param NO_L0 set to true disables the monopole coefficients
+    altogehter for all time
+
+    @param NO_L1 set to true disables the dipole coefficients
+    altogehter for all time
+
+    @param EVEN_L set to true eliminates all \f$l\f$ harmonic
+    coefficients of odd order for all time
+
+    @param EVEN_M set to true eliminates all \f$m\f$ harmonic
+    coefficients of odd order for all time
+
+    @param M0_ONLY set to true eliminates all \f$|m|>0\f$ harmonic
+    coefficients for all time
+
+    @param NOISE set to true enables the signal-to-noise ratio
+    computation for diagnostic purposes
+
+    @param noiseN is the variance scale factor for estimating the RMS
+    noise (1.0e-6 by default; \f$1/N\f$ is a good choice for the
+    standard deviation of the noise)
+
+    @param noise_model_file is the filename for the background model
+    model used to estimate the noise
+
+    @param seedN is the random number generator seed for the noise
+    computation
+
+    @param ssfrac sets a fraction of the total phase space used for
+    coefficient estimation (this is an experimental feature)
+
+    @param "playback set to true uses a coefficient file to evaluate
+    the coefficients rather than direct expansion
+
+    @param coefCompute set to true computes a new set of coefficients
+    during playback for comparison
+
+    @param coefMaster set to true evaluates the playback coefficients
+    on a single node which are then broadcast to all nodes
+
+    @param orthocheck set to true computed the basis biorthgoonal
+    check by direct quadrature
+*/
 class SphericalBasis : public AxisymmetricBasis
 {
-
 protected:
 
   //! Will cache values of the kernel required for recursion relations
@@ -392,14 +457,14 @@ public:
   //@}
 
   /** Get derivative of potential
-    \param lmax is the maximum harmonic order
-    \param nmax is the maximum radial order
-    \param r is the evaluation radius
-    \param p will be returned array in harmonics l and radial order n
+    @param lmax is the maximum harmonic order
+    @param nmax is the maximum radial order
+    @param r is the evaluation radius
+    @param p will be returned array in harmonics l and radial order n
     for the potential
-    \param dp will be returned array in harmonics l and radial order n
+    @param dp will be returned array in harmonics l and radial order n
     for the derivative of the potential
-    \param tid is the thread enumerator that allows the function to
+    @param tid is the thread enumerator that allows the function to
     provide some thread safety
   */
   virtual 
@@ -407,12 +472,12 @@ public:
 		 int tid) = 0;
 
   /** Get derivative of potential
-    \param lmax is the maximum harmonic order
-    \param nmax is the maximum radial order
-    \param r is the evaluation radius
-    \param p will be returned array in harmonics l and radial order n
+    @param lmax is the maximum harmonic order
+    @param nmax is the maximum radial order
+    @param r is the evaluation radius
+    @param p will be returned array in harmonics l and radial order n
     for the potential
-    \param tid is the thread enumerator that allows the function to
+    @param tid is the thread enumerator that allows the function to
     provide some thread safety
   */
   virtual 
@@ -420,12 +485,12 @@ public:
 		int tid) = 0;
 
   /** Get derivative of potential
-    \param lmax is the maximum harmonic order
-    \param nmax is the maximum radial order
-    \param r is the evaluation radius
-    \param d will be returned array in harmonics l and radial order n
+    @param lmax is the maximum harmonic order
+    @param nmax is the maximum radial order
+    @param r is the evaluation radius
+    @param d will be returned array in harmonics l and radial order n
     for the density
-    \param tid is the thread enumerator that allows the function to
+    @param tid is the thread enumerator that allows the function to
     provide some thread safety
   */
   virtual 
@@ -433,14 +498,14 @@ public:
 		int tid) = 0;
 
   /** Get derivative of potential
-    \param lmax is the maximum harmonic order
-    \param nmax is the maximum radial order
-    \param r is the evaluation radius
-    \param p will be returned array in harmonics l and radial order n
+    @param lmax is the maximum harmonic order
+    @param nmax is the maximum radial order
+    @param r is the evaluation radius
+    @param p will be returned array in harmonics l and radial order n
     for the potential
-    \param d will be returned array in harmonics l and radial order n
+    @param d will be returned array in harmonics l and radial order n
     for the density
-    \param tid is the thread enumerator that allows the function to
+    @param tid is the thread enumerator that allows the function to
     provide some thread safety
   */
   virtual 

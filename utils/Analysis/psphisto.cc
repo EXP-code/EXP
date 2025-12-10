@@ -39,20 +39,21 @@
 #include <cmath>
 
                                 // System libs
+#include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
 				// MDW classes
-#include <numerical.H>
-#include <ParticleReader.H>
-#include <interp.H>
-#include <massmodel.H>
-#include <SphSL.H>
+#include "numerical.H"
+#include "ParticleReader.H"
+#include "interp.H"
+#include "massmodel.H"
+#include "SphSL.H"
 
-#include <localmpi.H>
-#include <foarray.H>
-#include <cxxopts.H>
-#include <libvars.H>
+#include "localmpi.H"
+#include "foarray.H"
+#include "cxxopts.H"
+#include "libvars.H"
 
 enum ProjectionType {Cylindrical=1, Spherical=2};
   

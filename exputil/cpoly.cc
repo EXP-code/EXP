@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string>
 
-#include <cpoly.H>
+#include "cpoly.H"
 
 /*
 	Default constructor; make a null vector.

@@ -1,4 +1,4 @@
-#include <YamlConfig.H>
+#include "YamlConfig.H"
 
 void SaveConfig(const cxxopts::ParseResult& vm,  // Parsed options
 		const cxxopts::Options& options, // Default options

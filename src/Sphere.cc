@@ -3,11 +3,11 @@
 
 #include "expand.H"
 
-#include <gaussQ.H>
-#include <Sphere.H>
-#include <plummer.H>
-#include <interp.H>
-#include <exputils.H>
+#include "gaussQ.H"
+#include "Sphere.H"
+#include "plummer.H"
+#include "interp.H"
+#include "exputils.H"
 
 const std::set<std::string>
 Sphere::valid_keys = {

@@ -1,7 +1,7 @@
 #ifndef _Basis_H
 #define _Basis_H
 
-#include <PotAccel.H>
+#include "PotAccel.H"
 #include <Eigen/Eigen>
 
 //! Defines a basis-based potential and acceleration class

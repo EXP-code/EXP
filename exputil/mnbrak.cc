@@ -1,5 +1,5 @@
 #include <math.h>
-#include <numerical.H>
+#include "numerical.H"
 
 #define GOLD 1.618034
 #define GLIMIT 100.0

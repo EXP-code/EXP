@@ -26,16 +26,16 @@
 
 #include <Eigen/Dense>
 
-#include <TransformFFT.H>
+#include "TransformFFT.H"
 #ifdef HAVE_LIBPNGPP
-#include <ColorGradient.H>
+#include "ColorGradient.H"
 #endif
 
 #include "Coefs.H"
 #include "RedSVD.H"
 
-#include <config_exp.h>
-#include <YamlConfig.H>
+#include "config_exp.h"
+#include "YamlConfig.H"
 
 
 const double PI2() { return std::atan(1)*8; }

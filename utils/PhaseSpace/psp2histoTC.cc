@@ -20,14 +20,14 @@
 using namespace std;
 
 #include <yaml-cpp/yaml.h>	// YAML support
-#include <cxxopts.H>		// Command-line parsing
-#include <libvars.H>		// EXP library globals
+#include "cxxopts.H"		// Command-line parsing
+#include "libvars.H"		// EXP library globals
 
-#include <Species.H>
+#include "Species.H"
 
-#include <StringTok.H>
-#include <header.H>
-#include <PSP.H>
+#include "StringTok.H"
+#include "header.H"
+#include "PSP.H"
 
 bool readSpeciesFileOld(std::string file,
 			std::map<speciesKey, int>& SpList,

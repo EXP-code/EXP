@@ -1,7 +1,7 @@
-#include <expand.H>
-#include <global.H>
-#include <localmpi.H>
-#include <ExternalCollection.H>
+#include "expand.H"
+#include "global.H"
+#include "localmpi.H"
+#include "ExternalCollection.H"
 
 #include "UserTestCuda.H"
 

@@ -1,7 +1,7 @@
 #ifndef _UserTestCuda_H
 #define _UserTestCuda_H
 
-#include <ExternalForce.H>
+#include "ExternalForce.H"
 
 class UserTestCuda : public ExternalForce
 {

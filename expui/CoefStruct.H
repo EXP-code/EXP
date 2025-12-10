@@ -7,9 +7,21 @@
 
 namespace CoefClasses
 {
+  using RowMatrix3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
+
+  class Coefs;
+
   //! This is a general struct for any dimensionality
   class CoefStruct
   {
+  protected:
+
+    //! Coefs instance
+    Coefs* C = nullptr;
+
+    //! Default gravitational contant 
+    double G = 1.0;
+
   public:
     //! For YAML config
     std::string buf;
@@ -27,10 +39,19 @@ namespace CoefClasses
     Eigen::VectorXcd store;
     
     //! Center data
-    std::vector<double> ctr= {0.0, 0.0, 0.0};
+    Eigen::Vector3d ctr = Eigen::Vector3d::Zero();
+
+    //! Orientation data
+    RowMatrix3d rot = RowMatrix3d::Identity();
+
+    //! Constructor
+    CoefStruct(Coefs* C=nullptr) : C(C) {}
 
     //! Destructor
     virtual ~CoefStruct() {}
+
+    //! Set owner
+    void setOwner(Coefs* Cptr) { C = Cptr; }
 
     //! Read data from a stream
     virtual bool read(std::istream& in, bool exp_type,
@@ -62,16 +83,17 @@ namespace CoefClasses
     //! Read-only access to coefficient data (no copy)
     Eigen::Ref<const Eigen::VectorXcd> getCoefs() { return store; }
 
-    //! Set new center data (no copy)
-    void setCenter(std::vector<double>& STORE)
-    {
-      if (STORE.size() != ctr.size())
-        throw std::invalid_argument("CoefStruct::setCenter: center vector size does not match");
-      ctr = STORE;
-    }
+    //! Set new center data
+    void setCenter(Eigen::Vector3d& CTR) {ctr = CTR; }
 
-    //! Read-only access to center (no copy)
-    std::vector<double> getCenter() { return ctr; }
+    //! Read-only access to center
+    Eigen::Vector3d getCenter() { return ctr; }
+
+    //! Set new rotation matrix
+    void setRotation(RowMatrix3d& ROT) { rot = ROT; }
+
+    //! Read-only access to orientation
+    RowMatrix3d getRotation() { return rot; }
 
     //! Set coefficient time (no copy)
     void setTime(double& STORE)
@@ -81,6 +103,12 @@ namespace CoefClasses
 
     //! Read-only access to center (no copy)
     double getTime() { return time; }
+
+    //! Set default gravitational constant
+    void setGravConstant(double val) { G = val; }
+
+    //! Get gravitational constant
+    double getGravConstant();
 
   };
   
@@ -104,7 +132,8 @@ namespace CoefClasses
     bool normed;
     
     //! Constructor
-    SphStruct() : lmax(0), nmax(0), scale(1.0), normed(true)
+    SphStruct(Coefs* C=nullptr) :
+      lmax(0), nmax(0), scale(1.0), normed(true), CoefStruct(C)
     { geom = "sphere"; }
 
     //! Read native EXP coefficients
@@ -150,7 +179,7 @@ namespace CoefClasses
     int mmax, nmax;
     
     //! Constructor
-    CylStruct() : mmax(0), nmax(0)
+    CylStruct(Coefs* C=nullptr) : mmax(0), nmax(0), CoefStruct(C)
     { geom = "cylinder"; }
 
     //! Read native EXP coefficients
@@ -198,7 +227,7 @@ namespace CoefClasses
     int nx, ny, nz, dim;
 
     //! Constructor
-    SlabStruct() : nmaxx(0), nmaxy(0), nmaxz(0)
+    SlabStruct(Coefs* C=nullptr) : nmaxx(0), nmaxy(0), nmaxz(0), CoefStruct(C)
     { geom = "slab"; }
 
     //! Read native EXP coefficients
@@ -258,7 +287,8 @@ namespace CoefClasses
     int nmaxx, nmaxy, nmaxz;
     
     //! Constructor
-    CubeStruct() : nmaxx(0), nmaxy(0), nmaxz(0), nx(0), ny(0), nz(0), dim(0)
+    CubeStruct(Coefs* C=nullptr) :
+      nmaxx(0), nmaxy(0), nmaxz(0), nx(0), ny(0), nz(0), dim(0), CoefStruct(C)
     { geom = "slab"; }
 
     //! Read native EXP coefficients
@@ -321,7 +351,7 @@ namespace CoefClasses
     int cols;
     
     //! Constructor
-    TblStruct() : cols(0) { geom = "table"; }
+    TblStruct(Coefs* C=nullptr) : cols(0), CoefStruct(C) { geom = "table"; }
 
     //! No need to read
     bool read(std::istream& in, bool exp_type, bool verbose=false);
@@ -366,7 +396,8 @@ namespace CoefClasses
     int rank;
     
     //! Constructor
-    TrajStruct() : traj(0), rank(0) { geom = "trajectory"; }
+    TrajStruct(Coefs* C=nullptr) : traj(0), rank(0), CoefStruct(C)
+    { geom = "trajectory"; }
 
     //! No need to read
     bool read(std::istream& in, bool exp_type, bool verbose=false);
@@ -419,7 +450,8 @@ namespace CoefClasses
     double scale;
     
     //! Constructor
-    SphFldStruct() : nfld(0), lmax(0), nmax(0), scale(1.0)
+    SphFldStruct(Coefs* C=nullptr) :
+      nfld(0), lmax(0), nmax(0), scale(1.0), CoefStruct(C)
     { geom = "sphere"; }
 
     //! Read native EXP coefficients
@@ -476,7 +508,8 @@ namespace CoefClasses
     double scale;
     
     //! Constructor
-    CylFldStruct() : nfld(0), mmax(0), nmax(0), scale(1.0)
+    CylFldStruct(Coefs* C=nullptr) :
+      nfld(0), mmax(0), nmax(0), scale(1.0), CoefStruct(C)
     { geom = "cylinder"; }
 
     //! Read native EXP coefficients

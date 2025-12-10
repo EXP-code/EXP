@@ -36,10 +36,10 @@
 #include <memory>
 #include <cmath>
 
-#include <massmodel1d.H>
-#include <interp.H>
+#include "massmodel1d.H"
+#include "interp.H"
 
-#include <cxxopts.H>
+#include "cxxopts.H"
 
 int
 main(int argc, char **argv)

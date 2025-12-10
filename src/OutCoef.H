@@ -1,7 +1,7 @@
 #ifndef _OutCoef_H
 #define _OutCoef_H
 
-#include <OutCoef.H>
+#include "OutCoef.H"
 
 /** Dump coefficients at each interval
     

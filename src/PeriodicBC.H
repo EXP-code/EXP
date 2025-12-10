@@ -3,9 +3,9 @@
 
 #include <random>
 
-#include <Particle.H>
-#include <AxisymmetricBasis.H>
-#include <ExternalCollection.H>
+#include "Particle.H"
+#include "AxisymmetricBasis.H"
+#include "ExternalCollection.H"
 
 /** Enforce periodic boundary conditions in a rectangular prism (box)
     @param ctrname is the name of the component whose particles will be subject to the boundary condition
@@ -24,6 +24,12 @@ private:
   void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
+
+#if HAVE_LIBCUDA==1
+  //! Cuda implementation
+  void determine_acceleration_and_potential_cuda();
+  bool cuda_initialized = false;
+#endif
 
   std::vector<double> offset, L;
   std::string comp_name, bc;

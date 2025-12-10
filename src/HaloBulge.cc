@@ -11,14 +11,14 @@
 #include <dmalloc.h>
 #endif
 
-#include <numerical.H>
-#include <orbit.H>
-#include <massmodel.H>
-#include <model3d.H>
-#include <isothermal.H>
-#include <hernquist_model.H>
+#include "numerical.H"
+#include "orbit.H"
+#include "massmodel.H"
+#include "model3d.H"
+#include "isothermal.H"
+#include "hernquist_model.H"
 
-#include <HaloBulge.H>
+#include "HaloBulge.H"
 
 using namespace std;
 

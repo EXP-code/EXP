@@ -15,11 +15,11 @@
 #include <string>
 #include <list>
 
-#include <StringTok.H>
-#include <header.H>
-#include <PSP.H>
-#include <cxxopts.H>		// Option parsing
-#include <libvars.H>		// EXP library globals
+#include "StringTok.H"
+#include "header.H"
+#include "PSP.H"
+#include "cxxopts.H"		// Option parsing
+#include "libvars.H"		// EXP library globals
 
 
 int

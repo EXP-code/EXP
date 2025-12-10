@@ -8,8 +8,8 @@
 #include <cmath>
 #include <set>
 
-#include <PolarBasis.H>
-#include <MixtureBasis.H>
+#include "PolarBasis.H"
+#include "MixtureBasis.H"
 
 // #define TMP_DEBUG
 // #define MULTI_DEBUG
@@ -660,7 +660,7 @@ void PolarBasis::determine_coefficients_particles(void)
   }
 
 
-  int loffset, moffset, use1;
+  int moffset, use1;
 
   if (compute) {
 
@@ -1362,8 +1362,8 @@ void * PolarBasis::determine_acceleration_and_potential_thread(void * arg)
     norm1 = norm1_3d;
   }
 
-  double r, r0=0.0, phi;
-  double potr, potz, potl, potp, p, pc, drc, drs, dzc, dzs, ps, dfacp, facdp;
+  double r, phi;
+  double potr, potz, potl, potp, p, pc, drc, drs, dzc, dzs, ps;
 
   double pos[3];
   double xx, yy, zz, mfac=1.0;
@@ -1822,6 +1822,9 @@ void PolarBasis::dump_coefs_h5(const std::string& file)
   //
   cur->ctr = component->getCenter(Component::Local | Component::Centered);
 
+  // Add the orientation
+  cur->rot = component->getRotation();
+
   // Check if file exists
   //
   if (std::filesystem::exists(file)) {
@@ -1838,6 +1841,11 @@ void PolarBasis::dump_coefs_h5(const std::string& file)
 
     // Add the name attribute.  We only need this on the first call.
     cylCoefs.setName(component->name);
+
+    // Add the default units
+    cylCoefs.setUnits({{"length", "none", 1.0},
+		       {"mass",   "none", 1.0},
+		       {"time",   "none", 1.0}});
 
     // And the new coefficients and write the new HDF5
     cylCoefs.clear();
@@ -1860,7 +1868,6 @@ void PolarBasis::determine_fields_at_point
   *tdens0 = *tpotl0 = *tdens = *tdens0 = 0.0;
   *tpotX  = *tpotY  = *tpotZ = 0.0;
 
-  bool ioff = false;
   if (R>rmax) return;
 
   double tpotR, tpotz, tpotp;
@@ -1898,7 +1905,7 @@ void PolarBasis::determine_fields_at_point_cyl
     return;
   }
 
-  double p, dp, pc, ps, drc, drs, dzc, dzs;
+  double p, pc, ps, drc, drs, dzc, dzs;
 
   sinecosine_R(Mmax, phi, cosm[0], sinm[0]);
 

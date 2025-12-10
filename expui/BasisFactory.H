@@ -6,14 +6,14 @@
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids
 #include <yaml-cpp/yaml.h>
 
-#include <ParticleReader.H>
-#include <OrthoFunction.H>
-#include <Coefficients.H>
-#include <PseudoAccel.H>
-#include <YamlCheck.H>
-#include <localmpi.H>
-#include <exputils.H>
-#include <interp.H>
+#include "ParticleReader.H"
+#include "OrthoFunction.H"
+#include "Coefficients.H"
+#include "PseudoAccel.H"
+#include "YamlCheck.H"
+#include "localmpi.H"
+#include "exputils.H"
+#include "interp.H"
 
 namespace Field
 {
@@ -23,6 +23,8 @@ namespace Field
 namespace BasisClasses
 {
   using RowMatrixXd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+
+  using RowMatrix3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
 
     //! Callback function signature for selection particles to
     //! accumulate
@@ -66,7 +68,10 @@ namespace BasisClasses
     unsigned long coefindx;
     
     //! The expansion center
-    std::vector<double> coefctr;
+    Eigen::Vector3d coefctr = Eigen::Vector3d::Zero();
+
+    //! Rotation matrix
+    RowMatrix3d coefrot = Eigen::Matrix3d::Identity();
 
     //! Contains contructor and BFE parameter database
     YAML::Node node, conf;
@@ -136,6 +141,9 @@ namespace BasisClasses
     //! Get the current pseudo acceleration value
     Eigen::Vector3d currentAccel(double time);
 
+    //! Gravitational constant
+    double G = 1.0;
+
   public:
 
     //! The current pseudo acceleration
@@ -151,8 +159,10 @@ namespace BasisClasses
     virtual ~Basis(void) {}
     
     //! Set the expansion center
-    void setCenter(std::vector<double> center)
-    { coefctr = center; }
+    void setCenter(Eigen::Vector3d center) { coefctr = center; }
+    
+    //! Set the rotation matrix
+    void setRotation(RowMatrix3d rot) { coefrot = rot; }
     
     //! Evaluate basis in desired coordinates
     virtual std::vector<double>
@@ -177,13 +187,13 @@ namespace BasisClasses
     { return coefret; }
 
     //! Accumulate new coefficients from full phase space
-    virtual void accumulate(double mass,
-			    double x, double y, double z,
-			    double u, double v, double w) = 0;
+    virtual void accumulate(double x, double y, double z,
+			    double u, double v, double w,
+			    double mass, unsigned long int indx) = 0;
     
     //! Accumulate new coefficients from coordinates only
     virtual void accumulate(double x, double y, double z,
-			    double mass) = 0;
+			    double mass, unsigned long int indx) = 0;
     
     //! Get mass on grid
     double getMass(void) { return totalMass; }
@@ -213,11 +223,12 @@ namespace BasisClasses
     
     //! Generate coeffients from a particle reader
     virtual CoefClasses::CoefStrPtr
-    createFromReader(PR::PRptr reader, std::vector<double> ctr) = 0;
+    createFromReader(PR::PRptr reader, Eigen::Vector3d ctr,
+		     RowMatrix3d rot) = 0;
 
     //! Generate coefficients from a phase-space table
     virtual void
-    initFromArray(std::vector<double> ctr) = 0;
+    initFromArray(Eigen::Vector3d ctr, RowMatrix3d rot) = 0;
 
     //! Accumulate coefficient contributions from arrays
     virtual void
@@ -228,7 +239,8 @@ namespace BasisClasses
     //! for the expansion
     CoefClasses::CoefStrPtr createFromArray
     (Eigen::VectorXd& m, RowMatrixXd& p, double time=0.0,
-     std::vector<double> center={0.0, 0.0, 0.0},
+     Eigen::Vector3d center=Eigen::Vector3d::Zero(),
+     RowMatrix3d rot=RowMatrix3d::Identity(),
      bool roundrobin=true, bool posvelrows=false);
 
     //! Create and the coefficients from the array accumulation with the
@@ -275,7 +287,10 @@ namespace BasisClasses
     { return getFieldLabels(coordinates); }
 
     //! Get the basis expansion center
-    std::vector<double> getCenter() { return coefctr; }
+    Eigen::Vector3d getCenter() { return coefctr; }
+
+    //! Get the basis expansion center
+    RowMatrix3d getRotation() { return coefrot; }
   };
   
   using BasisPtr = std::shared_ptr<Basis>;
