@@ -95,7 +95,7 @@ struct loadb_datum
   ensemble used to determine the paramters.  The energy cutoff is
   dynamically adjusted to achieve this target.
 
-  @param nEJwant is the size of the past states used to estimate the
+  @param nEJaccel is the size of the past states used to estimate the
   the acceleration of the expansion frame
 
   @param EJx0 is the initial EJ center x-coordinate (default: 0)
