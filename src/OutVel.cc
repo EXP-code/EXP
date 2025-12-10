@@ -186,7 +186,7 @@ void OutVel::Run(int n, int mstep, bool last)
 	double v = it->second->vel[1];
 	double w = it->second->vel[2];
 	
-	basis->accumulate(M, x, y, z, u, v, w);
+	basis->accumulate(x, y, z, u, v, w, M);
       }
     }
   }

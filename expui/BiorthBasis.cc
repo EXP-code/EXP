@@ -1658,9 +1658,12 @@ namespace BasisClasses
 	    case DiskType::doubleexpon:
 	    case DiskType::exponential:
 	    case DiskType::diskbulge:
-	      std::cout << "---- pyEXP uses sech^2(z/h) rather than the more common sech^2(z/(2h))" << std::endl
-			<< "---- Use the 'sech2: true' in your YAML config to use sech^2(z/(2h))" << std::endl
-			<< "---- pyEXP will assume sech^2(z/(2h)) by default in v 7.9.0 and later" << std::endl;
+	      std::cout << "---- pyEXP assumes sech^2(z/(2h)) by default in v7.9.0 and later" << std::endl
+			            << "---- Use the 'sech2: true' in your YAML config to use sech^2(z/(2h))" << std::endl
+                  << "---- This warning will be removed in v7.10.0." << std::endl;
+        break;
+      default:
+        break;
 	    }
 	  }
 	}
