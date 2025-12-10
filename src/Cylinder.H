@@ -131,7 +131,7 @@ class Cylinder : public Basis
 
 private:
 
-  bool precond, EVEN_M, subsamp, sech2 = false;
+  bool precond, EVEN_M, subsamp, sech2 = true;
   int rnum, pnum, tnum;
   double ashift;
   unsigned int vflag;

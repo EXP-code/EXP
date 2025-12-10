@@ -120,6 +120,9 @@ namespace CoefClasses
     //! Unit validator
     static UnitValidator check;
 
+    //! Units required for HDF5
+    virtual bool unitsRequired() { return true; }
+
   public:
     
     //! Constructor
@@ -849,6 +852,9 @@ namespace CoefClasses
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
+    //! Units required for HDF5
+    virtual bool unitsRequired() { return false; }
+
   public:
     
     //! Constructor
@@ -955,6 +961,9 @@ namespace CoefClasses
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
+    //! Units required for HDF5
+    virtual bool unitsRequired() { return false; }
+
   public:
     
     //! Constructor
@@ -1066,6 +1075,9 @@ namespace CoefClasses
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
+    //! Units required for HDF5
+    virtual bool unitsRequired() { return false; }
+
   public:
     
     //! Constructor
@@ -1193,6 +1205,9 @@ namespace CoefClasses
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
+    //! Units required for HDF5
+    virtual bool unitsRequired() { return false; }
+
   public:
     
     //! Constructor

@@ -1282,7 +1282,7 @@ void CoefficientClasses(py::module &m) {
    .def("WriteH5Coefs",
          [](CoefClasses::Coefs& self, const std::string& filename) {
            if (self.getUnits().size()!=4) {
-             std::cout << "Coefs::WriteH5Coefs: please set units for your coefficient set using the `setUnit()` member," << std::endl
+             std::cout << "Coefs::WriteH5Coefs: please set units for your coefficient set using the `setUnits()` member," << std::endl
                        << "                     one for each unit.  We suggest explicitly setting 'G', 'Length', 'Mass'," << std::endl
                        << "                     'Time', or optionally 'Velocity' before writing HDF5 coefficients" << std::endl;
            }

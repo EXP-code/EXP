@@ -876,7 +876,7 @@ void BasisFactoryClasses(py::module &m)
 
   py::class_<BasisClasses::Basis, std::shared_ptr<BasisClasses::Basis>, PyBasis>
     (m, "Basis")
-    .def("factory", &BasisClasses::BiorthBasis::factory_string,
+    .def("factory", &BasisClasses::Basis::factory_string,
 	 R"(
          Generate a basis from a YAML configuration supplied as a string
 

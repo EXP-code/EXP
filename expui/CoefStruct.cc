@@ -110,8 +110,7 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("CylStruct::deepcopy dimension mismatch",
-	    (mmax+1)*nmax == store.size()));
+    assert((mmax+1)*nmax == store.size() && "CylStruct::deepcopy dimension mismatch");
 
     ret->C     = C;
     ret->coefs = std::make_shared<coefType>(ret->store.data(), mmax+1, nmax);
@@ -128,8 +127,7 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("SphStruct::deepcopy dimension mismatch",
-	    (lmax+1)*(lmax+2)/2*nmax == store.size()));
+    assert((lmax+1)*(lmax+2)/2*nmax == store.size() && "SphStruct::deepcopy dimension mismatch");
 
     ret->C      = C;
     ret->coefs  = std::make_shared<coefType>
@@ -149,7 +147,7 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("SlabStruct::deepcopy dimension mismatch", dim == store.size()));
+    assert((dim == store.size()) && "SlabStruct::deepcopy dimension mismatch");
 
     ret->C      = C;
     ret->coefs  = std::make_shared<coefType>(ret->store.data(), nx, ny, nz);
@@ -171,7 +169,7 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("CubeStruct::deepcopy dimension mismatch", dim == store.size()));
+    assert((dim == store.size()) && "CubeStruct::deepcopy dimension mismatch");
 
     ret->C      = C;
     ret->coefs  = std::make_shared<coefType>(ret->store.data(), nx, ny, nz);
@@ -193,8 +191,7 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("TblStruct::deepcopy dimension mismatch",
-	    cols == store.size()));
+    assert((cols == store.size()) && "TblStruct::deepcopy dimension mismatch");
 
     ret->C     = C;
     ret->coefs = std::make_shared<coefType>(ret->store.data(), cols);
@@ -209,8 +206,7 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("TrajStruct::deepcopy dimension mismatch",
-	    traj*rank == store.size()));
+    assert((traj*rank == store.size()) && "TrajStruct::deepcopy dimension mismatch");
 
     ret->C     = C;
     ret->coefs = std::make_shared<coefType>(ret->store.data(), traj, rank);
@@ -226,8 +222,7 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("SphFldStruct::deepcopy dimension mismatch",
-	    nfld*(lmax+1)*(lmax+2)/2*nmax == store.size()));
+    assert(nfld*(lmax+1)*(lmax+2)/2*nmax == store.size() && "SphFldStruct::deepcopy dimension mismatch");
 
     ret->C      = C;
     ret->coefs  = std::make_shared<coefType>
@@ -246,8 +241,7 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("CylFldStruct::deepcopy dimension mismatch",
-	    nfld*(mmax+1)*nmax == store.size()));
+    assert((nfld*(mmax+1)*nmax == store.size()) && "CylFldStruct::deepcopy dimension mismatch");
 
     ret->C      = C;
     ret->coefs  = std::make_shared<coefType>

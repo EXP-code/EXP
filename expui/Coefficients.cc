@@ -151,7 +151,7 @@ namespace CoefClasses
 
   void Coefs::WriteH5Units(HighFive::File& file)
   {
-    if (units.size() != 4) {
+    if (unitsRequired() and units.size() != 4) {
       std::ostringstream sout;
       sout << "---- Coefs::WriteH5Units: Warning, expected 4 units: "
 	   << "(length, mass, time, G) or (length, mass, velocity, G), etc. "
