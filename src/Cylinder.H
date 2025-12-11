@@ -125,7 +125,7 @@ class MixtureBasis;
 
     @param compress sets the HDF5 cache file compression level.  The
      HDF5 disk basis cache is gzip compressed by default at compress=5
-     to save disk space. The user may turn off compression using the
+     to save disk space. The user may turn off compression using
      compress=0, although we have no particular use case.
 */
 class Cylinder : public Basis
