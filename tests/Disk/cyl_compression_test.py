@@ -11,10 +11,10 @@ This test suite verifies:
 4. Validation of the compression level (0-9 range)
 """
 
-import os
-import pyEXP
-import tempfile                 # For creating temporary files and directories
-import shutil                   # For cleaning up temporary files and directories
+import os          # For file path manipulations
+import pyEXP       # We need access to pyEXP to create basis sets, obviously
+import tempfile    # For creating temporary files and directories
+import shutil      # For cleaning up temporary files and directories
 
 # Base configuration for disk basis
 #
