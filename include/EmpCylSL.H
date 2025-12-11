@@ -949,7 +949,7 @@ public:
   //! @param compress Compression level for deflate/gzip (valid range: 0-9, where 0=no compression, 9=max compression)
   //! @param shuffle Enable byte shuffle filter (default: true)
   //! @param szip Enable szip compression (default: false)
-  //! @note Szip and deflate compression are mutually exclusive. When szip=true, the compress parameter is ignored and szip compression is used instead of deflate.
+  //! @note Szip and deflate compression are mutually exclusive. When both are configured, deflate compression takes precedence and the szip parameter is ignored.
   void setH5Params(unsigned compress, bool shuffle=true, bool szip=false)
   {
     // Validate compression level (unsigned type prevents negative values)
@@ -965,8 +965,9 @@ public:
     if (szip && compress > 0) {
       if (myid==0) {
 	std::cout << "EmpCylSL: szip and deflate compression are mutually exclusive. "
-		  << "Using szip; compress parameter (" << compress << ") will be ignored." << std::endl;
+		  << "Using deflate; szip parameter will be ignored." << std::endl;
       }
+      szip = false;  // Disable szip when both are configured
     }
     
     H5compress = compress;
