@@ -7381,7 +7381,7 @@ void EmpCylSL::WriteH5Cache()
     //
     auto dcpl = HighFive::DataSetCreateProps{};
 
-    if (H5compress) {
+    if (H5compress > 0 || H5szip) {
       // Chunking
       unsigned long nx = NUMX + 1, ny = NUMY + 1;
       dcpl.add(HighFive::Chunking({nx, ny}));

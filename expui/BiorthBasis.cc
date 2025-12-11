@@ -5166,7 +5166,8 @@ namespace BasisClasses
     auto dcpl3 = HighFive::DataSetCreateProps{}; // covariance
 
     // Properties for sample stats
-    if (H5compress) {
+    // Note: Sample stats only use Deflate compression, not Szip
+    if (H5compress > 0) {
       unsigned int csz = sampleCounts.size();
       dcpl1.add(HighFive::Chunking({csz, 1}));
       if (H5shuffle && H5compress > 0) dcpl1.add(HighFive::Shuffle());
@@ -5207,7 +5208,7 @@ namespace BasisClasses
     stanza.createAttribute<unsigned>
       ("fullCovar", HighFive::DataSpace::From(icov)).write(icov);
 
-    if (H5compress) {
+    if (H5compress > 0 || H5szip) {
       // Szip parameters
       const int options_mask = H5_SZIP_NN_OPTION_MASK;
       const int pixels_per_block = 8;
