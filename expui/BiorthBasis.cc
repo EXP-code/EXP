@@ -5167,12 +5167,11 @@ namespace BasisClasses
 
     // Properties for sample stats
     // Note: Sample stats only use Deflate compression, not Szip
-    if (H5compress) {
+    if (H5compress > 0) {
       unsigned int csz = sampleCounts.size();
       dcpl1.add(HighFive::Chunking({csz, 1}));
       // Only apply shuffle filter when compression is actually enabled
-      // H5compress > 0 check is explicit for clarity (redundant with outer if)
-      if (H5shuffle && H5compress > 0) dcpl1.add(HighFive::Shuffle());
+      if (H5shuffle) dcpl1.add(HighFive::Shuffle());
       dcpl1.add(HighFive::Deflate(H5compress));
     }
 
@@ -5210,7 +5209,7 @@ namespace BasisClasses
     stanza.createAttribute<unsigned>
       ("fullCovar", HighFive::DataSpace::From(icov)).write(icov);
 
-    if (H5compress || H5szip) {
+    if (H5compress > 0 || H5szip) {
       // Szip parameters
       const int options_mask = H5_SZIP_NN_OPTION_MASK;
       const int pixels_per_block = 8;
