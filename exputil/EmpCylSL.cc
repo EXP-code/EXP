@@ -7381,11 +7381,12 @@ void EmpCylSL::WriteH5Cache()
     //
     auto dcpl = HighFive::DataSetCreateProps{};
 
-    if (H5compress) {
+    if (H5compress || H5szip) {
       // Chunking
       unsigned long nx = NUMX + 1, ny = NUMY + 1;
       dcpl.add(HighFive::Chunking({nx, ny}));
-      if (H5shuffle) dcpl.add(HighFive::Shuffle());
+      // Only apply shuffle filter when compression is actually enabled
+      if (H5shuffle && (H5compress > 0 || H5szip)) dcpl.add(HighFive::Shuffle());
       if (H5szip) {
         const int options_mask = H5_SZIP_NN_OPTION_MASK;
         const int pixels_per_block = 8;
