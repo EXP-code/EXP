@@ -3,6 +3,7 @@
 
 #include "PotAccel.H"
 #include <Eigen/Eigen>
+#include <highfive/highfive.hpp>
 
 //! Defines a basis-based potential and acceleration class
 class Basis : public PotAccel
@@ -38,7 +39,6 @@ public:
   (double r, double z, double phi,
    double *tdens0, double *dpotl0, double *tdens, double *tpotl,
    double *tpotr, double *tpotz, double *tpotp) = 0;
-
 
   /** @name Utility functions */
   // @{

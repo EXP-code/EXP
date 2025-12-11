@@ -62,6 +62,7 @@ Cylinder::valid_keys = {
   "pcavtk",
   "pcadiag",
   "subsamp",
+  "nint",
   "try_cache",
   "density",
   "EVEN_M",
@@ -137,6 +138,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   pcadiag         = false;
   pcaeof          = false;
   subsamp         = false;
+  nint            = 0;
   nvtk            = 1;
   pcainit         = true;
   coef_dump       = true;
@@ -183,7 +185,11 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   if (mlim>=0)  ortho->set_mlim(mlim);
   if (EVEN_M)   ortho->setEven(EVEN_M);
   ortho->setSampT(defSampT);
-
+  if (nint>0) {
+    EmpCylSL::PCAVAR = true;
+    ortho->init_pca();
+  }
+  
   try {
     if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
   }
@@ -451,6 +457,7 @@ void Cylinder::initialize()
     if (conf["pcavtk"    ])     pcavtk  = conf["pcavtk"    ].as<bool>();
     if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
     if (conf["subsamp"   ])    subsamp  = conf["subsamp"   ].as<bool>();
+    if (conf["nint"      ])       nint  = conf["nint"      ].as<int>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["EVEN_M"    ])     EVEN_M  = conf["EVEN_M"    ].as<bool>();
     if (conf["cmap"      ])      cmapR  = conf["cmap"      ].as<int>();
@@ -943,6 +950,24 @@ void Cylinder::determine_coefficients_particles(void)
     pcainit = false;
   }
 
+  // No covarance by default
+  //
+  compute = false;
+
+  // Subsample computation flag
+  //
+  if (nint) {
+    // Computed only for mstep==0 and every nint steps
+    if (mstep==0 and this_step % nint == 0) {
+      compute = true;
+      ortho->set_covar(true);
+      requestSubsample = true;
+    } else {
+      ortho->set_covar(false);
+      subsampleComputed = false;
+    }
+  }
+
   if (pcavar or pcaeof) {
     if (this_step >= npca0)
       compute = (mstep == 0) && !( (this_step-npca0) % npca);
@@ -1040,6 +1065,12 @@ void Cylinder::determine_coefficients_particles(void)
   //=========================
 
   if ((pcavar or pcaeof) and mlevel==0) ortho->pca_hall(compute, subsamp);
+
+  // If subsample requested and computed, turn off for next time
+  if (nint and compute and mlevel==multistep) {
+    requestSubsample = false;
+    subsampleComputed = true;
+  }
 
   //=========================
   // Apply Hall smoothing
@@ -1816,3 +1847,22 @@ void Cylinder::occt_output()
     }
   }
 }
+
+
+PotAccel::CovarData Cylinder::getSubsample()
+{
+  std::tie(sampleCounts, sampleMasses) = ortho->getCovarSamples();
+  auto covarData = ortho->getCoefCovariance();
+  return {sampleCounts, sampleMasses, covarData};
+}
+
+void Cylinder::writeCovarH5Params(HighFive::File& file)
+{
+  file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
+  file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+  file.createAttribute<double>("rcylmin", HighFive::DataSpace::From(rcylmin)).write(rcylmin);
+  file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
+  file.createAttribute<double>("acyl", HighFive::DataSpace::From(acyl)).write(acyl);
+  file.createAttribute<double>("hcyl", HighFive::DataSpace::From(hcyl)).write(hcyl);
+}
+  

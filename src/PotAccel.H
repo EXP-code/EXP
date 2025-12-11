@@ -9,10 +9,18 @@
 
 #include <memory>
 #include <yaml-cpp/yaml.h>
+#include <Eigen/Eigen>
+
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
+#include <highfive/eigen.hpp>
 
 #include "Particle.H"
 #include "StringTok.H"
 #include "YamlCheck.H"
+#include "localmpi.H"
 
 #include "config_exp.h"
 
@@ -33,6 +41,16 @@ class PotAccel
 public:
   //! For timing
   typedef std::vector<std::time_t> TList;
+
+  /** Define the type returned by getSubsample
+
+      The outermost vectors contain subsamples of mass per sample,
+      counts per sample, and arrays of coefficients and covariance
+      elements per sample indexed by harmonic
+  */
+  using CovarElement =
+    std::tuple< Eigen::VectorXd, Eigen::VectorXi,
+		std::vector<std::vector<std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>>> >;
 
 private:
 
@@ -93,6 +111,26 @@ protected:
   //! Current YAML keys to check configuration
   std::set<std::string> current_keys;
 
+  //! @name Subsampling
+  //@{
+
+  //! Reset subsample data
+  virtual void subsampleReset() { subsampleComputed = false; }
+    
+  //! Save covariance subsamples to file
+  bool fullCovar = false;
+
+  //! Request to compute subsample data
+  bool requestSubsample = false;
+
+  //! Enable computation of subsample data
+  bool computeSubsample = false;
+
+  //! Is subsample computed and ready to write?
+  bool subsampleComputed = false;
+
+  //@}
+
 public:
 
   //! For timing data
@@ -103,7 +141,7 @@ public:
   };
 
   //! Id string
-  string id;
+  std::string id;
 
   //! Possible geometries
   enum Geometry {sphere, cylinder, cube, slab, table, other};
@@ -181,6 +219,49 @@ public:
   virtual void dump_coefs(ostream &out) {};
   virtual void dump_coefs_h5(const std::string &file) {};
 
+  //@name Subsampling methods
+  //@{
+  //! Set flag to compute subsample data
+  virtual void subsampleRequest() { requestSubsample = true; }
+
+  //! Indicate whether or not subsamples are available
+  virtual bool subsampleReady() { return subsampleComputed; }
+
+  //! Indicate whether or not subsampling is supported
+  virtual bool hasSubsample() {	return false; }
+
+  //! Write basis-specific parameters to HDF5 covariance file
+  virtual void writeCovarH5Params(HighFive::File& file)
+  {
+    if (myid==0)
+      std::cout << "Basis::writeCovarH5Params: "
+		<< "not implemented for basis type <" << id << ">"
+		<< std::endl;
+  }
+  //@}
+
+  //@{
+  //! Sample counts and masses for covariance computation
+  Eigen::VectorXi sampleCounts;
+  Eigen::VectorXd sampleMasses;
+  //@}
+
+  //@{
+  //! Type for coefficient and covariance matrix tuple
+
+  using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
+    
+  using CovarData = std::tuple<Eigen::VectorXi, Eigen::VectorXd,
+			       std::vector<std::vector<CoefCovarType>>>;
+
+  virtual CovarData getSubsample()
+  {
+    // Must be overriden; base implementation throws error
+    throw std::runtime_error("PotAccel::getSubsample: Not implemented for this basis");
+  }
+  //@}
+
+
   /** Update the multi time step force algorithm when moving particle 
       <code>i</code> from level <code>cur</code> to level 
       <code>next</code>
@@ -218,6 +299,9 @@ public:
   //! Check whether coeffcients are not available
   bool NoCoefs() { return play_back and !play_cnew; }
 
+  //! Get fullCovar flag
+  bool FullCovar() { return fullCovar; }
+
   //! For timing the fraction spent in threaded force methods
   //@{
   void print_timings(const string&, TList& tlist);
@@ -234,7 +318,6 @@ public:
 
   //! Get unaccounted keys
   std::set<std::string> unmatched() { return current_keys; }
-
 };
 
 //! Helper class to pass info to threaded member

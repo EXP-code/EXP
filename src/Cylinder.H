@@ -125,6 +125,10 @@ class MixtureBasis;
 */
 class Cylinder : public Basis
 {
+
+  //! Pull in base-class overrides
+  using PotAccel::determine_coefficients;
+
 private:
 
   bool precond, EVEN_M, subsamp, sech2 = true;
@@ -145,7 +149,7 @@ private:
 
 				// Parameters
   double rcylmin, rcylmax, zmax, acyl;
-  int nmaxfid, lmaxfid, mmax, mlim;
+  int nmaxfid, lmaxfid, mmax, mlim, nint;
   int ncylnx, ncylny, ncylr;
   double hcyl, hexp, snr, rem;
   int nmax, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
@@ -320,6 +324,9 @@ protected:
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
 
+  //! Write basis-specific parameters to HDF5 covariance file
+  void writeCovarH5Params(HighFive::File& file);
+
 public:
 
   //! Mutexes for multithreading
@@ -480,6 +487,14 @@ public:
   //! Sanity check on grid: dumps SM-style images of initial field
   void dump_mzero(const string& name, int step);
 
+  /** Return a subsample of the basis coefficients and covariance
+      elements for matrices for analysis. The default implementation
+      returns empty vectors. This parallels the implementation in
+      expui. */
+  CovarData getSubsample();
+
+  //! Indicate whether or not subsampling is supported
+  virtual bool hasSubsample() {	return true; }
 };
 
 

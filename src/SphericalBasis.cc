@@ -45,7 +45,8 @@ SphericalBasis::valid_keys = {
   "playback",
   "coefCompute",
   "coefMaster",
-  "orthocheck"
+  "orthocheck",
+  "subsampleFloat"
 };
 
 SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) : 
@@ -491,7 +492,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	if (pcavar) {
 	  whch = indx % sampT;
 	  pthread_mutex_lock(&cc_lock);
-	  massT1[whch] += mass;
+	  countT1[whch] += 1;
+	  massT1 [whch] += mass;
 	  pthread_mutex_unlock(&cc_lock);
 	}
       }
@@ -679,23 +681,43 @@ void SphericalBasis::determine_coefficients_particles(void)
   //
   if (!self_consistent && !firstime_coef && !initializing) return;
 
+  // No covarance by default
+  //
+  compute = false;
+
+  // Subsample computation flag
+  //
+  if (nint) {
+    // Computed only for mstep==0 and every nint steps
+    if (mstep==0 and this_step % nint == 0) {
+      compute = true;
+      requestSubsample = true;
+    }
+    else {
+      requestSubsample  = false;
+      subsampleComputed = false;
+
+    }
+  }
+
   if (pcavar or pcaeof) {
     if (this_step >= npca0) 
       compute = (mstep == 0) && !( (this_step-npca0) % npca);
-    else
-      compute = false;
   }
-
 
   int loffset, moffset, use1;
 
   if (compute) {
+
+    requestSubsample = true;
 
     if (massT.size() == 0) {	// Allocate storage for subsampling
       if (defSampT) sampT = defSampT;
       else          sampT = floor(sqrt(component->CurTotal()));
       massT    .resize(sampT, 0);
       massT1   .resize(sampT, 0);
+      countT   .resize(sampT, 0);
+      countT1  .resize(sampT, 0);
       
       expcoefT .resize(sampT);
       for (auto & t : expcoefT ) {
@@ -734,6 +756,7 @@ void SphericalBasis::determine_coefficients_particles(void)
       if (pcavar) {
 	for (auto & t : expcoefT1) { for (auto & v : t) v->setZero(); }
 	for (auto & t : expcoefM1) { for (auto & v : t) v->setZero(); }
+	for (auto & v : countT1)   v = 0;
 	for (auto & v : massT1)    v = 0;
       }
 
@@ -889,6 +912,9 @@ void SphericalBasis::determine_coefficients_particles(void)
       for (int i=0; i<nthrds; i++) muse0 += muse1[i];
       MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       parallel_gather_coef2();
+
+      requestSubsample  = false;
+      subsampleComputed = true;
     }
 
     pca_hall(compute);
@@ -2348,3 +2374,88 @@ void SphericalBasis::biorthogonality_check()
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   }
 }
+
+PotAccel::CovarData SphericalBasis::getSubsample()
+{
+  using covTuple = std::tuple<Eigen::VectorXcd,
+			      Eigen::MatrixXcd>;
+  // Prepare the covariance structure
+  std::vector< std::vector<covTuple> > covar(sampT);
+
+  // Number of real angular terms l in [0, Lmax], m in [0, l]
+  int totL = (Lmax+1)*(Lmax+2)/2;
+
+  // Sanity check
+  if (expcoefT[0].size() != totL) {
+    std::ostringstream ss;
+    ss << "SphericalBasis::getSubsample() "
+       << "internal error: unexpected number of absolute angular terms, "
+       << expcoefT[0].size() << " != " << totL;
+    throw std::runtime_error(ss.str());
+  }
+
+  // Resize the covariance structure
+  for (auto & v : covar) v.resize(totL);
+
+  // Resize the sample counts and masses
+  sampleCounts.resize(sampT);
+  sampleMasses.resize(sampT);
+
+  // Fill the covariance structure with subsamples
+  for (int T=0; T<sampT; T++) {
+    Eigen::VectorXcd meanV = Eigen::VectorXcd::Zero(nmax);
+    Eigen::MatrixXcd covrV = Eigen::MatrixXcd::Zero(0,0);
+    if (fullCovar)   covrV = Eigen::MatrixXcd::Zero(nmax, nmax);
+
+    // l loop
+    for (int l=0, k=0; l<=Lmax; l++) {
+      // m loop
+      for (int m=0; m<=l; m++) {
+	// outer n loop
+	for (int n=0; n<nmax; n++) {
+	  meanV(n) = std::complex<double>((*expcoefT[T][k])(n));
+
+	  if (fullCovar) {
+	    // inner n loop
+	    for (int nn=0; nn<nmax; nn++) {
+	      covrV(n, nn) = std::complex<double>((*expcoefM[T][k])(n, nn));
+	    }
+	  }
+	}
+	// Assign data to return structure
+	covar[T][k++] = std::make_tuple(meanV, covrV);
+      }
+      // END: m loop
+    }
+    // END: l loop
+
+    sampleCounts[T] = countT[T];
+    sampleMasses[T] =  massT[T];
+  }
+  // END: T loop
+    
+  if (myid==0) {
+    std::cout << "SphericalBasis::getSubsample(): "
+	      << "returning " << sampT << " subsamples, "
+	      << (fullCovar ? "full" : "diagonal") << " covariance"
+	      << ", with counts=" << sampleCounts.size()*sizeof(int)
+	      << ", masses=" << sampleMasses.size()*sizeof(double)
+      	      << ", data="
+	      << covar.size()*covar[0].size()*
+      (std::get<0>(covar[0][0]).size() + std::get<1>(covar[0][0]).size())*sizeof(std::complex<double>)
+	      << std::endl;
+  }
+
+  return {sampleCounts, sampleMasses, covar};
+}
+
+
+void SphericalBasis::writeCovarH5Params(HighFive::File& file)
+{
+  file.createAttribute<int>("lmax", HighFive::DataSpace::From(Lmax)).write(Lmax);
+  file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+  file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
+  file.createAttribute<double>("rmin", HighFive::DataSpace::From(rmin)).write(rmin);
+  file.createAttribute<double>("rmax", HighFive::DataSpace::From(rmax)).write(rmax);
+}
+

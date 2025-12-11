@@ -43,6 +43,9 @@
     @param tk_type is the smoothing type, one of: Hall, VarianceCut, CumulativeCut, VarianceWeighted
     
     @param subsamp true sets partition variance computation (default: false)
+
+    @param nint is the step cadence for subsample variance computation
+    (default: 0, no subsampling)
 */
 class AxisymmetricBasis : public Basis
 {
@@ -76,6 +79,9 @@ protected:
 
   //! First step for PCA computation
   int npca0;
+
+  // Frequency of subsample computation
+  int nint = 0;
 
   //! Hall smoothing exponent (default: 1.0)
   double hexp;
@@ -125,6 +131,7 @@ protected:
 
   //@{
   //! Mass and counts for subsample covariance
+  std::vector<unsigned>             countT, countT1;
   std::vector<double>               massT, massT1;
   unsigned                          sampT, defSampT;
   //@}

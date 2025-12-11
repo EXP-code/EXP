@@ -205,7 +205,7 @@ protected:
   std::vector<unsigned> numbT;
   std::vector<double> massT;
   unsigned sampT, defSampT;
-
+  bool make_covar = false;
 
   std::vector<Eigen::MatrixXd> vc, vs;
 
