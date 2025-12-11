@@ -32,7 +32,7 @@ parameters:
   ncylodd: 3       # The number of anti-symmetric radial basis functions per azimuthal order m
   rnum: 32         # The number of radial integration knots in the inner product
   pnum: 0          # The number of azimuthal integration knots (pnum: 0, assume axisymmetric target density)
-  tnum: 16         # The number of colatitute integration knots
+  tnum: 16         # The number of colatitude integration knots
   ashift: 0.5      # Target shift length in scale lengths to create more variance
   vflag: 0         # Verbosity flag: print diagnostics to stdout for vflag>0
   logr: false      # Log scaling in cylindrical radius
@@ -248,9 +248,10 @@ def test_shuffle_parameter():
     """Test 5: Verify the shuffle parameter works (indirectly through successful cache creation)"""
     print("Test 5: Testing shuffle parameter...")
     
-    # Note: The shuffle parameter is set via setH5Params in C++ code, not directly via YAML config
-    # We test it indirectly by verifying that compression with default shuffle works
-    # The actual shuffle configuration is controlled internally and defaults to true
+    # Note: The shuffle parameter is set via setH5Params in C++ code (include/EmpCylSL.H:952),
+    # not directly via YAML config. We test it indirectly by verifying that compression with
+    # default shuffle works. The actual shuffle configuration is controlled internally and
+    # defaults to true as defined in the setH5Params method signature.
     
     test_dir = tempfile.mkdtemp(prefix="exp_test_shuffle_")
     cache_file = os.path.join(test_dir, ".eof.cache.shuffle")
