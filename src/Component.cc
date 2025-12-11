@@ -2510,21 +2510,21 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
     }
 
     dcpl1.add(HighFive::Chunking(chunk));
-    if (H5shuffle) dcpl1.add(HighFive::Shuffle());
+    if (H5shuffle && H5compress > 0) dcpl1.add(HighFive::Shuffle());
     dcpl1.add(HighFive::Deflate(H5compress));
 
     dcpl3.add(HighFive::Chunking(chunk, 3));
-    if (H5shuffle) dcpl3.add(HighFive::Shuffle());
+    if (H5shuffle && H5compress > 0) dcpl3.add(HighFive::Shuffle());
     dcpl3.add(HighFive::Deflate(H5compress));
 
     if (niattrib) {
       dcplI.add(HighFive::Chunking(chunk, niattrib));
-      if (H5shuffle) dcplI.add(HighFive::Shuffle());
+      if (H5shuffle && H5compress > 0) dcplI.add(HighFive::Shuffle());
       dcplI.add(HighFive::Deflate(H5compress));
     }
     if (ndattrib) {
       dcplD.add(HighFive::Chunking(chunk, ndattrib));
-      if (H5shuffle) dcplD.add(HighFive::Shuffle());
+      if (H5shuffle && H5compress > 0) dcplD.add(HighFive::Shuffle());
       dcplD.add(HighFive::Deflate(H5compress));
     }
   }
@@ -2652,7 +2652,7 @@ void Component::write_H5(H5::Group& group)
       if (H5compress) dcpl.setDeflate(H5compress);
 
       // Enable shuffle filter
-      if (H5shuffle) dcpl.setShuffle();
+      if (H5shuffle && H5compress > 0) dcpl.setShuffle();
     }
 
     // Create dataspace
