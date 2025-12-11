@@ -1262,7 +1262,8 @@ namespace BasisClasses
     "coefCompute",
     "coefMaster",
     "pyname",
-    "compress"
+    "compress",
+    "shuffle"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
@@ -1596,7 +1597,9 @@ namespace BasisClasses
     //
     if (conf["compress"]) {
       unsigned compress = conf["compress"].as<unsigned>();
-      sl->setH5Params(compress);
+      bool shuffle = true;
+      if (conf["shuffle"]) shuffle = conf["shuffle"].as<bool>();
+      sl->setH5Params(compress, shuffle);
     }
 
     // Cache override for old Eigen cache

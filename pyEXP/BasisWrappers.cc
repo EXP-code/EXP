@@ -1507,7 +1507,7 @@ void BasisFactoryClasses(py::module &m)
          Returns
          -------
          None
-         )", py::arg("compress")=5, py::arg("chunkSize")=1024*1024, py::arg("shuffle")=true, py::arg("azip")=false)
+         )", py::arg("compress")=5, py::arg("chunkSize")=1024*1024, py::arg("shuffle")=true, py::arg("szip")=false)
     .def("makeFromFunction", &BasisClasses::BiorthBasis::makeFromFunction,
 	 py::call_guard<py::gil_scoped_release>(),
 	 R"(
