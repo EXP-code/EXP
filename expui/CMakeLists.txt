@@ -56,6 +56,7 @@ target_sources(expui PUBLIC FILE_SET HEADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/BiorthBasis.H
 	${CMAKE_CURRENT_SOURCE_DIR}/BiorthBess.H
 	${CMAKE_CURRENT_SOURCE_DIR}/FieldGenerator.H
+	${CMAKE_CURRENT_SOURCE_DIR}/UnitValidator.H
 )		     
 
 # Make the exp config header part of the public install
