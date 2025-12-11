@@ -5166,10 +5166,12 @@ namespace BasisClasses
     auto dcpl3 = HighFive::DataSetCreateProps{}; // covariance
 
     // Properties for sample stats
+    // Note: Sample stats only use Deflate compression, not Szip
     if (H5compress) {
       unsigned int csz = sampleCounts.size();
       dcpl1.add(HighFive::Chunking({csz, 1}));
       // Only apply shuffle filter when compression is actually enabled
+      // H5compress > 0 check is explicit for clarity (redundant with outer if)
       if (H5shuffle && H5compress > 0) dcpl1.add(HighFive::Shuffle());
       dcpl1.add(HighFive::Deflate(H5compress));
     }
