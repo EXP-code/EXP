@@ -5170,7 +5170,7 @@ namespace BasisClasses
     if (H5compress > 0) {
       unsigned int csz = sampleCounts.size();
       dcpl1.add(HighFive::Chunking({csz, 1}));
-      // Only apply shuffle filter when compression is enabled (guaranteed by outer if)
+      // Only apply shuffle filter when Deflate compression is enabled (guaranteed by outer if)
       if (H5shuffle) dcpl1.add(HighFive::Shuffle());
       dcpl1.add(HighFive::Deflate(H5compress));
     }
