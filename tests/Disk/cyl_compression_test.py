@@ -13,10 +13,11 @@ This test suite verifies:
 
 import os
 import pyEXP
-import tempfile
-import shutil
+import tempfile                 # For creating temporary files and directories
+import shutil                   # For cleaning up temporary files and directories
 
 # Base configuration for disk basis
+#
 base_config_template = """
 ---
 id: cylinder
@@ -36,9 +37,8 @@ parameters:
   ashift: 0.5      # Target shift length in scale lengths to create more variance
   vflag: 0         # Verbosity flag: print diagnostics to stdout for vflag>0
   logr: false      # Log scaling in cylindrical radius
-  density: true    # Compute the density functions
-  eof_file: {eof_file}  # The cache file name
-  ignore: true
+  sech2: true      # Use standard defintion
+  cachename: {eof_file}  # The cache file name
   compress: {compress}  # Compression level (0-9)
 ...
 """
