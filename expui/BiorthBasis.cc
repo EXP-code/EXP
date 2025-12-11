@@ -5166,9 +5166,11 @@ namespace BasisClasses
     auto dcpl3 = HighFive::DataSetCreateProps{}; // covariance
 
     // Properties for sample stats
-    if (H5compress) {
+    // Note: Sample stats only use Deflate compression, not Szip
+    if (H5compress > 0) {
       unsigned int csz = sampleCounts.size();
       dcpl1.add(HighFive::Chunking({csz, 1}));
+      // Only apply shuffle filter when Deflate compression is enabled (guaranteed by outer if)
       if (H5shuffle) dcpl1.add(HighFive::Shuffle());
       dcpl1.add(HighFive::Deflate(H5compress));
     }
@@ -5207,7 +5209,7 @@ namespace BasisClasses
     stanza.createAttribute<unsigned>
       ("fullCovar", HighFive::DataSpace::From(icov)).write(icov);
 
-    if (H5compress) {
+    if (H5compress > 0 || H5szip) {
       // Szip parameters
       const int options_mask = H5_SZIP_NN_OPTION_MASK;
       const int pixels_per_block = 8;
@@ -5218,6 +5220,7 @@ namespace BasisClasses
       HighFive::Chunking data_dims2{std::min<unsigned>(csz2, H5chunk), 1};
 
       dcpl2.add(data_dims2);
+      // Only apply shuffle filter when compression is enabled (guaranteed by outer if)
       if (H5shuffle) dcpl2.add(HighFive::Shuffle());
       if (H5szip) {
 	dcpl2.add(HighFive::Szip(options_mask, pixels_per_block));
@@ -5231,6 +5234,7 @@ namespace BasisClasses
       HighFive::Chunking data_dims3{std::min<unsigned>(csz3, H5chunk), 1};
 
       dcpl3.add(data_dims3);
+      // Only apply shuffle filter when compression is enabled (guaranteed by outer if)
       if (H5shuffle) dcpl3.add(HighFive::Shuffle());
       if (H5szip) {
 	dcpl3.add(HighFive::Szip(options_mask, pixels_per_block));
