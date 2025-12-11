@@ -75,7 +75,8 @@ Cylinder::valid_keys = {
   "coefMaster",
   "pyname",
   "dumpbasis",
-  "compress"
+  "compress",
+  "shuffle"
 };
 
 Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
@@ -188,7 +189,9 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   // Set HDF5 compression parameters for cache files
   if (conf["compress"]) {
     unsigned compress = conf["compress"].as<unsigned>();
-    ortho->setH5Params(compress);
+    bool shuffle = true;
+    if (conf["shuffle"]) shuffle = conf["shuffle"].as<bool>();
+    ortho->setH5Params(compress, shuffle);
   }
 
   try {
