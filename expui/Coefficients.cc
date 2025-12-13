@@ -854,15 +854,9 @@ namespace CoefClasses
   
   bool SphCoefs::CheckH5Params(HighFive::File& file)
   {
-    if (coefs.empty()) {
-      if (myid==0)
-	std::cout << "---- SphCoefs::CheckH5Params: coefs is empty" << std::endl;
-      return false;
-    }
-
-    double scale0 = coefs.begin()->second->scale, scale1;
-    std::string forceID0(coefs.begin()->second->id), forceID1;
     int Lmax1, Nmax1;
+    double scale1;
+    std::string forceID1;
     
     file.getAttribute("lmax"   ).read(Lmax1   );
     file.getAttribute("nmax"   ).read(Nmax1   );
@@ -885,18 +879,26 @@ namespace CoefClasses
       ret = false;
     }
 
-    if (std::abs(scale0 - scale1) > 1.e-8 * std::max(std::abs(scale0), std::abs(scale1))) {
+    if (coefs.empty()) {
       if (myid==0)
-	std::cout << "---- SphCoefs::CheckH5Params: scale mismatch " << scale0
-		  << " != " << scale1 << std::endl;
-      ret = false;
-    }
+	std::cout << "---- SphCoefs::CheckH5Params: coefs is empty" << std::endl;
+    } else {
+      double scale0 = coefs.begin()->second->scale, scale1;
+      std::string forceID0(coefs.begin()->second->id), forceID1;
 
-    if (forceID0 != forceID1) {
-      if (myid==0)
-	std::cout << "---- SphCoefs::CheckH5Params: forceID mismatch <" << forceID0
-		  << "> != <" << forceID1 << ">" << std::endl;
-      ret = false;
+      if (std::abs(scale0 - scale1) > 1.e-8 * std::max(std::abs(scale0), std::abs(scale1))) {
+	if (myid==0)
+	  std::cout << "---- SphCoefs::CheckH5Params: scale mismatch " << scale0
+		    << " != " << scale1 << std::endl;
+	ret = false;
+      }
+
+      if (forceID0 != forceID1) {
+	if (myid==0)
+	  std::cout << "---- SphCoefs::CheckH5Params: forceID mismatch <" << forceID0
+		    << "> != <" << forceID1 << ">" << std::endl;
+	ret = false;
+      }
     }
     
     return ret;
@@ -1331,14 +1333,8 @@ namespace CoefClasses
   
   bool CylCoefs::CheckH5Params(HighFive::File& file)
   {
-    if (coefs.empty()) {
-      if (myid==0)
-	std::cout << "---- CylCoefs::CheckH5Params: coefs is empty" << std::endl;
-      return false;
-    }
-
-    std::string forceID0(coefs.begin()->second->id), forceID1;
     int Mmax1, Nmax1;
+    std::string forceID1;
 		
     file.getAttribute("mmax"   ).read(Mmax1   );
     file.getAttribute("nmax"   ).read(Nmax1   );
@@ -1360,11 +1356,18 @@ namespace CoefClasses
       ret = false;
     }
     
-    if (forceID0 != forceID1) {
+    if (coefs.empty()) {
       if (myid==0)
-	std::cout << "---- CylCoefs::CheckH5Params: forceID mismatch <" << forceID0
-		  << "> != <" << forceID1 << ">" << std::endl;
-      ret = false;
+	std::cout << "---- CylCoefs::CheckH5Params: coefs is empty" << std::endl;
+    } else {
+      std::string forceID0(coefs.begin()->second->id), forceID1;
+
+      if (forceID0 != forceID1) {
+	if (myid==0)
+	  std::cout << "---- CylCoefs::CheckH5Params: forceID mismatch <" << forceID0
+		    << "> != <" << forceID1 << ">" << std::endl;
+	ret = false;
+      }
     }
     
     return ret;
@@ -1707,14 +1710,8 @@ namespace CoefClasses
   
   bool SlabCoefs::CheckH5Params(HighFive::File& file)
   {
-    if (coefs.empty()) {
-      if (myid==0)
-	std::cout << "---- SlabCoefs::CheckH5Params: coefs is empty" << std::endl;
-      return false;
-    }
-
-    std::string forceID0(coefs.begin()->second->id), forceID1;
     int NmaxX1, NmaxY1, NmaxZ1;
+    std::string forceID1;
 	
     file.getAttribute("nmaxx"  ).read(NmaxX1  );
     file.getAttribute("nmaxy"  ).read(NmaxY1  );
@@ -1744,12 +1741,20 @@ namespace CoefClasses
       ret = false;
     }
 
-    if (forceID0 != forceID1) {
+    if (coefs.empty()) {
       if (myid==0)
-	std::cout << "---- SlabCoefs::CheckH5Params: forceID mismatch <" << forceID0
-		  << "> != <" << forceID1 << ">" << std::endl;
-      ret = false;
+	std::cout << "---- SlabCoefs::CheckH5Params: coefs is empty" << std::endl;
+    } else {
+      std::string forceID0(coefs.begin()->second->id), forceID1;
+
+      if (forceID0 != forceID1) {
+	if (myid==0)
+	  std::cout << "---- SlabCoefs::CheckH5Params: forceID mismatch <" << forceID0
+		    << "> != <" << forceID1 << ">" << std::endl;
+	ret = false;
+      }
     }
+    
     return ret;
   }
   
@@ -2118,14 +2123,8 @@ namespace CoefClasses
   
   bool CubeCoefs::CheckH5Params(HighFive::File& file)
   {
-    if (coefs.empty()) {
-      if (myid==0)
-	std::cout << "---- CubeCoefs::CheckH5Params: coefs is empty" << std::endl;
-      return false;
-    }
-
-    std::string forceID0(coefs.begin()->second->id), forceID1;
     int NmaxX1, NmaxY1, NmaxZ1;
+    std::string forceID1;
 		
     file.getAttribute("nmaxx"  ).read(NmaxX1  );
     file.getAttribute("nmaxy"  ).read(NmaxY1  );
@@ -2154,11 +2153,19 @@ namespace CoefClasses
 		  << " != " << NmaxZ1 << std::endl;
       ret = false;
     }
-    if (forceID0 != forceID1) {
+
+    if (coefs.empty()) {
       if (myid==0)
-	std::cout << "---- CubeCoefs::CheckH5Params: forceID mismatch <" << forceID0
-		  << "> != <" << forceID1 << ">" << std::endl;
-      ret = false;
+	std::cout << "---- CubeCoefs::CheckH5Params: coefs is empty" << std::endl;
+    } else {
+      std::string forceID0(coefs.begin()->second->id), forceID1;
+
+      if (forceID0 != forceID1) {
+	if (myid==0)
+	  std::cout << "---- CubeCoefs::CheckH5Params: forceID mismatch <" << forceID0
+		    << "> != <" << forceID1 << ">" << std::endl;
+	ret = false;
+      }
     }
 
     return ret;
@@ -2793,17 +2800,15 @@ namespace CoefClasses
   
   bool TableData::CheckH5Params(HighFive::File& file)
   {
-    int cols1;
-		
-    file.getAttribute("cols").read(cols1  );
-
     if (coefs.empty()) {
       if (myid==0)
 	std::cout << "---- TableData::CheckH5Params: coefs is empty" << std::endl;
-      return false;
+      return true;
     }
 
-    int cols0 = coefs.begin()->second->cols;
+    int cols1, cols0 = coefs.begin()->second->cols;
+
+    file.getAttribute("cols").read(cols1  );
 
     bool ret = true;
     if (cols0 != cols1) {
@@ -3497,8 +3502,7 @@ namespace CoefClasses
     }
     
     // Use relative tolerance for floating-point comparison
-    const double scale_epsilon = 1e-8;
-    if (std::abs(scale0 - scale1) > scale_epsilon * std::max(1.0, std::max(std::abs(scale0), std::abs(scale1)))) {
+    if (std::abs(scale0 - scale1) > 1.0e-08 * std::max(std::abs(scale0), std::abs(scale1))) {
       if (myid==0)
 	std::cout << "---- SphFldCoefs::CheckH5Params: scale mismatch " << scale0
 		  << " != " << scale1 << std::endl;
@@ -3685,7 +3689,7 @@ namespace CoefClasses
       ret = false;
     }
 
-    if (scale0 != scale1) {
+    if (std::abs(scale0 - scale1) > 1.0e-8*std::max(std::abs(scale0), std::abs(scale1))) {
       if (myid==0)
 	std::cout << "---- CylFldCoefs::CheckH5Params: scale mismatch " << scale0
 		  << " != " << scale1 << std::endl;
