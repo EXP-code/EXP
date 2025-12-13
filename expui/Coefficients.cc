@@ -3427,7 +3427,6 @@ namespace CoefClasses
   {
     double scale0 = coefs.begin()->second->scale, scale1;
     int nfld1, lmax1, nmax1, dof1;
-		
     file.getAttribute("nfld" ).read(nfld1 );
     file.getAttribute("lmax" ).read(lmax1 );
     file.getAttribute("nmax" ).read(nmax1 );
