@@ -854,6 +854,12 @@ namespace CoefClasses
   
   bool SphCoefs::CheckH5Params(HighFive::File& file)
   {
+    if (coefs.empty()) {
+      if (myid==0)
+	std::cout << "---- SphCoefs::CheckH5Params: coefs is empty" << std::endl;
+      return false;
+    }
+
     double scale0 = coefs.begin()->second->scale, scale1;
     std::string forceID0(coefs.begin()->second->id), forceID1;
     int Lmax1, Nmax1;
@@ -1325,6 +1331,12 @@ namespace CoefClasses
   
   bool CylCoefs::CheckH5Params(HighFive::File& file)
   {
+    if (coefs.empty()) {
+      if (myid==0)
+	std::cout << "---- CylCoefs::CheckH5Params: coefs is empty" << std::endl;
+      return false;
+    }
+
     std::string forceID0(coefs.begin()->second->id), forceID1;
     int Mmax1, Nmax1;
 		
@@ -1695,6 +1707,12 @@ namespace CoefClasses
   
   bool SlabCoefs::CheckH5Params(HighFive::File& file)
   {
+    if (coefs.empty()) {
+      if (myid==0)
+	std::cout << "---- SlabCoefs::CheckH5Params: coefs is empty" << std::endl;
+      return false;
+    }
+
     std::string forceID0(coefs.begin()->second->id), forceID1;
     int NmaxX1, NmaxY1, NmaxZ1;
 	
@@ -2100,6 +2118,12 @@ namespace CoefClasses
   
   bool CubeCoefs::CheckH5Params(HighFive::File& file)
   {
+    if (coefs.empty()) {
+      if (myid==0)
+	std::cout << "---- CubeCoefs::CheckH5Params: coefs is empty" << std::endl;
+      return false;
+    }
+
     std::string forceID0(coefs.begin()->second->id), forceID1;
     int NmaxX1, NmaxY1, NmaxZ1;
 		
@@ -2773,6 +2797,12 @@ namespace CoefClasses
 		
     file.getAttribute("cols").read(cols1  );
 
+    if (coefs.empty()) {
+      if (myid==0)
+	std::cout << "---- TableData::CheckH5Params: coefs is empty" << std::endl;
+      return false;
+    }
+
     int cols0 = coefs.begin()->second->cols;
 
     bool ret = true;
@@ -3425,6 +3455,12 @@ namespace CoefClasses
   
   bool SphFldCoefs::CheckH5Params(HighFive::File& file)
   {
+    if (coefs.empty()) {
+      if (myid==0)
+	std::cout << "---- SphFldCoefs::CheckH5Params: coefs is empty" << std::endl;
+      return false;
+    }
+
     double scale0 = coefs.begin()->second->scale, scale1;
     int nfld1, lmax1, nmax1, dof1;
 		
@@ -3605,6 +3641,12 @@ namespace CoefClasses
   
   bool CylFldCoefs::CheckH5Params(HighFive::File& file)
   {
+    if (coefs.empty()) {
+      if (myid==0)
+	std::cout << "---- CylFldCoefs::CheckH5Params: coefs is empty" << std::endl;
+      return false;
+    }
+
     double scale0 = coefs.begin()->second->scale, scale1;
     int nfld1, mmax1, nmax1, dof1;
 		
