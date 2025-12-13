@@ -97,6 +97,9 @@ namespace CoefClasses
     //! Write parameter attributes (needed for derived classes)
     virtual void WriteH5Params(HighFive::File& file) = 0;
     
+    //! Checking file for parameter consistency
+    virtual bool CheckH5Params(HighFive::File& file) = 0;
+
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count) = 0;
     
@@ -311,6 +314,9 @@ namespace CoefClasses
     //! Write parameter attributes
     virtual void WriteH5Params(HighFive::File& file);
     
+    //! Check parameter attributes
+    virtual bool CheckH5Params(HighFive::File& file);
+    
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
@@ -446,6 +452,9 @@ namespace CoefClasses
     
     //! Write parameter attributes
     virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Check parameter attributes; returns true for success
+    virtual bool CheckH5Params(HighFive::File& file);
     
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
@@ -593,6 +602,9 @@ namespace CoefClasses
     //! Write parameter attributes
     virtual void WriteH5Params(HighFive::File& file);
     
+    //! Check parameter attributes
+    virtual bool CheckH5Params(HighFive::File& file);
+    
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
@@ -724,6 +736,9 @@ namespace CoefClasses
     //! Write parameter attributes
     virtual void WriteH5Params(HighFive::File& file);
     
+    //! Check parameter attributes
+    virtual bool CheckH5Params(HighFive::File& file);
+    
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
@@ -849,6 +864,9 @@ namespace CoefClasses
     //! Write parameter attributes
     virtual void WriteH5Params(HighFive::File& file);
     
+    //! Check parameter attributes
+    virtual bool CheckH5Params(HighFive::File& file);
+    
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
@@ -957,6 +975,9 @@ namespace CoefClasses
     
     //! Write parameter attributes
     virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Check parameter attributes
+    virtual bool CheckH5Params(HighFive::File& file);
     
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
@@ -1071,6 +1092,9 @@ namespace CoefClasses
     
     //! Write parameter attributes
     virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Check parameter attributes
+    virtual bool CheckH5Params(HighFive::File& file);
     
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
@@ -1201,6 +1225,9 @@ namespace CoefClasses
     
     //! Write parameter attributes
     virtual void WriteH5Params(HighFive::File& file);
+    
+    //! Check parameter attributes
+    virtual bool CheckH5Params(HighFive::File& file);
     
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
