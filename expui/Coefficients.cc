@@ -283,6 +283,18 @@ namespace CoefClasses
 
       auto in = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
 
+      // Sanity check on shape
+      //
+      if (in.rows() != (Lmax+1)*(Lmax+2)/2 or in.cols() != Nmax) {
+	if (myid==0) {
+	  std::cout << "---- SphCoefs WARNING: skipping time=" << Time
+		    << " with shape (" << in.rows() << ", " << in.cols() << ")"
+		    << " expected (" << (Lmax+1)*(Lmax+2)/2
+		    << ", " << Nmax << ")" << std::endl;
+	}
+	continue;
+      }
+      
       // If we have a legacy set of coefficients, re-order the
       // coefficients to match the new HighFive/Eigen ordering
       //
@@ -840,6 +852,50 @@ namespace CoefClasses
     file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
   }
   
+  bool SphCoefs::CheckH5Params(HighFive::File& file)
+  {
+    double scale0 = coefs.begin()->second->scale, scale1;
+    std::string forceID0(coefs.begin()->second->id), forceID1;
+    int Lmax1, Nmax1;
+    
+    file.getAttribute("lmax"   ).read(Lmax1   );
+    file.getAttribute("nmax"   ).read(Nmax1   );
+    file.getAttribute("scale"  ).read(scale1  );
+    file.getAttribute("forceID").read(forceID1);
+
+    bool ret = true;
+
+    if (Lmax != Lmax1) {
+      if (myid==0)
+	std::cout << "---- SphCoefs::CheckH5Params: Lmax mismatch " << Lmax
+		  << " != " << Lmax1 << std::endl;
+      ret = false;
+    }
+
+    if (Nmax != Nmax1) {
+      if (myid==0)
+	std::cout << "---- SphCoefs::CheckH5Params: Nmax mismatch " << Nmax
+		  << " != " << Nmax1 << std::endl;
+      ret = false;
+    }
+
+    if (std::abs(scale0 - scale1)/scale0 > 1.e-8) {
+      if (myid==0)
+	std::cout << "---- SphCoefs::CheckH5Params: scale mismatch " << scale0
+		  << " != " << scale1 << std::endl;
+      ret = false;
+    }
+
+    if (forceID0 != forceID1) {
+      if (myid==0)
+	std::cout << "---- SphCoefs::CheckH5Params: forceID mismatch <" << forceID0
+		  << "> != <" << forceID1 << ">" << std::endl;
+      ret = false;
+    }
+    
+    return ret;
+  }
+  
   unsigned SphCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
   {
     for (auto c : coefs) {
@@ -1064,6 +1120,17 @@ namespace CoefClasses
 
       auto in = stanza.getDataSet("coefficients").read<Eigen::MatrixXcd>();
 
+      // Sanity check on shape
+      //
+      if (in.rows() != Mmax+1 or in.cols() != Nmax) {
+	if (myid==0)
+	  std::cout << "---- CylCoefs WARNING: skipping time=" << Time
+		    << " with shape (" << in.rows() << ", " << in.cols() << ")"
+		    << " expected (" << Mmax+1 << ", " << Nmax << ")"
+		    << std::endl;
+	continue;
+      }
+
       // If we have a legacy set of coefficients, re-order the
       // coefficients to match the new HighFive/Eigen ordering
       //
@@ -1256,6 +1323,41 @@ namespace CoefClasses
     file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
   }
   
+  bool CylCoefs::CheckH5Params(HighFive::File& file)
+  {
+    std::string forceID0(coefs.begin()->second->id), forceID1;
+    int Mmax1, Nmax1;
+		
+    file.getAttribute("mmax"   ).read(Mmax1   );
+    file.getAttribute("nmax"   ).read(Nmax1   );
+    file.getAttribute("forceID").read(forceID1);
+
+    bool ret = true;
+
+    if (Mmax != Mmax1) {
+      if (myid==0)
+	std::cout << "---- CylCoefs::CheckH5Params: Mmax mismatch " << Mmax
+		  << " != " << Mmax1 << std::endl;
+      ret = false;
+    }
+
+    if (Nmax != Nmax1) {
+      if (myid==0)
+	std::cout << "---- CylCoefs::CheckH5Params: Nmax mismatch " << Nmax
+		  << " != " << Nmax1 << std::endl;
+      ret = false;
+    }
+    
+    if (forceID0 != forceID1) {
+      if (myid==0)
+	std::cout << "---- CylCoefs::CheckH5Params: forceID mismatch <" << forceID0
+		  << "> != <" << forceID1 << ">" << std::endl;
+      ret = false;
+    }
+    
+    return ret;
+  }
+
   unsigned CylCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
   {
     for (auto c : coefs) {
@@ -1589,6 +1691,48 @@ namespace CoefClasses
     file.createAttribute<int>("nmaxy", HighFive::DataSpace::From(NmaxY)).write(NmaxY);
     file.createAttribute<int>("nmaxz", HighFive::DataSpace::From(NmaxZ)).write(NmaxZ);
     file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
+  }
+  
+  bool SlabCoefs::CheckH5Params(HighFive::File& file)
+  {
+    std::string forceID0(coefs.begin()->second->id), forceID1;
+    int NmaxX1, NmaxY1, NmaxZ1;
+		
+    file.getAttribute("nmaxx"  ).read(NmaxX1  );
+    file.getAttribute("nmaxy"  ).read(NmaxY1  );
+    file.getAttribute("nmaxz"  ).read(NmaxZ1  );
+    file.getAttribute("forceID").read(forceID1);
+
+    bool ret = true;
+
+    if (NmaxX != NmaxX1) {
+      if (myid==0)
+	std::cout << "---- SlabCoefs::CheckH5Params: NmaxX mismatch " << NmaxX
+		  << " != " << NmaxX1 << std::endl;
+      ret = false;
+    }
+
+    if (NmaxY != NmaxY1) {
+      if (myid==0)
+	std::cout << "---- SlabCoefs::CheckH5Params: NmaxY mismatch " << NmaxY
+		  << " != " << NmaxY1 << std::endl;
+      ret = false;
+    }
+    
+    if (NmaxZ != NmaxZ1) {
+      if (myid==0)
+	std::cout << "---- SlabCoefs::CheckH5Params: NmaxZ mismatch " << NmaxZ
+		  << " != " << NmaxZ1 << std::endl;
+      ret = false;
+    }
+
+    if (forceID0 != forceID1) {
+      if (myid==0)
+	std::cout << "---- SlabCoefs::CheckH5Params: forceID mismatch <" << forceID0
+		  << "> != <" << forceID1 << ">" << std::endl;
+      ret = false;
+    }
+    return ret;
   }
   
   unsigned SlabCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
@@ -1954,6 +2098,48 @@ namespace CoefClasses
     file.createAttribute<std::string>("forceID", HighFive::DataSpace::From(forceID)).write(forceID);
   }
   
+  bool CubeCoefs::CheckH5Params(HighFive::File& file)
+  {
+    std::string forceID0(coefs.begin()->second->id), forceID1;
+    int NmaxX1, NmaxY1, NmaxZ1;
+		
+    file.getAttribute("nmaxx"  ).read(NmaxX1  );
+    file.getAttribute("nmaxy"  ).read(NmaxY1  );
+    file.getAttribute("nmaxz"  ).read(NmaxZ1  );
+    file.getAttribute("forceID").read(forceID1);
+
+    bool ret = true;
+
+    if (NmaxX != NmaxX1) {
+      if (myid==0)
+	std::cout << "---- CubeCoefs::CheckH5Params: NmaxX mismatch " << NmaxX
+		  << " != " << NmaxX1 << std::endl;
+      ret = false;
+    }
+
+    if (NmaxY != NmaxY1) {
+      if (myid==0)
+	std::cout << "---- CubeCoefs::CheckH5Params: NmaxY mismatch " << NmaxY
+		  << " != " << NmaxY1 << std::endl;
+      ret = false;
+    }
+
+    if (NmaxZ != NmaxZ1) {
+      if (myid==0)
+	std::cout << "---- CubeCoefs::CheckH5Params: NmaxZ mismatch " << NmaxZ
+		  << " != " << NmaxZ1 << std::endl;
+      ret = false;
+    }
+    if (forceID0 != forceID1) {
+      if (myid==0)
+	std::cout << "---- CubeCoefs::CheckH5Params: forceID mismatch <" << forceID0
+		  << "> != <" << forceID1 << ">" << std::endl;
+      ret = false;
+    }
+
+    return ret;
+  }
+
   unsigned CubeCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
   {
     for (auto c : coefs) {
@@ -2308,6 +2494,35 @@ namespace CoefClasses
     file.createAttribute<int>("rank", HighFive::DataSpace::From(rank)).write(rank);
   }
   
+  bool TrajectoryData::CheckH5Params(HighFive::File& file)
+  {
+    int traj1, rank1;
+		
+    file.getAttribute("traj").read(traj1);
+    file.getAttribute("rank").read(rank1);
+
+    int traj0 = coefs.begin()->second->traj;
+    int rank0 = coefs.begin()->second->rank;
+
+    bool ret = true;
+    
+    if (traj0 != traj1) {
+      if (myid==0)
+	std::cout << "---- TrajectoryData::CheckH5Params: traj mismatch " << traj0
+		  << " != " << traj1 << std::endl;
+      ret = false;
+    }
+
+    if (rank0 != rank1) {
+      if (myid==0)
+	std::cout << "---- TrajectoryData::CheckH5Params: rank mismatch " << rank0
+		  << " != " << rank1 << std::endl;
+      ret = false;
+    }
+
+    return ret;
+  }
+
   unsigned TrajectoryData::WriteH5Times(HighFive::Group& snaps, unsigned count)
   {
     snaps.createDataSet("times", times);
@@ -2552,6 +2767,26 @@ namespace CoefClasses
     file.createAttribute<int>("cols", HighFive::DataSpace::From(cols)).write(cols);
   }
   
+  bool TableData::CheckH5Params(HighFive::File& file)
+  {
+    int cols1;
+		
+    file.getAttribute("cols").read(cols1  );
+
+    int cols0 = coefs.begin()->second->cols;
+
+    bool ret = true;
+		
+    if (cols0 != cols1) {
+      if (myid==0)
+	std::cout << "---- TableData::CheckH5Params: cols mismatch " << cols0
+		  << " != " << cols1 << std::endl;
+      ret = false;
+    }
+
+    return ret;
+  }
+
   unsigned TableData::WriteH5Times(HighFive::Group& snaps, unsigned count)
   {
     snaps.createDataSet("times", times);
@@ -2899,7 +3134,15 @@ namespace CoefClasses
       //
       ReadH5Units(file);
 
+      // Check the specific parameters
+      //
+      if (not CheckH5Params(file)) {
+	throw std::runtime_error("Coefs::ExtendH5Coefs: "
+				 "H5 parameter check failed, aborting extension");
+      }
+
       // Get the dataset
+      //
       HighFive::DataSet dataset = file.getDataSet("count");
       
       unsigned count;
@@ -3181,6 +3424,61 @@ namespace CoefClasses
     file.createAttribute<int>   ("dof",   HighFive::DataSpace::From(dof)   ).write(dof);
   }
   
+  bool SphFldCoefs::CheckH5Params(HighFive::File& file)
+  {
+    double scale0 = coefs.begin()->second->scale, scale1;
+    int nfld1, lmax1, nmax1, dof1;
+		
+    file.getAttribute("nfld" ).read(nfld1 );
+    file.getAttribute("lmax" ).read(lmax1 );
+    file.getAttribute("nmax" ).read(nmax1 );
+    file.getAttribute("scale").read(scale1);
+    file.getAttribute("dof"  ).read(dof1  );
+
+    int nfld0 = Nfld;
+    int lmax0 = Lmax;
+    int nmax0 = Nmax;
+    int dof0  = dof;
+
+    bool ret = true;
+		
+    if (nfld0 != nfld1) {
+      if (myid==0)
+	std::cout << "---- SphFldCoefs::CheckH5Params: nfld mismatch " << nfld0
+		  << " != " << nfld1 << std::endl;
+      ret = false;
+    }
+
+    if (lmax0 != lmax1) {
+      if (myid==0)
+	std::cout << "---- SphFldCoefs::CheckH5Params: lmax mismatch " << lmax0
+		  << " != " << lmax1 << std::endl;
+      ret = false;
+    }
+    if (nmax0 != nmax1) {
+      if (myid==0)
+	std::cout << "---- SphFldCoefs::CheckH5Params: nmax mismatch " << nmax0
+		  << " != " << nmax1 << std::endl;
+      ret = false;
+    }
+    
+    if (scale0 != scale1) {
+      if (myid==0)
+	std::cout << "---- SphFldCoefs::CheckH5Params: scale mismatch " << scale0
+		  << " != " << scale1 << std::endl;
+      ret = false;
+    }
+
+    if (dof0 != dof1) {
+      if (myid==0)
+	std::cout << "---- SphFldCoefs::CheckH5Params: dof mismatch " << dof0
+		  << " != " << dof1 << std::endl;
+      ret = false;
+    }
+
+    return ret;
+  }
+
   unsigned SphFldCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
   {
     for (auto c : coefs) {
@@ -3306,6 +3604,62 @@ namespace CoefClasses
     file.createAttribute<int>   ("dof",   HighFive::DataSpace::From(dof)   ).write(dof);
   }
   
+  bool CylFldCoefs::CheckH5Params(HighFive::File& file)
+  {
+    double scale0 = coefs.begin()->second->scale, scale1;
+    int nfld1, mmax1, nmax1, dof1;
+		
+    file.getAttribute("nfld" ).read(nfld1 );
+    file.getAttribute("mmax" ).read(mmax1 );
+    file.getAttribute("nmax" ).read(nmax1 );
+    file.getAttribute("scale").read(scale1);
+    file.getAttribute("dof"  ).read(dof1  );
+
+    int nfld0 = Nfld;
+    int mmax0 = Mmax;
+    int nmax0 = Nmax;
+    int dof0  = dof;
+    
+    bool ret = true;
+		
+    if (nfld0 != nfld1) {
+      if (myid==0)
+	std::cout << "---- CylFldCoefs::CheckH5Params: nfld mismatch " << nfld0
+		  << " != " << nfld1 << std::endl;
+      ret = false;
+    }
+
+    if (mmax0 != mmax1) {
+      if (myid==0)
+	std::cout << "---- CylFldCoefs::CheckH5Params: mmax mismatch " << mmax0
+		  << " != " << mmax1 << std::endl;
+      ret = false;
+    }
+
+    if (nmax0 != nmax1) {
+      if (myid==0)
+	std::cout << "---- CylFldCoefs::CheckH5Params: nmax mismatch " << nmax0
+		  << " != " << nmax1 << std::endl;
+      ret = false;
+    }
+
+    if (scale0 != scale1) {
+      if (myid==0)
+	std::cout << "---- CylFldCoefs::CheckH5Params: scale mismatch " << scale0
+		  << " != " << scale1 << std::endl;
+      ret = false;
+    }
+
+    if (dof0 != dof1) {
+      if (myid==0)
+	std::cout << "---- CylFldCoefs::CheckH5Params: dof mismatch " << dof0
+		  << " != " << dof1 << std::endl;
+      ret = false;
+    }
+
+    return ret;
+  }
+
   unsigned CylFldCoefs::WriteH5Times(HighFive::Group& snaps, unsigned count)
   {
     for (auto c : coefs) {
