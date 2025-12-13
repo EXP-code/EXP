@@ -3460,7 +3460,9 @@ namespace CoefClasses
       ret = false;
     }
     
-    if (scale0 != scale1) {
+    // Use relative tolerance for floating-point comparison
+    const double scale_epsilon = 1e-8;
+    if (std::abs(scale0 - scale1) > scale_epsilon * std::max(1.0, std::max(std::abs(scale0), std::abs(scale1)))) {
       if (myid==0)
 	std::cout << "---- SphFldCoefs::CheckH5Params: scale mismatch " << scale0
 		  << " != " << scale1 << std::endl;
