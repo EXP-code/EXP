@@ -8,12 +8,22 @@
 
 #include "coef.H"		// Old original header
 #include "CoefStruct.H"		// New coefficient structure
+#include "Coefficients.H"	// Coefficient container
 
 namespace CoefClasses
 {
   
+  double CoefStruct::getGravConstant()
+  {
+    if (C != nullptr)
+      return C->getGravConstant();
+    else
+      return G;
+  }
+  
   void CoefStruct::copyfields(std::shared_ptr<CoefStruct> ret)
   {
+    ret->C     = C;
     ret->buf   = buf;
     ret->geom  = geom;
     ret->id    = id;
@@ -100,12 +110,13 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("CylStruct::deepcopy dimension mismatch",
-	    (mmax+1)*nmax == store.size()));
+    assert((mmax+1)*nmax == store.size() && "CylStruct::deepcopy dimension mismatch");
 
+    ret->C     = C;
     ret->coefs = std::make_shared<coefType>(ret->store.data(), mmax+1, nmax);
     ret->mmax  = mmax;
     ret->nmax  = nmax;
+    ret->G     = G;
 
     return ret;
   }
@@ -116,15 +127,16 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("SphStruct::deepcopy dimension mismatch",
-	    (lmax+1)*(lmax+2)/2*nmax == store.size()));
+    assert((lmax+1)*(lmax+2)/2*nmax == store.size() && "SphStruct::deepcopy dimension mismatch");
 
+    ret->C      = C;
     ret->coefs  = std::make_shared<coefType>
       (ret->store.data(), (lmax+1)*(lmax+2)/2, nmax);
     ret->lmax   = lmax;
     ret->nmax   = nmax;
     ret->scale  = scale;
     ret->normed = normed;
+    ret->G      = G;
 
     return ret;
   }
@@ -135,8 +147,9 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("SlabStruct::deepcopy dimension mismatch", dim == store.size()));
+    assert((dim == store.size()) && "SlabStruct::deepcopy dimension mismatch");
 
+    ret->C      = C;
     ret->coefs  = std::make_shared<coefType>(ret->store.data(), nx, ny, nz);
     ret->nmaxx  = nmaxx;
     ret->nmaxy  = nmaxy;
@@ -145,6 +158,7 @@ namespace CoefClasses
     ret->ny     = ny;
     ret->nz     = nz;
     ret->dim    = dim;
+    ret->G      = G;
 
     return ret;
   }
@@ -155,8 +169,9 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("CubeStruct::deepcopy dimension mismatch", dim == store.size()));
+    assert((dim == store.size()) && "CubeStruct::deepcopy dimension mismatch");
 
+    ret->C      = C;
     ret->coefs  = std::make_shared<coefType>(ret->store.data(), nx, ny, nz);
     ret->nmaxx  = nmaxx;
     ret->nmaxy  = nmaxy;
@@ -165,6 +180,7 @@ namespace CoefClasses
     ret->ny     = ny;
     ret->nz     = nz;
     ret->dim    = dim;
+    ret->G      = G;
 
     return ret;
   }
@@ -175,10 +191,9 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("TblStruct::deepcopy dimension mismatch",
-	    cols == store.size()));
+    assert((cols == store.size()) && "TblStruct::deepcopy dimension mismatch");
 
-
+    ret->C     = C;
     ret->coefs = std::make_shared<coefType>(ret->store.data(), cols);
     ret->cols  = cols;
 
@@ -191,10 +206,9 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("TrajStruct::deepcopy dimension mismatch",
-	    traj*rank == store.size()));
+    assert((traj*rank == store.size()) && "TrajStruct::deepcopy dimension mismatch");
 
-
+    ret->C     = C;
     ret->coefs = std::make_shared<coefType>(ret->store.data(), traj, rank);
     ret->traj  = traj;
     ret->rank  = rank;
@@ -208,9 +222,9 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("SphFldStruct::deepcopy dimension mismatch",
-	    nfld*(lmax+1)*(lmax+2)/2*nmax == store.size()));
+    assert(nfld*(lmax+1)*(lmax+2)/2*nmax == store.size() && "SphFldStruct::deepcopy dimension mismatch");
 
+    ret->C      = C;
     ret->coefs  = std::make_shared<coefType>
       (ret->store.data(), nfld, (lmax+1)*(lmax+2)/2, nmax);
     ret->nfld   = nfld;
@@ -227,9 +241,9 @@ namespace CoefClasses
 
     copyfields(ret);
 
-    assert(("CylFldStruct::deepcopy dimension mismatch",
-	    nfld*(mmax+1)*nmax == store.size()));
+    assert((nfld*(mmax+1)*nmax == store.size()) && "CylFldStruct::deepcopy dimension mismatch");
 
+    ret->C      = C;
     ret->coefs  = std::make_shared<coefType>
       (ret->store.data(), nfld, mmax+1, nmax);
     ret->nfld   = nfld;

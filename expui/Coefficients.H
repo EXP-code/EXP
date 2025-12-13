@@ -6,8 +6,9 @@
 
 // Needed by member functions for writing parameters and stanzas
 #include <highfive/H5File.hpp>
+#include <highfive/H5Group.hpp>
 
-#include <Eigen/Eigen>	      // Store coefficient matrices and 2d grids
+#include <Eigen/Eigen>	    // Store coefficient matrices and 2d grids
 #include <unsupported/Eigen/CXX11/Tensor> // For 3d rectangular grids?
 
 // YAML support
@@ -16,6 +17,10 @@
 // The EXP native coefficient classes
 #include "CoefStruct.H"
 
+// Unit validation
+#include "UnitValidator.H"
+
+// All coefficient classes are in this namespace
 namespace CoefClasses
 { 
   //! An index key
@@ -24,8 +29,30 @@ namespace CoefClasses
   using E2d = 
   Eigen::Matrix<std::complex<double>,
 		Eigen::Dynamic,	Eigen::Dynamic,	Eigen::ColMajor>;
-    
+  
   using E3d = Eigen::Tensor<std::complex<double>, 3>;
+
+  // A struct for a single unit metadatum
+  struct Unit
+  {
+    char name[16];		//! The name of the physical value in ascii
+    char unit[16];		//! The unit type in ascii
+    float value;			//! The value as a float
+
+    Unit() { std::memset(name, 0, 16); std::memset(unit, 0, 16); value=0.0f; }
+
+    Unit(std::string n, std::string u, float v) : value(v)
+    {
+      // Constant string size
+      const size_t sz=16;
+      // Zero fill
+      std::memset(name, 0, sz); std::memset(unit, 0, sz);
+      // Copy strings to char arrays
+      strncpy(name, n.c_str(), std::min(n.length()+1, sz));
+      strncpy(unit, u.c_str(), std::min(u.length()+1, sz));
+    }
+
+  };
 
   /** 
       Abstract class for any type of coefficient database
@@ -89,6 +116,15 @@ namespace CoefClasses
 
     //! Time offset for interpolation
     double deltaT;
+
+    //! Default units (EXP native)
+    std::vector<Unit> units {{"G", "none", 1.0f}};
+
+    //! Unit validator
+    static UnitValidator check;
+
+    //! Units required for HDF5
+    virtual bool unitsRequired() { return true; }
 
   public:
     
@@ -200,6 +236,51 @@ namespace CoefClasses
 
     //! Set maximum grid interpolation offset
     void setDeltaT(double dT) { deltaT = dT; }
+
+    //! Set units
+    void setUnits
+    (const std::string name, const std::string unit, const float value);
+
+    //! Set units using a vector of tuples (name, unit, value)
+    void setUnits
+    (const std::vector<std::tuple<std::string, std::string, float>>& units);
+
+    //! Remove a unit by name
+    void removeUnits(const std::string name);
+
+    //! Write units to H5
+    void WriteH5Units(HighFive::File& file);
+
+    //! Read units from H5
+    void ReadH5Units(HighFive::File& file);
+
+    //! Get units
+    std::vector<std::tuple<std::string, std::string, float>> getUnits();
+
+    //! Get allowed unit types
+    const std::vector<std::string> getAllowedUnitTypes() const
+    {
+      return check.getAllowedTypes();
+    }
+    
+    //! Get allowed aliases for each type
+    const std::vector<std::string>
+    getAllowedTypeAliases(const std::string& type) const
+    {
+      return check.getAllowedTypeAliases(type);
+    }
+
+    //! Get allowed units for a given type
+    const std::vector<std::string>
+    getAllowedUnitNames(const std::string& type) const
+    {
+      auto ret = check.getAllowedUnits(type);
+      std::sort(ret.begin(), ret.end());
+      return ret;
+    }
+
+    //! Get gravitational constant
+    double getGravConstant();
 
     class CoefsError : public std::runtime_error
     {
@@ -789,6 +870,9 @@ namespace CoefClasses
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
+    //! Units required for HDF5
+    virtual bool unitsRequired() { return false; }
+
   public:
     
     //! Constructor
@@ -898,6 +982,9 @@ namespace CoefClasses
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
+    //! Units required for HDF5
+    virtual bool unitsRequired() { return false; }
+
   public:
     
     //! Constructor
@@ -1012,6 +1099,9 @@ namespace CoefClasses
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
+    //! Units required for HDF5
+    virtual bool unitsRequired() { return false; }
+
   public:
     
     //! Constructor
@@ -1142,6 +1232,9 @@ namespace CoefClasses
     //! Write coefficient data in H5
     virtual unsigned WriteH5Times(HighFive::Group& group, unsigned count);
     
+    //! Units required for HDF5
+    virtual bool unitsRequired() { return false; }
+
   public:
     
     //! Constructor
