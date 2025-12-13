@@ -143,6 +143,10 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE_PURE(void, Coefs, WriteH5Params, file);
     }
 
+    bool CheckH5Params(HighFive::File& file) override {
+      PYBIND11_OVERRIDE_PURE(bool, Coefs, CheckH5Params, file);
+    }
+
     unsigned WriteH5Times(HighFive::Group& group, unsigned count) override {
       PYBIND11_OVERRIDE_PURE(unsigned, Coefs, WriteH5Times, group, count);
     }
@@ -217,6 +221,10 @@ void CoefficientClasses(py::module &m) {
 
     void WriteH5Params(HighFive::File& file) override {
       PYBIND11_OVERRIDE(void, SphCoefs, WriteH5Params, file);
+    }
+
+    bool CheckH5Params(HighFive::File& file) override {
+      PYBIND11_OVERRIDE(bool, SphCoefs, CheckH5Params, file);
     }
 
     unsigned WriteH5Times(HighFive::Group& group, unsigned count) override {
@@ -298,6 +306,10 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(void, CylCoefs, WriteH5Params, file);
     }
 
+    bool CheckH5Params(HighFive::File& file) override {
+      PYBIND11_OVERRIDE(bool, CylCoefs, CheckH5Params, file);
+    }
+
     unsigned WriteH5Times(HighFive::Group& group, unsigned count) override {
       PYBIND11_OVERRIDE(unsigned, CylCoefs, WriteH5Times, group, count);
     }
@@ -374,6 +386,10 @@ void CoefficientClasses(py::module &m) {
 
     void WriteH5Params(HighFive::File& file) override {
       PYBIND11_OVERRIDE(void, SlabCoefs, WriteH5Params, file);
+    }
+
+    bool CheckH5Params(HighFive::File& file) override {
+      PYBIND11_OVERRIDE(bool, SlabCoefs, CheckH5Params, file);
     }
 
     unsigned WriteH5Times(HighFive::Group& group, unsigned count) override {
@@ -455,6 +471,10 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(void, CubeCoefs, WriteH5Params, file);
     }
 
+    bool CheckH5Params(HighFive::File& file) override {
+      PYBIND11_OVERRIDE(bool, CubeCoefs, CheckH5Params, file);
+    }
+
     unsigned WriteH5Times(HighFive::Group& group, unsigned count) override {
       PYBIND11_OVERRIDE(unsigned, CubeCoefs, WriteH5Times, group, count);
     }
@@ -534,6 +554,10 @@ void CoefficientClasses(py::module &m) {
       PYBIND11_OVERRIDE(void, TableData, WriteH5Params, file);
     }
 
+    bool CheckH5Params(HighFive::File& file) override {
+      PYBIND11_OVERRIDE(bool, TableData, CheckH5Params, file);
+    }
+
     unsigned WriteH5Times(HighFive::Group& group, unsigned count) override {
       PYBIND11_OVERRIDE(unsigned, TableData, WriteH5Times, group, count);
     }
@@ -610,6 +634,10 @@ void CoefficientClasses(py::module &m) {
 
     void WriteH5Params(HighFive::File& file) override {
       PYBIND11_OVERRIDE(void, TrajectoryData, WriteH5Params, file);
+    }
+
+    bool CheckH5Params(HighFive::File& file) override {
+      PYBIND11_OVERRIDE(bool, TrajectoryData, CheckH5Params, file);
     }
 
     unsigned WriteH5Times(HighFive::Group& group, unsigned count) override {
