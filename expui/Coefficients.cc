@@ -2776,7 +2776,6 @@ namespace CoefClasses
     int cols0 = coefs.begin()->second->cols;
 
     bool ret = true;
-		
     if (cols0 != cols1) {
       if (myid==0)
 	std::cout << "---- TableData::CheckH5Params: cols mismatch " << cols0
