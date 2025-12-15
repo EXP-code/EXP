@@ -2410,7 +2410,7 @@ void SphericalBasis::write_FIXL0()
 			HighFive::File::ReadWrite |
 			HighFive::File::Create);
 
-    // Add a verbose comment
+    // Add a verbose comment.  This is for human readers only (e.g. h5dump)
     std::string comment = 
       "This file contains the fixed monopole coefficients for the "
       "SphericalBasis component " + component->name
