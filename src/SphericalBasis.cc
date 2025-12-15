@@ -7,6 +7,12 @@
 #include <vector>
 #include <set>
 
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
+#include <highfive/eigen.hpp>
+
 #include "SphericalBasis.H"
 #include "MixtureBasis.H"
 
@@ -1652,7 +1658,18 @@ void SphericalBasis::determine_acceleration_and_potential(void)
   // This should suffice for both CPU and GPU
   if (FIX_L0) {
     // Save the monopole coefficients on the first evaluation
-    if (C0.size() == 0) C0 = *expcoef[0];
+    if (C0.size() == 0) {
+      bool okay = true;
+      // Attempt to read backup coefficients from file
+      if (restart) {
+	read_FIXL0_restart_data();
+      }
+      // If not read from file on restart, save current coefficients
+      if (C0.size() == 0) {
+	C0 = *expcoef[0];
+	write_FIXL0_restart_data();
+      }
+    }
     // Copy the saved coefficients to the active array
     else *expcoef[0] = C0;
   }
@@ -2346,5 +2363,74 @@ void SphericalBasis::biorthogonality_check()
     for (int L=0; L<=Lmax; L++)
       MPI_Reduce(one[myid][L].data(), 0, one[myid][L].size(),
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  }
+}
+
+void SphericalBasis::write_FIXL0_restart_data()
+{
+  std::ostringstream fname;
+  fname << outdir << runtag << "." << component->name << ".FIXL0";
+    
+  try {
+    HighFive::File file(fname.str(),
+			HighFive::File::ReadWrite |
+			HighFive::File::Create);
+
+    file.createAttribute<std::string>("name", HighFive::DataSpace::From(component->name)).write(component->name);
+
+    file.createAttribute<int>("nmax",  HighFive::DataSpace::From(nmax)).write(nmax);
+
+    file.createAttribute<int>("time",  HighFive::DataSpace::From(tnow)).write(tnow);
+
+    HighFive::DataSet dataset = file.createDataSet("coefficients", C0);
+
+  } catch (HighFive::FileException& e) {
+    throw runtime_error("SphericalBasis::write_FIXL0_restart_data: "
+			"cannot write <" + fname.str() +
+			">, error: " + e.what());
+
+  }
+}
+
+void SphericalBasis::read_FIXL0_restart_data()
+{
+  std::ostringstream fname;
+  fname << outdir << runtag << "." << component->name << ".FIXL0";
+    
+  try {
+    HighFive::File file(fname.str(), HighFive::File::ReadOnly);
+
+    std::string name1;
+    file.getAttribute("name").read(name1);
+
+    if (name1 != component->name) {
+      throw runtime_error("SphericalBasis::read_FIXL0_restart_data: "
+			  "component name mismatch in file " + fname.str());
+    }
+
+    int nmax1;
+    file.getAttribute("nmax").read(nmax1);
+    if (nmax1 != nmax) {
+      throw runtime_error("SphericalBasis::read_FIXL0_restart_data: "
+			  "nmax mismatch in file " + fname.str());
+    }
+
+    int time1;
+    file.getAttribute("time").read(time1);
+
+    if (time1 - tnow > 1.0e-4) {
+      std::ostringstream ss;
+      ss << "SphericalBasis::read_FIXL0_restart_data: "
+	 << "restart time <" << time1 << "> is ahead of current time"
+	 << " <" << tnow << ">";
+      throw runtime_error(ss.str());
+    }
+
+    file.getDataSet("coefficients").read(C0);
+
+  } catch (HighFive::FileException& e) {
+    throw runtime_error("SphericalBasis::write_FIXL0_restart_data: "
+			"cannot read file " + fname.str() +
+			", error: " + e.what());
   }
 }

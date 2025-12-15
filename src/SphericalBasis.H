@@ -407,6 +407,13 @@ protected:
   void biorthogonality_check();
   //@}
 
+  //! Write FIX_L0 restart data
+  void write_FIXL0_restart_data();
+
+  //! Read FIX_L0 restart data
+  void read_FIXL0_restart_data();
+
+
 public:
 
   //! Use YAML header in coefficient file
