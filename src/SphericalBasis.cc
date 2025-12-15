@@ -1657,18 +1657,26 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 
   // This should suffice for both CPU and GPU
   if (FIX_L0) {
-    // Save the monopole coefficients on the first evaluation
+    // Save the monopole coefficients on the first evaluation or read
+    // from the restart cache
     if (C0.size() == 0) {
       bool okay = true;
       // Attempt to read backup coefficients from file
       if (restart) {
 	read_FIXL0_restart_data();
+	// No coefficients read from file??
+	if (C0.size() == 0) {
+	  if (myid==0) {
+	    std::cout << "---- SphericalBasis: WARNING: could not read FIX_L0"
+		      << " restart data from file!" << endl;
+	    throw std::runtime_error("SphericalBasis: FIX_L0 restart read error");
+	  }
+	}
       }
-      // If not read from file on restart, save current coefficients
-      if (C0.size() == 0) {
-	C0 = *expcoef[0];
-	write_FIXL0_restart_data();
-      }
+      // If not read from file on restart, cache the current
+      // coefficients
+      C0 = *expcoef[0];
+      write_FIXL0_restart_data();
     }
     // Copy the saved coefficients to the active array
     else *expcoef[0] = C0;
