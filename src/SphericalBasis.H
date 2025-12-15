@@ -410,8 +410,8 @@ protected:
   //! Write FIX_L0 restart data
   void write_FIXL0_restart_data();
 
-  //! Read FIX_L0 restart data
-  void read_FIXL0_restart_data();
+  //! Read FIX_L0 restart data (true on success)
+  bool read_FIXL0_restart_data();
 
 
 public:
