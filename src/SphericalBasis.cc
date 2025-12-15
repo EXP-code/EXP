@@ -5,6 +5,7 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <ctime>
 #include <set>
 
 #include <highfive/H5File.hpp>
@@ -2368,6 +2369,31 @@ void SphericalBasis::biorthogonality_check()
   }
 }
 
+// Get the current timestamp as a string.  Maybe should be moved to a utility?
+static std::string getCurrentTimestamp()
+{
+  // Get the current time point
+  const auto now = std::chrono::system_clock::now();
+
+  // Convert to a C-style time_t
+  const std::time_t t = std::chrono::system_clock::to_time_t(now);
+
+  // Convert to local time
+  std::tm tm = {};
+
+  // Use localtime_r for POSIX systems
+  localtime_r(&t, &tm);
+
+  // Format the time into a stringstream
+  std::ostringstream oss;
+
+  // Use std::put_time for formatting. "%Y-%m-%d %H:%M:%S" is a common
+  // format.  "%F %T" is a shortcut for "%Y-%m-%d %H:%M:%S"
+  oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S"); 
+  
+  return oss.str();
+}
+
 // Write the FIXL0 cache file containing the fixed coefficients
 void SphericalBasis::write_FIXL0()
 {
@@ -2383,6 +2409,15 @@ void SphericalBasis::write_FIXL0()
     HighFive::File file(fname.str(),
 			HighFive::File::ReadWrite |
 			HighFive::File::Create);
+
+    // Add a verbose comment
+    std::string comment = 
+      "This file contains the fixed monopole coefficients for the "
+      "SphericalBasis component " + component->name
+      + " @ " + getCurrentTimestamp();
+
+    file.createAttribute<std::string>
+      ("comment", HighFive::DataSpace::From(comment)).write(comment);
 
     // The component name
     file.createAttribute<std::string>("name", HighFive::DataSpace::From(component->name)).write(component->name);
