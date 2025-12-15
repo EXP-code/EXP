@@ -2368,6 +2368,8 @@ void SphericalBasis::biorthogonality_check()
 
 void SphericalBasis::write_FIXL0_restart_data()
 {
+  if (myid) return;	// Only on root node
+
   std::ostringstream fname;
   fname << outdir << runtag << "." << component->name << ".FIXL0";
     
