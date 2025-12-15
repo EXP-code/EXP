@@ -407,12 +407,11 @@ protected:
   void biorthogonality_check();
   //@}
 
-  //! Write FIX_L0 restart data
-  void write_FIXL0_restart_data();
+  //! Write FIX_L0 restart data (only root node writes)
+  void write_FIXL0();
 
-  //! Read FIX_L0 restart data (true on success)
-  bool read_FIXL0_restart_data();
-
+  //! Read FIX_L0 restart data (throws on failure)
+  void read_FIXL0();
 
 public:
 

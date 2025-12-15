@@ -1662,14 +1662,14 @@ void SphericalBasis::determine_acceleration_and_potential(void)
     if (C0.size() == 0) {
       // Attempt to read backup coefficients from file
       if (restart) {
-	read_FIXL0_restart_data(); // This will throw on failure
+	read_FIXL0();		// This will throw on failure
 	*expcoef[0] = C0;
       }
       // If not read from file on restart, cache the current
       // coefficients
       else {
 	C0 = *expcoef[0];
-	write_FIXL0_restart_data();
+	write_FIXL0();
       }
     }
     // Copy the saved coefficients to the active array
@@ -2368,12 +2368,13 @@ void SphericalBasis::biorthogonality_check()
   }
 }
 
-void SphericalBasis::write_FIXL0_restart_data()
+// Write the FIXL0 cache file containing the fixed coefficients
+void SphericalBasis::write_FIXL0()
 {
   // Only on root node
   if (myid) return;	
 
-  // Constrcut the filename
+  // Construct the filename
   std::ostringstream fname;
   fname << outdir << runtag << "." << component->name << ".FIXL0";
     
@@ -2392,52 +2393,52 @@ void SphericalBasis::write_FIXL0_restart_data()
     // The current time for a readback check
     file.createAttribute<int>("time",  HighFive::DataSpace::From(tnow)).write(tnow);
 
-    // The coefficients dataset
+    // The coefficients
     HighFive::DataSet dataset = file.createDataSet("coefficients", C0);
 
   } catch (HighFive::FileException& e) {
-    throw runtime_error("SphericalBasis::write_FIXL0_restart_data: "
-			"cannot write <" + fname.str() +
-			">, error: " + e.what());
+    throw runtime_error("SphericalBasis::write_FIXL0: cannot write <" +
+			fname.str() + ">, error: " + e.what());
 
   }
 }
 
-void SphericalBasis::read_FIXL0_restart_data()
+// Read the FIXL0 cache file and set the fixed coefficients
+void SphericalBasis::read_FIXL0()
 {
   // The filename
   std::ostringstream fname;
   fname << outdir << runtag << "." << component->name << ".FIXL0";
     
-  // Open the file and read the data; all nodes do this
+  // Open the file and read the data. All nodes do this...
   try {
     HighFive::File file(fname.str(), HighFive::File::ReadOnly);
 
     std::string name1;
     file.getAttribute("name").read(name1);
 
-    // Check that the component name matches
+    // Check that the cached component name matches this run
     if (name1 != component->name) {
-      throw runtime_error("SphericalBasis::read_FIXL0_restart_data: "
+      throw runtime_error("SphericalBasis::read_FIXL0: "
 			  "component name mismatch in file " + fname.str());
     }
 
     int nmax1;
     file.getAttribute("nmax").read(nmax1);
 
-    // Check that the nmax value matches
+    // Check that the cached nmax value matches
     if (nmax1 != nmax) {
-      throw runtime_error("SphericalBasis::read_FIXL0_restart_data: "
+      throw runtime_error("SphericalBasis::read_FIXL0: "
 			  "nmax mismatch in file " + fname.str());
     }
 
     int time1;
     file.getAttribute("time").read(time1);
 
-    // Check that the time is not ahead of current time
+    // Check that the cached time is not ahead of current time
     if (time1 - tnow > 1.0e-4) {
       std::ostringstream ss;
-      ss << "SphericalBasis::read_FIXL0_restart_data: "
+      ss << "SphericalBasis::read_FIXL0: "
 	 << "restart time <" << time1 << "> is ahead of current time"
 	 << " <" << tnow << ">";
       throw runtime_error(ss.str());
@@ -2447,7 +2448,7 @@ void SphericalBasis::read_FIXL0_restart_data()
     file.getDataSet("coefficients").read(C0);
 
   } catch (HighFive::FileException& e) {
-    throw runtime_error("SphericalBasis::write_FIXL0_restart_data: "
+    throw runtime_error("SphericalBasis::write_FIXL0: "
 			"cannot read file " + fname.str() +
 			", error: " + e.what());
   }
