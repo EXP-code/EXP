@@ -2368,22 +2368,29 @@ void SphericalBasis::biorthogonality_check()
 
 void SphericalBasis::write_FIXL0_restart_data()
 {
-  if (myid) return;	// Only on root node
+  // Only on root node
+  if (myid) return;	
 
+  // Constrcut the filename
   std::ostringstream fname;
   fname << outdir << runtag << "." << component->name << ".FIXL0";
     
+  // Open the file and write the data
   try {
     HighFive::File file(fname.str(),
 			HighFive::File::ReadWrite |
 			HighFive::File::Create);
 
+    // The component name
     file.createAttribute<std::string>("name", HighFive::DataSpace::From(component->name)).write(component->name);
 
+    // The nmax value
     file.createAttribute<int>("nmax",  HighFive::DataSpace::From(nmax)).write(nmax);
 
+    // The current time for a readback check
     file.createAttribute<int>("time",  HighFive::DataSpace::From(tnow)).write(tnow);
 
+    // The coefficients dataset
     HighFive::DataSet dataset = file.createDataSet("coefficients", C0);
 
   } catch (HighFive::FileException& e) {
@@ -2396,15 +2403,18 @@ void SphericalBasis::write_FIXL0_restart_data()
 
 void SphericalBasis::read_FIXL0_restart_data()
 {
+  // The filename
   std::ostringstream fname;
   fname << outdir << runtag << "." << component->name << ".FIXL0";
     
+  // Open the file and read the data; all nodes do this
   try {
     HighFive::File file(fname.str(), HighFive::File::ReadOnly);
 
     std::string name1;
     file.getAttribute("name").read(name1);
 
+    // Check that the component name matches
     if (name1 != component->name) {
       throw runtime_error("SphericalBasis::read_FIXL0_restart_data: "
 			  "component name mismatch in file " + fname.str());
@@ -2412,6 +2422,8 @@ void SphericalBasis::read_FIXL0_restart_data()
 
     int nmax1;
     file.getAttribute("nmax").read(nmax1);
+
+    // Check that the nmax value matches
     if (nmax1 != nmax) {
       throw runtime_error("SphericalBasis::read_FIXL0_restart_data: "
 			  "nmax mismatch in file " + fname.str());
@@ -2420,6 +2432,7 @@ void SphericalBasis::read_FIXL0_restart_data()
     int time1;
     file.getAttribute("time").read(time1);
 
+    // Check that the time is not ahead of current time
     if (time1 - tnow > 1.0e-4) {
       std::ostringstream ss;
       ss << "SphericalBasis::read_FIXL0_restart_data: "
@@ -2428,6 +2441,7 @@ void SphericalBasis::read_FIXL0_restart_data()
       throw runtime_error(ss.str());
     }
 
+    // Finally, read the coefficients
     file.getDataSet("coefficients").read(C0);
 
   } catch (HighFive::FileException& e) {
