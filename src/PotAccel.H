@@ -120,6 +120,9 @@ protected:
   //! Save covariance subsamples to file
   bool fullCovar = false;
 
+  //! Save total covariance from subsamples to file
+  bool totlCovar = false;
+
   //! Request to compute subsample data
   bool requestSubsample = false;
 
@@ -301,6 +304,9 @@ public:
 
   //! Get fullCovar flag
   bool FullCovar() { return fullCovar; }
+
+  //! Get totlCovar flag
+  bool TotalCovar() { return totlCovar; }
 
   //! For timing the fraction spent in threaded force methods
   //@{
