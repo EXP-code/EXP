@@ -2444,6 +2444,7 @@ PotAccel::CovarData SphericalBasis::getSubsample()
   }
   // END: T loop
     
+#ifdef DEBUG
   if (myid==0) {
     std::cout << "SphericalBasis::getSubsample(): "
 	      << "returning " << sampT << " subsamples, "
@@ -2455,6 +2456,7 @@ PotAccel::CovarData SphericalBasis::getSubsample()
       (std::get<0>(covar[0][0]).size() + std::get<1>(covar[0][0]).size())*sizeof(std::complex<double>)
 	      << std::endl;
   }
+ #endif
 
   return {sampleCounts, sampleMasses, covar};
 }

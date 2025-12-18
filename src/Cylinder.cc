@@ -1079,7 +1079,7 @@ void Cylinder::determine_coefficients_particles(void)
 
   // If subsample requested and computed, turn off for next time
   if (nint and compute and mlevel==multistep) {
-    requestSubsample = false;
+    requestSubsample  = false;
     subsampleComputed = true;
   }
 
