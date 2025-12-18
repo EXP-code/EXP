@@ -124,8 +124,11 @@ namespace BasisClasses
       return std::floor(time * multiplier + 0.5) / multiplier;
     }
 
-    //! Store full coavariance matrix?
+    //! Store covariance matrix?
     bool covar = true;
+
+    //! Store summed covariance only?
+    bool scovr = true;
 
   public:
     
@@ -504,15 +507,18 @@ namespace BasisClasses
 
     //! Request and initialize covariance computation
     virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
-				      bool ftype=false, bool covar_in=true)
+				      bool ftype=false,
+				      bool covr_tot=true,
+				      bool covar_in=true)
     {
       pcavar = pcavar_in;
       sampT  = sampT_in;
+      scovr  = covr_tot;
       covar  = covar_in;
       if (pcavar) {
 	init_covariance();
 	covarStore = std::make_shared<SubsampleCovariance>
-	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, covar);
+	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, scovr, covar);
       }
     }
 
@@ -1101,16 +1107,19 @@ namespace BasisClasses
     }
 
     virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
-				      bool ftype=false, bool covar_in=true)
+				      bool ftype=false,
+				      bool covr_tot=true,
+				      bool covar_in=true)
     {
       pcavar = pcavar_in;
       sampT  = sampT_in;
+      scovr  = covr_tot;
       covar  = covar_in;
       if (pcavar)  {
 	sl->setSampT(std::max(1, sampT));
 	sl->set_covar(true);
 	covarStore = std::make_shared<SubsampleCovariance>
-	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, covar);
+	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, scovr, covar);
       }
     }
     //! Create and the coefficients from a function callback with the
@@ -1445,15 +1454,18 @@ namespace BasisClasses
 
     //! Enable coefficient covariance computation
     virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
-				      bool ftype=false, bool covar_in=false)
+				      bool ftype=false,
+				      bool covr_tot=false,
+				      bool covar_in=false)
     {
       pcavar = pcavar_in;
       sampT  = sampT_in;
+      scovr  = covr_tot;
       covar  = covar_in;
       if (pcavar) {
 	init_covariance();
 	covarStore = std::make_shared<SubsampleCovariance>
-	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, covar);
+	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, scovr, covar);
       }
     }
 

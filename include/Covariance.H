@@ -43,9 +43,12 @@ namespace BasisClasses
     //! poor compression)
     inline static const std::string CovarianceFileVersion = "1.1";
     
-    //! Store full covariance matrix?
+    //! Store covariance matrices?
     bool covar = true;
     
+    //! Store summed covariance only?
+    bool summed = true;
+
     //! Use 32-bit float storage for covariance?
     bool floatType = false;
     
@@ -104,8 +107,7 @@ namespace BasisClasses
     
     //! Constructor from scratch
     SubsampleCovariance(ParamCallback func, const std::string& BasisID,
-			bool flt, bool cov=false)
-      : paramCallback(func), BasisID(BasisID), floatType(flt), covar(cov) {}
+			bool flt, bool sum=false, bool cov=false);
     
     //! Constructor from HDF5 file
     SubsampleCovariance(const std::string& filename, int stride=1);

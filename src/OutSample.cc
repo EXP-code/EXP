@@ -30,7 +30,9 @@ OutSample::OutSample(const YAML::Node& conf) : Output(conf)
 
   covarStore = std::make_shared<BasisClasses::SubsampleCovariance>
     ([this](HighFive::File& file){this->tcomp->force->writeCovarH5Params(file);},
-     this->tcomp->force->id, floatType, this->tcomp->force->FullCovar());
+     this->tcomp->force->id, floatType,
+     this->tcomp->force->TotalCovar(),
+     this->tcomp->force->FullCovar());
 
   covarStore->setCovarH5Compress(level, chunksize, shuffle, szip);
 
