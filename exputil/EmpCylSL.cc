@@ -4115,6 +4115,8 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 }
 
 
+// Multistep version
+//
 void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 {
   if (MPIin.size()==0) {
@@ -4127,12 +4129,14 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
   }
   
 
+  // Multistep variables
+  //
   for (unsigned M=M0; M<=multistep; M++) {
     
     if (coefs_made[M]) continue;
 
-				// Sum up over threads
-				//
+    // Sum up over threads
+    //
     for (int nth=1; nth<nthrds; nth++) {
 
       howmany1[M][0] += howmany1[M][nth];
@@ -4147,8 +4151,9 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	  sinN(M)[0][mm][nn] += sinN(M)[nth][mm][nn];
 	}
     }
-				// Begin distribution loop
-				//
+
+    // Begin distribution loop
+    //
     for (int mm=0; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
 	MPIin[mm*rank3 + nn] = cosN(M)[0][mm][nn];
@@ -4189,9 +4194,10 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
   }
   
 
+  // Sum up over threads for subsamples and EOF covariance
+  //
   if (compute) {
-				// Sum up over threads
-				//
+
     for (int nth=1; nth<nthrds; nth++) {
 
       if (PCAEOF) {
@@ -4227,11 +4233,10 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	  // END: M loop
 	}
 	// END: T loop
-
       }
-      // END: PCAEOF/covar stanza
-      
-    } // Thread loop
+      // END: covar stanza
+    }
+    // END: thread loop
 
 
     // Mass used to compute variance in each partition
@@ -4250,16 +4255,16 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       }
     }
 
-    // Complex coariance components
+    // Complex covariance components
     //
     if (covar and use_mpi) {
 
       for (unsigned T=0; T<sampT; T++) {
 	for (int mm=0; mm<=MMAX; mm++) {
 	  MPI_Allreduce ( MPI_IN_PLACE, MV[0][T][mm].data(), MV[0][T][mm].size(),
-			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	  MPI_Allreduce ( MPI_IN_PLACE, VC[0][T][mm].data(), VC[0][T][mm].size(),
-			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	}
       }
     }
@@ -4355,8 +4360,33 @@ void EmpCylSL::make_coefficients(bool compute)
     MPIout2.resize(rank3*rank3*(MMAX+1));
   }
 
-				// Sum up over threads
-				// 
+  // Sum up over threads for subsample
+  // 
+  if (compute and (covar or PCAVAR)) {
+
+    for (int nth=1; nth<nthrds; nth++) {
+
+      for (unsigned T=0; T<sampT; T++) {
+	numbT1[0][T] += numbT1[nth][T];
+	massT1[0][T] += massT1[nth][T];
+
+	if (covar) {
+	  for (int mm=0; mm<=MMAX; mm++) {
+	    VC[0][T][mm] += VC[nth][T][mm];
+	    MV[0][T][mm] += MV[nth][T][mm];
+	  }
+	}
+	// END: covar stanza
+      }
+      // END: T loop
+    }
+    // END: sum over threads
+  }
+  // END: compute stanza
+
+
+  // Sum up over threads for multistep variables
+  //
   for (unsigned M=0; M<=multistep; M++) {
 
     if (coefs_made[M]) continue;
@@ -4364,24 +4394,6 @@ void EmpCylSL::make_coefficients(bool compute)
     for (int nth=1; nth<nthrds; nth++) {
 
       howmany1[M][0] += howmany1[M][nth];
-
-      if (compute and (covar or PCAVAR)) {
-
-	for (unsigned T=0; T<sampT; T++) {
-	  numbT1[0][T] += numbT1[nth][T];
-	  massT1[0][T] += massT1[nth][T];
-
-	  if (covar) {
-	    for (int mm=0; mm<=MMAX; mm++) {
-	      VC[0][T][mm] += VC[nth][T][mm];
-	      MV[0][T][mm] += MV[nth][T][mm];
-	    }
-	  }
-	  // END: covar stanza
-	}
-	// END: T loop
-      }
-
 
       for (int mm=0; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
@@ -4453,9 +4465,9 @@ void EmpCylSL::make_coefficients(bool compute)
 
 	if (covar and use_mpi) {
 	  MPI_Allreduce ( MPI_IN_PLACE, MV[0][T][mm].data(), MV[0][T][mm].size(),
-			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	  MPI_Allreduce ( MPI_IN_PLACE, VC[0][T][mm].data(), VC[0][T][mm].size(),
-			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	}
 
 	if (PCAVAR) {
