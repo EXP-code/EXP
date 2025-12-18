@@ -75,7 +75,9 @@ Cylinder::valid_keys = {
   "coefCompute",
   "coefMaster",
   "pyname",
-  "dumpbasis"
+  "dumpbasis",
+  "fullCovar",
+  "totalCovar"
 };
 
 Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
@@ -576,6 +578,15 @@ void Cylinder::initialize()
     }
 
     if (conf["dumpbasis"]) dump_basis = true;
+
+    if (conf["fullCovar"]) {
+      fullCovar = conf["fullCovar"].as<bool>();
+    }
+    
+    if (conf["totalCovar"]) {
+      totlCovar = conf["totalCovar"].as<bool>();
+      if (totlCovar) fullCovar = true;
+    }
 
   }
   catch (YAML::Exception & error) {

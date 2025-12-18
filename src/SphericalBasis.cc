@@ -46,7 +46,9 @@ SphericalBasis::valid_keys = {
   "coefCompute",
   "coefMaster",
   "orthocheck",
-  "subsampleFloat"
+  "subsampleFloat",
+  "totalCovar",
+  "fullCovar"
 };
 
 SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) : 
@@ -120,7 +122,16 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
     if (conf["EVEN_L"])  EVEN_L  = conf["EVEN_L"].as<bool>();
     if (conf["EVEN_M"])  EVEN_M  = conf["EVEN_M"].as<bool>();
     if (conf["M0_ONLY"]) M0_only = conf["M0_ONLY"].as<bool>();
+
+    if (conf["fullCovar"]) {
+      fullCovar = conf["fullCovar"].as<bool>();
+    }
     
+    if (conf["totalCovar"]) {
+      totlCovar = conf["totalCovar"].as<bool>();
+      if (totlCovar) fullCovar = true;
+    }
+
     if (conf["NOISE"]) {
       if (conf["NOISE"].as<bool>()) {
 	NOISE = true; 
