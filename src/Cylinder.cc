@@ -979,11 +979,11 @@ void Cylinder::determine_coefficients_particles(void)
     }
   }
 
+  // PCA computation flag
+  //
   if (pcavar or pcaeof) {
     if (this_step >= npca0)
       compute = (mstep == 0) && !( (this_step-npca0) % npca);
-    else
-      compute = false;
   }
 
   ortho->setup_accumulation(mlevel);

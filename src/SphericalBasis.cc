@@ -712,15 +712,14 @@ void SphericalBasis::determine_coefficients_particles(void)
   }
 
   if (pcavar or pcaeof) {
-    if (this_step >= npca0) 
+    if (this_step >= npca0) {
       compute = (mstep == 0) && !( (this_step-npca0) % npca);
+    }
   }
 
   int loffset, moffset, use1;
 
   if (compute) {
-
-    requestSubsample = true;
 
     if (massT.size() == 0) {	// Allocate storage for subsampling
       if (defSampT) sampT = defSampT;

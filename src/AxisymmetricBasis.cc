@@ -44,14 +44,14 @@ AxisymmetricBasis:: AxisymmetricBasis(Component* c0, const YAML::Node& conf) :
   Mmax      = 4;
   nmax      = 10;
   dof       = 3;
-  npca      = 500;
-  npca0     = 0;
+  npca      = std::numeric_limits<int>::max();
+  npca0     = std::numeric_limits<int>::max();
   nint      = 0;
   pcavar    = false;
   pcaeof    = false;
   pcadiag   = false;
   pcavtk    = false;
-  vtkfreq   = 1;
+  vtkfreq   = std::numeric_limits<int>::max();
   muse      = 0.0;
   hexp      = 1.0;
   snr       = 1.0;

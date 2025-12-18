@@ -72,13 +72,13 @@ protected:
   bool pcaeof;
 
   //! VTK diagnostic frequency
-  unsigned vtkfreq;
+  unsigned vtkfreq = std::numeric_limits<unsigned>::max();
 
   //! Frequency of PCA computation
-  int npca;
+  int npca = std::numeric_limits<int>::max();
 
   //! First step for PCA computation
-  int npca0;
+  int npca0 = std::numeric_limits<int>::max();
 
   // Frequency of subsample computation
   int nint = 0;
