@@ -57,8 +57,6 @@ Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   std::string modelname = model_file;
   std::string cachename = outdir  + cache_file;
 
-  id += ", model=" + modelname;
-
 				// Generate Sturm-Liouville grid
   ortho = std::make_shared<SLGridSph>(modelname,
 				      Lmax, nmax, numr, rmin, rmax, true,

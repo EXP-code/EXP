@@ -62,7 +62,10 @@ namespace BasisClasses
     "cachename",
     "modelname",
     "pyname",
-    "rnum"
+    "rnum",
+    "nint",
+    "totalCovar",
+    "fullCovar"
   };
 
   std::vector<std::string> BiorthBasis::getFieldLabels(const Coord ctype)
@@ -1238,7 +1241,10 @@ namespace BasisClasses
     "playback",
     "coefCompute",
     "coefMaster",
-    "pyname"
+    "pyname",
+    "nint",
+    "totalCovar",
+    "fullCovar"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
@@ -3871,7 +3877,9 @@ namespace BasisClasses
     "method",
     "pcavar,"
     "subsamp",
-    "nint"
+    "nint",
+    "totalCovar",
+    "fullCovar"
   };
 
   Cube::Cube(const YAML::Node& CONF) : BiorthBasis(CONF, "cube")

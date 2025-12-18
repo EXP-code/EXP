@@ -70,10 +70,6 @@ namespace BasisClasses
     stanza.createAttribute<unsigned>
       ("rankSize", HighFive::DataSpace::From(nmax)).write(nmax);
     
-    int icov = covar ? 1 : 0;
-    stanza.createAttribute<unsigned>
-      ("fullCovar", HighFive::DataSpace::From(icov)).write(icov);
-    
     if (H5compress) {
       // Szip parameters
       const int options_mask = H5_SZIP_NN_OPTION_MASK;
@@ -449,10 +445,10 @@ namespace BasisClasses
       int lmax, nmax, ltot;
       
       // Current implemented spherical types
-      const std::set<std::string> sphereType = {"Spherical", "SphereSL", "Bessel"};
+      const std::set<std::string> sphereType = {"Spherical", "Sphere SL", "Bessel"};
       
       // Currently implemented cylindrical types
-      const std::set<std::string> cylinderType = {"Cylindrical"};
+      const std::set<std::string> cylinderType = {"Cylindrical", "Cylinder"};
       
       std::cout << "SubsampleCovariance: reading basis type " << BasisID << std::endl;
 
@@ -509,13 +505,6 @@ namespace BasisClasses
 	stanza.getAttribute("sampleSize") .read(nT);
 	stanza.getAttribute("angularSize").read(lSize);
 	stanza.getAttribute("rankSize")   .read(rank);
-	
-	if (stanza.hasAttribute("fullCovar"))
-	  stanza.getAttribute("fullCovar").read(icov);
-	
-	// Full covariance or variance?
-	//
-	bool covar = icov==1 ? true : false;
 	
 	// Allocate sample vector for current time
 	//
@@ -631,10 +620,11 @@ namespace BasisClasses
 	// Positions in data stanzas
 	int sCof = 0, sCov = 0;
 	
-	// Only pack into first position
-	if (summed) {
-
-	  // Data element
+	// Loop through all indices and repack
+	//
+	for (int T=0; T<nT; T++) {
+	  
+	  // Data element for this time
 	  std::vector<CoefCovarType> elem(lSize);
 	  for (auto & e : elem) {
 	    // Coefficients
@@ -642,7 +632,7 @@ namespace BasisClasses
 	    // Covariance matrix
 	    if (data1.size()) std::get<1>(e).resize(rank, rank);
 	  }
-	  
+	    
 	  // Pack the coefficient data
 	  int c = 0;
 	  for (size_t l=0; l<lSize; l++) {
@@ -652,75 +642,41 @@ namespace BasisClasses
 	  }
 	  sCof += c;
 	  
-	  // Pack the covariance data
-	  c = 0;
-	  for (size_t l=0; l<lSize; l++) {
-	    if (data1.size()) {
+	  // Pack the covariance data, if we have it
+	  //
+	  if (data1.size()) {
+	    c = 0;		// Position counter
+	    for (size_t l=0; l<lSize; l++) {
 	      for (size_t n1=0; n1<rank; n1++) {
 		for (size_t n2=n1; n2<rank; n2++) {
-		  std::get<1>(elem[l])(n1, n2) = data1(sCov + c++);
-		  if (n1 != n2)
-		    std::get<1>(elem[l])(n2, n1) = std::get<1>(elem[l])(n1, n2);
-		}
-	      }
-	    }
-	  }
-	  sCov += c;
-	  
-	  // Add the data @ T=0
-	  std::get<2>(covarData[Time])[0] = std::move(elem);
-	}
-	// Loop through all indices and repack
-	else {
-
-	  for (int T=0; T<nT; T++) {
-	  
-	    // Data element for this time
-	    std::vector<CoefCovarType> elem(lSize);
-	    for (auto & e : elem) {
-	      // Coefficients
-	      std::get<0>(e).resize(rank);
-	      // Covariance matrix
-	      if (data1.size()) std::get<1>(e).resize(rank, rank);
-	    }
-	    
-	    // Pack the coefficient data
-	    int c = 0;
-	    for (size_t l=0; l<lSize; l++) {
-	      for (size_t n=0; n<rank; n++) {
-		std::get<0>(elem[l])(n) = data0(sCof + c++);
-	      }
-	    }
-	    sCof += c;
-	  
-	    // Pack the covariance data
-	    c = 0;
-	    for (size_t l=0; l<lSize; l++) {
-	      if (data1.size()) {
-		for (size_t n1=0; n1<rank; n1++) {
-		  for (size_t n2=n1; n2<rank; n2++) {
-		    if (covar) {
+		  if (covar) {
+		    std::get<1>(elem[l])(n1, n2) = data1(sCov + c++);
+		    if (n1 != n2)
+		      std::get<1>(elem[l])(n2, n1) = std::get<1>(elem[l])(n1, n2);
+		  }
+		  else {
+		    if (n1==n2)
 		      std::get<1>(elem[l])(n1, n2) = data1(sCov + c++);
-		      if (n1 != n2)
-			std::get<1>(elem[l])(n2, n1) = std::get<1>(elem[l])(n1, n2);
-		    }
-		    else {
-		      if (n1==n2)
-			std::get<1>(elem[l])(n1, n2) = data1(sCov + c++);
-		      else
-			std::get<1>(elem[l])(n1, n2) = 0.0;
-		    }
+		    else
+		      std::get<1>(elem[l])(n1, n2) = 0.0;
 		  }
 		}
 	      }
+	      // Split the summed covariance nT ways to emulate
+	      // subsample covariance
+	      if (summed) std::get<1>(elem[l]) /= nT;
 	    }
-	    sCov += c;
-	    
-	    // Add the data
-	    std::get<2>(covarData[Time])[T] = std::move(elem);
+
+	    // Advance the covariance position for subsampled data only.
+	    // For summed covariance, we will reuse the same data.
+	    if (not summed) sCov += c;
 	  }
-	  // END: sample loop
+	  // END: pack covariance data
+	  
+	  // Add the data
+	  std::get<2>(covarData[Time])[T] = std::move(elem);
 	}
+	// END: sample loop
       }
       // END: snapshot loop
     } catch (HighFive::Exception& err) {
