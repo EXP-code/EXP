@@ -2390,7 +2390,7 @@ PotAccel::CovarData SphericalBasis::getSubsample()
   using covTuple = std::tuple<Eigen::VectorXcd,
 			      Eigen::MatrixXcd>;
   // Prepare the covariance structure
-  std::vector< std::vector<covTuple> > covar(sampT);
+  PotAccel::CovarData ret;
 
   // Number of real angular terms l in [0, Lmax], m in [0, l]
   int totL = (Lmax+1)*(Lmax+2)/2;
@@ -2404,61 +2404,43 @@ PotAccel::CovarData SphericalBasis::getSubsample()
     throw std::runtime_error(ss.str());
   }
 
-  // Resize the covariance structure
-  for (auto & v : covar) v.resize(totL);
+  std::get<0>(ret).resize(sampT);	// Sample counts
+  std::get<1>(ret).resize(sampT);	// Sample masses
+  std::get<2>(ret) = Eigen::Tensor<std::complex<double>, 3>(sampT, totL, nmax);
 
-  // Resize the sample counts and masses
-  sampleCounts.resize(sampT);
-  sampleMasses.resize(sampT);
+  if (fullCovar)
+    std::get<3>(ret) = Eigen::Tensor<std::complex<double>, 4>(sampT, totL, nmax, nmax);
 
   // Fill the covariance structure with subsamples
   for (int T=0; T<sampT; T++) {
-    Eigen::VectorXcd meanV = Eigen::VectorXcd::Zero(nmax);
-    Eigen::MatrixXcd covrV = Eigen::MatrixXcd::Zero(0,0);
-    if (fullCovar)   covrV = Eigen::MatrixXcd::Zero(nmax, nmax);
+
+    std::get<0>(ret)(T) = countT[T];
+    std::get<1>(ret)(T) =  massT[T];
 
     // l loop
     for (int l=0, k=0; l<=Lmax; l++) {
       // m loop
       for (int m=0; m<=l; m++) {
 	// outer n loop
-	for (int n=0; n<nmax; n++) {
-	  meanV(n) = std::complex<double>((*expcoefT[T][k])(n));
-
-	  if (fullCovar) {
-	    // inner n loop
-	    for (int nn=0; nn<nmax; nn++) {
-	      covrV(n, nn) = std::complex<double>((*expcoefM[T][k])(n, nn));
-	    }
+	for (int n1=0; n1<nmax; n1++) {
+	  std::get<2>(ret)(T, k, n1) = (*expcoefT[T][k])(n1);
+	  // inner n loop
+	  for (int n2=0; n2<nmax; n2++) {
+	    if (fullCovar)
+	      std::get<3>(ret)(T, k, n1, n2) = (*expcoefM[T][k])(n1, n2);
 	  }
+	  // END: n2 loop
 	}
-	// Assign data to return structure
-	covar[T][k++] = std::make_tuple(meanV, covrV);
+	// END: n1 loop
+	k++;
       }
       // END: m loop
     }
     // END: l loop
-
-    sampleCounts[T] = countT[T];
-    sampleMasses[T] =  massT[T];
   }
   // END: T loop
     
-#ifdef DEBUG
-  if (myid==0) {
-    std::cout << "SphericalBasis::getSubsample(): "
-	      << "returning " << sampT << " subsamples, "
-	      << (fullCovar ? "full" : "diagonal") << " covariance"
-	      << ", with counts=" << sampleCounts.size()*sizeof(int)
-	      << ", masses=" << sampleMasses.size()*sizeof(double)
-      	      << ", data="
-	      << covar.size()*covar[0].size()*
-      (std::get<0>(covar[0][0]).size() + std::get<1>(covar[0][0]).size())*sizeof(std::complex<double>)
-	      << std::endl;
-  }
- #endif
-
-  return {sampleCounts, sampleMasses, covar};
+  return ret;
 }
 
 

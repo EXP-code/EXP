@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include <Eigen/Eigen>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 #include "gaussQ.H"
 #include "interp.H"
@@ -948,12 +949,11 @@ public:
 
   //! Return a vector of tuples of basis coefficients and the
   //! covariance matrix for subsamples of particles
-  using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
-  std::vector<std::vector<CoefCovarType>> getCoefCovariance();
+  std::tuple<Eigen::Tensor<std::complex<double>, 3>,
+	     Eigen::Tensor<std::complex<double>, 4>> getCoefCovariance();
 
   //! Covariance statistics
   std::tuple<Eigen::VectorXi, Eigen::VectorXd> getCovarSamples();
-  
 
 #if HAVE_LIBCUDA==1
   cudaMappingConstants getCudaMappingConstants();

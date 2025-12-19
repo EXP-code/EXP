@@ -294,7 +294,8 @@ namespace BasisClasses
     }
 
     //! HDF5 compression settings
-    void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle, bool szip=false)
+    void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle,
+			    bool szip=false)
     {
       if (covarStore) {
 	covarStore->setCovarH5Compress(level, chunksize, shuffle, szip);
@@ -487,19 +488,34 @@ namespace BasisClasses
     }
 
     //! Write coefficient covariance data to an HDF5 file
-    virtual void writeCoefCovariance(const std::string& compname, const std::string& runtag, double time=0.0)
+    virtual void writeCoefCovariance(const std::string& compname,
+				     const std::string& runtag, double time=0.0)
     {
       if (covarStore) {
-	std::vector<std::vector<SubsampleCovariance::CoefCovarType>> covarData(meanV.size());
-	for (int T=0; T<meanV.size(); ++T) {
-	  covarData[T].resize(meanV[T].size());
-	  for (int lm=0; lm<meanV[T].size(); ++lm) {
-	    covarData[T][lm] = std::make_tuple(meanV[T][lm], covrV[T][lm]);
+	// Prepare covariance data
+	int Tsize = meanV.size();
+	int Lsize = meanV[0].size();
+	int Nsize = meanV[0][0].size();
+
+	SubsampleCovariance::CovarData covarData;
+
+	std::get<0>(covarData).resize(Tsize);
+	std::get<1>(covarData).resize(Tsize);
+	std::get<2>(covarData) = SubsampleCovariance::CoefType(Tsize, Lsize, Nsize);
+	std::get<3>(covarData) = SubsampleCovariance::CovrType(Tsize, Lsize, Nsize, Nsize);
+
+	for (int T=0; T<Tsize; T++) {
+	  std::get<0>(covarData)(T) = sampleCounts(T);
+	  std::get<1>(covarData)(T) = sampleMasses(T);
+	  for (int lm=0; lm<Lsize; lm++) {
+	    for (int n1=0; n1<Nsize; n1++) {
+	      std::get<2>(covarData)(T, lm, n1) = meanV[T][lm](n1);
+	      for (int n2=0; n2<Nsize; n2++) {
+		std::get<3>(covarData)(T, lm, n1, n2) = covrV[T][lm](n1, n2);
+	      }
+	    }
 	  }
 	}
-
-	SubsampleCovariance::CovarData elements = std::make_tuple(sampleCounts, sampleMasses, covarData);
-	covarStore->writeCoefCovariance(compname, runtag, elements, time);
       } else {
 	throw std::runtime_error("Spherical::writeCoefCovariance: covariance storage not initialized");
       }
@@ -1097,10 +1113,10 @@ namespace BasisClasses
     virtual void writeCoefCovariance(const std::string& compname, const std::string& runtag, double time=0.0)
     {
       if (covarStore) {
-	auto covarData = sl->getCoefCovariance();
-	std::tie(sampleCounts, sampleMasses) = sl->getCovarSamples();
-	SubsampleCovariance::CovarData elements = std::make_tuple(sampleCounts, sampleMasses, covarData);
-	covarStore->writeCoefCovariance(compname, runtag, elements, time);
+	SubsampleCovariance::CovarData elem;
+	std::tie(std::get<0>(elem), std::get<1>(elem)) = sl->getCovarSamples();
+	std::tie(std::get<2>(elem), std::get<3>(elem)) = sl->getCoefCovariance();
+	covarStore->writeCoefCovariance(compname, runtag, elem, time);
       } else {
 	throw std::runtime_error("Spherical::writeCoefCovariance: covariance storage not initialized");
       }
@@ -1439,13 +1455,25 @@ namespace BasisClasses
     virtual void writeCoefCovariance(const std::string& compname, const std::string& runtag, double time=0.0)
     {
       if (covarStore) {
-	std::vector<std::vector<SubsampleCovariance::CoefCovarType>> covarData(meanV.size());
-	for (int T=0; T<meanV.size(); ++T) {
-	  covarData[T].resize(1);
-	  covarData[T][0] = std::make_tuple(meanV[T], covrV[T]);
+	SubsampleCovariance::CovarData elem;
+	std::get<0>(elem) = sampleCounts;
+	std::get<1>(elem) = sampleMasses;
+
+	int sampT = meanV.size();
+	int Nsize = meanV[0].size();
+
+	std::get<2>(elem) = SubsampleCovariance::CoefType(sampT, 1, Nsize);
+	std::get<3>(elem) = SubsampleCovariance::CovrType(sampT, 1, Nsize, Nsize);
+
+	for (int T=0; T<sampT; ++T) {
+	  for (int n1=0; n1<Nsize; n1++) {
+	    std::get<2>(elem)(T, 0, n1) = meanV[T](n1);
+	    for (int n2=0; n2<Nsize; n2++) {
+	      std::get<3>(elem)(T, 0, n1, n2) = covrV[T](n1, n2);
+	    }
+	  }
 	}
-	SubsampleCovariance::CovarData elements = std::make_tuple(sampleCounts, sampleMasses, covarData);
-	covarStore->writeCoefCovariance(compname, runtag, elements, time);
+	covarStore->writeCoefCovariance(compname, runtag, elem, time);
       } else {
 	throw std::runtime_error("Spherical::writeCoefCovariance: covariance storage not initialized");
       }

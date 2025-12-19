@@ -10,6 +10,7 @@
 #include <memory>
 #include <yaml-cpp/yaml.h>
 #include <Eigen/Eigen>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 #include <highfive/H5File.hpp>
 #include <highfive/H5DataSet.hpp>
@@ -48,9 +49,10 @@ public:
       counts per sample, and arrays of coefficients and covariance
       elements per sample indexed by harmonic
   */
-  using CovarElement =
-    std::tuple< Eigen::VectorXd, Eigen::VectorXi,
-		std::vector<std::vector<std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>>> >;
+  using CovarData =
+    std::tuple< Eigen::VectorXi, Eigen::VectorXd,
+		Eigen::Tensor<std::complex<double>, 3>,
+		Eigen::Tensor<std::complex<double>, 4> >;
 
 private:
 
@@ -251,11 +253,6 @@ public:
 
   //@{
   //! Type for coefficient and covariance matrix tuple
-
-  using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
-    
-  using CovarData = std::tuple<Eigen::VectorXi, Eigen::VectorXd,
-			       std::vector<std::vector<CoefCovarType>>>;
 
   virtual CovarData getSubsample()
   {

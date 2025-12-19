@@ -1031,22 +1031,25 @@ void Cube::writeCovarH5Params(HighFive::File& file)
 
 PotAccel::CovarData Cube::getSubsample()
 {
-  using covTuple = std::tuple<Eigen::VectorXcd,
-			      Eigen::MatrixXcd>;
-  // Prepare the covariance structure
-  std::vector< std::vector<covTuple> > covar(sampT);
+  CovarData elem;
 
-  // Resize the inner vector to 1 (one component for Cube)
-  for (auto & v : covar) v.resize(1);
+  std::get<0>(elem) = sampleCounts;
+  std::get<1>(elem) = sampleMasses;
+  std::get<2>(elem) = Eigen::Tensor<std::complex<double>, 3>(sampT, 1, osize);
+  std::get<3>(elem) = Eigen::Tensor<std::complex<double>, 4>(sampT, 1, osize, osize);
 
   // Fill the covariance structure with subsamples
   for (int T=0; T<sampT; T++) {
-    if (fullCovar)
-      covar[T][0] = std::make_tuple(meanV[T], covrV[T]);
-    else
-      covar[T][0] = std::make_tuple(meanV[T], Eigen::MatrixXcd::Zero(0,0));
+    for (int n1=0; n1<osize; n1++) {
+      std::get<2>(elem)(T, 0, n1) = meanV[T](n1);
+      for (int n2=0; n2<osize; n2++)
+	if (fullCovar)
+	  std::get<3>(elem)(T, 0, n1, n2) = covrV[T](n1, n2);
+	else
+	  std::get<3>(elem)(T, 0, n1, n2) = 0.0;
+    } 
   }
     
-  return {sampleCounts, sampleMasses, covar};
+  return elem;
 }
 

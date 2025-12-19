@@ -1862,9 +1862,10 @@ void Cylinder::occt_output()
 
 PotAccel::CovarData Cylinder::getSubsample()
 {
-  std::tie(sampleCounts, sampleMasses) = ortho->getCovarSamples();
-  auto covarData = ortho->getCoefCovariance();
-  return {sampleCounts, sampleMasses, covarData};
+  CovarData ret;
+  std::tie(std::get<0>(ret), std::get<1>(ret)) = ortho->getCovarSamples();
+  std::tie(std::get<2>(ret), std::get<3>(ret)) = ortho->getCoefCovariance();
+  return ret;
 }
 
 void Cylinder::writeCovarH5Params(HighFive::File& file)

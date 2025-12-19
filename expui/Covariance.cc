@@ -36,11 +36,14 @@ namespace BasisClasses
     auto dcpl3 = HighFive::DataSetCreateProps{}; // covariance
     auto dcpl4 = HighFive::DataSetCreateProps{}; // total covariance
     
+    // Get the dimensions as a DSizes object
+    const auto& dims = std::get<2>(elem).dimensions();
+
     // Number of samples
     //
-    unsigned sampleSize   = std::get<2>(elem).size();
-    unsigned ltot         = std::get<2>(elem)[0].size();
-    unsigned nmax         = std::get<0>(std::get<2>(elem)[0][0]).size();
+    unsigned sampleSize   = dims[0];
+    unsigned ltot         = dims[1];
+    unsigned nmax         = dims[2];
     unsigned diagonalSize = nmax;
     
     // Properties for sample stats
@@ -124,11 +127,11 @@ namespace BasisClasses
       Eigen::VectorXf real_part(nmax*ltot*sampleSize);
       Eigen::VectorXf imag_part(nmax*ltot*sampleSize);
       
-      for (size_t T=0, c=0; T<sampleSize; T++) {
-	for (size_t l=0; l<ltot; l++) {
-	  for (size_t n=0; n<nmax; n++, c++) {
-	    real_part(c) = std::real(std::get<0>(std::get<2>(elem)[T][l])(n));
-	    imag_part(c) = std::imag(std::get<0>(std::get<2>(elem)[T][l])(n));
+      for (int T=0, c=0; T<sampleSize; T++) {
+	for (int l=0; l<ltot; l++) {
+	  for (int n=0; n<nmax; n++, c++) {
+	    real_part(c) = std::real(std::get<2>(elem)(T, l, n));
+	    imag_part(c) = std::imag(std::get<2>(elem)(T, l, n));
 	  }
 	}
       }
@@ -137,7 +140,10 @@ namespace BasisClasses
       stanza.createDataSet("coefficients_real", real_part, dcpl2);
       stanza.createDataSet("coefficients_imag", imag_part, dcpl2);
       
-      if (std::get<1>(std::get<2>(elem)[0][0]).size()) {
+      // Get the dimensions of the covariance data
+      const auto& dimsC = std::get<3>(elem).dimensions();
+
+      if (dimsC[0] and dimsC[1] and dimsC[2]) {
 	
 	// Store summed covariance only
 	if (summed) {
@@ -148,14 +154,14 @@ namespace BasisClasses
 	  real_part.setZero();
 	  imag_part.setZero();
 	
-	  for (size_t T=0, c=0; T<sampleSize; T++) {
-	    for (size_t l=0; l<ltot; l++) {
-	      for (size_t n1=0; n1<nmax; n1++) {
+	  for (int T=0, c=0; T<sampleSize; T++) {
+	    for (int l=0; l<ltot; l++) {
+	      for (int n1=0; n1<nmax; n1++) {
 		// Pack the covariance data in an upper triangular format
 		//
-		for (size_t n2=n1; n2<nmax; n2++, c++) {
-		  real_part(c) += std::real(std::get<1>(std::get<2>(elem)[T][l])(n1, n2));
-		  imag_part(c) += std::imag(std::get<1>(std::get<2>(elem)[T][l])(n1, n2));
+		for (int n2=n1; n2<nmax; n2++, c++) {
+		  real_part(c) += std::real(std::get<3>(elem)(T, l, n1, n2));
+		  imag_part(c) += std::imag(std::get<3>(elem)(T, l, n1, n2));
 		}
 	      }
 	    }
@@ -169,22 +175,22 @@ namespace BasisClasses
 	  real_part.resize(ltot*diagonalSize*sampleSize);
 	  imag_part.resize(ltot*diagonalSize*sampleSize);
 	
-	  for (size_t T=0, c=0; T<sampleSize; T++) {
-	    for (size_t l=0; l<ltot; l++) {
-	      for (size_t n1=0; n1<nmax; n1++) {
+	  for (int T=0, c=0; T<sampleSize; T++) {
+	    for (int l=0; l<ltot; l++) {
+	      for (int n1=0; n1<nmax; n1++) {
 		// Pack the covariance data in an upper triangular format
 		//
 		if (covar) {
-		  for (size_t n2=n1; n2<nmax; n2++, c++) {
-		    real_part(c) = std::real(std::get<1>(std::get<2>(elem)[T][l])(n1, n2));
-		    imag_part(c) = std::imag(std::get<1>(std::get<2>(elem)[T][l])(n1, n2));
+		  for (int n2=n1; n2<nmax; n2++, c++) {
+		    real_part(c) = std::real(std::get<3>(elem)(T, l, n1, n2));
+		    imag_part(c) = std::imag(std::get<3>(elem)(T, l, n1, n2));
 		  }
 		}
 		// Pack the diagonal only
 		//
 		else {
-		  real_part(c  ) = std::real(std::get<1>(std::get<2>(elem)[T][l])(n1, n1));
-		  imag_part(c++) = std::imag(std::get<1>(std::get<2>(elem)[T][l])(n1, n1));
+		  real_part(c  ) = std::real(std::get<3>(elem)(T, l, n1, n1));
+		  imag_part(c++) = std::imag(std::get<3>(elem)(T, l, n1, n1));
 		}
 	      }
 	    }
@@ -199,11 +205,11 @@ namespace BasisClasses
       Eigen::VectorXd real_part(ltot*nmax*sampleSize);
       Eigen::VectorXd imag_part(ltot*nmax*sampleSize);
       
-      for (size_t T=0, c=0; T<sampleSize; T++) {
-	for (size_t l=0; l<ltot; l++) {
-	  for (size_t n=0; n<nmax; n++, c++) {
-	    real_part(c) = std::real(std::get<0>(std::get<2>(elem)[T][l])(n));
-	    imag_part(c) = std::imag(std::get<0>(std::get<2>(elem)[T][l])(n));
+      for (int T=0, c=0; T<sampleSize; T++) {
+	for (int l=0; l<ltot; l++) {
+	  for (int n=0; n<nmax; n++, c++) {
+	    real_part(c) = std::real(std::get<2>(elem)(T, l, n));
+	    imag_part(c) = std::imag(std::get<2>(elem)(T, l, n));
 	  }
 	}
       }
@@ -213,7 +219,10 @@ namespace BasisClasses
       stanza.createDataSet("coefficients_real", real_part, dcpl2);
       stanza.createDataSet("coefficients_imag", imag_part, dcpl2);
       
-      if (std::get<1>(std::get<2>(elem)[0][0]).size()) {
+      // Get the dimensions of the covariance data
+      const auto& dimsC = std::get<3>(elem).dimensions();
+
+      if (dimsC[0] and dimsC[1] and dimsC[2]) {
 	
 	if (summed) {
 	  
@@ -223,14 +232,14 @@ namespace BasisClasses
 	  real_part.setZero();
 	  imag_part.setZero();
 	
-	  for (size_t T=0; T<sampleSize; T++) {
-	    for (size_t l=0, c=0; l<ltot; l++) {
-	      for (size_t n1=0; n1<nmax; n1++) {
+	  for (int T=0; T<sampleSize; T++) {
+	    for (int l=0, c=0; l<ltot; l++) {
+	      for (int n1=0; n1<nmax; n1++) {
 		// Pack the covariance data in an upper triangular format
 		//
-		for (size_t n2=n1; n2<nmax; n2++, c++) {
-		  real_part(c) += std::real(std::get<1>(std::get<2>(elem)[T][l])(n1, n2));
-		  imag_part(c) += std::imag(std::get<1>(std::get<2>(elem)[T][l])(n1, n2));
+		for (int n2=n1; n2<nmax; n2++, c++) {
+		  real_part(c) += std::real(std::get<3>(elem)(T, l, n1, n2));
+		  imag_part(c) += std::imag(std::get<3>(elem)(T, l, n1, n2));
 		}
 	      }
 	    }
@@ -246,22 +255,22 @@ namespace BasisClasses
 	  real_part.resize(ltot*diagonalSize*sampleSize);
 	  imag_part.resize(ltot*diagonalSize*sampleSize);
 	
-	  for (size_t T=0, c=0; T<sampleSize; T++) {
-	    for (size_t l=0; l<ltot; l++) {
-	      for (size_t n1=0; n1<nmax; n1++) {
+	  for (int T=0, c=0; T<sampleSize; T++) {
+	    for (int l=0; l<ltot; l++) {
+	      for (int n1=0; n1<nmax; n1++) {
 		// Pack the covariance data in an upper triangular format
 		//
 		if (covar) {
-		  for (size_t n2=n1; n2<nmax; n2++, c++) {
-		    real_part(c) = std::real(std::get<1>(std::get<2>(elem)[T][l])(n1, n2));
-		    imag_part(c) = std::imag(std::get<1>(std::get<2>(elem)[T][l])(n1, n2));
+		  for (int n2=n1; n2<nmax; n2++, c++) {
+		    real_part(c) = std::real(std::get<3>(elem)(T, l, n1, n2));
+		    imag_part(c) = std::imag(std::get<3>(elem)(T, l, n1, n2));
 		  }
 		}
 		// Pack the diagonal only
 		//
 		else {
-		  real_part(c  ) = std::real(std::get<1>(std::get<2>(elem)[T][l])(n1, n1));
-		  imag_part(c++) = std::imag(std::get<1>(std::get<2>(elem)[T][l])(n1, n1));
+		  real_part(c  ) = std::real(std::get<3>(elem)(T, l, n1, n1));
+		  imag_part(c++) = std::imag(std::get<3>(elem)(T, l, n1, n1));
 		}
 	      }
 	    }
@@ -508,9 +517,13 @@ namespace BasisClasses
 	
 	// Allocate sample vector for current time
 	//
-	covarData[Time] = { counts, masses,
-			    std::vector<std::vector<CoefCovarType>>(nT) };
+	CovarData & elem = covarData[Time];
+
+	std::get<0>(elem) = counts;
+	std::get<1>(elem) = masses;
 	
+	// Temporary storage for covariance elements
+
 	// Storage
 	//
 	Eigen::VectorXcd data0, data1;
@@ -620,24 +633,20 @@ namespace BasisClasses
 	// Positions in data stanzas
 	int sCof = 0, sCov = 0;
 	
+	std::get<2>(elem) = SubsampleCovariance::CoefType(nT, lSize, rank);
+	if (data1.size())
+	  std::get<3>(elem) =
+	    SubsampleCovariance::CovrType(nT, lSize, rank, rank);
+
 	// Loop through all indices and repack
 	//
 	for (int T=0; T<nT; T++) {
 	  
-	  // Data element for this time
-	  std::vector<CoefCovarType> elem(lSize);
-	  for (auto & e : elem) {
-	    // Coefficients
-	    std::get<0>(e).resize(rank);
-	    // Covariance matrix
-	    if (data1.size()) std::get<1>(e).resize(rank, rank);
-	  }
-	    
 	  // Pack the coefficient data
 	  int c = 0;
-	  for (size_t l=0; l<lSize; l++) {
-	    for (size_t n=0; n<rank; n++) {
-	      std::get<0>(elem[l])(n) = data0(sCof + c++);
+	  for (int l=0; l<lSize; l++) {
+	    for (int n=0; n<rank; n++) {
+	      std::get<2>(elem)(T, l, n) = data0(sCof + c++);
 	    }
 	  }
 	  sCof += c;
@@ -646,25 +655,23 @@ namespace BasisClasses
 	  //
 	  if (data1.size()) {
 	    c = 0;		// Position counter
-	    for (size_t l=0; l<lSize; l++) {
-	      for (size_t n1=0; n1<rank; n1++) {
-		for (size_t n2=n1; n2<rank; n2++) {
+	    for (int l=0; l<lSize; l++) {
+	      for (int n1=0; n1<rank; n1++) {
+		for (int n2=n1; n2<rank; n2++) {
 		  if (covar) {
-		    std::get<1>(elem[l])(n1, n2) = data1(sCov + c++);
+		    std::get<3>(elem)(T, l, n1, n2) = data1(sCov + c++);
 		    if (n1 != n2)
-		      std::get<1>(elem[l])(n2, n1) = std::get<1>(elem[l])(n1, n2);
+		      std::get<3>(elem)(T, l, n2, n1) =
+			std::get<3>(elem)(T, l, n1, n2);
 		  }
 		  else {
 		    if (n1==n2)
-		      std::get<1>(elem[l])(n1, n2) = data1(sCov + c++);
+		      std::get<3>(elem)(T, l, n1, n2) = data1(sCov + c++);
 		    else
-		      std::get<1>(elem[l])(n1, n2) = 0.0;
+		      std::get<3>(elem)(T, l, n1, n2) = 0.0;
 		  }
 		}
 	      }
-	      // Split the summed covariance nT ways to emulate
-	      // subsample covariance
-	      if (summed) std::get<1>(elem[l]) /= nT;
 	    }
 
 	    // Advance the covariance position for subsampled data only.
@@ -673,12 +680,18 @@ namespace BasisClasses
 	  }
 	  // END: pack covariance data
 	  
-	  // Add the data
-	  std::get<2>(covarData[Time])[T] = std::move(elem);
 	}
 	// END: sample loop
+	
+	// Split the summed covariance nT ways to emulate
+	// subsample covariance
+	if (summed) {
+	  CovarData & elem = covarData[Time];
+	  std::get<3>(elem) *= std::get<3>(elem).constant(1.0/nT);
+	}
       }
       // END: snapshot loop
+
     } catch (HighFive::Exception& err) {
       std::cerr << err.what() << std::endl;
     }

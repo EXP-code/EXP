@@ -30,11 +30,12 @@ namespace BasisClasses
     
     using ParamCallback = std::function<void (HighFive::File& file)>;
     
-    using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
-    
-    using CovarData = std::tuple<Eigen::VectorXi, Eigen::VectorXd,
-				 std::vector<std::vector<CoefCovarType>>>;
-    
+    using NumbType  = Eigen::VectorXi;
+    using MassType  = Eigen::VectorXd;
+    using CoefType  = Eigen::Tensor<std::complex<double>, 3>;
+    using CovrType  = Eigen::Tensor<std::complex<double>, 4>;
+    using CovarData = std::tuple<NumbType, MassType, CoefType, CovrType>;
+
   protected:
     
     ParamCallback paramCallback;
@@ -115,27 +116,15 @@ namespace BasisClasses
     //! Get time list
     std::vector<double> Times() { return times; }
     
-    //! Return a vector of tuples of basis functions and the
-    //! covariance matrix for subsamples of particles
-    virtual std::vector<std::vector<CoefCovarType>>
-    getCoefCovariance(double time)
+    //! Returns counts, masses, coefficients and covariance for
+    //! subsamples of particles
+    virtual CovarData getCoefCovariance(double time)
     {
       auto it = covarData.find(roundTime(time));
       if (it == covarData.end())
 	throw std::runtime_error("SubsampleCovariance::getCoefCovariance: "
 				 "time not found");
-      return std::get<2>(it->second);
-    }
-    
-    //! Get sample counts for the covariance computation
-    virtual std::tuple<Eigen::VectorXi, Eigen::VectorXd>
-    getCovarSamples(double time)
-    {
-      auto it = covarData.find(roundTime(time));
-      if (it == covarData.end())
-	throw std::runtime_error("SubsampleCovariance::getCovarSamples: "
-				 "time not found");
-      return std::make_tuple(std::get<0>(it->second), std::get<1>(it->second));
+      return it->second;
     }
     
     //! Write coefficient covariance data to an HDF5 file, creating a

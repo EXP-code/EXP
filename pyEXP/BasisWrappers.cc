@@ -1359,9 +1359,7 @@ void BasisFactoryClasses(py::module &m)
 
          See also
          --------
-         getCoefCovariance : get the coefficient vectors and covariance matrices
-                             for the partitioned phase space.
-         getCovarSamples   : get counts and mass in each partition
+         getCoefCovariance : get the counts, mass, coefficient vectors and covariance matrices
          )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
     .def("enableCoefCovariance", &BasisClasses::BiorthBasis::enableCoefCovariance,
 	 R"(
@@ -2901,8 +2899,7 @@ void BasisFactoryClasses(py::module &m)
        times : list(float)
             a list of evaluation times
       )")
-  .def("getCoefCovariance", static_cast<std::vector<std::vector<std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>>>
-       (BasisClasses::SubsampleCovariance::*)(double)>(&BasisClasses::SubsampleCovariance::getCoefCovariance),
+    .def("getCoefCovariance", &BasisClasses::SubsampleCovariance::getCoefCovariance,
      R"(
      Get the covariance matrices for the basis coefficients
 
@@ -2918,21 +2915,6 @@ void BasisFactoryClasses(py::module &m)
             each subsample. The returns are complex-valued.
     )",
     py::arg("time"))
-    .def("getCovarSamples", &BasisClasses::SubsampleCovariance::getCovarSamples,
-      R"(
-      Get sample counts for the covariance computation
-
-      Parameters
-      ----------
-      time  : float
-              the evaluation time
-
-      Returns
-      -------
-      tuple(numpy.ndarray, numpy.ndarray)
-          sample counts and masses for the covariance computation
-      )",
-      py::arg("time"))
    .def("basisIDname", &BasisClasses::SubsampleCovariance::basisIDname,
      R"(
      Get the basis ID name

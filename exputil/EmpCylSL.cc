@@ -4954,18 +4954,24 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 
 /** Return a vector of tuples of basis functions and the
     covariance matrix for subsamples of particles */
-std::vector<std::vector<EmpCylSL::CoefCovarType>>
+std::tuple<Eigen::Tensor<std::complex<double>, 3>,
+	   Eigen::Tensor<std::complex<double>, 4>>
 EmpCylSL::getCoefCovariance()
 {
-  std::vector<std::vector<EmpCylSL::CoefCovarType>> ret;
-
+  std::tuple<Eigen::Tensor<std::complex<double>, 3>,
+	     Eigen::Tensor<std::complex<double>, 4>> ret;
+  
   if (covar) {
-    ret.resize(sampT);
+    std::get<0>(ret) = Eigen::Tensor<std::complex<double>, 3>(sampT, MMAX+1, NMAX);
+    std::get<1>(ret) = Eigen::Tensor<std::complex<double>, 4>(sampT, MMAX+1, NMAX, NMAX);
+ 
     for (unsigned T=0; T<sampT; T++) {
-      ret[T].resize(MMAX+1);
       for (int M=0; M<=MMAX; M++)  {
-	std::get<0>(ret[T][M]) = VC[0][T][M];
-	std::get<1>(ret[T][M]) = MV[0][T][M];
+	for (int n1=0; n1<NMAX; n1++) {
+	  std::get<0>(ret)(T, M, n1) = VC[0][T][M](n1);
+	  for (int n2=0; n2<NMAX; n2++) 
+	    std::get<1>(ret)(T, M, n1, n2) = MV[0][T][M](n1, n2);
+	}
       }
     }
   }
