@@ -1040,6 +1040,7 @@ PotAccel::CovarData Cube::getSubsample()
 
   // Fill the covariance structure with subsamples
   for (int T=0; T<sampT; T++) {
+    /*
     for (int n1=0; n1<osize; n1++) {
       std::get<2>(elem)(T, 0, n1) = meanV[T](n1);
       for (int n2=0; n2<osize; n2++)
@@ -1048,6 +1049,16 @@ PotAccel::CovarData Cube::getSubsample()
 	else
 	  std::get<3>(elem)(T, 0, n1, n2) = 0.0;
     } 
+    */
+
+    std::get<2>(elem).chip(T, 0).chip(0, 0) =
+      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 1>>
+      (meanV[T].data(), osize);
+	
+    std::get<3>(elem).chip(T, 0).chip(0, 0) =
+      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>
+      (covrV[T].data(), osize, osize);
+
   }
     
   return elem;

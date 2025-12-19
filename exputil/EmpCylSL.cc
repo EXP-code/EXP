@@ -4965,6 +4965,7 @@ EmpCylSL::getCoefCovariance()
     std::get<0>(ret) = Eigen::Tensor<std::complex<double>, 3>(sampT, MMAX+1, NMAX);
     std::get<1>(ret) = Eigen::Tensor<std::complex<double>, 4>(sampT, MMAX+1, NMAX, NMAX);
  
+    /*
     for (unsigned T=0; T<sampT; T++) {
       for (int M=0; M<=MMAX; M++)  {
 	for (int n1=0; n1<NMAX; n1++) {
@@ -4974,6 +4975,15 @@ EmpCylSL::getCoefCovariance()
 	}
       }
     }
+    */
+
+    for (unsigned T=0; T<sampT; T++) {
+      for (int M=0; M<=MMAX; M++)  {
+	std::get<0>(ret).chip(T, 0).chip(M, 0) = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 1>>(VC[0][T][M].data(), NMAX);
+	std::get<1>(ret).chip(T, 0).chip(M, 0) = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>(MV[0][T][M].data(), NMAX, NMAX);
+      }
+    }
+
   }
 
   return ret;

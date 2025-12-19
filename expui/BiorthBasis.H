@@ -273,6 +273,10 @@ namespace BasisClasses
       return varray;
     }
 
+    //!! Sample counts, masses, coefficients, and covariance
+    SubsampleCovariance::CovarData getCoefCovariance(double time)
+    { return covarStore->getCoefCovariance(time); }
+
     //! Write coefficient covariance data to an HDF5 file
     virtual void writeCoefCovariance(const std::string& compname, const std::string& runtag,
 				     double time=0.0)
