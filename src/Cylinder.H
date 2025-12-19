@@ -199,6 +199,7 @@ protected:
   virtual void determine_acceleration_cuda();
   virtual void multistep_update_cuda();
 
+  thrust::host_vector<unsigned> host_numbT;
   thrust::host_vector  <cuFP_t> host_coefs, host_covar, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
   std::vector<thrust::host_vector<cuFP_t>> host_coefsT, host_covarT;

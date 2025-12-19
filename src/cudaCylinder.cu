@@ -963,6 +963,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       host_covarT[T].resize((mmax+1)*nmax*nmax);
     }
     host_massT.resize(sampT);
+    host_numbT.resize(sampT);
   }
 
   // Set component center and orientation
@@ -1013,6 +1014,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       thrust::fill(host_covarT[T].begin(), host_covarT[T].end(), 0.0);
     }
     thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
+    thrust::fill(host_numbT.begin(), host_numbT.end(), 0  );
   }
 
   // Zero out coefficient storage
@@ -1191,6 +1193,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	      else mend = cuS.u_d.end();
 	      
 	      host_massT[T] += thrust::reduce(mbeg, mend);
+	      host_numbT[T] += mend - mbeg;
 	    }
 
 	    if (subsamp) {
@@ -1868,9 +1871,10 @@ void Cylinder::DtoH_coefs(int M)
     //
     for (int T=0; T<sampT; T++) {
 
-      // Copy mass per sample T
+      // Copy mass and number per sample T
       //
       ortho->set_massT(T) += host_massT[T];
+      ortho->set_numbT(T) += host_numbT[T];
 
       // m loop
       //

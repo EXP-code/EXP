@@ -1048,6 +1048,17 @@ public:
     return massT1[0][T];
   }
 
+  unsigned& set_numbT(int T)
+  {
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+
+    return numbT1[0][T];
+  }
+
 #endif
 
 private:

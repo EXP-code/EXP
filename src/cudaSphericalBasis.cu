@@ -1122,6 +1122,8 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	      int s = sN;
 	      if (T==sampT-1) s = N - k;
 	      
+	      countT1[T] = s;	// Sample count
+
 	      // Mass accumulation
 	      //
 	      if (l==0 and m==0) {
