@@ -2,6 +2,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/functional.h>
+#include <pybind11/complex.h>
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
@@ -1332,6 +1333,29 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
+    .def("getCoefCovariance",
+	 [](BasisClasses::BiorthBasis& A, double time)
+	 {
+	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
+	   py::array_t<std::complex<double>> cf = make_ndarray3<std::complex<double>>(coef);
+	   py::array_t<std::complex<double>> vr = make_ndarray4<std::complex<double>>(covr);
+	   return std::make_tuple(cnts, mass, cf, vr);
+	 },
+	 R"(
+         Get the covariance matrices for the basis coefficients
+
+         Parameters
+         ----------
+         time  : float
+                 the evaluation time
+
+         Returns
+         -------
+         tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
+            tuple of counts, masses, partitioned coefficients and their covariance
+            matrices for each subsample. The returns are complex-valued.
+        )",
+	 py::arg("time"))
     .def("writeCoefCovariance", &BasisClasses::BiorthBasis::writeCoefCovariance,
          R"(
          Write the partitioned coefficient vectors and covariance matrices
@@ -2899,20 +2923,27 @@ void BasisFactoryClasses(py::module &m)
        times : list(float)
             a list of evaluation times
       )")
-    .def("getCoefCovariance", &BasisClasses::SubsampleCovariance::getCoefCovariance,
-     R"(
-     Get the covariance matrices for the basis coefficients
+    .def("getCoefCovariance",
+	 [](BasisClasses::SubsampleCovariance& A, double time)
+	 {
+	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
+	   py::array_t<std::complex<double>> cf = make_ndarray3<std::complex<double>>(coef);
+	   py::array_t<std::complex<double>> vr = make_ndarray4<std::complex<double>>(covr);
+	   return std::make_tuple(cnts, mass, cf, vr);
+	 },
+       R"(
+       Get the covariance matrices for the basis coefficients
 
-     Parameters
-     ----------
-     time  : float
-             the evaluation time
+       Parameters
+       ----------
+       time  : float
+               the evaluation time
 
-     Returns
-     -------
-      list(list(tuple(numpy.ndarray, numpy.ndarray)))
-	    List of partitioned coefficients and their covariance matrices for
-            each subsample. The returns are complex-valued.
+       Returns
+       -------
+       tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
+            tuple of counts, masses, partitioned coefficients and their covariance
+            matrices for each subsample. The returns are complex-valued.
     )",
     py::arg("time"))
    .def("basisIDname", &BasisClasses::SubsampleCovariance::basisIDname,
