@@ -922,7 +922,7 @@ void Cylinder::cuda_zero_coefs()
   }
 }
 
-void Cylinder::determine_coefficients_cuda(bool compute)
+void Cylinder::determine_coefficients_cuda()
 {
   // Only do this once but copying mapping coefficients and textures
   // must be done every time
@@ -1865,16 +1865,16 @@ void Cylinder::DtoH_coefs(int M)
     }
   }
 
-  if (compute and pcavar) {
+  if (compute) {
 
     // T loop
     //
     for (int T=0; T<sampT; T++) {
 
-      // Copy mass and number per sample T
-      //
-      ortho->set_massT(T) += host_massT[T];
-      ortho->set_numbT(T) += host_numbT[T];
+	// Copy mass and number per sample T
+	//
+	ortho->set_massT(T) += host_massT[T];
+	ortho->set_numbT(T) += host_numbT[T];
 
       // m loop
       //
@@ -1883,11 +1883,17 @@ void Cylinder::DtoH_coefs(int M)
 	// n loop
 	//
 	for (int n=0; n<nmax; n++) {
-	  ortho->set_coefT(T, m, n) += host_coefsT[T][Jmn(m, n, nmax)];
+	  if (pcaeof)
+	    ortho->set_coefT(T, m, n) += host_coefsT[T][Jmn(m, n, nmax)];
+	  else
+	    *(ortho->set_VC(T, m, n)) += host_coefsT[T][Jmn(m, n, nmax)];
 
 	  // o loop
 	  for (int o=0; o<nmax; o++) {
-	    ortho->set_covrT(T, m, n, o) += host_covarT[T][Kmn(m, n, o, nmax)];
+	    if (pcaeof)
+	      ortho->set_covrT(T, m, n, o) += host_covarT[T][Kmn(m, n, o, nmax)];
+	    else
+	      *(ortho->set_MV(T, m, n, o)) += host_covarT[T][Kmn(m, n, o, nmax)];
 
 	  }
 	}
