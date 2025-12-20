@@ -123,8 +123,8 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
   vflag           = 0;
   eof             = 1;
-  npca            = std::numeric_limits<int>::max());
-  npca0           = std::numeric_limits<int>::max());
+  npca            = std::numeric_limits<int>::max();
+  npca0           = std::numeric_limits<int>::max();
   defSampT        = 1;
   hexp            = 1.0;
   snr             = 1.0;
@@ -1076,7 +1076,7 @@ void Cylinder::determine_coefficients_particles(void)
   //=========================
 
   if (npca0 < std::numeric_limits<int>::max() and mlevel==0)
-    pca_hall(compute);
+    ortho->pca_hall(compute, subsamp);
 
   // If subsample requested and computed, turn off for next time
   if (nint and compute and mlevel==multistep) {
