@@ -4962,15 +4962,15 @@ EmpCylSL::getCoefCovariance()
 	     Eigen::Tensor<std::complex<double>, 4>> ret;
   
   if (covar) {
-    std::get<0>(ret) = Eigen::Tensor<std::complex<double>, 3>(sampT, MMAX+1, NMAX);
-    std::get<1>(ret) = Eigen::Tensor<std::complex<double>, 4>(sampT, MMAX+1, NMAX, NMAX);
+    std::get<0>(ret) = Eigen::Tensor<std::complex<double>, 3>(sampT, MMAX+1, NORDER);
+    std::get<1>(ret) = Eigen::Tensor<std::complex<double>, 4>(sampT, MMAX+1, NORDER, NORDER);
  
     /*
     for (unsigned T=0; T<sampT; T++) {
       for (int M=0; M<=MMAX; M++)  {
-	for (int n1=0; n1<NMAX; n1++) {
+	for (int n1=0; n1<NORDER; n1++) {
 	  std::get<0>(ret)(T, M, n1) = VC[0][T][M](n1);
-	  for (int n2=0; n2<NMAX; n2++) 
+	  for (int n2=0; n2<NORDER; n2++) 
 	    std::get<1>(ret)(T, M, n1, n2) = MV[0][T][M](n1, n2);
 	}
       }
@@ -4979,8 +4979,8 @@ EmpCylSL::getCoefCovariance()
 
     for (unsigned T=0; T<sampT; T++) {
       for (int M=0; M<=MMAX; M++)  {
-	std::get<0>(ret).chip(T, 0).chip(M, 0) = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 1>>(VC[0][T][M].data(), NMAX);
-	std::get<1>(ret).chip(T, 0).chip(M, 0) = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>(MV[0][T][M].data(), NMAX, NMAX);
+	std::get<0>(ret).chip(T, 0).chip(M, 0) = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 1>>(VC[0][T][M].data(), NORDER);
+	std::get<1>(ret).chip(T, 0).chip(M, 0) = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>(MV[0][T][M].data(), NORDER, NORDER);
       }
     }
 
