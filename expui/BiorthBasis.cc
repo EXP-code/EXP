@@ -64,7 +64,6 @@ namespace BasisClasses
     "pyname",
     "rnum",
     "nint",
-    "subsamp",
     "totalCovar",
     "fullCovar"
   };
@@ -1244,7 +1243,6 @@ namespace BasisClasses
     "coefMaster",
     "pyname",
     "nint",
-    "subsamp",
     "totalCovar",
     "fullCovar"
   };
