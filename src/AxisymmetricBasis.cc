@@ -88,10 +88,7 @@ AxisymmetricBasis:: AxisymmetricBasis(Component* c0, const YAML::Node& conf) :
 
     if (conf["nint"]) {		// For OutSample support
       nint = conf["nint"].as<int>();
-      if (nint>0) {
-	pcavar  = true;
-	subsamp = true;
-      }
+      if (nint>0) pcavar  = true;
     }
 
   }
