@@ -1026,6 +1026,43 @@ public:
     return covM(0, T, m)(n, o);
   }
 
+  std::complex<double>* set_VC(int T, int m, int n)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+    
+    return &VC[0][T][m](n);
+  }
+
+  std::complex<double>* set_MV(int T, int m, int n, int o)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (o >= rank3)
+      throw std::runtime_error("o>=norder");
+
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+
+    return &MV[0][T][m](n, o);
+  }
+
   double& set_tvar(int m, int i, int j)
   {
     if (m >  MMAX)
