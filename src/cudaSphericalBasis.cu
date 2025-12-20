@@ -1122,17 +1122,20 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	      int s = sN;
 	      if (T==sampT-1) s = N - k;
 	      
-	      countT1[T] = s;	// Sample count
-
-	      // Mass accumulation
+	      // Count and mass accumulation
 	      //
 	      if (l==0 and m==0) {
+		
+		// Sample count
+		countT1[T] += s;
+
 		auto mbeg = cuS.u_d.begin();
 		auto mend = mbeg;
 		thrust::advance(mbeg, sN*T);
 		if (T<sampT-1) thrust::advance(mend, sN*(T+1));
 		else mend = cuS.u_d.end();
 		
+		// Accumulated mass
 		host_massT[T] += thrust::reduce(mbeg, mend);
 	      }
 
@@ -1203,7 +1206,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 		
 		thrust::transform(thrust::cuda::par.on(cr->stream),
 				  cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
-				  bm[T], bm[T], thrust::plus<cuFP_t>());;
+				  bm[T], bm[T], thrust::plus<cuFP_t>());
 		
 		thrust::advance(bm[T], vsize);
 	      }
