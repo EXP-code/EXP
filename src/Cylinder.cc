@@ -123,8 +123,8 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
   vflag           = 0;
   eof             = 1;
-  npca            = 50;
-  npca0           = 0;
+  npca            = std::numeric_limits<int>::max());
+  npca0           = std::numeric_limits<int>::max());
   defSampT        = 1;
   hexp            = 1.0;
   snr             = 1.0;
@@ -1023,7 +1023,7 @@ void Cylinder::determine_coefficients_particles(void)
 	std::fill(use.begin(), use.end(), 0.0);
 	std::fill(cylmass0.begin(), cylmass0.end(), 0.0);
       }
-      determine_coefficients_cuda(compute);
+      determine_coefficients_cuda();
       DtoH_coefs(mlevel);
       finish1 = std::chrono::high_resolution_clock::now();
     }
@@ -1075,7 +1075,8 @@ void Cylinder::determine_coefficients_particles(void)
   // Compute Hall smoothing
   //=========================
 
-  if ((pcavar or pcaeof) and mlevel==0) ortho->pca_hall(compute, subsamp);
+  if (npca0 < std::numeric_limits<int>::max() and mlevel==0)
+    pca_hall(compute);
 
   // If subsample requested and computed, turn off for next time
   if (nint and compute and mlevel==multistep) {
@@ -1087,7 +1088,8 @@ void Cylinder::determine_coefficients_particles(void)
   // Apply Hall smoothing
   //=========================
 
-  if (pcavar and used) ortho->set_trimmed(snr, rem);
+  if (pcavar and used and npca0 < std::numeric_limits<int>::max())
+    ortho->set_trimmed(snr, rem);
 
   //=========================
   // Dump basis on first call
