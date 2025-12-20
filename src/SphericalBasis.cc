@@ -927,7 +927,7 @@ void SphericalBasis::determine_coefficients_particles(void)
       subsampleComputed = true;
     }
 
-    pca_hall(compute);
+    if (npca0 < std::numeric_limits<int>::max()) pca_hall(compute);
   }
 
   print_timings("SphericalBasis: coefficient timings");
