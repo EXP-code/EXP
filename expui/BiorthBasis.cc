@@ -1900,6 +1900,7 @@ namespace BasisClasses
   void Cylindrical::make_coefs(void)
   {
     sl->make_coefficients(pcavar);
+    if (pcavar) sl->make_covar();
   }
   
   
