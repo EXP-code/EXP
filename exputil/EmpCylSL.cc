@@ -4111,6 +4111,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
       Eigen::VectorXd vC = vc[id].row(mm).transpose() * norm;
       Eigen::VectorXd vS = vs[id].row(mm).transpose() * norm;
 
+      // Make sure we only have real part here
       if (mm==0) vS.setZero();
 
       vec.real() = vC*mcos + vS*msin;
