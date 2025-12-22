@@ -454,7 +454,7 @@ namespace BasisClasses
       int lmax, nmax, ltot;
       
       // Current implemented spherical types
-      const std::set<std::string> sphereType = {"Spherical", "Sphere SL", "Bessel"};
+      const std::set<std::string> sphereType = {"Spherical", "SphereSL", "Bessel"};
       
       // Currently implemented cylindrical types
       const std::set<std::string> cylinderType = {"Cylindrical", "Cylinder"};
