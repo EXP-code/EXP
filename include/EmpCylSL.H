@@ -206,7 +206,6 @@ protected:
   std::vector<unsigned> numbT;
   std::vector<double> massT;
   unsigned sampT, defSampT;
-  bool make_covar = false;
 
   std::vector<Eigen::MatrixXd> vc, vs;
 
@@ -643,6 +642,9 @@ public:
 
   //! Turn on/off covariance computation
   void set_covar(bool tf) { covar = tf; }
+
+  //! Make covariance matrix from accumulated data
+  void make_covar();
 
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
