@@ -3,6 +3,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <cassert>
 #include <memory>
 #include <limits>
 #include <string>
@@ -1923,11 +1924,18 @@ void EmpCylSL::setup_accumulation(int mlevel)
       }
     }
 
-    if (PCAVAR and sampT>1) {
+    if ((covar or PCAVAR) and sampT>1) {
       for (int nth=0; nth<nthrds; nth++) {
 	for (unsigned T=0; T<sampT; T++) {
 	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
+	}
+      }
+    }
+
+    if (PCAVAR and sampT>1) {
+      for (int nth=0; nth<nthrds; nth++) {
+	for (unsigned T=0; T<sampT; T++) {
 	  covV[nth][T].resize(MMAX+1);
 	  covM[nth][T].resize(MMAX+1);
 	  for (int mm=0; mm<=MMAX; mm++) {
@@ -2067,43 +2075,40 @@ void EmpCylSL::init_pca()
 
 void EmpCylSL::init_covar()
 {
-  if (covar) {
+  if (defSampT) sampT = defSampT;
+  else          sampT = floor(sqrt(nbodstot));
 
-    if (defSampT) sampT = defSampT;
-    else          sampT = floor(sqrt(nbodstot));
+  pthread_mutex_init(&used_lock, NULL);
 
-    pthread_mutex_init(&used_lock, NULL);
+  MV.resize(nthrds);
+  VC.resize(nthrds);
 
-    MV.resize(nthrds);
-    VC.resize(nthrds);
+  // These are shared with PCA
+  numbT1.resize(nthrds);
+  massT1.resize(nthrds);
+  numbT .resize(sampT, 0);
+  massT .resize(sampT, 0);
+  
+  for (int nth=0; nth<nthrds;nth++) {
+    
+    MV[nth].resize(sampT);
+    VC[nth].resize(sampT);
+    
+    for (unsigned T=0; T<sampT; T++) {
 
-    // These are shared with PCA
-    numbT1.resize(nthrds);
-    massT1.resize(nthrds);
-    numbT .resize(sampT, 0);
-    massT .resize(sampT, 0);
-
-    for (int nth=0; nth<nthrds;nth++) {
-
-      MV[nth].resize(sampT);
-      VC[nth].resize(sampT);
-
-      for (unsigned T=0; T<sampT; T++) {
-
-	MV[nth][T].resize(MMAX + 1);
-	VC[nth][T].resize(MMAX + 1);
-
-	for (unsigned mm=0; mm<=MMAX; mm++) {
-	  MV[nth][T][mm].resize(NORDER, NORDER);
-	  VC[nth][T][mm].resize(NORDER);
-	  MV[nth][T][mm].setZero();
-	  VC[nth][T][mm].setZero();
-	}
+      MV[nth][T].resize(MMAX + 1);
+      VC[nth][T].resize(MMAX + 1);
+      
+      for (unsigned mm=0; mm<=MMAX; mm++) {
+	MV[nth][T][mm].resize(NORDER, NORDER);
+	VC[nth][T][mm].resize(NORDER);
+	MV[nth][T][mm].setZero();
+	VC[nth][T][mm].setZero();
       }
-
-      numbT1[nth].resize(sampT, 0);
-      massT1[nth].resize(sampT, 0);
     }
+    
+    numbT1[nth].resize(sampT, 0);
+    massT1[nth].resize(sampT, 0);
   }
 }
 
@@ -3928,7 +3933,7 @@ void EmpCylSL::accumulate(std::vector<Particle>& part, int mlevel,
   int ncnt=0;
   if (myid==0 && verbose) cout << endl;
 
-  setup_accumulation();
+  setup_accumulation(mlevel);
 
   for (auto p=part.begin(); p!=part.end(); p++) {
 
@@ -4041,9 +4046,6 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 
   howmany1[mlevel][id]++;
 
-  double msin, mcos;
-  int mm;
-  
   double norm = -4.0*M_PI;
   
   unsigned whch;
@@ -4057,10 +4059,10 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 
   get_pot(vc[id], vs[id], r, z);
 
-  for (mm=0; mm<=MMAX; mm++) {
+  for (int mm=0; mm<=MMAX; mm++) {
 
-    mcos = cos(phi*mm);
-    msin = sin(phi*mm);
+    double mcos = cos(phi*mm);
+    double msin = sin(phi*mm);
 
     for (int nn=0; nn<rank3; nn++) {
       double hold = norm * mass * mcos * vc[id](mm, nn);
@@ -4102,8 +4104,17 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
     }
 
     if (compute and covar) {
-      Eigen::VectorXcd vec = std::complex<double>(mcos, msin) *
-	vc[id].row(mm).transpose() * norm;
+      int size = vc[id].row(mm).size();
+      assert(size == NORDER && "size of vectors must match");
+      Eigen::VectorXcd vec(size);
+      
+      Eigen::VectorXd vC = vc[id].row(mm).transpose() * norm;
+      Eigen::VectorXd vS = vs[id].row(mm).transpose() * norm;
+
+      if (mm==0) vS.setZero();
+
+      vec.real() = vC*mcos + vS*msin;
+      vec.imag() = vC*msin - vS*mcos;
 
       VC[id][whch][mm] += mass * vec;
       MV[id][whch][mm] += mass * (vec * vec.adjoint());
@@ -4925,15 +4936,6 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
       if (PCAEOF) 
 	for (auto & v : tvar[nth]) v.setZero();
 
-      if (covar) {
-	for (unsigned T=0; T<sampT; T++) {
-	  for (unsigned mm=0; mm<=MMAX; mm++) {
-	    MV[nth][T][mm].setZero();
-	    VC[nth][T][mm].setZero();
-	  }
-	}
-      }
-
       if (PCAVAR) {
 	for (unsigned T=0; T<sampT; T++) {
 	  numbT1[nth][T] = 0;
@@ -4965,22 +4967,13 @@ EmpCylSL::getCoefCovariance()
     std::get<0>(ret) = Eigen::Tensor<std::complex<double>, 3>(sampT, MMAX+1, NORDER);
     std::get<1>(ret) = Eigen::Tensor<std::complex<double>, 4>(sampT, MMAX+1, NORDER, NORDER);
  
-    /*
-    for (unsigned T=0; T<sampT; T++) {
-      for (int M=0; M<=MMAX; M++)  {
-	for (int n1=0; n1<NORDER; n1++) {
-	  std::get<0>(ret)(T, M, n1) = VC[0][T][M](n1);
-	  for (int n2=0; n2<NORDER; n2++) 
-	    std::get<1>(ret)(T, M, n1, n2) = MV[0][T][M](n1, n2);
-	}
-      }
-    }
-    */
+    using Tmap1 = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 1>>;
+    using Tmap2 = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>;
 
     for (unsigned T=0; T<sampT; T++) {
       for (int M=0; M<=MMAX; M++)  {
-	std::get<0>(ret).chip(T, 0).chip(M, 0) = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 1>>(VC[0][T][M].data(), NORDER);
-	std::get<1>(ret).chip(T, 0).chip(M, 0) = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>(MV[0][T][M].data(), NORDER, NORDER);
+	std::get<0>(ret).chip(T, 0).chip(M, 0) = Tmap1(VC[0][T][M].data(), NORDER);
+	std::get<1>(ret).chip(T, 0).chip(M, 0) = Tmap2(MV[0][T][M].data(), NORDER, NORDER);
       }
     }
 

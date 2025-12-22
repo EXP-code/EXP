@@ -1571,6 +1571,7 @@ namespace BasisClasses
     if (EVEN_M)   sl->setEven(EVEN_M);
     if (pcavar)  {
       sl->setSampT(sampT);
+      sl->init_covar();
       sl->set_covar(true);
     }
     

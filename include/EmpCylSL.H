@@ -642,10 +642,7 @@ public:
   void init_covar();
 
   //! Turn on/off covariance computation
-  void set_covar(bool tf) {
-    covar = tf;
-    if (tf) init_covar();
-  }
+  void set_covar(bool tf) { covar = tf; }
 
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
