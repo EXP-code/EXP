@@ -187,10 +187,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   if (mlim>=0)  ortho->set_mlim(mlim);
   if (EVEN_M)   ortho->setEven(EVEN_M);
   ortho->setSampT(defSampT);
-  if (nint>0) {
-    EmpCylSL::PCAVAR = true;
-    ortho->init_pca();
-  }
+  if (nint>0)   ortho->init_covar();
   
   try {
     if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
@@ -1075,7 +1072,7 @@ void Cylinder::determine_coefficients_particles(void)
   // Compute Hall smoothing
   //=========================
 
-  if (npca0 < std::numeric_limits<int>::max() and mlevel==0)
+  if (npca0 < std::numeric_limits<int>::max() and mlevel==multistep)
     ortho->pca_hall(compute, subsamp);
 
   // If subsample requested and computed, turn off for next time

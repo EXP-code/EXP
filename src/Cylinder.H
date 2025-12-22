@@ -13,6 +13,7 @@
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
+#include <thrust/complex.h>
 #endif
 
 #include "CoefContainer.H"
@@ -246,8 +247,10 @@ protected:
 
     std::vector<thrust::device_vector<cuFP_t>> T_covr;
 
+    using covr_t = thrust::complex<cuFP_t>;
+
     thrust::device_vector<cuFP_t> dN_tvar;
-    thrust::device_vector<cuFP_t> dW_tvar;
+    thrust::device_vector<covr_t> dW_tvar;
     thrust::device_vector<cuFP_t> dc_tvar;
     thrust::device_vector<cuFP_t> dw_tvar;
     thrust::device_vector<cuFP_t> df_tvar;

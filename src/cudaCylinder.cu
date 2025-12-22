@@ -77,6 +77,10 @@ void testConstantsCyl()
   printf("   Numy   = %d\n", cylNumy  );
   printf("   CmapR  = %d\n", cylCmapR );
   printf("   CmapZ  = %d\n", cylCmapZ );
+  if (cylAcov)
+    printf("   cylAcov: true\n"       );
+  else
+    printf("   cylAcov: false\n"      );
   printf("-------------------------\n");
 }
 
@@ -318,7 +322,8 @@ __global__ void coordKernelCyl
 
 
 __global__ void coefKernelCyl
-(dArray<cuFP_t> coef, dArray<cuFP_t> tvar, dArray<cuFP_t> work,
+(dArray<cuFP_t> coef, dArray<cuFP_t> tvar,
+ dArray<thrust::complex<cuFP_t>> work,
  dArray<cuFP_t> used, dArray<cudaTextureObject_t> tex,
  dArray<cuFP_t> Mass, dArray<cuFP_t> Phi,
  dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
@@ -437,11 +442,9 @@ __global__ void coefKernelCyl
 	  }
 
 	  if (compute and tvar._s>0) {
-	    valC *= cosp;
-	    valS *= sinp;
-	    cuFP_t val = sqrt(valC*valC + valS*valS);
-	    if (cylAcov) tvar._v[n*N + i   ] = val * mass;
-	    else         work._v[i*nmax + n] = val;
+	    cuFP_t val = sqrt(valC*valC*cosp*cosp + valS*valS*sinp*sinp);
+	    if (cylAcov) tvar._v[n*N + i   ] = val * norm * mass;
+	    else         work._v[i*nmax + n] = thrust::complex<cuFP_t>(valC*cosp + valS*sinp, valC*sinp - valS*cosp) * norm;
 	  }
 	  
 	}
@@ -454,13 +457,13 @@ __global__ void coefKernelCyl
 	  for (int r=0; r<nmax; r++) {
 	    for (int s=r; s<nmax; s++) {
 	      tvar._v[N*c + i] =
-		work._v[i*nmax + r] * work._v[i*nmax + s] * mass;
+		(work._v[i*nmax + r] * thrust::conj(work._v[i*nmax + s])).real() * mass;
 	      c++;
 	    }
 	  }
 	  // Mean
 	  for (int r=0; r<nmax; r++) {
-	    tvar._v[N*c + i] = work._v[i*nmax + r] * mass;
+	    tvar._v[N*c + i] = work._v[i*nmax + r].real() * mass;
 	    c++;
 	  }
 	}
@@ -1871,10 +1874,10 @@ void Cylinder::DtoH_coefs(int M)
     //
     for (int T=0; T<sampT; T++) {
 
-	// Copy mass and number per sample T
-	//
-	ortho->set_massT(T) += host_massT[T];
-	ortho->set_numbT(T) += host_numbT[T];
+      // Copy mass and number per sample T
+      //
+      ortho->set_massT(T) += host_massT[T];
+      ortho->set_numbT(T) += host_numbT[T];
 
       // m loop
       //
@@ -1885,16 +1888,15 @@ void Cylinder::DtoH_coefs(int M)
 	for (int n=0; n<nmax; n++) {
 	  if (pcaeof)
 	    ortho->set_coefT(T, m, n) += host_coefsT[T][Jmn(m, n, nmax)];
-	  else
-	    *(ortho->set_VC(T, m, n)) += host_coefsT[T][Jmn(m, n, nmax)];
+	  else 
+	    *ortho->set_VC(T, m, n) += host_coefsT[T][Jmn(m, n, nmax)];
 
 	  // o loop
 	  for (int o=0; o<nmax; o++) {
 	    if (pcaeof)
 	      ortho->set_covrT(T, m, n, o) += host_covarT[T][Kmn(m, n, o, nmax)];
 	    else
-	      *(ortho->set_MV(T, m, n, o)) += host_covarT[T][Kmn(m, n, o, nmax)];
-
+	      *ortho->set_MV(T, m, n, o) += host_covarT[T][Kmn(m, n, o, nmax)];
 	  }
 	}
       }
