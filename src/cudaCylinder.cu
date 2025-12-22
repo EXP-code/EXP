@@ -898,7 +898,7 @@ void Cylinder::cuda_zero_coefs()
 
   // Resize and zero PCA arrays
   //
-  if (pcavar) {
+  if (pcavar or (nint>0)) {
 				// (Re)initialize?
     if (cuS.T_covr.size() != sampT) {
       cuS.T_covr.resize(sampT);
@@ -956,7 +956,7 @@ void Cylinder::determine_coefficients_cuda()
 				// Variance components
   host_covar.resize((mmax+1)*nmax*nmax);
 
-  if (pcavar) {			// Set sample size
+  if (pcavar or (nint>0)) {	// Set sample size
     if (defSampT) sampT = defSampT;
     else          sampT = floor(sqrt(component->CurTotal()));
     host_coefsT.resize(sampT);	// Modulus components
@@ -1011,7 +1011,7 @@ void Cylinder::determine_coefficients_cuda()
   //
   thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
 
-  if (pcavar) {
+  if (pcavar or (nint>0)) {
     for (int T=0; T<sampT; T++) {
       thrust::fill(host_coefsT[T].begin(), host_coefsT[T].end(), 0.0);
       thrust::fill(host_covarT[T].begin(), host_covarT[T].end(), 0.0);
@@ -1092,7 +1092,7 @@ void Cylinder::determine_coefficients_cuda()
     // Adjust cached storage, if necessary
     //
     cuS.resize_coefs(nmax, mmax, N, gridSize, stride,
-		     sampT, pcavar, pcaeof, subsamp);
+		     sampT, pcavar or (nint>0), pcaeof, subsamp);
     
     // Shared memory size for the reduction
     //
@@ -1115,7 +1115,7 @@ void Cylinder::determine_coefficients_cuda()
     auto begV = cuS.df_tvar.begin();
     std::vector<thrust::device_vector<cuFP_t>::iterator> bg, bh;
 
-    if (pcavar) {
+    if (pcavar or (nint > 0)) {
       for (int T=0; T<sampT; T++) {
 	bh.push_back(cuS.T_covr[T].begin());
       }
@@ -1166,7 +1166,7 @@ void Cylinder::determine_coefficients_cuda()
 
 	// Reuse dN_coef and use dN_tvar to create sampT partitions
 	//
-	if (pcavar) {
+	if (pcavar or (nint>0)) {
 
 	  int sN = N/sampT;
 	  int nT = sampT;
@@ -1353,7 +1353,7 @@ void Cylinder::determine_coefficients_cuda()
 
     // Variance computation
     //
-    if (pcavar) {
+    if (pcavar or (nint>0)) {
 
       for (int T=0; T<sampT; T++) {
 
@@ -1886,9 +1886,10 @@ void Cylinder::DtoH_coefs(int M)
 	// n loop
 	//
 	for (int n=0; n<nmax; n++) {
+
 	  if (pcaeof)
 	    ortho->set_coefT(T, m, n) += host_coefsT[T][Jmn(m, n, nmax)];
-	  else 
+	  else
 	    *ortho->set_VC(T, m, n) += host_coefsT[T][Jmn(m, n, nmax)];
 
 	  // o loop
@@ -1991,7 +1992,7 @@ void Cylinder::multistep_update_cuda()
 	// Adjust cached storage, if necessary
 	//
 	cuS.resize_coefs(nmax, mmax, N, gridSize, stride,
-			 sampT, pcavar, pcaeof, subsamp);
+			 sampT, pcavar or (nint>0), pcaeof, subsamp);
 	
 	// Shared memory size for the reduction
 	//
