@@ -28,7 +28,7 @@ Sphere::valid_keys = {
 Sphere::Sphere(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   SphericalBasis(c0, conf, m)
 {
-  id = "Sphere SL";
+  id = "SphereSL";
 				// Defaults
   rmap = 0.067*rmax;
   numr = 2000;
