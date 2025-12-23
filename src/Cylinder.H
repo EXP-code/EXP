@@ -11,8 +11,8 @@
 #include "config_exp.h"
 
 #if HAVE_LIBCUDA==1
-#include <cudaParticle.cuH>
-#include <cudaMappingConstants.cuH>
+#include "cudaParticle.cuH"
+#include "cudaMappingConstants.cuH"
 #include <thrust/complex.h>
 #endif
 
@@ -201,9 +201,12 @@ protected:
   virtual void multistep_update_cuda();
 
   thrust::host_vector<unsigned> host_numbT;
-  thrust::host_vector  <cuFP_t> host_coefs, host_covar, host_massT;
+  thrust::host_vector  <cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
-  std::vector<thrust::host_vector<cuFP_t>> host_coefsT, host_covarT;
+  std::vector<thrust::host_vector<cuFP_t>> host_coefsT;
+  std::vector<thrust::host_vector<thrust::complex<cuFP_t>>> host_coefsC;
+  thrust::host_vector<thrust::complex<cuFP_t>> host_covar;
+  std::vector<thrust::host_vector<thrust::complex<cuFP_t>>> host_covarT;
 
   virtual void HtoD_coefs();
   virtual void DtoH_coefs(int mlevel);

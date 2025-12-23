@@ -1,9 +1,10 @@
 // -*- C++ -*-
 
-#include <Component.H>
-#include <Cylinder.H>
-#include <cudaReduce.cuH>
 #include <float.h>
+
+#include "Component.H"
+#include "Cylinder.H"
+#include "cudaReduce.cuH"
 #include "expand.H"
 
 // Define for debugging
@@ -337,11 +338,11 @@ __global__ void coefKernelCyl
 
   const cuFP_t norm = -4.0*M_PI;    // Biorthogonality factor
 
-  for (int n=0; n<stride; n++) {
+  for (int s=0; s<stride; s++) {
 
     // Particle counter
     //
-    int i     = tid*stride + n;
+    int i     = tid*stride + s;
     int npart = i + lohi.first;
 
     if (npart < lohi.second) {	// Check that particle index is in
@@ -456,14 +457,17 @@ __global__ void coefKernelCyl
 	  int c = 0;
 	  for (int r=0; r<nmax; r++) {
 	    for (int s=r; s<nmax; s++) {
-	      tvar._v[N*c + i] =
-		(work._v[i*nmax + r] * thrust::conj(work._v[i*nmax + s])).real() * mass;
+	      thrust::complex<cuFP_t> val =
+		work._v[i*nmax + r] * thrust::conj(work._v[i*nmax + s]);
+	      tvar._v[(2*c + 0)*N + i] = val.real() * mass;
+	      tvar._v[(2*c + 1)*N + i] = val.imag() * mass;
 	      c++;
 	    }
 	  }
 	  // Mean
 	  for (int r=0; r<nmax; r++) {
-	    tvar._v[N*c + i] = work._v[i*nmax + r].real() * mass;
+	    tvar._v[(2*c + 0)*N + i] = work._v[i*nmax + r].real() * mass;
+	    tvar._v[(2*c + 1)*N + i] = work._v[i*nmax + r].imag() * mass;
 	    c++;
 	  }
 	}
@@ -484,12 +488,14 @@ __global__ void coefKernelCyl
 	    int c = 0;
 	    for (int r=0; r<nmax; r++) {
 	      for (int s=r; s<nmax; s++) {
-		tvar._v[N*c + i] = 0.0;
+		tvar._v[(2*c + 0)*N + i] = 0.0;
+		tvar._v[(2*c + 1)*N + i] = 0.0;
 		c++;
 	      }
 	    }
 	    for (int r=0; r<nmax; r++) {
-	      tvar._v[N*c + i] = 0.0;
+	      tvar._v[(2*c + 0)*N + i] = 0.0;
+	      tvar._v[(2*c + 1)*N + i] = 0.0;
 	      c++;
 	    }
 	  }
@@ -848,7 +854,7 @@ void Cylinder::cudaStorage::resize_coefs
       if (subsamp)
 	T_covr[T].resize((mmax+1)*ncylorder);
       else
-	T_covr[T].resize((mmax+1)*ncylorder*(ncylorder+3)/2);
+	T_covr[T].resize(2*(mmax+1)*ncylorder*(ncylorder+3)/2);
     }
   }
 
@@ -858,11 +864,13 @@ void Cylinder::cudaStorage::resize_coefs
       dc_tvar.resize(ncylorder*gridSize);
       dw_tvar.resize(ncylorder);
     } else {
+      // Size of upper diagonal covariance + coefficients
       int csz = ncylorder*(ncylorder+3)/2;
-      dN_tvar.resize(csz*N);
-      dW_tvar.resize(ncylorder*gridSize*BLOCK_SIZE*stride);
-      dc_tvar.resize(csz*gridSize);
-      dw_tvar.resize(csz);
+      // Complex (real + imag) for each variable
+      dN_tvar.resize(2*csz*N);
+      dW_tvar.resize(2*ncylorder*gridSize*BLOCK_SIZE*stride);
+      dc_tvar.resize(2*csz*gridSize);
+      dw_tvar.resize(2*csz);
     }
   }
   
@@ -960,9 +968,11 @@ void Cylinder::determine_coefficients_cuda()
     if (defSampT) sampT = defSampT;
     else          sampT = floor(sqrt(component->CurTotal()));
     host_coefsT.resize(sampT);	// Modulus components
+    host_coefsC.resize(sampT);	// Complex components
     host_covarT.resize(sampT);	// Upper diagonal
     for (int T=0; T<sampT; T++) {
       host_coefsT[T].resize((mmax+1)*nmax);
+      host_coefsC[T].resize((mmax+1)*nmax);
       host_covarT[T].resize((mmax+1)*nmax*nmax);
     }
     host_massT.resize(sampT);
@@ -1014,6 +1024,7 @@ void Cylinder::determine_coefficients_cuda()
   if (pcavar or (nint>0)) {
     for (int T=0; T<sampT; T++) {
       thrust::fill(host_coefsT[T].begin(), host_coefsT[T].end(), 0.0);
+      thrust::fill(host_coefsC[T].begin(), host_coefsC[T].end(), 0.0);
       thrust::fill(host_covarT[T].begin(), host_covarT[T].end(), 0.0);
     }
     thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
@@ -1110,9 +1121,12 @@ void Cylinder::determine_coefficients_cuda()
     //
     int psize = nmax;
     int osize = nmax*2;
-    int vsize = nmax*(nmax+1)/2 + nmax;
+    int xsize = nmax*(nmax+1)/2 + nmax;
+    int vsize = 2*xsize;
+
     auto beg  = cuS.df_coef.begin();
     auto begV = cuS.df_tvar.begin();
+
     std::vector<thrust::device_vector<cuFP_t>::iterator> bg, bh;
 
     if (pcavar or (nint > 0)) {
@@ -1268,12 +1282,12 @@ void Cylinder::determine_coefficients_cuda()
 	  
 	  reduceSum<cuFP_t, BLOCK_SIZE>
 	    <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
-	    (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), vsize, N);
+	    (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), xsize, N);
       
 	  // Finish the reduction for this order in parallel
 	  //
 	  thrust::counting_iterator<int> index_begin(0);
-	  thrust::counting_iterator<int> index_end(gridSize1*vsize);
+	  thrust::counting_iterator<int> index_end(gridSize1*xsize);
 	  
 	  // The key_functor indexes the sum reduced series by array
 	  // index
@@ -1290,7 +1304,7 @@ void Cylinder::determine_coefficients_cuda()
 			    cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
 			    begV, begV, thrust::plus<cuFP_t>());
 
-	  thrust::advance(begV, vsize);
+	  thrust::advance(begV, xsize);
 	}
       }
     }
@@ -1385,25 +1399,27 @@ void Cylinder::determine_coefficients_cuda()
 	    int c = 0;
 	    for (size_t j=0; j<nmax; j++) {
 	      for (size_t k=j; k<nmax; k++) {
-		host_covarT[T][Kmn(m, j, k, nmax)] += retM[c + vffst];
+		thrust::complex<cuFP_t> z(retM[c + vffst], retM[c + vffst + 1]);
+		host_covarT[T][Kmn(m, j, k, nmax)] += z;
 		if (k!=j)
-		  host_covarT[T][Kmn(m, k, j, nmax)] += retM[c + vffst];
-		c++;
+		  host_covarT[T][Kmn(m, k, j, nmax)] += z;
+		c += 2;
 	      }
 	    }
 	    
 	    // Mean assignment
 	    //
 	    for (size_t j=0; j<nmax; j++) {
-	      host_coefsT[T][Jmn(m, j, nmax)] += retM[c + vffst];
-	      c++;
+	      thrust::complex<cuFP_t> z(retM[c + vffst], retM[c + vffst + 1]);
+	      host_coefsC[T][Jmn(m, j, nmax)] += z;
+	      c += 2;
 	    }
 
-	    if (myid==0 and c != nmax*(nmax+3)/2)
+	    if (myid==0 and c != nmax*(nmax+3))
 	      std::cout << "out of bounds: c=" << c << " != "
-			<< nmax*(nmax+3)/2 << std::endl;
+			<< nmax*(nmax+3) << std::endl;
 
-	    vffst += nmax*(nmax+3)/2;
+	    vffst += nmax*(nmax+3);
 	  }
 	}
 	// END: full pop variance
@@ -1890,14 +1906,15 @@ void Cylinder::DtoH_coefs(int M)
 	  if (pcaeof)
 	    ortho->set_coefT(T, m, n) += host_coefsT[T][Jmn(m, n, nmax)];
 	  else
-	    *ortho->set_VC(T, m, n) += host_coefsT[T][Jmn(m, n, nmax)];
+	    *ortho->set_VC(T, m, n) += static_cast<std::complex<double>>(host_coefsC[T][Jmn(m, n, nmax)]);
 
 	  // o loop
+	  //
 	  for (int o=0; o<nmax; o++) {
 	    if (pcaeof)
-	      ortho->set_covrT(T, m, n, o) += host_covarT[T][Kmn(m, n, o, nmax)];
+	      ortho->set_covrT(T, m, n, o) += host_covarT[T][Kmn(m, n, o, nmax)].real();
 	    else
-	      *ortho->set_MV(T, m, n, o) += host_covarT[T][Kmn(m, n, o, nmax)];
+	      *ortho->set_MV(T, m, n, o) += static_cast<std::complex<double>>(host_covarT[T][Kmn(m, n, o, nmax)]);
 	  }
 	}
       }
