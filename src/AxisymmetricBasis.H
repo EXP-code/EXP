@@ -99,6 +99,8 @@ protected:
   //@{
   typedef std::shared_ptr<Eigen::VectorXd> VectorP;
   typedef std::shared_ptr<Eigen::MatrixXd> MatrixP;
+  typedef std::shared_ptr<Eigen::VectorXcd> VectorQ;
+  typedef std::shared_ptr<Eigen::MatrixXcd> MatrixQ;
 
   std::vector<VectorP> expcoef, expcoef1, expcoefP;
 
@@ -125,8 +127,8 @@ protected:
 
   //@{
   //! Covariance arrays
-  std::vector<std::vector<VectorP>> expcoefT, expcoefT1;
-  std::vector<std::vector<MatrixP>> expcoefM, expcoefM1;
+  std::vector<std::vector<VectorQ>> expcoefT, expcoefT1;
+  std::vector<std::vector<MatrixQ>> expcoefM, expcoefM1;
   //@}
 
   //@{

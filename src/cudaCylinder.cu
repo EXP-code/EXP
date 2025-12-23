@@ -1402,7 +1402,7 @@ void Cylinder::determine_coefficients_cuda()
 		thrust::complex<cuFP_t> z(retM[c + vffst], retM[c + vffst + 1]);
 		host_covarT[T][Kmn(m, j, k, nmax)] += z;
 		if (k!=j)
-		  host_covarT[T][Kmn(m, k, j, nmax)] += z;
+		  host_covarT[T][Kmn(m, k, j, nmax)] += thrust::conj(z);
 		c += 2;
 	      }
 	    }

@@ -15,6 +15,7 @@
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
+#include <thrust/complex.h>
 #endif
 #include "NVTX.H"
 
@@ -241,7 +242,7 @@ protected:
     thrust::device_vector<cuFP_t> dw_coef;
     thrust::device_vector<cuFP_t> df_coef;
     thrust::device_vector<cuFP_t> dN_tvar;
-    thrust::device_vector<cuFP_t> dW_tvar;
+    thrust::device_vector<thrust::complex<double>> dW_tvar;
     thrust::device_vector<cuFP_t> dc_tvar;
     thrust::device_vector<cuFP_t> dw_tvar;
     thrust::device_vector<cuFP_t> df_tvar;

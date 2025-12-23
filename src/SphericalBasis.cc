@@ -732,25 +732,25 @@ void SphericalBasis::determine_coefficients_particles(void)
       expcoefT .resize(sampT);
       for (auto & t : expcoefT ) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = std::make_shared<Eigen::VectorXd>(nmax);
+	for (auto & v : t) v = std::make_shared<Eigen::VectorXcd>(nmax);
       }
       
       expcoefT1.resize(sampT);
       for (auto & t : expcoefT1) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = std::make_shared<Eigen::VectorXd>(nmax);
+	for (auto & v : t) v = std::make_shared<Eigen::VectorXcd>(nmax);
       }
 
       expcoefM .resize(sampT);
       for (auto & t : expcoefM ) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = std::make_shared<Eigen::MatrixXd>(nmax, nmax);
+	for (auto & v : t) v = std::make_shared<Eigen::MatrixXcd>(nmax, nmax);
       }
       
       expcoefM1.resize(sampT);
       for (auto & t : expcoefM1) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = std::make_shared<Eigen::MatrixXd>(nmax, nmax);
+	for (auto & v : t) v = std::make_shared<Eigen::MatrixXcd>(nmax, nmax);
       }
 
     }

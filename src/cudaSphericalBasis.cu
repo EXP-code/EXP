@@ -399,7 +399,7 @@ __global__ void coefKernel
 	  //
 	  if (compute and tvar._s>0) {
 	    if (sphAcov) tvar._v[n*N + i   ] = v * mass;
-	    else         work._v[i*nmax + n] = v;
+	    else         work._v[i*nmax + n] = thrust::complex<double>(v*cosp, v*sinp);
 	  }
 	  
 #ifdef BOUNDS_CHECK
@@ -414,14 +414,16 @@ __global__ void coefKernel
 	  // Variance computation
 	  for (int r=0; r<nmax; r++) {
 	    for (int s=r; s<nmax; s++) {
-	      tvar._v[N*c + i] =
-		work._v[i*nmax + r] * work._v[i*nmax + s] * mass;
+	      thrust::complex<double> crs = work._v[i*nmax + r] * thrust::conj(work._v[i*nmax + s]);
+	      tvar._v[(2*c+0)*N + i] = crs.real() * mass;
+	      tvar._v[(2*c+1)*N + i] = crs.imag() * mass;
 	      c++;
 	    }
 	  }
 	  // Mean computation
 	  for (int r=0; r<nmax; r++) {
-	    tvar._v[N*c + i] = work._v[i*nmax + r] * mass;
+	    tvar._v[(2*c+0)*N + i] = work._v[i*nmax + r].real() * mass;
+	    tvar._v[(2*c+1)*N + i] = work._v[i*nmax + r].imag() * mass;
 	    c++;
 	  }
 	  if (c != nmax*(nmax+3)/2) printf("out of bounds: wrong c [k]\n");
@@ -442,12 +444,14 @@ __global__ void coefKernel
 	    int c = 0;
 	    for (int r=0; r<nmax; r++) {
 	      for (int s=r; s<nmax; s++) {
-		tvar._v[N*c + i] = 0.0;
+		tvar._v[(2*c+0)*N + i] = 0.0;
+		tvar._v[(2*c+1)*N + i] = 0.0;
 		c++;
 	      }
 	    }
 	    for (int r=0; r<nmax; r++) {
-	      tvar._v[N*c + i] = 0.0;
+	      tvar._v[(2*c+0)*N + i] = 0.0;
+	      tvar._v[(2*c+1)*N + i] = 0.0;
 	      c++;
 	    }
 	  }
@@ -811,7 +815,7 @@ void SphericalBasis::cudaStorage::resize_coefs
       if (subsamp)
 	T_covr[T].resize((Lmax+1)*(Lmax+2)*nmax);
       else
-	T_covr[T].resize((Lmax+1)*(Lmax+2)*(nmax*(nmax+3)/2));
+	T_covr[T].resize(2*(Lmax+1)*(Lmax+2)*(nmax*(nmax+3)/2));
     }
   }
 
@@ -822,10 +826,10 @@ void SphericalBasis::cudaStorage::resize_coefs
       dw_tvar.resize(nmax);
     } else {
       int csz = nmax*(nmax+3)/2;
-      dW_tvar.resize(nmax*gridSize*BLOCK_SIZE*stride); // Volatile storage
-      dN_tvar.resize(csz*N);
-      dc_tvar.resize(csz*gridSize);
-      dw_tvar.resize(csz);
+      dW_tvar.resize(2*nmax*gridSize*BLOCK_SIZE*stride); // Volatile storage
+      dN_tvar.resize(2*csz*N);
+      dc_tvar.resize(2*csz*gridSize);
+      dw_tvar.resize(2*csz);
     }
   }
 
@@ -1051,7 +1055,9 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     //
     int psize = nmax;
     int osize = nmax*2;
-    int vsize = nmax*(nmax+3)/2;
+    int xsize = nmax*(nmax+3)/2;
+    int vsize = 2*xsize;
+    
     auto beg  = cuS.df_coef.begin();
     auto begV = cuS.df_tvar.begin();
 
@@ -1479,7 +1485,7 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 	  thrust::host_vector<cuFP_t> retM = cuS.T_covr[T];
 	
 	  int vffst = 0;
-	  int vsize = nmax*(nmax+3)/2;
+	  int vsize = 2*nmax*(nmax+3)/2;
 	  
 	  // l loop
 	  //
@@ -1495,23 +1501,25 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 	      for (int n=0; n<nmax; n++) {
 	      
 		for (int o=n; o<nmax; o++) {
+		  std::complex<double> zret(retM[c + vffst], retM[c + vffst + 1]);
 		  // Diagonal and upper diagonal
-		  (*expcoefM1[T][loffset+m])(n, o) += retM[c + vffst];
+		  (*expcoefM1[T][loffset+m])(n, o) += zret;
 
 		  // Below the diagonal
-		  if (o!=n) (*expcoefM1[T][loffset+m])(o, n) += retM[c + vffst];
-		  c++;
+		  if (o!=n) (*expcoefM1[T][loffset+m])(o, n) += std::conj(zret);
+		  c += 2;
 		}
 	      }
 
 	      // Mean assignment
 	      //
 	      for (int n=0; n<nmax; n++) {
-		(*expcoefT1[T][loffset+m])[n] += retM[c + vffst];
-		c++;
+		std::complex<double> zret(retM[c + vffst], retM[c + vffst + 1]);
+		(*expcoefT1[T][loffset+m])[n] += zret;
+		c += 2;
 	      }
 	      
-	      if (c != nmax*(nmax+3)/2)
+	      if (c != nmax*(nmax+3))
 		std::cout << "out of bounds: wrong c [h]" << std::endl;
 
 	      vffst += vsize;
