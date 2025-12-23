@@ -4103,7 +4103,9 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 
     if (compute and covar) {
       int size = vc[id].row(mm).size();
-      assert(size == NORDER && "size of vectors must match");
+      if (size != NORDER) {
+        throw GenericError("size of vectors must match", __FILE__, __LINE__, 1039, false);
+      }
       Eigen::VectorXcd vec(size);
       
       Eigen::VectorXd vC = vc[id].row(mm).transpose() * norm;
