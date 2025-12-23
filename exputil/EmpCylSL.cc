@@ -4102,8 +4102,18 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
     }
 
     if (compute and covar) {
-      Eigen::VectorXcd vec = std::complex<double>(mcos, msin) *
-	vc[id].row(mm).transpose() * norm;
+      int size = vc[id].row(mm).size();
+      assert(size == NORDER && "size of vectors must match");
+      Eigen::VectorXcd vec(size);
+      
+      Eigen::VectorXd vC = vc[id].row(mm).transpose() * norm;
+      Eigen::VectorXd vS = vs[id].row(mm).transpose() * norm;
+      
+      // Make sure we only have real part here
+      if (mm==0) vS.setZero();
+      
+      vec.real() = vC*mcos + vS*msin;
+      vec.imag() = vC*msin - vS*mcos;
 
       VC[id][whch][mm] += mass * vec;
       MV[id][whch][mm] += mass * (vec * vec.adjoint());
