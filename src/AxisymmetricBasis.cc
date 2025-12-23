@@ -1239,7 +1239,7 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 	      expcoefT [T][l]->size()==nmax) {
 	    MPI_Allreduce(&(*expcoefT1[T][l])[0],
 			  &(*expcoefT [T][l])[0], nmax,
-			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	  } else {
 	    std::cout << "[" << myid << "] AxisymmetricBasis: "
 		      << "coef2 out of bounds in coef" << std::endl;
@@ -1251,7 +1251,7 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 	      expcoefM [T][l]->cols()==nmax) {
 	    MPI_Allreduce(expcoefM1[T][l]->data(),
 			  expcoefM [T][l]->data(), expcoefM1[T][l]->size(),
-			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	  } else {
 	    std::cout << "[" << myid << "] AxisymmetricBasis: "
 		      << "coef2 out of bounds in disp" << std::endl;

@@ -304,7 +304,7 @@ protected:
     }
   }
     
-  double& set_coefT(int T, int m, int n)
+  std::complex<double>& set_coefT(int T, int m, int n)
   {
     if (m >  Mmax)
       throw std::runtime_error("m>mmax");
@@ -321,7 +321,7 @@ protected:
     return (*expcoefT[T][m])[n];
   }
   
-  double& set_covrT(int T, int m, int n, int o)
+  std::complex<double>& set_covrT(int T, int m, int n, int o)
   {
     if (m >  Mmax)
       throw std::runtime_error("m>mmax");

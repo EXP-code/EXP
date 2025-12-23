@@ -525,9 +525,19 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	    if (compute and pcavar) {
 	      pthread_mutex_lock(&cc_lock);
 	      for (int n=0; n<nmax; n++) {
+		if (std::fabs(wk[n]) < 1.0e-40) {
+		  std::cout << "Coef contribution is " << wk[n] << " for "
+			    << l << " " << m << " " << n << std::endl;
+		}
 		(*expcoefT1[whch][iC])[n] += wk[n];
-		for (int o=0; o<nmax; o++)
+		for (int o=0; o<nmax; o++) {
+		  if (std::fabs(wk[n]*wk[o]/mass) < 1.0e-40) {
+		    std::cout << "Covar contribution is " << wk[n]*wk[o]/mass << " for "
+			      << l << " " << m << " "
+			      << n << " " << o << std::endl;
+		  }
 		  (*expcoefM1[whch][iC])(n, o) += wk[n]*wk[o]/mass;
+		}
 	      }
 	      pthread_mutex_unlock(&cc_lock);
 	    }
@@ -562,7 +572,11 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      if (compute and pcavar) {
 		pthread_mutex_lock(&cc_lock);
 		for (int n=0; n<nmax; n++) {
-		  (*expcoefT1[whch][iC])[n] += wk[n]*facL;
+		  if (std::fabs(wk[n]*facL) < 1.0e-40) {
+		    std::cout << "Contribution is " << wk[n]*facL << " for "
+			      << l << " " << m << " " << n << std::endl;
+		  }
+		  (*expcoefT1[whch][iC])[n] += wk[n]*std::complex<double>(fac1, fac2);
 		  for (int o=0; o<nmax; o++)
 		    (*expcoefM1[whch][iC])(n, o) += wk[n]*wk[o]*facL*facL/mass;
 		}
@@ -2423,9 +2437,27 @@ PotAccel::CovarData SphericalBasis::getSubsample()
       for (int m=0; m<=l; m++) {
 	// outer n loop
 	for (int n1=0; n1<nmax; n1++) {
+	  auto z = (*expcoefT[T][k])(n1);
+	  if (isnan(z.real()) or isnan(z.imag())) {
+	    std::cout << "Pack coef NaN at " << l << ", " << m << ", "
+		      << n1 << std::endl;
+	  }
+	  if (std::abs(z.real()) < 1.0e-12) {
+	    std::cout << "Pack coef zero at " << l << ", " << m << ", "
+		      << n1 << std::endl;
+	  }
 	  std::get<2>(ret)(T, k, n1) = (*expcoefT[T][k])(n1);
 	  // inner n loop
 	  for (int n2=0; n2<nmax; n2++) {
+	    auto z = (*expcoefM[T][k])(n1, n2);
+	    if (isnan(z.real()) or isnan(z.imag())) {
+	      std::cout << "Pack covar NaN at " << l << ", " << m << ", "
+			<< n1 << ", " << n1 << std::endl;
+	    }
+	    if (std::fabs(z) < 1.0e-20) {
+	      std::cout << "Pack covar zero at " << l << ", " << m << ", "
+			<< n1 << ", " << n2 << std::endl;
+	    }
 	    if (fullCovar)
 	      std::get<3>(ret)(T, k, n1, n2) = (*expcoefM[T][k])(n1, n2);
 	  }
