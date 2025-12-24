@@ -525,17 +525,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	    if (compute and pcavar) {
 	      pthread_mutex_lock(&cc_lock);
 	      for (int n=0; n<nmax; n++) {
-		if (std::fabs(wk[n]) < 1.0e-40) {
-		  std::cout << "Coef contribution is " << wk[n] << " for "
-			    << l << " " << m << " " << n << std::endl;
-		}
 		(*expcoefT1[whch][iC])[n] += wk[n];
 		for (int o=0; o<nmax; o++) {
-		  if (std::fabs(wk[n]*wk[o]/mass) < 1.0e-40) {
-		    std::cout << "Covar contribution is " << wk[n]*wk[o]/mass << " for "
-			      << l << " " << m << " "
-			      << n << " " << o << std::endl;
-		  }
 		  (*expcoefM1[whch][iC])(n, o) += wk[n]*wk[o]/mass;
 		}
 	      }
@@ -572,10 +563,6 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      if (compute and pcavar) {
 		pthread_mutex_lock(&cc_lock);
 		for (int n=0; n<nmax; n++) {
-		  if (std::fabs(wk[n]*facL) < 1.0e-40) {
-		    std::cout << "Contribution is " << wk[n]*facL << " for "
-			      << l << " " << m << " " << n << std::endl;
-		  }
 		  (*expcoefT1[whch][iC])[n] += wk[n]*std::complex<double>(fac1, fac2);
 		  for (int o=0; o<nmax; o++)
 		    (*expcoefM1[whch][iC])(n, o) += wk[n]*wk[o]*facL*facL/mass;
