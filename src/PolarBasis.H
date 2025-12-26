@@ -15,6 +15,7 @@
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
+#include <thrust/complex.h>
 #endif
 #include "NVTX.H"
 
@@ -200,10 +201,8 @@ protected:
   thrust::host_vector<unsigned> host_numbT;
   thrust::host_vector<cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
-  thrust::host_vector<thrust::complex<cuFP_t>> host_coefsT;
+  std::vector<thrust::host_vector<thrust::complex<cuFP_t>>> host_coefsT;
   std::vector<thrust::host_vector<thrust::complex<cuFP_t>>> host_covarT;
-  cuFP_t host_mass_tot;
-  unsigned host_numb;
 
   virtual void HtoD_coefs();
   virtual void DtoH_coefs(unsigned);
@@ -317,7 +316,7 @@ protected:
       throw std::runtime_error(sout.str());
     }
     
-    return (*expcoefT[T][m])[n];
+    return (*expcoefT1[T][m])[n];
   }
   
   std::complex<double>& set_covrT(int T, int m, int n, int o)
@@ -337,20 +336,9 @@ protected:
       throw std::runtime_error(sout.str());
     }
     
-    return (*expcoefM[T][m])(n, o);
+    return (*expcoefM1[T][m])(n, o);
   }
     
-  double& set_tvar(int m, int i, int j)
-  {
-    if (m >  Mmax)
-      throw std::runtime_error("m>mmax");
-
-    if (i >= nmax or j >= nmax)
-      throw std::runtime_error("n>nmax");
-
-    return tvar[0][m](i, j);
-  }
-
   double& set_massT(int T)
   {
     if (T >= sampT) {
@@ -359,7 +347,18 @@ protected:
       throw std::runtime_error(sout.str());
     }
 
-    return massT1[0][T];
+    return massT1[T];
+  }
+
+  unsigned& set_numbT(int T)
+  {
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+
+    return countT1[T];
   }
 
   //! A storage instance
@@ -495,6 +494,9 @@ protected:
   //! MPI routines to sum the expansion coefficients variance moments
   //! (overrides AxisymmetricBasis)
   virtual void parallel_gather_coef2(void);
+
+  //! Write basis-specific parameters to HDF5 covariance file
+  void writeCovarH5Params(HighFive::File& file);
 
 public:
 

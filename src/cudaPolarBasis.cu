@@ -1500,9 +1500,8 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
   //
 				// Sine and cosine components
   host_coefs.resize((2*Mmax+1)*nmax);
-				// Variance components
-  host_covar.resize((Mmax+1)*nmax*nmax);
 
+				// Variance components
   if (pcavar) {			// Set sample size
     if (defSampT) sampT = defSampT;
     else          sampT = floor(sqrt(component->CurTotal()));
@@ -1641,7 +1640,7 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
     // Adjust cached storage, if necessary
     //
     cuS.resize_coefs(nmax, Mmax, N, gridSize, stride,
-		     sampT, pcavar, pcaeof, subsamp);
+		     sampT, pcavar, subsamp);
     
     // Shared memory size for the reduction
     //
@@ -1660,9 +1659,11 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
     int psize = nmax;
     int osize = nmax*2;
     int xsize = nmax*(nmax+1)/2 + nmax;
-    int vsize = 2*xsize
+    int vsize = 2*xsize;
+
     auto beg  = cuS.df_coef.begin();
     auto begV = cuS.df_tvar.begin();
+
     std::vector<thrust::device_vector<cuFP_t>::iterator> bg, bh;
 
     if (pcavar) {
@@ -1927,7 +1928,7 @@ void PolarBasis::determine_coefficients_cuda(bool compute)
 	      c += 2;
 	    }
 
-	    if (myid==0 and c != nmax*(nmax+3)/2)
+	    if (myid==0 and c != nmax*(nmax+3))
 	      std::cout << "out of bounds: c=" << c << " != "
 			<< nmax*(nmax+3) << std::endl;
 
@@ -2389,9 +2390,10 @@ void PolarBasis::DtoH_coefs(unsigned M)
     //
     for (int T=0; T<sampT; T++) {
 
-      // Copy mass per sample T
+      // Copy mass and count per sample T to host structure
       //
       set_massT(T) += host_massT[T];
+      set_numbT(T) += host_numbT[T];
 
       // m loop
       //
@@ -2400,12 +2402,16 @@ void PolarBasis::DtoH_coefs(unsigned M)
 	// n loop
 	//
 	for (int n=0; n<nmax; n++) {
-	  set_coefT(T, m, n) += host_coefsT[T][JJmn(m, n, nmax)];
+	  // std::complex<> and thrust::complex<> are memory
+	  // compatible so we can cast them
+	  //
+	  set_coefT(T, m, n) +=
+	    static_cast<std::complex<cuFP_t>>(host_coefsT[T][JJmn(m, n, nmax)]);
 
 	  // o loop
 	  for (int o=0; o<nmax; o++) {
-	   set_covrT(T, m, n, o) += host_covarT[T][KKmn(m, n, o, nmax)];
-
+	   set_covrT(T, m, n, o) +=
+	     static_cast<std::complex<cuFP_t>>(host_covarT[T][KKmn(m, n, o, nmax)]);
 	  }
 	}
       }
@@ -2486,7 +2492,7 @@ void PolarBasis::multistep_update_cuda()
 	// Adjust cached storage, if necessary
 	//
 	cuS.resize_coefs(nmax, Mmax, N, gridSize, stride,
-			 sampT, pcavar, pcaeof, subsamp);
+			 sampT, pcavar, subsamp);
 	
 	// Shared memory size for the reduction
 	//

@@ -728,7 +728,7 @@ void PolarBasis::determine_coefficients_particles(void)
 
     // Zero arrays?
     //
-    if (mlevel==multistep and mstep==0) {
+    if (mlevel==0 and mstep==0) {
       for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
       muse0 = 0.0;
       
@@ -2123,7 +2123,8 @@ PotAccel::CovarData PolarBasis::getSubsample()
   std::get<1>(ret).resize(sampT);	// Sample masses
   std::get<2>(ret) = Eigen::Tensor<std::complex<double>, 3>(sampT, Mmax+1, nmax);
 
-  if (fullCovar)
+  // Assign covariance matrix?
+  if (fullCovar or totlCovar)
     std::get<3>(ret) = Eigen::Tensor<std::complex<double>, 4>(sampT, Mmax+1, nmax, nmax);
 
   // Fill the covariance structure with subsamples
@@ -2137,18 +2138,21 @@ PotAccel::CovarData PolarBasis::getSubsample()
       // outer n loop
       for (int n1=0; n1<nmax; n1++) {
 	auto z = (*expcoefT[T][m])(n1);
+#ifdef DEBUG
 	if (isnan(z.real()) or isnan(z.imag())) {
 	  std::cout << "Pack coef NaN at " << m << ", "
 		    << n1 << std::endl;
 	}
-	if (std::abs(z.real()) < 1.0e-12) {
+	if (std::abs(z.real()) < 1.0e-20) {
 	  std::cout << "Pack coef zero at " << m << ", "
 		    << n1 << std::endl;
 	}
+#endif
 	std::get<2>(ret)(T, m, n1) = (*expcoefT[T][m])(n1);
 	// inner n loop
 	for (int n2=0; n2<nmax; n2++) {
 	  auto z = (*expcoefM[T][m])(n1, n2);
+#ifdef DEBUG
 	  if (isnan(z.real()) or isnan(z.imag())) {
 	    std::cout << "Pack covar NaN at " << m << ", "
 		      << n1 << ", " << n1 << std::endl;
@@ -2157,7 +2161,8 @@ PotAccel::CovarData PolarBasis::getSubsample()
 	    std::cout << "Pack covar zero at " << m << ", "
 		      << n1 << ", " << n2 << std::endl;
 	  }
-	  if (fullCovar)
+#endif
+	  if (fullCovar or totlCovar)
 	    std::get<3>(ret)(T, m, n1, n2) = (*expcoefM[T][m])(n1, n2);
 	}
 	// END: n2 loop
@@ -2170,3 +2175,13 @@ PotAccel::CovarData PolarBasis::getSubsample()
     
   return ret;
 }
+
+void PolarBasis::writeCovarH5Params(HighFive::File& file)
+{
+  file.createAttribute<int>("mmax", HighFive::DataSpace::From(Mmax)).write(Mmax);
+  file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+  file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
+  file.createAttribute<double>("rmin", HighFive::DataSpace::From(rmin)).write(rmin);
+  file.createAttribute<double>("rmax", HighFive::DataSpace::From(rmax)).write(rmax);
+}
+  
