@@ -1988,7 +1988,10 @@ namespace BasisClasses
     "tksmooth",
     "tkcum",
     "tk_type",
-    "cachename"
+    "cachename",
+    "nint",
+    "totalCovar",
+    "fullCovar"
   };
 
   FlatDisk::FlatDisk(const YAML::Node& CONF) :
