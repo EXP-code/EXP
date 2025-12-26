@@ -914,7 +914,7 @@ void Cylinder::cuda_zero_coefs()
 	if (subsamp)
 	  cuS.T_covr[T].resize((mmax+1)*nmax);
 	else
-	  cuS.T_covr[T].resize((mmax+1)*nmax*(nmax+3)/2);
+	  cuS.T_covr[T].resize(2*(mmax+1)*nmax*(nmax+3)/2);
       }
     }
     

@@ -85,6 +85,8 @@ class MixtureBasis;
 
     @param pcavar turns on variance analysis
 
+    @param nint variance comptutation interval in time steps
+
     @param pcaeof turns on basis conditioning based on variance analysis
 
     @param pcadiag logs diagnostic output for variance analysis

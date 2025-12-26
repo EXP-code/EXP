@@ -97,8 +97,8 @@ protected:
      efficiency.
   */
   //@{
-  typedef std::shared_ptr<Eigen::VectorXd> VectorP;
-  typedef std::shared_ptr<Eigen::MatrixXd> MatrixP;
+  typedef std::shared_ptr<Eigen::VectorXd > VectorP;
+  typedef std::shared_ptr<Eigen::MatrixXd > MatrixP;
   typedef std::shared_ptr<Eigen::VectorXcd> VectorQ;
   typedef std::shared_ptr<Eigen::MatrixXcd> MatrixQ;
 
@@ -133,9 +133,9 @@ protected:
 
   //@{
   //! Mass and counts for subsample covariance
-  std::vector<unsigned>             countT, countT1;
-  std::vector<double>               massT, massT1;
-  unsigned                          sampT, defSampT;
+  std::vector<unsigned>              countT, countT1;
+  std::vector<double>                massT, massT1;
+  unsigned                           sampT, defSampT;
   //@}
 
   //! Test for eof trim

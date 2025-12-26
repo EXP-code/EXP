@@ -708,7 +708,6 @@ void SphericalBasis::determine_coefficients_particles(void)
     else {
       requestSubsample  = false;
       subsampleComputed = false;
-
     }
   }
 

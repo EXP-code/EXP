@@ -46,7 +46,11 @@ PolarBasis::valid_keys = {
   "mlim",
   "ssfrac",
   "playback",
-  "coefMaster"
+  "coefMaster",
+  "nint",
+  "pcavar",
+  "fullCovar",
+  "totalCovar"
 };
 
 PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) : 
@@ -128,6 +132,21 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     if (conf["mlim"])    mlim = conf["mlim"].as<int>();
     else                 mlim = Mmax;
     
+    if (conf["nint"]) {		// For OutSample support
+      nint = conf["nint"].as<int>();
+      if (nint>0) pcavar  = true;
+    }
+
+    if (conf["fullCovar"]) {
+      fullCovar = conf["fullCovar"].as<bool>();
+    }
+    
+    if (conf["totalCovar"]) {
+      totlCovar = conf["totalCovar"].as<bool>();
+      if (totlCovar) fullCovar = true;
+    }
+
+    // Playback configuration
     if (conf["playback"]) {
       std::string file = conf["playback"].as<std::string>();
 				// Check the file exists
@@ -365,6 +384,8 @@ void PolarBasis::get_acceleration_and_potential(Component* C)
   cC = C;			// "Register" component
   nbodies = cC->Number();	// And compute number of bodies
 
+
+
   //======================================
   // Determine potential and acceleration 
   //======================================
@@ -491,7 +512,8 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	if (pcavar) {
 	  whch = indx % sampT;
 	  pthread_mutex_lock(&cc_lock);
-	  massT1[whch][0] += mass;
+	  massT1[whch] += mass;
+	  countT1[whch] += 1;
 	  pthread_mutex_unlock(&cc_lock);
 	}
       }
@@ -507,17 +529,11 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	if (m==0) {
 	  u[id] = potd[id].row(m)*mass*norm0;
 	  *expcoef0[id][moffset] += u[id];
-
+	  
 	  if (compute and pcavar) {
 	    pthread_mutex_lock(&cc_lock);
 	    *expcoefT1[whch][m] += u[id];
 	    *expcoefM1[whch][m] += u[id]*u[id].transpose()/mass;
-	    pthread_mutex_unlock(&cc_lock);
-	  }
-
-	  if (compute) {
-	    pthread_mutex_lock(&cc_lock);
-	    tvar[0][m] += u[id]*u[id].transpose()/mass;
 	    pthread_mutex_unlock(&cc_lock);
 	  }
 
@@ -526,8 +542,8 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 	else {
 	  if (not M0_only) {
 
-	    fac1 = cosm[id][m];
-	    fac2 = sinm[id][m];
+	    fac1 = cosm[id][m] * facL;
+	    fac2 = sinm[id][m] * facL;
 
 	    u[id] = potd[id].row(m)*mass*norm1;
 
@@ -537,14 +553,12 @@ void * PolarBasis::determine_coefficients_thread(void * arg)
 
 	    if (compute and pcavar) {
 	      pthread_mutex_lock(&cc_lock);
-	      *expcoefT1[whch][m] += u[id]*facL;
+	      if (nint) {
+		*expcoefT1[whch][m] += u[id]*facL*std::complex<double>(fac1, fac2);
+	      } else {
+		*expcoefT1[whch][m] += u[id]*facL;
+	      }
 	      *expcoefM1[whch][m] += u[id]*u[id].transpose()*facL*facL/mass;
-	      pthread_mutex_unlock(&cc_lock);
-	    }
-	    
-	    if (compute) {
-	      pthread_mutex_lock(&cc_lock);
-	      tvar[m][0] += u[id]*u[id].transpose()/mass;
 	      pthread_mutex_unlock(&cc_lock);
 	    }
 	  }
@@ -652,13 +666,26 @@ void PolarBasis::determine_coefficients_particles(void)
   //
   if (!self_consistent && !firstime_coef && !initializing) return;
 
-  if (pcavar) {
-    if (this_step >= npca0) 
-      compute = (mstep == 0) && !( (this_step-npca0) % npca);
-    else
-      compute = false;
-  }
+  compute = false;
 
+  // Variance computation for pca
+  //
+  if (pcavar) {
+
+    // Compute only after npca0 steps, and every npca steps
+    if (this_step >= npca0) 
+      compute = (mstep == 0) && ( (this_step-npca0) % npca == 0 );
+
+    // Subsample computation flag
+    if (nint) {
+      // Computed only for mstep==0 and every nint steps
+      if (mstep==0 and this_step % nint == 0) {
+	compute = true;
+      } else {
+	subsampleComputed = false;
+      }
+    }
+  }
 
   int moffset, use1;
 
@@ -668,33 +695,35 @@ void PolarBasis::determine_coefficients_particles(void)
       if (defSampT) sampT = defSampT;
       else          sampT = floor(sqrt(component->CurTotal()));
       massT    .resize(sampT, 0);
-      massT1   .resize(nthrds);
-      for (auto & v : massT1) v.resize(sampT, 0);
+      massT1   .resize(sampT, 0);
+      countT   .resize(sampT, 0);
+      countT1  .resize(sampT, 0);
       
       expcoefT .resize(sampT);
       for (auto & t : expcoefT ) {
-	t.resize((Mmax+1)*(Mmax+2)/2);
+	t.resize(Mmax+1);
 	for (auto & v : t) v = std::make_shared<Eigen::VectorXcd>(nmax);
       }
       
       expcoefT1.resize(sampT);
-      for (auto & t : expcoefT1) {
-	t.resize((Mmax+1)*(Mmax+2)/2);
+      for (auto & t : expcoefT1 ) {
+	t.resize(Mmax+1);
 	for (auto & v : t) v = std::make_shared<Eigen::VectorXcd>(nmax);
       }
 
+
       expcoefM .resize(sampT);
       for (auto & t : expcoefM ) {
-	t.resize((Mmax+1)*(Mmax+2)/2);
+	t.resize((Mmax+1)*(Mmax+1));
 	for (auto & v : t) v = std::make_shared<Eigen::MatrixXcd>(nmax, nmax);
       }
       
       expcoefM1.resize(sampT);
-      for (auto & t : expcoefM1) {
-	t.resize((Mmax+1)*(Mmax+2)/2);
+      for (auto & t : expcoefM1 ) {
+	t.resize((Mmax+1)*(Mmax+1));
 	for (auto & v : t) v = std::make_shared<Eigen::MatrixXcd>(nmax, nmax);
       }
-
+      
     }
 
     // Zero arrays?
@@ -706,7 +735,8 @@ void PolarBasis::determine_coefficients_particles(void)
       if (pcavar) {
 	for (auto & t : expcoefT1) { for (auto & v : t) v->setZero(); }
 	for (auto & t : expcoefM1) { for (auto & v : t) v->setZero(); }
-	for (auto & v : massT1)    { for (auto & u : v) u = 0;        }
+	std::fill(massT1.begin(),  massT1.end(),  0.0);
+	std::fill(countT1.begin(), countT1.end(), 0  );
       }
     }
   }
@@ -872,6 +902,7 @@ void PolarBasis::determine_coefficients_particles(void)
       for (int i=0; i<nthrds; i++) muse0 += muse1[i];
       MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       parallel_gather_coef2();
+      subsampleComputed = true;
     }
 
     pca_hall(compute);
@@ -2003,4 +2034,139 @@ void PolarBasis::dump_coefs_all(ostream& out)
 
 }
 
+void PolarBasis::parallel_gather_coef2(void)
+{
+  if (pcavar) {
 
+    // Report particles used [with storage sanity checks]
+    //
+    if (use.size()>0) {
+      for (int n=1; n<nthrds; n++) use[0] += use[n];
+      MPI_Allreduce(&use[0], &used, 1,
+		    MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    } else {
+      std::cout << "[" << myid << "] PolarBasis: "
+		<< "use has zero size" << std::endl;
+    }
+
+    if (sampT) {
+      
+      // Report counts used [with storage sanity checks]
+      //
+      if (countT1.size() == countT.size() and countT.size()==sampT) {
+	MPI_Allreduce(&countT1[0], &countT[0], sampT,
+		      MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+      } else {
+	std::cout << "[" << myid << "] PolarBasis: "
+		  << "coef2 out of bounds in count" << std::endl;
+      }
+      
+      // Report mass used [with storage sanity checks]
+      //
+      if (massT1.size() == massT.size() and massT.size()==sampT) {
+	MPI_Allreduce(&massT1[0], &massT[0], sampT,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      } else {
+	std::cout << "[" << myid << "] PolarBasis: "
+		  << "coef2 out of bounds in mass" << std::endl;
+      }
+      
+      // Reduce mean and covariance [with storage sanity checks]
+      //
+      for (unsigned T=0; T<sampT; T++) {
+
+	for (int m=0; m<=Mmax; m++) {
+	  if (expcoefT1[T][m]->size()==nmax and
+	      expcoefT [T][m]->size()==nmax) {
+	    MPI_Allreduce(&(*expcoefT1[T][m])[0],
+			  &(*expcoefT [T][m])[0], nmax,
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	  } else {
+	    std::cout << "[" << myid << "] PolarBasis: "
+		      << "coef2 out of bounds in coef" << std::endl;
+	  }
+
+	  if (expcoefM1[T][m]->rows()==nmax and
+	      expcoefM1[T][m]->cols()==nmax and
+	      expcoefM [T][m]->rows()==nmax and
+	      expcoefM [T][m]->cols()==nmax) {
+	    MPI_Allreduce(expcoefM1[T][m]->data(),
+			  expcoefM [T][m]->data(), expcoefM1[T][m]->size(),
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	  } else {
+	    std::cout << "[" << myid << "] PolarBasis: "
+		      << "coef2 out of bounds in covar" << std::endl;
+	  }
+	}
+      }
+    }
+  }
+}
+
+PotAccel::CovarData PolarBasis::getSubsample()
+{
+  using covTuple = std::tuple<Eigen::VectorXcd,
+			      Eigen::MatrixXcd>;
+  // Prepare the covariance structure
+  PotAccel::CovarData ret;
+
+  // Sanity check
+  if (expcoefT[0].size() != Mmax+1) {
+    std::ostringstream ss;
+    ss << "SphericalBasis::getSubsample() "
+       << "internal error: unexpected number of absolute angular terms, "
+       << expcoefT[0].size() << " != " << Mmax+1;
+    throw std::runtime_error(ss.str());
+  }
+
+  std::get<0>(ret).resize(sampT);	// Sample counts
+  std::get<1>(ret).resize(sampT);	// Sample masses
+  std::get<2>(ret) = Eigen::Tensor<std::complex<double>, 3>(sampT, Mmax+1, nmax);
+
+  if (fullCovar)
+    std::get<3>(ret) = Eigen::Tensor<std::complex<double>, 4>(sampT, Mmax+1, nmax, nmax);
+
+  // Fill the covariance structure with subsamples
+  for (int T=0; T<sampT; T++) {
+
+    std::get<0>(ret)(T) = countT[T];
+    std::get<1>(ret)(T) =  massT[T];
+
+    // m loop
+    for (int m=0; m<=Mmax; m++) {
+      // outer n loop
+      for (int n1=0; n1<nmax; n1++) {
+	auto z = (*expcoefT[T][m])(n1);
+	if (isnan(z.real()) or isnan(z.imag())) {
+	  std::cout << "Pack coef NaN at " << m << ", "
+		    << n1 << std::endl;
+	}
+	if (std::abs(z.real()) < 1.0e-12) {
+	  std::cout << "Pack coef zero at " << m << ", "
+		    << n1 << std::endl;
+	}
+	std::get<2>(ret)(T, m, n1) = (*expcoefT[T][m])(n1);
+	// inner n loop
+	for (int n2=0; n2<nmax; n2++) {
+	  auto z = (*expcoefM[T][m])(n1, n2);
+	  if (isnan(z.real()) or isnan(z.imag())) {
+	    std::cout << "Pack covar NaN at " << m << ", "
+		      << n1 << ", " << n1 << std::endl;
+	  }
+	  if (std::fabs(z) < 1.0e-20) {
+	    std::cout << "Pack covar zero at " << m << ", "
+		      << n1 << ", " << n2 << std::endl;
+	  }
+	  if (fullCovar)
+	    std::get<3>(ret)(T, m, n1, n2) = (*expcoefM[T][m])(n1, n2);
+	}
+	// END: n2 loop
+      }
+      // END: n1 loop
+    }
+    // END: m loop
+  }
+  // END: T loop
+    
+  return ret;
+}
