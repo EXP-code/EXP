@@ -436,7 +436,7 @@ protected:
   bool subset;
 
   //! Turn on variance computation
-  bool pcavar=false, fullCovar=false, totlCovar=true, compute=false;
+  bool pcavar=false;
 
   //! Variance cadence
   int nint=0;
