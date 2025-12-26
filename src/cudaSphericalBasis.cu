@@ -315,7 +315,8 @@ __global__ void coordKernel
 
 
 __global__ void coefKernel
-(dArray<cuFP_t> coef, dArray<cuFP_t> tvar, dArray<cuFP_t> work,
+(dArray<cuFP_t> coef, dArray<cuFP_t> tvar,
+ dArray<thrust::complex<double>> work,
  dArray<cuFP_t> used, dArray<cudaTextureObject_t> tex,
  dArray<cuFP_t> Mass, dArray<cuFP_t> Afac, dArray<cuFP_t> Phi,
  dArray<cuFP_t> Plm,  dArray<int> Indx,  int stride, 
@@ -399,7 +400,7 @@ __global__ void coefKernel
 	  //
 	  if (compute and tvar._s>0) {
 	    if (sphAcov) tvar._v[n*N + i   ] = v * mass;
-	    else         work._v[i*nmax + n] = v;
+	    else         work._v[i*nmax + n] = thrust::complex<double>(v*cosp, v*sinp);
 	  }
 	  
 #ifdef BOUNDS_CHECK
@@ -414,14 +415,27 @@ __global__ void coefKernel
 	  // Variance computation
 	  for (int r=0; r<nmax; r++) {
 	    for (int s=r; s<nmax; s++) {
-	      tvar._v[N*c + i] =
-		work._v[i*nmax + r] * work._v[i*nmax + s] * mass;
+	      // Covariance contribution
+	      thrust::complex<double> crs =
+		work._v[i*nmax + r] * thrust::conj(work._v[i*nmax + s]);
+	      if (isnan(crs.real()) or isnan(crs.imag())) {
+		  printf("NaN generated at %d %d %d in covar: %f,  %f \n", i, r, s, crs.real(), crs.imag());
+	      }
+	      // Split into reals
+	      tvar._v[(2*c+0)*N + i] = crs.real() * mass;
+	      tvar._v[(2*c+1)*N + i] = crs.imag() * mass;
 	      c++;
 	    }
 	  }
 	  // Mean computation
 	  for (int r=0; r<nmax; r++) {
-	    tvar._v[N*c + i] = work._v[i*nmax + r] * mass;
+	    thrust::complex<double> crs = work._v[i*nmax + r];
+	    if (isnan(crs.real()) or isnan(crs.imag())) {
+		printf("NaN generated at %d %d in coef: %f,  %f \n", i, r, crs.real(), crs.imag());
+	      }
+	    // Split into reals
+	    tvar._v[(2*c+0)*N + i] = work._v[i*nmax + r].real() * mass;
+	    tvar._v[(2*c+1)*N + i] = work._v[i*nmax + r].imag() * mass;
 	    c++;
 	  }
 	  if (c != nmax*(nmax+3)/2) printf("out of bounds: wrong c [k]\n");
@@ -442,12 +456,14 @@ __global__ void coefKernel
 	    int c = 0;
 	    for (int r=0; r<nmax; r++) {
 	      for (int s=r; s<nmax; s++) {
-		tvar._v[N*c + i] = 0.0;
+		tvar._v[(2*c+0)*N + i] = 0.0;
+		tvar._v[(2*c+1)*N + i] = 0.0;
 		c++;
 	      }
 	    }
 	    for (int r=0; r<nmax; r++) {
-	      tvar._v[N*c + i] = 0.0;
+	      tvar._v[(2*c+0)*N + i] = 0.0;
+	      tvar._v[(2*c+1)*N + i] = 0.0;
 	      c++;
 	    }
 	  }
@@ -809,23 +825,30 @@ void SphericalBasis::cudaStorage::resize_coefs
     T_covr.resize(sampT);
     for (int T=0; T<sampT; T++) {
       if (subsamp)
-	T_covr[T].resize((Lmax+1)*(Lmax+2)*nmax);
+	T_covr[T].resize((Lmax+1)*(Lmax+2)*nmax/2);
       else
-	T_covr[T].resize((Lmax+1)*(Lmax+2)*(nmax*(nmax+3)/2));
+	T_covr[T].resize(2*(Lmax+1)*(Lmax+2)*(nmax*(nmax+3)/2));
     }
   }
 
   if (pcaeof or pcavar) {
     if (subsamp) {
+      // All particle contributions
       dN_tvar.resize(nmax*N);
+      // Reduction to grid
       dc_tvar.resize(nmax*gridSize);
+      // Full reduction
       dw_tvar.resize(nmax);
     } else {
       int csz = nmax*(nmax+3)/2;
-      dW_tvar.resize(nmax*gridSize*BLOCK_SIZE*stride); // Volatile storage
-      dN_tvar.resize(csz*N);
-      dc_tvar.resize(csz*gridSize);
-      dw_tvar.resize(csz);
+      // Volatile storage
+      dW_tvar.resize(2*nmax*gridSize*BLOCK_SIZE*stride);
+      // All particle contributions
+      dN_tvar.resize(2*csz*N);
+      // Reduction to grid
+      dc_tvar.resize(2*csz*gridSize);
+      // Full reduction
+      dw_tvar.resize(2*csz);
     }
   }
 
@@ -876,7 +899,7 @@ void SphericalBasis::cuda_zero_coefs()
 	if (subsamp)
 	  cuS.T_covr[T].resize((Lmax+1)*(Lmax+2)*nmax);
 	else
-	  cuS.T_covr[T].resize((Lmax+1)*(Lmax+2)*(nmax*(nmax+3)/2));
+	  cuS.T_covr[T].resize(2*(Lmax+1)*(Lmax+2)*(nmax*(nmax+3)/2));
       }
       host_massT.resize(sampT);
     }
@@ -1051,7 +1074,9 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     //
     int psize = nmax;
     int osize = nmax*2;
-    int vsize = nmax*(nmax+3)/2;
+    int xsize = nmax*(nmax+3)/2;
+    int vsize = 2*xsize;
+    
     auto beg  = cuS.df_coef.begin();
     auto begV = cuS.df_tvar.begin();
 
@@ -1122,15 +1147,20 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	      int s = sN;
 	      if (T==sampT-1) s = N - k;
 	      
-	      // Mass accumulation
+	      // Count and mass accumulation
 	      //
 	      if (l==0 and m==0) {
+		
+		// Sample count
+		countT1[T] += s;
+
 		auto mbeg = cuS.u_d.begin();
 		auto mend = mbeg;
 		thrust::advance(mbeg, sN*T);
 		if (T<sampT-1) thrust::advance(mend, sN*(T+1));
 		else mend = cuS.u_d.end();
 		
+		// Accumulated mass
 		host_massT[T] += thrust::reduce(mbeg, mend);
 	      }
 
@@ -1201,7 +1231,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 		
 		thrust::transform(thrust::cuda::par.on(cr->stream),
 				  cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
-				  bm[T], bm[T], thrust::plus<cuFP_t>());;
+				  bm[T], bm[T], thrust::plus<cuFP_t>());
 		
 		thrust::advance(bm[T], vsize);
 	      }
@@ -1473,8 +1503,15 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 
 	  thrust::host_vector<cuFP_t> retM = cuS.T_covr[T];
 	
+	  // Check for NaN
+	  for (auto v : retM) {
+	    if (std::isnan(v)) {
+	      std::cout << "NaN found in retM" << std::endl;
+	    }
+	  }
+
 	  int vffst = 0;
-	  int vsize = nmax*(nmax+3)/2;
+	  int vsize = 2*nmax*(nmax+3)/2;
 	  
 	  // l loop
 	  //
@@ -1490,23 +1527,33 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 	      for (int n=0; n<nmax; n++) {
 	      
 		for (int o=n; o<nmax; o++) {
+		  std::complex<double> z(retM[c + vffst], retM[c + vffst + 1]);
+		  if (isnan(z.real()) or isnan(z.imag())) {
+		    std::cout << "Covar NaN at " << l << ", " << m << ", "
+			      << n << ", " << o << std::endl;
+		  }
 		  // Diagonal and upper diagonal
-		  (*expcoefM1[T][loffset+m])(n, o) += retM[c + vffst];
+		  (*expcoefM1[T][loffset+m])(n, o) += z;
 
 		  // Below the diagonal
-		  if (o!=n) (*expcoefM1[T][loffset+m])(o, n) += retM[c + vffst];
-		  c++;
+		  if (o!=n) (*expcoefM1[T][loffset+m])(o, n) += std::conj(z);
+		  c += 2;
 		}
 	      }
 
 	      // Mean assignment
 	      //
 	      for (int n=0; n<nmax; n++) {
-		(*expcoefT1[T][loffset+m])[n] += retM[c + vffst];
-		c++;
+		std::complex<double> z(retM[c + vffst], retM[c + vffst + 1]);
+		if (isnan(z.real()) or isnan(z.imag())) {
+		  std::cout << "Coef NaN at " << l << ", " << m << ", "
+			    << n << std::endl;
+		}
+		(*expcoefT1[T][loffset+m])[n] += z;
+		c += 2;
 	      }
 	      
-	      if (c != nmax*(nmax+3)/2)
+	      if (c != nmax*(nmax+3))
 		std::cout << "out of bounds: wrong c [h]" << std::endl;
 
 	      vffst += vsize;

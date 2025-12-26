@@ -15,6 +15,7 @@
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
+#include <thrust/complex.h>
 #endif
 #include "NVTX.H"
 
@@ -241,7 +242,7 @@ protected:
     thrust::device_vector<cuFP_t> dw_coef;
     thrust::device_vector<cuFP_t> df_coef;
     thrust::device_vector<cuFP_t> dN_tvar;
-    thrust::device_vector<cuFP_t> dW_tvar;
+    thrust::device_vector<thrust::complex<double>> dW_tvar;
     thrust::device_vector<cuFP_t> dc_tvar;
     thrust::device_vector<cuFP_t> dw_tvar;
     thrust::device_vector<cuFP_t> df_tvar;
@@ -407,6 +408,9 @@ protected:
   void biorthogonality_check();
   //@}
 
+  //! Write basis-specific parameters to HDF5 covariance file
+  void writeCovarH5Params(HighFive::File& file);
+
 public:
 
   //! Use YAML header in coefficient file
@@ -544,6 +548,15 @@ public:
 
   //! Dump current coefficients into named HDF5 file
   void dump_coefs_h5(const std::string& file);
+
+  /** Return a subsample of the basis coefficients and covariance
+      elements for matrices for analysis. The default implementation
+      returns empty vectors. This parallels the implementation in
+      expui. */
+  CovarData getSubsample();
+
+  //! Indicate whether or not subsampling is supported
+  virtual bool hasSubsample() {	return true; }
 };
 
 #endif

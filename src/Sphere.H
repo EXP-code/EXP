@@ -69,6 +69,9 @@ typedef std::shared_ptr<SLGridSph> SLGridSphPtr;
 class Sphere : public SphericalBasis 
 {
 
+  //! Pull in base-class overrides
+  using PotAccel::determine_coefficients;
+
 private:
 
   SLGridSphPtr ortho;

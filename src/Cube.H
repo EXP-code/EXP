@@ -47,6 +47,24 @@
     dimensions at once and planes, axes, and 1d which compute wave
     vectors by plane.  This may be extended to specific algorithms in
     the future.  This does nothing for the CPU-only computation.
+
+    @param wrap boolean to enforce periodic wrapping (default: true)
+
+    @param nint integer number of steps between subsample computations
+    (default: 0, no subsampling)
+
+    @param samplesz integer number of particles in subsample (default:
+    100)
+
+    @param subsampleFloat boolean to use single precision in HDF5
+    files (default: false)
+
+    @note The subsampling for the cpu implemtation is round-robin
+    while the subsampling for the gpu implementation is a partition.
+    This implies that the coefficient values will agree but the
+    subsamples contain different particles.  Since the goal of
+    subsampling is statistical assessment, this should not be a
+    limitation.
 */
 class Cube : public PotAccel
 {
@@ -65,14 +83,34 @@ private:
   //@{
   //! Variables
   int imx, imy, imz, osize;
-  int use1, use0;
+  int use1, use0, sampT=0, nint=0;
   std::complex<double> kfac;
-  double dfac;
+  double dfac, last=-std::numeric_limits<double>::max();
   bool wrap = true;		// Enforce periodic wrapping
   //@}
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+  //@{
+  //! Covariance structures.  First index is T, second is the
+  //! flattened 3-d k vector
+  std::vector<Eigen::VectorXcd> meanV;
+  std::vector<Eigen::MatrixXcd> covrV;
+
+  //@{
+  //! Per thread covariance structures
+  std::vector<std::vector<Eigen::VectorXcd>> meanV1;
+  std::vector<std::vector<Eigen::MatrixXcd>> covrV1;
+  std::vector<Eigen::VectorXcd> workV1;
+  std::vector<Eigen::VectorXi>  countV1;
+  std::vector<Eigen::VectorXd>  massV1;
+  //@}
+
+  void init_covariance();
+  void zero_covariance();
+  //@}
+
 
 #if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda();
@@ -104,7 +142,12 @@ private:
     thrust::device_vector<thrust::complex<cuFP_t>> dw_coef;
     thrust::device_vector<thrust::complex<cuFP_t>> df_coef;
 
-    void resize_coefs(int N, int osize, int gridSize, int stride);
+    thrust::device_vector<cuFP_t> u_d;
+    
+    std::vector<thrust::device_vector<thrust::complex<cuFP_t>>> T_samp;
+
+    void resize_coefs(int N, int osize, int psize, int gridSize,
+		      int stride, int sampT);
   };
 
   //! A storage instance
@@ -249,17 +292,19 @@ private:
     to   = tmp;
   }
 
+  //! Write basis-specific parameters to HDF5 covariance file
+  void writeCovarH5Params(HighFive::File& file);
 
 public:
-
-  //! Id string
-  std::string id;
 
   //! Constructor
   Cube(Component* c0, const YAML::Node& conf);
 
   //! Destructor
   virtual ~Cube();
+
+  //! Bring in base-class overloads
+  using PotAccel::determine_coefficients;
 
   //! Compute the coefficients
   void determine_coefficients(void);
@@ -269,6 +314,15 @@ public:
 
   //! Coefficient output
   void dump_coefs_h5(const std::string& file);
+
+  /** Return a subsample of the basis coefficients and covariance
+      elements for matrices for analysis. The default implementation
+      returns empty vectors. This parallels the implementation in
+      expui. */
+  CovarData getSubsample();
+
+  //! Indicate whether or not subsampling is supported
+  virtual bool hasSubsample() {	return true; }
 };
 
 

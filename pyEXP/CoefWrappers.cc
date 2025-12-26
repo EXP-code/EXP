@@ -37,7 +37,8 @@ void CoefficientClasses(py::module &m) {
     coefficient structure using Python.  To do this, use the
     constructor to make a blank instance, assign the dimensions and
     use assign() to create a data matrix with the supplied matrix or
-    array.  The dimen- sions are:
+    array.  The dimensions are:
+
      1. (lmax, nmax) for SphStruct
      2. (mmax, nmax) for a CylStruct
      3. (nmaxx, nmaxy, nmaxz) for a SlabStruct

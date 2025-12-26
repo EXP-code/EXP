@@ -8,8 +8,8 @@ set(exp_SOURCES Basis.cc Bessel.cc Component.cc Cube.cc Cylinder.cc
   generateRelaxation.cc HaloBulge.cc incpos.cc incvel.cc
   ComponentContainer.cc OutAscii.cc OutHDF5.cc OutMulti.cc
   OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutVel.cc
-  OutCoef.cc multistep.cc parse.cc SlabSL.cc step.cc tidalField.cc
-  ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
+  OutCoef.cc OutSample.cc multistep.cc parse.cc SlabSL.cc step.cc
+  tidalField.cc ultra.cc ultrasphere.cc MPL.cc OutFrac.cc OutCalbr.cc
   ParticleFerry.cc chkSlurm.c chkTimer.cc GravKernel.cc CenterFile.cc
   PolarBasis.cc FlatDisk.cc signals.cc)
 

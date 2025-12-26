@@ -43,6 +43,9 @@
     @param tk_type is the smoothing type, one of: Hall, VarianceCut, CumulativeCut, VarianceWeighted
     
     @param subsamp true sets partition variance computation (default: false)
+
+    @param nint is the step cadence for subsample variance computation
+    (default: 0, no subsampling)
 */
 class AxisymmetricBasis : public Basis
 {
@@ -69,13 +72,16 @@ protected:
   bool pcaeof;
 
   //! VTK diagnostic frequency
-  unsigned vtkfreq;
+  unsigned vtkfreq = std::numeric_limits<unsigned>::max();
 
   //! Frequency of PCA computation
-  int npca;
+  int npca = std::numeric_limits<int>::max();
 
   //! First step for PCA computation
-  int npca0;
+  int npca0 = std::numeric_limits<int>::max();
+
+  // Frequency of subsample computation
+  int nint = 0;
 
   //! Hall smoothing exponent (default: 1.0)
   double hexp;
@@ -91,8 +97,10 @@ protected:
      efficiency.
   */
   //@{
-  typedef std::shared_ptr<Eigen::VectorXd> VectorP;
-  typedef std::shared_ptr<Eigen::MatrixXd> MatrixP;
+  typedef std::shared_ptr<Eigen::VectorXd > VectorP;
+  typedef std::shared_ptr<Eigen::MatrixXd > MatrixP;
+  typedef std::shared_ptr<Eigen::VectorXcd> VectorQ;
+  typedef std::shared_ptr<Eigen::MatrixXcd> MatrixQ;
 
   std::vector<VectorP> expcoef, expcoef1, expcoefP;
 
@@ -119,14 +127,15 @@ protected:
 
   //@{
   //! Covariance arrays
-  std::vector<std::vector<VectorP>> expcoefT, expcoefT1;
-  std::vector<std::vector<MatrixP>> expcoefM, expcoefM1;
+  std::vector<std::vector<VectorQ>> expcoefT, expcoefT1;
+  std::vector<std::vector<MatrixQ>> expcoefM, expcoefM1;
   //@}
 
   //@{
   //! Mass and counts for subsample covariance
-  std::vector<double>               massT, massT1;
-  unsigned                          sampT, defSampT;
+  std::vector<unsigned>              countT, countT1;
+  std::vector<double>                massT, massT1;
+  unsigned                           sampT, defSampT;
   //@}
 
   //! Test for eof trim

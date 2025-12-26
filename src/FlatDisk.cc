@@ -30,7 +30,7 @@ FlatDisk::valid_keys = {
 FlatDisk::FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
   PolarBasis(c0, conf, m)
 {
-  id = "FlatDisk EOF";
+  id = "FlatDisk";
 
   // Defaults
   //
@@ -48,7 +48,7 @@ FlatDisk::FlatDisk(Component* c0, const YAML::Node& conf, MixtureBasis* m) :
 
   // Append info to basis ID
   //
-  id += "[" + ortho->getModelName() + "][" + ortho->getBiorthName() + "]";
+  // id += "[" + ortho->getModelName() + "][" + ortho->getBiorthName() + "]";
 
   if (myid==0) {
     std::string sep("----    ");

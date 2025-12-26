@@ -11,6 +11,9 @@
  */
 class ExternalForce : public PotAccel
 {
+  //! Bring in base-class overloads
+  using PotAccel::determine_coefficients;
+
 private:
 
   void determine_coefficients(void);

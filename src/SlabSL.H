@@ -23,17 +23,20 @@
 class SlabSL : public PotAccel
 {
 
-//! Header structure for Sturm-Liouville slab expansion
-//! Used for deprecated native coefficient files
-struct SlabSLCoefHeader {
-  double time;
-  double zmax;
-  double h;
-  int type;
-  int nmaxx, nmaxy, nmaxz;
-  int jmax;
-};
+  //! Pull in base-class overrides
+  using PotAccel::determine_coefficients;
 
+  //! Header structure for Sturm-Liouville slab expansion
+  //! Used for deprecated native coefficient files
+  struct SlabSLCoefHeader {
+    double time;
+    double zmax;
+    double h;
+    int type;
+    int nmaxx, nmaxy, nmaxz;
+    int jmax;
+  };
+  
 private:
 
   std::shared_ptr<SLGridSlab> grid;

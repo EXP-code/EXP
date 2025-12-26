@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include <Eigen/Eigen>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 #include "gaussQ.H"
 #include "interp.H"
@@ -205,7 +206,6 @@ protected:
   std::vector<unsigned> numbT;
   std::vector<double> massT;
   unsigned sampT, defSampT;
-
 
   std::vector<Eigen::MatrixXd> vc, vs;
 
@@ -641,10 +641,10 @@ public:
   void init_covar();
 
   //! Turn on/off covariance computation
-  void set_covar(bool tf) {
-    covar = tf;
-    if (tf) init_covar();
-  }
+  void set_covar(bool tf) { covar = tf; }
+
+  //! Make covariance matrix from accumulated data
+  void make_covar();
 
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
@@ -948,12 +948,11 @@ public:
 
   //! Return a vector of tuples of basis coefficients and the
   //! covariance matrix for subsamples of particles
-  using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
-  std::vector<std::vector<CoefCovarType>> getCoefCovariance();
+  std::tuple<Eigen::Tensor<std::complex<double>, 3>,
+	     Eigen::Tensor<std::complex<double>, 4>> getCoefCovariance();
 
   //! Covariance statistics
   std::tuple<Eigen::VectorXi, Eigen::VectorXd> getCovarSamples();
-  
 
 #if HAVE_LIBCUDA==1
   cudaMappingConstants getCudaMappingConstants();
@@ -1026,6 +1025,43 @@ public:
     return covM(0, T, m)(n, o);
   }
 
+  std::complex<double>* set_VC(int T, int m, int n)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+    
+    return &VC[0][T][m](n);
+  }
+
+  std::complex<double>* set_MV(int T, int m, int n, int o)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (o >= rank3)
+      throw std::runtime_error("o>=norder");
+
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+
+    return &MV[0][T][m](n, o);
+  }
+
   double& set_tvar(int m, int i, int j)
   {
     if (m >  MMAX)
@@ -1046,6 +1082,17 @@ public:
     }
 
     return massT1[0][T];
+  }
+
+  unsigned& set_numbT(int T)
+  {
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+
+    return numbT1[0][T];
   }
 
 #endif
