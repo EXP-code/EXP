@@ -94,6 +94,11 @@ PolarBasis::PolarBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   // Assign values from YAML
   //
   try {
+    if (conf["scale"]) 
+      scale = conf["scale"].as<double>();
+    else
+      scale = 1.0;
+
     if (conf["rmin"]) 
       rmin = conf["rmin"].as<double>();
     else

@@ -387,7 +387,7 @@ protected:
   int mlim;
 
   //! Basis linear scale for mapping
-  double scale;
+  double scale=1.0;
 
   //! The minimum radius
   double rmin;

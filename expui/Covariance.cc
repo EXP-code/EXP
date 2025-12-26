@@ -457,7 +457,7 @@ namespace BasisClasses
       const std::set<std::string> sphereType = {"Spherical", "SphereSL", "Bessel"};
       
       // Currently implemented cylindrical types
-      const std::set<std::string> cylinderType = {"Cylindrical", "Cylinder"};
+      const std::set<std::string> cylinderType = {"Cylindrical", "Cylinder", "FlatDisk"};
       
       std::cout << "SubsampleCovariance: reading basis type " << BasisID << std::endl;
 
