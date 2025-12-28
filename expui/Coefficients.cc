@@ -2125,7 +2125,7 @@ namespace CoefClasses
   {
     int NmaxX1, NmaxY1, NmaxZ1;
     std::string forceID1;
-		
+
     file.getAttribute("nmaxx"  ).read(NmaxX1  );
     file.getAttribute("nmaxy"  ).read(NmaxY1  );
     file.getAttribute("nmaxz"  ).read(NmaxZ1  );
@@ -2528,27 +2528,33 @@ namespace CoefClasses
   bool TrajectoryData::CheckH5Params(HighFive::File& file)
   {
     int traj1, rank1;
-		
+
     file.getAttribute("traj").read(traj1);
     file.getAttribute("rank").read(rank1);
 
-    int traj0 = coefs.begin()->second->traj;
-    int rank0 = coefs.begin()->second->rank;
-
     bool ret = true;
-    
-    if (traj0 != traj1) {
-      if (myid==0)
-	std::cout << "---- TrajectoryData::CheckH5Params: traj mismatch " << traj0
-		  << " != " << traj1 << std::endl;
-      ret = false;
-    }
 
-    if (rank0 != rank1) {
+    if (coefs.empty()) {
       if (myid==0)
-	std::cout << "---- TrajectoryData::CheckH5Params: rank mismatch " << rank0
-		  << " != " << rank1 << std::endl;
-      ret = false;
+	std::cout << "---- TrajectoryData::CheckH5Params: coefs is empty" << std::endl;
+    } else {
+
+      int traj0 = coefs.begin()->second->traj;
+      int rank0 = coefs.begin()->second->rank;
+    
+      if (traj0 != traj1) {
+	if (myid==0)
+	  std::cout << "---- TrajectoryData::CheckH5Params: traj mismatch " << traj0
+		    << " != " << traj1 << std::endl;
+	ret = false;
+      }
+      
+      if (rank0 != rank1) {
+	if (myid==0)
+	  std::cout << "---- TrajectoryData::CheckH5Params: rank mismatch " << rank0
+		    << " != " << rank1 << std::endl;
+	ret = false;
+      }
     }
 
     return ret;
@@ -3654,7 +3660,7 @@ namespace CoefClasses
 
     double scale0 = coefs.begin()->second->scale, scale1;
     int nfld1, mmax1, nmax1, dof1;
-		
+
     file.getAttribute("nfld" ).read(nfld1 );
     file.getAttribute("mmax" ).read(mmax1 );
     file.getAttribute("nmax" ).read(nmax1 );
@@ -3665,9 +3671,9 @@ namespace CoefClasses
     int mmax0 = Mmax;
     int nmax0 = Nmax;
     int dof0  = dof;
-    
+
     bool ret = true;
-    
+
     if (nfld0 != nfld1) {
       if (myid==0)
 	std::cout << "---- CylFldCoefs::CheckH5Params: nfld mismatch " << nfld0
