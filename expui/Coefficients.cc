@@ -1744,7 +1744,7 @@ namespace CoefClasses
       if (myid==0)
 	std::cout << "---- SlabCoefs::CheckH5Params: coefs is empty" << std::endl;
     } else {
-      std::string forceID0(coefs.begin()->second->id), forceID1;
+      std::string forceID0(coefs.begin()->second->id);
 
       if (forceID0 != forceID1) {
 	if (myid==0)
