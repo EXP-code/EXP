@@ -520,6 +520,7 @@ namespace BasisClasses
 	    }
 	  }
 	}
+	covarStore->writeCoefCovariance(compname, runtag, covarData, time);
       } else {
 	throw std::runtime_error("Spherical::writeCoefCovariance: covariance storage not initialized");
       }
@@ -745,6 +746,18 @@ namespace BasisClasses
     void computeAccel(double x, double y, double z,
 		      Eigen::Ref<Eigen::Vector3d> vstore);
 
+    //@{
+    //! Covariance structures.  First index is T, second is the
+    //! harmonic m
+    std::vector<std::vector<Eigen::VectorXcd>> meanV;
+    std::vector<std::vector<Eigen::MatrixXcd>> covrV;
+
+    void init_covariance();
+    void zero_covariance();
+    void writeCovarH5Params(HighFive::File& file);
+    int sampT = 100;
+    //@}
+
   public:
     
     //! Constructor from YAML node
@@ -796,6 +809,58 @@ namespace BasisClasses
       if (myid==0)
 	std::cout << "---- FlatDisk::orthoTest: worst=" << worst << std::endl;
       return ret;
+    }
+
+    //! Write coefficient covariance data to an HDF5 file
+    virtual void writeCoefCovariance(const std::string& compname,
+				     const std::string& runtag, double time=0.0)
+    {
+      if (covarStore) {
+	// Prepare covariance data
+	int Tsize = meanV.size();
+	int Lsize = meanV[0].size();
+	int Nsize = meanV[0][0].size();
+
+	SubsampleCovariance::CovarData covarData;
+
+	std::get<0>(covarData).resize(Tsize);
+	std::get<1>(covarData).resize(Tsize);
+	std::get<2>(covarData) = SubsampleCovariance::CoefType(Tsize, Lsize, Nsize);
+	std::get<3>(covarData) = SubsampleCovariance::CovrType(Tsize, Lsize, Nsize, Nsize);
+
+	for (int T=0; T<Tsize; T++) {
+	  std::get<0>(covarData)(T) = sampleCounts(T);
+	  std::get<1>(covarData)(T) = sampleMasses(T);
+	  for (int lm=0; lm<Lsize; lm++) {
+	    for (int n1=0; n1<Nsize; n1++) {
+	      std::get<2>(covarData)(T, lm, n1) = meanV[T][lm](n1);
+	      for (int n2=0; n2<Nsize; n2++) {
+		std::get<3>(covarData)(T, lm, n1, n2) = covrV[T][lm](n1, n2);
+	      }
+	    }
+	  }
+	}
+	covarStore->writeCoefCovariance(compname, runtag, covarData, time);
+      } else {
+	throw std::runtime_error("FlatDisk::writeCoefCovariance: covariance storage not initialized");
+      }
+    }
+
+    //! Request and initialize covariance computation
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
+				      bool ftype=false,
+				      bool covr_tot=true,
+				      bool covar_in=true)
+    {
+      pcavar = pcavar_in;
+      sampT  = sampT_in;
+      scovr  = covr_tot;
+      covar  = covar_in;
+      if (pcavar) {
+	init_covariance();
+	covarStore = std::make_shared<SubsampleCovariance>
+	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, scovr, covar);
+      }
     }
 
   };
@@ -1122,7 +1187,7 @@ namespace BasisClasses
 	std::tie(std::get<2>(elem), std::get<3>(elem)) = sl->getCoefCovariance();
 	covarStore->writeCoefCovariance(compname, runtag, elem, time);
       } else {
-	throw std::runtime_error("Spherical::writeCoefCovariance: covariance storage not initialized");
+	throw std::runtime_error("Cylindrical::writeCoefCovariance: covariance storage not initialized");
       }
     }
 
@@ -1479,7 +1544,7 @@ namespace BasisClasses
 	}
 	covarStore->writeCoefCovariance(compname, runtag, elem, time);
       } else {
-	throw std::runtime_error("Spherical::writeCoefCovariance: covariance storage not initialized");
+	throw std::runtime_error("Cube::writeCoefCovariance: covariance storage not initialized");
       }
     }
 

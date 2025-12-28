@@ -211,6 +211,9 @@ namespace BasisClasses
 
   void Spherical::initialize()
   {
+    // Identifier
+    //
+    BasisID = "Spherical";
 
     // Assign some defaults
     //
@@ -329,12 +332,11 @@ namespace BasisClasses
 
     // Initialize covariance
     //
-    if (pcavar) init_covariance();
+    if (pcavar) enableCoefCovariance(true, sampT);
 
     // Set spherical coordinates
     //
     coordinates = Coord::Spherical;
-    BasisID = "Spherical";
   }
   
   void Spherical::init_covariance()
@@ -1989,6 +1991,7 @@ namespace BasisClasses
     "tkcum",
     "tk_type",
     "cachename",
+    "pcavar",
     "nint",
     "totalCovar",
     "fullCovar"
@@ -2004,6 +2007,40 @@ namespace BasisClasses
     BiorthBasis(confstr, "flatdisk")
   {
     initialize();
+  }
+
+  void FlatDisk::init_covariance()
+  {
+    if (pcavar) {
+	
+      meanV.resize(sampT);
+      for (auto& v : meanV) {
+	v.resize(mmax+1);
+	for (auto& vec : v) vec.resize(nmax);
+      }
+
+      covrV.resize(sampT);
+      for (auto& v : covrV) {
+	v.resize(mmax+1);
+	for (auto& mat : v) mat.resize(nmax, nmax);
+      }
+
+      sampleCounts.resize(sampT);
+      sampleMasses.resize(sampT);
+      
+      zero_covariance();
+    }
+  }
+
+  void FlatDisk::zero_covariance()
+  {
+    for (int T=0; T<sampT; T++) {
+      for (auto& v : meanV[T]) v.setZero();
+      for (auto& v : covrV[T]) v.setZero();
+    }
+
+    sampleCounts.setZero();
+    sampleMasses.setZero();
   }
 
   void FlatDisk::initialize()
@@ -2057,6 +2094,10 @@ namespace BasisClasses
       if (conf["NO_M1"])     NO_M1     = conf["NO_M1"].as<bool>();
       if (conf["EVEN_M"])    EVEN_M    = conf["EVEN_M"].as<bool>();
       if (conf["M0_ONLY"])   M0_only   = conf["M0_ONLY"].as<bool>();
+      if (conf["pcavar"])    pcavar    = conf["pcavar"].as<bool>();
+      if (conf["subsamp"])   sampT     = conf["subsamp"].as<int>();
+
+      sampT = std::max(1, sampT); // Sanity
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -2124,6 +2165,11 @@ namespace BasisClasses
     // Set cylindrical coordindates
     //
     coordinates = Coord::Cylindrical;
+
+    // Initialize covariance
+    //
+    if (pcavar) enableCoefCovariance(true, sampT);
+
   }
   
   void FlatDisk::reset_coefs(void)
@@ -2132,6 +2178,7 @@ namespace BasisClasses
     totalMass = 0.0;
     used = 0;
     G = 1.0;
+    if (pcavar) zero_covariance();
   }
   
   
@@ -2251,9 +2298,21 @@ namespace BasisClasses
 
       ortho->get_pot(potd[tid], R, 0.0);
     
+      // Sample index for pcavar
+      int T = 0;
+      if (pcavar) {
+	T = used % sampT;
+	sampleCounts(T) += 1;
+	sampleMasses(T) += mass;
+      }
+
       // M loop
       for (int m=0, moffset=0; m<=mmax; m++) {
 	
+	double ccos = cos(phi*m);
+	double ssin = sin(phi*m);
+
+	// Coefficient accumulation
 	if (m==0) {
 	  for (int n=0; n<nmax; n++) {
 	    expcoef(moffset, n) += potd[tid](m, n)* mass * norm0;
@@ -2262,13 +2321,20 @@ namespace BasisClasses
 	  moffset++;
 	}
 	else {
-	  double ccos = cos(phi*m);
-	  double ssin = sin(phi*m);
 	  for (int n=0; n<nmax; n++) {
 	    expcoef(moffset  , n) += ccos * potd[tid](m, n) * mass * norm1;
 	    expcoef(moffset+1, n) += ssin * potd[tid](m, n) * mass * norm1;
 	  }
 	  moffset+=2;
+	}
+
+	// Covariance and subsample accumulation
+	if (pcavar) {
+	  Eigen::VectorXcd g = std::complex<double>(ccos, ssin) *
+	    potd[tid].row(m).transpose() * norm0;
+	  
+	  meanV[T][m].noalias() += g * mass;
+	  covrV[T][m].noalias() += g * g.adjoint() * mass;
 	}
       }
     }
@@ -3893,7 +3959,8 @@ namespace BasisClasses
 
     // Initialize covariance
     //
-    if (pcavar) init_covariance();
+    if (pcavar) enableCoefCovariance(true, sampT);
+
   }
 
   Cube::Cube(const std::string& confstr) : BiorthBasis(confstr, "cube")
@@ -3902,7 +3969,7 @@ namespace BasisClasses
 
     // Initialize covariance
     //
-    if (pcavar) init_covariance();
+    if (pcavar) enableCoefCovariance(true, sampT);
   }
 
   void Cube::initialize()
@@ -5120,6 +5187,14 @@ namespace BasisClasses
     file.createAttribute<double>("hcyl", HighFive::DataSpace::From(hcyl)).write(hcyl);
   }
   
+  void FlatDisk::writeCovarH5Params(HighFive::File& file)
+  {
+    file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
+    file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+    file.createAttribute<double>("rcylmin", HighFive::DataSpace::From(rcylmin)).write(rcylmin);
+    file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
+  }
+
   void Cube::writeCovarH5Params(HighFive::File& file)
   {
     file.createAttribute<int>("nminx", HighFive::DataSpace::From(nminx)).write(nminx);
