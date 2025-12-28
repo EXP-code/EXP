@@ -1335,7 +1335,6 @@ namespace CoefClasses
   {
     int Mmax1, Nmax1;
     std::string forceID1;
-		
     file.getAttribute("mmax"   ).read(Mmax1   );
     file.getAttribute("nmax"   ).read(Nmax1   );
     file.getAttribute("forceID").read(forceID1);
