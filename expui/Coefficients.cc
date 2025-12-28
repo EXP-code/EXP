@@ -883,8 +883,8 @@ namespace CoefClasses
       if (myid==0)
 	std::cout << "---- SphCoefs::CheckH5Params: coefs is empty" << std::endl;
     } else {
-      double scale0 = coefs.begin()->second->scale, scale1;
-      std::string forceID0(coefs.begin()->second->id), forceID1;
+      double scale0 = coefs.begin()->second->scale;
+      std::string forceID0(coefs.begin()->second->id);
 
       if (std::abs(scale0 - scale1) > 1.e-8 * std::max(std::abs(scale0), std::abs(scale1))) {
 	if (myid==0)
