@@ -886,7 +886,7 @@ namespace CoefClasses
       double scale0 = coefs.begin()->second->scale;
       std::string forceID0(coefs.begin()->second->id);
 
-      if (std::abs(scale0 - scale1) > 1.e-8 * std::max(std::abs(scale0), std::abs(scale1))) {
+      if (std::abs(scale0 - scale1) > 1.0e-8 * std::max(std::abs(scale0), std::abs(scale1))) {
 	if (myid==0)
 	  std::cout << "---- SphCoefs::CheckH5Params: scale mismatch " << scale0
 		    << " != " << scale1 << std::endl;
