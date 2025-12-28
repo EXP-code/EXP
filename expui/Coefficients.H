@@ -97,7 +97,7 @@ namespace CoefClasses
     //! Write parameter attributes (needed for derived classes)
     virtual void WriteH5Params(HighFive::File& file) = 0;
     
-    //! Checking file for parameter consistency
+    //! Check file for parameter consistency
     virtual bool CheckH5Params(HighFive::File& file) = 0;
 
     //! Write coefficient data in H5
