@@ -68,10 +68,11 @@ double   EmpCylSL::PPOW            = 4.0;
 bool     EmpCylSL::NewCoefs        = true;
  
 
-EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
+EmpCylSL::EmpModel EmpCylSL::mtype = ExpDeproj;
 
 std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs =
   { {Exponential, "Exponential"},
+    {ExpDeproj,   "ExpDeproj"  },
     {Gaussian,    "Gaussian"   },
     {Plummer,     "Plummer"    },
     {Power,       "Power"      },
@@ -551,6 +552,9 @@ double EmpCylSL::massR(double R)
   case Exponential:
     ans = 1.0 - (1.0 + R)*exp(-R); 
     break;
+  case ExpDeproj:
+    ans = erf(sqrt(R)) - 2.0/3.0*sqrt(R/M_PI)*exp(-R)*(3.0 + 2.0*R);
+    break;
   case Gaussian:
     arg = 0.5*R*R;
     ans = 1.0 - exp(-arg);
@@ -587,6 +591,9 @@ double EmpCylSL::densR(double R)
   switch (mtype) {
   case Exponential:
     ans = exp(-R)/(4.0*M_PI*R);
+    break;
+  case ExpDeproj:
+    ans = exp(-R)/(3.0*M_PI*sqrt(R*M_PI));
     break;
   case Gaussian:
     arg = 0.5*R*R;
