@@ -7524,6 +7524,7 @@ bool EmpCylSL::ReadH5Cache()
 
     if (not checkStr(geometry, "geometry"))  return false;
     if (not checkStr(forceID,  "forceID"))   return false;
+    if (not checkStr(model,    "model"))     return false;
     if (not checkInt(MMAX,     "mmax"))      return false;
     if (not checkInt(NUMX,     "numx"))      return false;
     if (not checkInt(NUMY,     "numy"))      return false;
