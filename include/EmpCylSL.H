@@ -18,6 +18,7 @@
 #include <dmalloc.h>
 #endif
 
+#include "ExpDeproj.H"
 #include "Particle.H"
 #include "SLGridMP2.H"
 #include "coef.H"
@@ -80,6 +81,9 @@ protected:
   std::vector<Eigen::MatrixXd> facC, facS;
 
   int rank2, rank3;
+
+  //! Precomputed exponential deprojection profile
+  ExpDeproj expdeproj;
 
   //@{
   //! Storage buffers for MPI
@@ -364,7 +368,7 @@ public:
   //! Type of density model to use
   enum EmpModel {
     Exponential,
-    ExpDeproj,
+    ExpSphere,
     Gaussian, 
     Plummer,
     Power,

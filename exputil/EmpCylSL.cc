@@ -17,6 +17,7 @@
 #include <thread>
 #include "exp_thread.h"
 #include "EXPException.H"
+#include "ExpDeproj.H"
 #include "exputils.H"
 
 #include <Eigen/Eigenvalues>
@@ -69,11 +70,11 @@ double   EmpCylSL::PPOW            = 4.0;
 bool     EmpCylSL::NewCoefs        = true;
  
 
-EmpCylSL::EmpModel EmpCylSL::mtype = ExpDeproj;
+EmpCylSL::EmpModel EmpCylSL::mtype = ExpSphere;
 
 std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs =
   { {Exponential, "Exponential"},
-    {ExpDeproj,   "ExpDeproj"  },
+    {ExpSphere,   "ExpSphere"  },
     {Gaussian,    "Gaussian"   },
     {Plummer,     "Plummer"    },
     {Power,       "Power"      },
@@ -553,8 +554,8 @@ double EmpCylSL::massR(double R)
   case Exponential:
     ans = 1.0 - (1.0 + R)*exp(-R); 
     break;
-  case ExpDeproj:
-    ans = erf(sqrt(R)) - 2.0/3.0*sqrt(R/M_PI)*exp(-R)*(3.0 + 2.0*R);
+  case ExpSphere:
+    ans = expdeproj.mass(R);
     break;
   case Gaussian:
     arg = 0.5*R*R;
@@ -593,8 +594,8 @@ double EmpCylSL::densR(double R)
   case Exponential:
     ans = exp(-R)/(4.0*M_PI*R);
     break;
-  case ExpDeproj:
-    ans = exp(-R)/(3.0*M_PI*sqrt(R*M_PI));
+  case ExpSphere:
+    ans = expdeproj.density(R);
     break;
   case Gaussian:
     arg = 0.5*R*R;
