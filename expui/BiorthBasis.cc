@@ -1624,8 +1624,8 @@ namespace BasisClasses
       EmpCylSL::mtype = EmpCylSL::Exponential;
       if (mtype.compare("exponential")==0)
 	EmpCylSL::mtype = EmpCylSL::Exponential;
-      else if (mtype.compare("expdeproj")==0)
-	EmpCylSL::mtype = EmpCylSL::ExpDeproj;
+      else if (mtype.compare("expsphere")==0)
+	EmpCylSL::mtype = EmpCylSL::ExpSphere;
       else if (mtype.compare("gaussian")==0)
 	EmpCylSL::mtype = EmpCylSL::Gaussian;
       else if (mtype.compare("plummer")==0)
@@ -1636,7 +1636,7 @@ namespace BasisClasses
       } else {
 	if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
 			       << mtype << ">, valid types are: "
-			       << "Exponential, ExpDeproj, Gaussian, Plummer, Power "
+			       << "Exponential, ExpSphere, Gaussian, Plummer, Power "
 			       << "(not case sensitive)" << std::endl;
 	throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
       }
