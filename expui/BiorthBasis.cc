@@ -1565,6 +1565,36 @@ namespace BasisClasses
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
 
+    // Set deprojected model type
+    //
+    // Convert mtype string to lower case
+    std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+      
+    // Set EmpCylSL mtype.  This is the spherical function used to
+    // generate the EOF basis.  If "deproject" is set, this will be
+    // overriden in EmpCylSL.
+    //
+    EmpCylSL::mtype = EmpCylSL::Exponential;
+    if (mtype.compare("exponential")==0)
+      EmpCylSL::mtype = EmpCylSL::Exponential;
+    else if (mtype.compare("expsphere")==0)
+      EmpCylSL::mtype = EmpCylSL::ExpSphere;
+    else if (mtype.compare("gaussian")==0)
+      EmpCylSL::mtype = EmpCylSL::Gaussian;
+    else if (mtype.compare("plummer")==0)
+      EmpCylSL::mtype = EmpCylSL::Plummer;
+    else if (mtype.compare("power")==0) {
+      EmpCylSL::mtype = EmpCylSL::Power;
+      EmpCylSL::PPOW  = ppow;
+    } else {
+      if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
+			     << mtype << ">, valid types are: "
+			     << "Exponential, ExpSphere, Gaussian, Plummer, Power "
+			     << "(not case sensitive)" << std::endl;
+      throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
+    }
+
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
     //
@@ -1610,35 +1640,6 @@ namespace BasisClasses
 		  << "----               will be moved to a .bak file, a new basis will be re-" << std::endl
 		  << "----               computed, and a new cache saved in its place.  Please" << std::endl
 		  << "----               remove 'ignore' from your YAML configuration." << std::endl;
-      }
-
-      // Convert mtype string to lower case
-      //
-      std::transform(mtype.begin(), mtype.end(), mtype.begin(),
-		     [](unsigned char c){ return std::tolower(c); });
-      
-      // Set EmpCylSL mtype.  This is the spherical function used to
-      // generate the EOF basis.  If "deproject" is set, this will be
-      // overriden in EmpCylSL.
-      //
-      EmpCylSL::mtype = EmpCylSL::Exponential;
-      if (mtype.compare("exponential")==0)
-	EmpCylSL::mtype = EmpCylSL::Exponential;
-      else if (mtype.compare("expsphere")==0)
-	EmpCylSL::mtype = EmpCylSL::ExpSphere;
-      else if (mtype.compare("gaussian")==0)
-	EmpCylSL::mtype = EmpCylSL::Gaussian;
-      else if (mtype.compare("plummer")==0)
-	EmpCylSL::mtype = EmpCylSL::Plummer;
-      else if (mtype.compare("power")==0) {
-	EmpCylSL::mtype = EmpCylSL::Power;
-	EmpCylSL::PPOW  = ppow;
-      } else {
-	if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
-			       << mtype << ">, valid types are: "
-			       << "Exponential, ExpSphere, Gaussian, Plummer, Power "
-			       << "(not case sensitive)" << std::endl;
-	throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
       }
 
       // Convert dtype string to lower case
