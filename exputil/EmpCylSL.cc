@@ -2411,6 +2411,15 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
   int cntr = 0;			// Loop counter for spreading load to nodes
   
+  // Debug info output
+  //
+  if (VFLAG & 8 && myid==0) {
+    std::cout << "---- EmpCylSL: Generating EOF with"
+	      << " Rmin=" << xi_to_r(XMIN)
+      	      << " Rmax=" << xi_to_r(XMAX)
+	      << " numt=" << numt << std::endl;
+  }
+
   // *** Radial quadrature loop
   //
   for (int qr=0; qr<numr; qr++) { 
