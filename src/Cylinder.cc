@@ -28,6 +28,7 @@ Cylinder::valid_keys = {
   "rcylmin",
   "rcylmax",
   "acyl",
+  "afac",
   "hcyl",
   "sech2",
   "hexp",
@@ -104,6 +105,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   ncylr           = 2000;
 
   acyl            = 0.01;
+  afac            = 1.0;
   lmaxfid         = 128;
   nmaxfid         = 64;
   mmax            = 6;
@@ -176,7 +178,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   // Make the empirical orthogonal basis instance
   //
   ortho = std::make_shared<CylEXP>
-    (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
+    (nmaxfid, lmaxfid, mmax, nmax, afac*acyl, hcyl, ncylodd, cachename);
   
   // Set azimuthal harmonic order restriction?
   //
@@ -332,6 +334,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		<< std::endl << sep << "rcylmin="     << rcylmin
 		<< std::endl << sep << "rcylmax="     << rcylmax
 		<< std::endl << sep << "acyl="        << acyl
+		<< std::endl << sep << "afac="        << afac
 		<< std::endl << sep << "hcyl="        << hcyl
 		<< std::endl << sep << "precond="     << precond
 		<< std::endl << sep << "pcavar="      << pcavar
@@ -361,6 +364,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	      << std::endl << sep << "rcylmin="     << rcylmin
 	      << std::endl << sep << "rcylmax="     << rcylmax
 	      << std::endl << sep << "acyl="        << acyl
+	      << std::endl << sep << "afac="        << afac
 	      << std::endl << sep << "hcyl="        << hcyl
 	      << std::endl << sep << "precond="     << precond
 	      << std::endl << sep << "pcavar="      << pcavar
@@ -417,6 +421,7 @@ void Cylinder::initialize()
     if (conf["rcylmax"   ])    rcylmax  = conf["rcylmax"   ].as<double>();
 
     if (conf["acyl"      ])       acyl  = conf["acyl"      ].as<double>();
+    if (conf["afac"      ])       afac  = conf["afac"      ].as<double>();
     if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
     if (conf["sech2"     ])      sech2  = conf["sech2"     ].as<bool>();
     if (conf["hexp"      ])       hexp  = conf["hexp"      ].as<double>();
