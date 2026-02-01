@@ -1044,7 +1044,7 @@ namespace BasisClasses
     int lmaxfid, nmaxfid, mmax, mlim, nmax;
     int ncylodd, ncylnx, ncylny, ncylr, cmap, cmapR, cmapZ, vflag;
     int rnum, pnum, tnum;
-    double rcylmin, rcylmax, acyl, hcyl, afac;
+    double rcylmin, rcylmax, acyl, hcyl, bias;
     bool expcond, logarithmic, density, EVEN_M, sech2 = true;
     
     std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;
