@@ -236,11 +236,13 @@ void OutHDF5::initialize()
 	
 	std::cout << "---- OutHDF5: found last file <" << nbeg << ">" << std::endl;
       }
-
-      // Communicate starting file index to all nodes
-      //
-      MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      // END: snapshot mode loop
     }
+    // END: root node read
+
+    // Communicate starting file index to all nodes for snapshot mode
+    //
+    if (not chkpt) MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
   }
 
   return;
