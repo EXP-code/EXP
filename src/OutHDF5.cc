@@ -175,8 +175,13 @@ void OutHDF5::initialize()
       //
       if (directory) {
 	std::ostringstream dname;
-	dname << outdir
-	      <<  filename << "_" << setw(5) << setfill('0') << nbeg;
+
+	if (chkpt)
+	  dname << outdir
+		<<  "checkpoint_" << runtag;
+	else
+	  dname << outdir
+		<<  filename << "_" << setw(5) << setfill('0') << nbeg;
 
 	std::filesystem::path dir_path = dname.str();
       
@@ -187,9 +192,14 @@ void OutHDF5::initialize()
       }
       else {
 	std::ostringstream fname;
-	fname << outdir
-	      <<  filename << "_" << setw(5) << setfill('0') << nbeg
-	      << ".1";
+
+	if (chkpt)
+	  fname << outdir
+		<<  "checkpoint_" << runtag << ".1";
+	else
+	  fname << outdir
+		<<  filename << "_" << setw(5) << setfill('0') << nbeg
+		<< ".1";
 
 	std::filesystem::path file_path = fname.str();
 
@@ -200,31 +210,37 @@ void OutHDF5::initialize()
       
       // Find starting index
       //
-      for (; nbeg<100000; nbeg++) {
-	// Path name
-	//
-	std::ostringstream fname;
-	fname << outdir
-	      <<  filename << "_" << setw(5) << setfill('0') << nbeg;
+      if (not chkpt) {
+	for (; nbeg<100000; nbeg++) {
+	  // Path name
+	  //
+	  std::ostringstream fname;
+	  if (chkpt)
+	    fname << outdir
+		  <<  "checkpoint_" << runtag;
+	  else
+	    fname << outdir
+		  <<  filename << "_" << setw(5) << setfill('0') << nbeg;
 
-	if (not directory) fname << ".1";
+	  if (not directory) fname << ".1";
 
-	std::filesystem::path path = fname.str();
+	  std::filesystem::path path = fname.str();
 
-	// See if we can open the directory or file
-	//
-	if (directory) {
-	  if (not std::filesystem::is_directory(path)) break;
-	} else
-	  if (not std::filesystem::is_regular_file(path)) break;
+	  // See if we can open the directory or file
+	  //
+	  if (directory) {
+	    if (not std::filesystem::is_directory(path)) break;
+	  } else
+	    if (not std::filesystem::is_regular_file(path)) break;
+	}
+	
+	std::cout << "---- OutHDF5: found last file <" << nbeg << ">" << std::endl;
       }
 
-      std::cout << "---- OutHDF5: found last file <" << nbeg << ">" << std::endl;
+      // Communicate starting file index to all nodes
+      //
+      MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
     }
-
-    // Communicate starting file index to all nodes
-    //
-    MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
   }
 
   return;
