@@ -1,4 +1,4 @@
-<#include <algorithm>
+#include <algorithm>
 
 #include "YamlCheck.H"
 #include "EXPException.H"
