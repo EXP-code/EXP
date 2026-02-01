@@ -35,6 +35,8 @@ class MixtureBasis;
 
     @param acyl is the scale length
 
+    @param afac is the O(1) bias correction for deprojected scale length
+
     @param hcyl is the scale height
 
     @param lmaxfid is the maximum spherical harmonic index for EOF construction
@@ -151,7 +153,7 @@ private:
   void initialize(void);
 
 				// Parameters
-  double rcylmin, rcylmax, zmax, acyl;
+  double rcylmin, rcylmax, zmax, acyl, afac;
   int nmaxfid, lmaxfid, mmax, mlim, nint;
   int ncylnx, ncylny, ncylr;
   double hcyl, hexp, snr, rem;
@@ -350,6 +352,7 @@ public:
   //! 
   //! Parameters settable in the configuration line include:
   //! \param acyl is the disk scale length for the basis
+  //! \param afac is the disk scale length bias factor for the basis
   //! \param hcyl is the disk scale height for the basis
   //! \param nmaxfid is the radial order for the underlying spherical basis
   //! \param lmaxfid is the harmonic order for the underlying spherical basis

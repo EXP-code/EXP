@@ -1186,6 +1186,7 @@ namespace BasisClasses
     "rcylmin",
     "rcylmax",
     "acyl",
+    "ascl",
     "hcyl",
     "sech2",
     "snr",
@@ -1376,6 +1377,7 @@ namespace BasisClasses
     rcylmin     = 0.001;
     rcylmax     = 20.0;
     acyl        = 0.01;
+    afac        = 1.0;
     hcyl        = 0.002;
     nmax        = 18;
     mmax        = 6;
@@ -1454,6 +1456,7 @@ namespace BasisClasses
       if (conf["rcylmax"   ])    rcylmax  = conf["rcylmax"   ].as<double>();
       
       if (conf["acyl"      ])       acyl  = conf["acyl"      ].as<double>();
+      if (conf["afac"      ])       afac  = conf["afac"      ].as<double>();
       if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
       if (conf["sech2"     ])      sech2  = conf["sech2"     ].as<bool>();
       if (conf["lmaxfid"   ])    lmaxfid  = conf["lmaxfid"   ].as<int>();
@@ -1595,7 +1598,7 @@ namespace BasisClasses
     // Make the empirical orthogonal basis instance
     //
     sl = std::make_shared<EmpCylSL>
-      (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
+      (nmaxfid, lmaxfid, mmax, nmax, afac*acyl, hcyl, ncylodd, cachename);
     
     // Set azimuthal harmonic order restriction?
     //
@@ -5187,6 +5190,7 @@ namespace BasisClasses
     file.createAttribute<double>("rcylmin", HighFive::DataSpace::From(rcylmin)).write(rcylmin);
     file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
     file.createAttribute<double>("acyl", HighFive::DataSpace::From(acyl)).write(acyl);
+    file.createAttribute<double>("afac", HighFive::DataSpace::From(afac)).write(afac);
     file.createAttribute<double>("hcyl", HighFive::DataSpace::From(hcyl)).write(hcyl);
   }
   
