@@ -1204,7 +1204,7 @@ namespace BasisClasses
     "rcylmin",
     "rcylmax",
     "acyl",
-    "ascl",
+    "bias",
     "hcyl",
     "sech2",
     "snr",
@@ -1417,7 +1417,7 @@ namespace BasisClasses
     EVEN_M      = false;
     cmapR       = 1;
     cmapZ       = 1;
-    mtype       = "exponential";
+    mtype       = "ExpSphere";
     dtype       = "exponential";
     vflag       = 0;
     
@@ -1578,7 +1578,7 @@ namespace BasisClasses
     // generate the EOF basis.  If "deproject" is set, this will be
     // overriden in EmpCylSL.
     //
-    EmpCylSL::mtype = EmpCylSL::Exponential;
+    EmpCylSL::mtype = EmpCylSL::ExpSphere; // Default
     if (mtype.compare("exponential")==0)
       EmpCylSL::mtype = EmpCylSL::Exponential;
     else if (mtype.compare("expsphere")==0)
