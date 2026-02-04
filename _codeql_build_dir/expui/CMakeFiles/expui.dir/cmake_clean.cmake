@@ -1,0 +1,42 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/expui.dir/link.d"
+  "CMakeFiles/expui.dir/BasisFactory.cc.o"
+  "CMakeFiles/expui.dir/BasisFactory.cc.o.d"
+  "CMakeFiles/expui.dir/BiorthBasis.cc.o"
+  "CMakeFiles/expui.dir/BiorthBasis.cc.o.d"
+  "CMakeFiles/expui.dir/BiorthBess.cc.o"
+  "CMakeFiles/expui.dir/BiorthBess.cc.o.d"
+  "CMakeFiles/expui.dir/Centering.cc.o"
+  "CMakeFiles/expui.dir/Centering.cc.o.d"
+  "CMakeFiles/expui.dir/CoefContainer.cc.o"
+  "CMakeFiles/expui.dir/CoefContainer.cc.o.d"
+  "CMakeFiles/expui.dir/CoefStruct.cc.o"
+  "CMakeFiles/expui.dir/CoefStruct.cc.o.d"
+  "CMakeFiles/expui.dir/Coefficients.cc.o"
+  "CMakeFiles/expui.dir/Coefficients.cc.o.d"
+  "CMakeFiles/expui.dir/FieldBasis.cc.o"
+  "CMakeFiles/expui.dir/FieldBasis.cc.o.d"
+  "CMakeFiles/expui.dir/FieldGenerator.cc.o"
+  "CMakeFiles/expui.dir/FieldGenerator.cc.o.d"
+  "CMakeFiles/expui.dir/KDdensity.cc.o"
+  "CMakeFiles/expui.dir/KDdensity.cc.o.d"
+  "CMakeFiles/expui.dir/KMeans.cc.o"
+  "CMakeFiles/expui.dir/KMeans.cc.o.d"
+  "CMakeFiles/expui.dir/Koopman.cc.o"
+  "CMakeFiles/expui.dir/Koopman.cc.o.d"
+  "CMakeFiles/expui.dir/ParticleIterator.cc.o"
+  "CMakeFiles/expui.dir/ParticleIterator.cc.o.d"
+  "CMakeFiles/expui.dir/SvdSignChoice.cc.o"
+  "CMakeFiles/expui.dir/SvdSignChoice.cc.o.d"
+  "CMakeFiles/expui.dir/UnitValidator.cc.o"
+  "CMakeFiles/expui.dir/UnitValidator.cc.o.d"
+  "CMakeFiles/expui.dir/expMSSA.cc.o"
+  "CMakeFiles/expui.dir/expMSSA.cc.o.d"
+  "libexpui.pdb"
+  "libexpui.so"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang CXX)
+  include(CMakeFiles/expui.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()
