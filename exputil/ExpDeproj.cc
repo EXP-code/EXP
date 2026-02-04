@@ -12,8 +12,8 @@
 
 void ExpDeproj::initialize()
 {
-  if (ngrid <= 0) {
-    throw std::invalid_argument("n must be positive");
+  if (ngrid < 2) {
+    throw std::invalid_argument("n must be at least 2");
   }
 
   rv.resize(ngrid);
