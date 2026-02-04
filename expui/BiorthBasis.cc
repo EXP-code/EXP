@@ -1558,6 +1558,17 @@ namespace BasisClasses
     pnum = std::max<int>(1,  pnum);
     tnum = std::max<int>(10, tnum);
     
+    // Validate bias parameter
+    //
+    if (!std::isfinite(bias)) {
+      throw std::runtime_error("Cylindrical: 'bias' parameter must be finite");
+    }
+    if (bias <= 0.0) {
+      std::ostringstream sout;
+      sout << "Cylindrical: 'bias' parameter must be positive, got " << bias;
+      throw std::runtime_error(sout.str());
+    }
+    
     EmpCylSL::RMIN        = rcylmin;
     EmpCylSL::RMAX        = rcylmax;
     EmpCylSL::NUMX        = ncylnx;
