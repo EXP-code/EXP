@@ -193,13 +193,15 @@ void OutHDF5::initialize()
       else {
 	std::ostringstream fname;
 
-	if (chkpt)
+	if (chkpt) {
 	  fname << outdir
-		<<  "checkpoint_" << runtag << ".1";
-	else
+		<<  "checkpoint_" << runtag;
+	  if (numprocs>1) fname << ".1";
+	} else {
 	  fname << outdir
 		<<  filename << "_" << setw(5) << setfill('0') << nbeg
 		<< ".1";
+	}
 
 	std::filesystem::path file_path = fname.str();
 
