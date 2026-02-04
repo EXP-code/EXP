@@ -1,5 +1,6 @@
 
 build/*
+_codeql_build_dir/
 
 Makefile
 *.lo
