@@ -25,3 +25,4 @@ src/exp
 src/user/CylindricalDisk.cc
 src/user/EllipsoidForce.cc
 src/user/SLSphere.cc
+_codeql_detected_source_root
