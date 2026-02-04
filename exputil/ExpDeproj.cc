@@ -58,7 +58,17 @@ double ExpDeproj::mass(double R)
   if (R > rmax) return mv.back();
 
   auto it = std::lower_bound(rv.begin(), rv.end(), R);
-  int idx = std::distance(rv.begin(), it);
+  // If R is slightly larger than the largest grid point due to rounding,
+  // lower_bound may return rv.end(); in that case, use the last mass value.
+  if (it == rv.end()) {
+    return mv.back();
+  }
+
+  std::size_t idx = static_cast<std::size_t>(std::distance(rv.begin(), it));
+  if (idx >= rv.size()) {
+    // Defensive guard; should not happen after the it == rv.end() check.
+    return mv.back();
+  }
   if (rv[idx] == R) {
     return mv[idx];
   } else {
