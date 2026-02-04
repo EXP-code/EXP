@@ -1,1 +1,0 @@
-/home/runner/work/EXP/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++  -fopenmp -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/yaml-cpp-read.dir/link.d "CMakeFiles/yaml-cpp-read.dir/read.cpp.o" -o read  -Wl,-rpath,/home/runner/work/EXP/EXP/_codeql_build_dir/extern/yaml-cpp ../libyaml-cpp.so.0.8.0
