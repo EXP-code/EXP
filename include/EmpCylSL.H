@@ -368,7 +368,7 @@ public:
   //! Type of density model to use
   enum EmpModel {
     Exponential,
-    ExpDeproj,
+    ExpSphere,
     Gaussian, 
     Plummer,
     Power,
