@@ -18,21 +18,20 @@
 void EL3::debug() const 
 {
   if (myid==0) {
-    cerr << left << setfill('-');
-    ostringstream ostr;
-    ostr << "--- EL3 [" << myid << "] ";
-    cerr << setw(60) << ostr.str() << endl << setfill(' ');
-    cerr.precision(4);
-    cerr << setw(12) << T
-	 << setw(12) << M
-	 << setw(12) << E;
-    cerr << " [";
-    for (int i=1; i<=3; i++) cerr << setw(12) << L[i];
-    cerr << "] [";
-    for (int i=1; i<=3; i++) cerr << setw(12) << R[i];
-    cerr << "]" << endl;
-    cerr << left << setfill('-') 
-	 << setw(60) << '-' << endl << setfill(' ');
+    std::cerr << left << setfill('-');
+    std::ostringstream ostr; ostr << "--- EL3 [" << myid << "] ";
+    std::cerr << setw(60) << ostr.str() << std::endl << std::setfill(' ');
+    std::cerr.precision(4);
+    std::cerr << std::setw(12) << T
+	      << std::setw(12) << M
+	      << std::setw(12) << E;
+    std::cerr << " [";
+    for (int i=0; i<3; i++) std::cerr << std::setw(12) << L[i];
+    std::cerr << "] [";
+    for (int i=0; i<3; i++) std::cerr << std::setw(12) << R[i];
+    std::cerr << "]" << std::endl;
+    std::cerr << std::left << std::setfill('-') 
+	      << std::setw(60) << '-' << std::endl << std::setfill(' ');
   }
 }
 
@@ -50,9 +49,9 @@ Orient::Orient(int n, int nwant, int naccel, unsigned Oflg, unsigned Cflg,
   damp    = damping;
   linear  = false;
 
-  pos = vector<double>(3);
-  psa = vector<double>(3);
-  vel = vector<double>(3);
+  pos = std::vector<double>(3);
+  psa = std::vector<double>(3);
+  vel = std::vector<double>(3);
 
   center .setZero();
   center0.setZero();

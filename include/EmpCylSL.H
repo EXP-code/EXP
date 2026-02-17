@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include <Eigen/Eigen>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 #include "gaussQ.H"
 #include "interp.H"
@@ -206,7 +207,6 @@ protected:
   std::vector<double> massT;
   unsigned sampT, defSampT;
 
-
   std::vector<Eigen::MatrixXd> vc, vs;
 
   Eigen::MatrixXd tabp, tabf, tabd;
@@ -240,17 +240,6 @@ protected:
 
   //! Cache versioning
   inline static const std::string Version = "1.0";
-
-  //@{
-  //! H5 compression
-  /*! 
-   * H5compress: Compression level for HDF5 cache.
-   * Valid range: 0-9 (0 = no compression, 9 = maximum compression)
-   */
-  unsigned H5compress = 5;
-  bool     H5shuffle  = true;
-  bool     H5szip     = false;
-  //@}
 
   //! The cache file name
   std::string cachefile;
@@ -652,10 +641,10 @@ public:
   void init_covar();
 
   //! Turn on/off covariance computation
-  void set_covar(bool tf) {
-    covar = tf;
-    if (tf) init_covar();
-  }
+  void set_covar(bool tf) { covar = tf; }
+
+  //! Make covariance matrix from accumulated data
+  void make_covar();
 
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
@@ -945,36 +934,6 @@ public:
     }
   }
 
-  //! Set HDF5 compression parameters for cache files
-  //! @param compress Compression level for deflate/gzip (valid range: 0-9, where 0=no compression, 9=max compression)
-  //! @param shuffle Enable byte shuffle filter (default: true)
-  //! @param szip Enable szip compression (default: false)
-  //! @note Szip and deflate compression are mutually exclusive. When both are configured, deflate compression takes precedence and the szip parameter is ignored.
-  void setH5Params(unsigned compress, bool shuffle=true, bool szip=false)
-  {
-    // Validate compression level (unsigned type prevents negative values)
-    if (compress > 9) {
-      if (myid==0) {
-	std::cout << "EmpCylSL: compression level " << compress
-		  << " out of range [0,9], using 9" << std::endl;
-      }
-      compress = 9;
-    }
-    
-    // Warn if both szip and deflate compression are configured
-    if (szip && compress > 0) {
-      if (myid==0) {
-	std::cout << "EmpCylSL: szip and deflate compression are mutually exclusive. "
-		  << "Using deflate; szip parameter will be ignored." << std::endl;
-      }
-      szip = false;  // Disable szip when both are configured
-    }
-    
-    H5compress = compress;
-    H5shuffle  = shuffle;
-    H5szip     = szip;
-  }
-
   vector<double> sanity() { 
     vector<double> ret;
     for (int m=0; m<=MMAX; m++) ret.push_back(accum_cos[0][m]);
@@ -989,12 +948,11 @@ public:
 
   //! Return a vector of tuples of basis coefficients and the
   //! covariance matrix for subsamples of particles
-  using CoefCovarType = std::tuple<Eigen::VectorXcd, Eigen::MatrixXcd>;
-  std::vector<std::vector<CoefCovarType>> getCoefCovariance();
+  std::tuple<Eigen::Tensor<std::complex<double>, 3>,
+	     Eigen::Tensor<std::complex<double>, 4>> getCoefCovariance();
 
   //! Covariance statistics
   std::tuple<Eigen::VectorXi, Eigen::VectorXd> getCovarSamples();
-  
 
 #if HAVE_LIBCUDA==1
   cudaMappingConstants getCudaMappingConstants();
@@ -1067,6 +1025,43 @@ public:
     return covM(0, T, m)(n, o);
   }
 
+  std::complex<double>* set_VC(int T, int m, int n)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+    
+    return &VC[0][T][m](n);
+  }
+
+  std::complex<double>* set_MV(int T, int m, int n, int o)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (o >= rank3)
+      throw std::runtime_error("o>=norder");
+
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+
+    return &MV[0][T][m](n, o);
+  }
+
   double& set_tvar(int m, int i, int j)
   {
     if (m >  MMAX)
@@ -1087,6 +1082,17 @@ public:
     }
 
     return massT1[0][T];
+  }
+
+  unsigned& set_numbT(int T)
+  {
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+
+    return numbT1[0][T];
   }
 
 #endif

@@ -17,10 +17,12 @@ AxisymmetricBasis::valid_keys =
     "dof",
     "npca",
     "npca0",
+    "nint",
     "pcavar",
     "pcaeof",
     "pcadiag",
     "pcavtk",
+    "covar",
     "subsamp",
     "hexp",
     "snr",
@@ -42,13 +44,14 @@ AxisymmetricBasis:: AxisymmetricBasis(Component* c0, const YAML::Node& conf) :
   Mmax      = 4;
   nmax      = 10;
   dof       = 3;
-  npca      = 500;
-  npca0     = 0;
+  npca      = std::numeric_limits<int>::max();
+  npca0     = std::numeric_limits<int>::max();
+  nint      = 0;
   pcavar    = false;
   pcaeof    = false;
   pcadiag   = false;
   pcavtk    = false;
-  vtkfreq   = 1;
+  vtkfreq   = std::numeric_limits<int>::max();
   muse      = 0.0;
   hexp      = 1.0;
   snr       = 1.0;
@@ -82,6 +85,12 @@ AxisymmetricBasis:: AxisymmetricBasis(Component* c0, const YAML::Node& conf) :
     if (conf["tk_type"])   tk_type    = setTK(conf["tk_type"].as<std::string>());
 
     if (conf["Mmax"] and not conf["Lmax"]) Lmax = Mmax;
+
+    if (conf["nint"]) {		// For OutSample support
+      nint = conf["nint"].as<int>();
+      if (nint>0) pcavar  = true;
+    }
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in AxisymmetricBasis: "
@@ -275,11 +284,12 @@ void AxisymmetricBasis::pca_hall_3d(bool compute)
     double fac, var, b;
 
 				// For PCA jack knife
-    Eigen::VectorXd evalJK, cumlJK, snrval;
-    Eigen::VectorXd meanJK;
-    Eigen::MatrixXd covrJK;
-    Eigen::MatrixXd evecJK;
-    Eigen::VectorXd eofvec;
+    Eigen::VectorXcd meanJK;
+    Eigen::MatrixXcd covrJK;
+    Eigen::VectorXd  snrval;
+    Eigen::VectorXd  evalJK, cumlJK;
+    Eigen::MatrixXd  evecJK;
+    Eigen::VectorXd  eofvec;
     double Tmass = 0.0;
     
     if (pcavar) {
@@ -308,7 +318,7 @@ void AxisymmetricBasis::pca_hall_3d(bool compute)
 	  for (unsigned T=0; T<sampT; T++) {
 	    if (massT[T] > 0.0) {
 	      for (int i=0; i<nmax; i++) {
-		meanJK[i] += (*expcoefT[T][indxC])[i] / massT[T] / sampT;
+		meanJK[i] += (*expcoefT[T][indxC])[i] / (massT[T]*sampT);
 	      }
 	    }
 	  }
@@ -325,10 +335,10 @@ void AxisymmetricBasis::pca_hall_3d(bool compute)
 		      covrJK(i, j) +=
 			( (*expcoefT[T][indxC])[i] / massT[T] - meanJK[i]) * 
 			( (*expcoefT[T][indxC])[j] / massT[T] - meanJK[j])
-			/ sampT;
+			/ static_cast<double>(sampT);
 		    } else {
 		      covrJK(i, j) +=
-			(*expcoefM[T][indxC])(i, j) / massT[T] / sampT;
+			(*expcoefM[T][indxC])(i, j) / (massT[T]*sampT);
 		    }
 		  }
 		}
@@ -343,7 +353,7 @@ void AxisymmetricBasis::pca_hall_3d(bool compute)
 	    }
 	  }
 
-	  Eigen::EigenSolver<Eigen::MatrixXd> es(covrJK);
+	  Eigen::EigenSolver<Eigen::MatrixXd> es(covrJK.real());
 
 	  evalJK = es.eigenvalues().real();
 	  evecJK = es.eigenvectors().real();
@@ -359,12 +369,12 @@ void AxisymmetricBasis::pca_hall_3d(bool compute)
 		<< "#" << std::endl;
 
 	    double enorm = 0.0, ecum = 0.0;
-	    for (int i=0; i<nmax; i++) enorm += evalJK[i];
+	    for (int i=0; i<nmax; i++) enorm += std::abs(evalJK[i]);
 	    cof << "# Eigenvalues" << std::endl
 		<< "#" << std::endl;
 	    for (int i=0; i<nmax; i++) {
-	      ecum += evalJK[i];
-	      cof << std::setw(12) << evalJK[i]
+	      ecum += std::abs(evalJK[i]);
+	      cof << std::setw(12) << std::abs(evalJK[i])
 		  << std::setw(12) << ecum/enorm
 		  << std::endl;
 	    }
@@ -430,7 +440,7 @@ void AxisymmetricBasis::pca_hall_3d(bool compute)
 	  eofvec = evecVar.transpose() * initVar;
 	}
 
-	Eigen::VectorXd tt;
+	Eigen::VectorXcd tt;
 
 	if (pcavar) {
 
@@ -450,15 +460,17 @@ void AxisymmetricBasis::pca_hall_3d(bool compute)
 
 	  for (int n=0; n<nmax; n++) {
 	    
+	    double ttabs = std::abs(tt[n]*std::conj(tt[n]));
+
 	    //  Noise-to-signal ratio using the CLT estimate for
 	    //  N-particle variance.
 	    //
 	    if (subsamp) {
-	      b = evalJK[n]/(tt[n]*tt[n])/sampT;
-	      var = evalJK[n] * sampT;
+	      b = std::abs(evalJK[n])/ttabs/sampT;
+	      var = std::abs(evalJK[n]) * sampT;
 	    } else {
-	      b = evalJK[n]/(tt[n]*tt[n])/used;
-	      var = evalJK[n];
+	      b = std::abs(evalJK[n])/ttabs/used;
+	      var = std::abs(evalJK[n]);
 	    }
 
 	    b = std::max<double>(b, std::numeric_limits<double>::min());
@@ -469,10 +481,10 @@ void AxisymmetricBasis::pca_hall_3d(bool compute)
 	    
 	    if (tk_type == VarianceCut) {
 	      
-	    if (tksmooth*var > tt[n]*tt[n])
-	      weight[indxC][n] = 0.0;
-	    else
-	      weight[indxC][n] = 1.0;
+	      if (tksmooth*var > ttabs)
+		weight[indxC][n] = 0.0;
+	      else
+		weight[indxC][n] = 1.0;
 	    
 	    }
 	    else if (tk_type == CumulativeCut) {
@@ -485,7 +497,7 @@ void AxisymmetricBasis::pca_hall_3d(bool compute)
 	    }
 	    else if (tk_type == VarianceWeighted) {
 	      
-	      weight[indxC][n] = 1.0/(1.0 + var/(tt[n]*tt[n] + 1.0e-14));
+	      weight[indxC][n] = 1.0/(1.0 + var/(ttabs + 1.0e-14));
 	      
 	    }
 	    else
@@ -512,7 +524,7 @@ void AxisymmetricBasis::pca_hall_3d(bool compute)
 	    
 	    if (pcavar) {
 	  
-	      var = evalJK[n];
+	      var = std::abs(evalJK[n]);
 
 	      if (subsamp) var *= static_cast<double>(used)/sampT;
 	      //                ^
@@ -705,11 +717,11 @@ void AxisymmetricBasis::pca_hall_2d(bool compute)
     double fac, var, b;
 
 				// For PCA jack knife
-    Eigen::VectorXd evalJK, cumlJK, snrval;
-    Eigen::VectorXd meanJK;
-    Eigen::MatrixXd covrJK;
-    Eigen::MatrixXd evecJK;
-    Eigen::VectorXd eofvec;
+    Eigen::VectorXcd meanJK;
+    Eigen::MatrixXcd covrJK;
+    Eigen::VectorXd  evalJK, cumlJK, snrval;
+    Eigen::MatrixXd  evecJK;
+    Eigen::VectorXd  eofvec;
     double Tmass = 0.0;
     
     if (pcavar) {
@@ -736,7 +748,7 @@ void AxisymmetricBasis::pca_hall_2d(bool compute)
 	for (unsigned T=0; T<sampT; T++) {
 	  if (massT[T] > 0.0) {
 	    for (int i=0; i<nmax; i++) {
-	      meanJK[i] += (*expcoefT[T][indxC])[i] / massT[T] / sampT;
+	      meanJK[i] += (*expcoefT[T][indxC])[i] / (massT[T] * sampT);
 	    }
 	  }
 	}
@@ -753,10 +765,10 @@ void AxisymmetricBasis::pca_hall_2d(bool compute)
 		  covrJK(i, j) +=
 		    ( (*expcoefT[T][indxC])[i] / massT[T] - meanJK[i]) * 
 		    ( (*expcoefT[T][indxC])[j] / massT[T] - meanJK[j])
-		    / sampT;
+		    / static_cast<double>(sampT);
 		} else {
 		  covrJK(i, j) +=
-		    (*expcoefM[T][indxC])(i, j) / massT[T] / sampT;
+		    (*expcoefM[T][indxC])(i, j) / (massT[T] * sampT);
 		}
 	      }
 	    }
@@ -771,7 +783,7 @@ void AxisymmetricBasis::pca_hall_2d(bool compute)
 	  }
 	}
 
-	Eigen::EigenSolver<Eigen::MatrixXd> es(covrJK);
+	Eigen::EigenSolver<Eigen::MatrixXd> es(covrJK.real());
 
 	evalJK = es.eigenvalues().real();
 	evecJK = es.eigenvectors().real();
@@ -858,7 +870,7 @@ void AxisymmetricBasis::pca_hall_2d(bool compute)
 	eofvec = evecVar.transpose() * initVar;
       }
 
-      Eigen::VectorXd tt;
+      Eigen::VectorXcd tt;
 
       if (pcavar) {
 	
@@ -878,14 +890,16 @@ void AxisymmetricBasis::pca_hall_2d(bool compute)
 	
 	for (int n=0; n<nmax; n++) {
 	  
+	  double ttabs = std::abs(tt[n]*std::conj(tt[n]));
+
 	  //  Noise-to-signal ratio using the CLT estimate for
 	  //  N-particle variance.
 	  //
 	  if (subsamp) {
-	    b = evalJK[n]/(tt[n]*tt[n])/sampT;
+	    b = evalJK[n]/ttabs/sampT;
 	    var = evalJK[n] * sampT;
 	  } else {
-	    b = evalJK[n]/(tt[n]*tt[n])/used;
+	    b = evalJK[n]/ttabs/used;
 	    var = evalJK[n];
 	  }
 	  
@@ -897,7 +911,7 @@ void AxisymmetricBasis::pca_hall_2d(bool compute)
 	  
 	  if (tk_type == VarianceCut) {
 	    
-	    if (tksmooth*var > tt[n]*tt[n])
+	    if (tksmooth*var > ttabs)
 	      weight[indxC][n] = 0.0;
 	    else
 	      weight[indxC][n] = 1.0;
@@ -913,7 +927,7 @@ void AxisymmetricBasis::pca_hall_2d(bool compute)
 	  }
 	  else if (tk_type == VarianceWeighted) {
 	    
-	    weight[indxC][n] = 1.0/(1.0 + var/(tt[n]*tt[n] + 1.0e-14));
+	    weight[indxC][n] = 1.0/(1.0 + var/(ttabs + 1.0e-14));
 	      
 	  }
 	  else
@@ -1206,10 +1220,12 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 
       // Report mass used [with storage sanity checks]
       //
-      if (massT1.size() == massT.size() and massT.size()==sampT)
+      if (massT1.size() == massT.size() and massT.size()==sampT) {
+	MPI_Allreduce(&countT1[0], &countT[0], sampT,
+		      MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(&massT1[0], &massT[0], sampT,
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      else {
+      } else {
 	std::cout << "[" << myid << "] AxisymmetricBasis: "
 		  << "coef2 out of bounds in mass" << std::endl;
       }
@@ -1223,7 +1239,7 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 	      expcoefT [T][l]->size()==nmax) {
 	    MPI_Allreduce(&(*expcoefT1[T][l])[0],
 			  &(*expcoefT [T][l])[0], nmax,
-			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	  } else {
 	    std::cout << "[" << myid << "] AxisymmetricBasis: "
 		      << "coef2 out of bounds in coef" << std::endl;
@@ -1235,7 +1251,7 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 	      expcoefM [T][l]->cols()==nmax) {
 	    MPI_Allreduce(expcoefM1[T][l]->data(),
 			  expcoefM [T][l]->data(), expcoefM1[T][l]->size(),
-			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+			  MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 	  } else {
 	    std::cout << "[" << myid << "] AxisymmetricBasis: "
 		      << "coef2 out of bounds in disp" << std::endl;

@@ -175,13 +175,8 @@ void OutHDF5::initialize()
       //
       if (directory) {
 	std::ostringstream dname;
-
-	if (chkpt)
-	  dname << outdir
-		<<  "checkpoint_" << runtag;
-	else
-	  dname << outdir
-		<<  filename << "_" << setw(5) << setfill('0') << nbeg;
+	dname << outdir
+	      <<  filename << "_" << setw(5) << setfill('0') << nbeg;
 
 	std::filesystem::path dir_path = dname.str();
       
@@ -192,16 +187,9 @@ void OutHDF5::initialize()
       }
       else {
 	std::ostringstream fname;
-
-	if (chkpt) {
-	  fname << outdir
-		<<  "checkpoint_" << runtag;
-	  if (numprocs>1) fname << ".1";
-	} else {
-	  fname << outdir
-		<<  filename << "_" << setw(5) << setfill('0') << nbeg
-		<< ".1";
-	}
+	fname << outdir
+	      <<  filename << "_" << setw(5) << setfill('0') << nbeg
+	      << ".1";
 
 	std::filesystem::path file_path = fname.str();
 
@@ -212,35 +200,31 @@ void OutHDF5::initialize()
       
       // Find starting index
       //
-      if (not chkpt) {
-	for (; nbeg<100000; nbeg++) {
-	  // Path name
-	  //
-	  std::ostringstream fname;
-	  fname << outdir
-		<<  filename << "_" << setw(5) << setfill('0') << nbeg;
+      for (; nbeg<100000; nbeg++) {
+	// Path name
+	//
+	std::ostringstream fname;
+	fname << outdir
+	      <<  filename << "_" << setw(5) << setfill('0') << nbeg;
 
-	  if (not directory) fname << ".1";
+	if (not directory) fname << ".1";
 
-	  std::filesystem::path path = fname.str();
+	std::filesystem::path path = fname.str();
 
-	  // See if we can open the directory or file
-	  //
-	  if (directory) {
-	    if (not std::filesystem::is_directory(path)) break;
-	  } else
-	    if (not std::filesystem::is_regular_file(path)) break;
-	}
-	
-	std::cout << "---- OutHDF5: found last file <" << nbeg << ">" << std::endl;
+	// See if we can open the directory or file
+	//
+	if (directory) {
+	  if (not std::filesystem::is_directory(path)) break;
+	} else
+	  if (not std::filesystem::is_regular_file(path)) break;
       }
-      // END: snapshot mode loop
-    }
-    // END: root node read
 
-    // Communicate starting file index to all nodes for snapshot mode
+      std::cout << "---- OutHDF5: found last file <" << nbeg << ">" << std::endl;
+    }
+
+    // Communicate starting file index to all nodes
     //
-    if (not chkpt) MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
   }
 
   return;

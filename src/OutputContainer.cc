@@ -20,6 +20,7 @@
 #include "OutFrac.H"
 #include "OutCalbr.H"
 #include "OutMulti.H"
+#include "OutSample.H"
 
 OutputContainer::OutputContainer()
 {
@@ -112,6 +113,10 @@ void OutputContainer::initialize(void)
 	out.push_back(new OutCalbr(node));
       }
       
+      else if ( !name.compare("outsamp") ) {
+	out.push_back(new OutSample(node));
+      }
+
       else {
 	string msg("I don't know about the output type: ");
 	msg += name;

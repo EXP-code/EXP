@@ -26,13 +26,6 @@ if(ENABLE_PYEXP)
     ${PYTHON_EXECUTABLE} cyl_basis.py
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Disk")
 
-  # Test HDF5 compression functionality in cylindrical basis
-  add_test(NAME pyexpCylCompressionTest
-    COMMAND ${CMAKE_COMMAND} -E env
-    PYTHONPATH=${CMAKE_BINARY_DIR}/pyEXP:$ENV{PYTHONPATH}
-    ${PYTHON_EXECUTABLE} cyl_compression_test.py
-    WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Disk")
-
   # Remove cache files
   add_test(NAME removeSphCache
     COMMAND ${CMAKE_COMMAND} -E remove .slgrid_sph_cache
@@ -52,7 +45,7 @@ if(ENABLE_PYEXP)
   
   # Set labels for pyEXP tests
   set_tests_properties(pyexpLoadTest pyexpSphBasisTest PROPERTIES LABELS "quick")
-  set_tests_properties(pyexpCylBasisTest pyexpCylCompressionTest PROPERTIES LABELS "long")
+  set_tests_properties(pyexpCylBasisTest PROPERTIES LABELS "long")
 
 endif()
 
