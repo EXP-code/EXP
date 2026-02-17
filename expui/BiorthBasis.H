@@ -1024,12 +1024,8 @@ namespace BasisClasses
   };
   
   /**
-     @brief Uses EmpCylSL basis to evaluate expansion coeffients and provide
+     Uses EmpCylSL basis to evaluate expansion coeffients and provide
      potential and density basis fields
-
-     @note The HDF5 disk basis cache is gzip compressed by default to
-     save disk space. The user may turn off compression using the
-     `compress: 0` parameter, although we have no particular use case.
   */
   class Cylindrical : public BiorthBasis
   {

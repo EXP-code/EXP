@@ -78,8 +78,6 @@ Cylinder::valid_keys = {
   "dumpbasis",
   "fullCovar",
   "totalCovar"
-  "compress",
-  "shuffle"
 };
 
 Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
@@ -191,15 +189,6 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   ortho->setSampT(defSampT);
   if (nint>0)   ortho->init_covar();
   
-
-  // Set HDF5 compression parameters for cache files
-  if (conf["compress"]) {
-    unsigned compress = conf["compress"].as<unsigned>();
-    bool shuffle = true;
-    if (conf["shuffle"]) shuffle = conf["shuffle"].as<bool>();
-    ortho->setH5Params(compress, shuffle);
-  }
-
   try {
     if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
   }
