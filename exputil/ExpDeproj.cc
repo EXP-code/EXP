@@ -10,6 +10,9 @@
 #include <numeric>
 #include <functional>
 
+#include "EXPmath.H"
+
+
 void ExpDeproj::initialize()
 {
   if (ngrid < 2) {
@@ -40,7 +43,7 @@ double ExpDeproj::density(double R)
   if (R < 0) {
     throw std::invalid_argument("R must be non-negative");
   }
-  return 0.5*std::cyl_bessel_k(0.0, R)/(M_PI*M_PI);
+  return 0.5*EXPmath::cyl_bessel_k(0.0, R)/(M_PI*M_PI);
 }
 
 double ExpDeproj::mass(double R)
