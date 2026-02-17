@@ -241,6 +241,17 @@ protected:
   //! Cache versioning
   inline static const std::string Version = "1.0";
 
+  //@{
+  //! H5 compression
+  /*! 
+   * H5compress: Compression level for HDF5 cache.
+   * Valid range: 0-9 (0 = no compression, 9 = maximum compression)
+   */
+  unsigned H5compress = 5;
+  bool     H5shuffle  = true;
+  bool     H5szip     = false;
+  //@}
+
   //! The cache file name
   std::string cachefile;
 				// 1=write, 0=read
@@ -932,6 +943,36 @@ public:
 	     << " using None type\n";
       }
     }
+  }
+
+  //! Set HDF5 compression parameters for cache files
+  //! @param compress Compression level for deflate/gzip (valid range: 0-9, where 0=no compression, 9=max compression)
+  //! @param shuffle Enable byte shuffle filter (default: true)
+  //! @param szip Enable szip compression (default: false)
+  //! @note Szip and deflate compression are mutually exclusive. When both are configured, deflate compression takes precedence and the szip parameter is ignored.
+  void setH5Params(unsigned compress, bool shuffle=true, bool szip=false)
+  {
+    // Validate compression level (unsigned type prevents negative values)
+    if (compress > 9) {
+      if (myid==0) {
+	std::cout << "EmpCylSL: compression level " << compress
+		  << " out of range [0,9], using 9" << std::endl;
+      }
+      compress = 9;
+    }
+    
+    // Warn if both szip and deflate compression are configured
+    if (szip && compress > 0) {
+      if (myid==0) {
+	std::cout << "EmpCylSL: szip and deflate compression are mutually exclusive. "
+		  << "Using deflate; szip parameter will be ignored." << std::endl;
+      }
+      szip = false;  // Disable szip when both are configured
+    }
+    
+    H5compress = compress;
+    H5shuffle  = shuffle;
+    H5szip     = szip;
   }
 
   vector<double> sanity() { 
