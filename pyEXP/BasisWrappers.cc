@@ -87,7 +87,10 @@ void BasisFactoryClasses(py::module &m)
     or with the same basis used on previous pyEXP invocations.  At this
     point, you must create the YAML configuration for the basis even if
     the basis is cached.  This is a safety and consistency feature that
-    may be relaxed in a future version.
+    may be relaxed in a future version.  The HDF5 disk basis cache is
+    gzip compressed by default to save disk space. The user may turn off
+    compression using the `compress: 0` parameter, although we have no
+    particular use case.
 
     Coefficient creation
     --------------------
@@ -1504,7 +1507,7 @@ void BasisFactoryClasses(py::module &m)
          Returns
          -------
          None
-         )", py::arg("compress")=5, py::arg("chunkSize")=1024*1024, py::arg("shuffle")=true, py::arg("azip")=false)
+         )", py::arg("compress")=5, py::arg("chunkSize")=1024*1024, py::arg("shuffle")=true, py::arg("szip")=false)
     .def("makeFromFunction", &BasisClasses::BiorthBasis::makeFromFunction,
 	 py::call_guard<py::gil_scoped_release>(),
 	 R"(
