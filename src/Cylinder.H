@@ -154,7 +154,7 @@ private:
 
 				// Parameters
   double rcylmin, rcylmax, zmax, acyl, bias;
-  int nmaxfid, lmaxfid, mmax, mlim;
+  int nmaxfid, lmaxfid, mmax, mlim, nint;
   int ncylnx, ncylny, ncylr;
   double hcyl, hexp, snr, rem;
   int nmax, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
