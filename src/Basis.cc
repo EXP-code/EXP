@@ -110,5 +110,3 @@ void Basis::sinecosine_R(int mmax, double phi,
     }
   }
 }
-
-

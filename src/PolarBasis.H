@@ -15,6 +15,7 @@
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
+#include <thrust/complex.h>
 #endif
 #include "NVTX.H"
 
@@ -40,6 +41,10 @@ class MixtureBasis;
     @param ssfrac set > 0.0 to compute a fraction of particles only
     @param playback true to replay from a coefficient file
     @param coefMaster true to have only the root node read and distribute the coefficients
+    @param nint variance comptutation interval in time steps
+    @param pcavar true to enable variance analysis
+    @param fullCovar true to compute the full covariance matrix
+    @param totalCovar true to compute the total covariance only
 
     Other parameters may be defined and passed to any derived classes
     in addition to these.
@@ -165,19 +170,9 @@ protected:
   };
   //@}
 
-
-  // Test for eof trim
-  std::vector<std::vector<Eigen::MatrixXd>> tvar;
-
   // Error analysis
   CoefVector  covV;
   CoefMatrix  covM;
-
-  std::vector< std::vector<unsigned>  > numbT1;
-  std::vector< std::vector<double>  > massT1;
-  std::vector<unsigned> numbT;
-  std::vector<double> massT;
-  unsigned sampT, defSampT;
 
   std::vector<double> cylmass1;
   double cylmass;
@@ -203,10 +198,11 @@ protected:
   virtual void determine_acceleration_cuda();
   virtual void multistep_update_cuda();
 
+  thrust::host_vector<unsigned> host_numbT;
   thrust::host_vector<cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
-  std::vector<thrust::host_vector<cuFP_t>> host_coefsT, host_covarT;
-  cuFP_t host_mass_tot;
+  std::vector<thrust::host_vector<thrust::complex<cuFP_t>>> host_coefsT;
+  std::vector<thrust::host_vector<thrust::complex<cuFP_t>>> host_covarT;
 
   virtual void HtoD_coefs();
   virtual void DtoH_coefs(unsigned);
@@ -253,12 +249,14 @@ protected:
   //! Helper struct to hold device data
   struct cudaStorage
   {
+    using covr_t = thrust::complex<cuFP_t>;
+
     thrust::device_vector<cuFP_t> dN_coef;
     thrust::device_vector<cuFP_t> dc_coef;
     thrust::device_vector<cuFP_t> dw_coef;
     thrust::device_vector<cuFP_t> df_coef;
     thrust::device_vector<cuFP_t> dN_tvar;
-    thrust::device_vector<cuFP_t> dW_tvar;
+    thrust::device_vector<covr_t> dW_tvar;
     thrust::device_vector<cuFP_t> dc_tvar;
     thrust::device_vector<cuFP_t> dw_tvar;
     thrust::device_vector<cuFP_t> df_tvar;
@@ -268,7 +266,7 @@ protected:
     std::vector<thrust::device_vector<cuFP_t>> T_covr;
 
     void resize_coefs(int nmax, int Mmax, int N, int gridSize, int stride,
-		      int sampT, bool pca, bool pcaeof, bool subsamp);
+		      int sampT, bool pcavar, bool subsamp);
     void resize_acc  (int Mmax, int Nthread);
   };
 
@@ -304,7 +302,7 @@ protected:
     }
   }
     
-  double& set_coefT(int T, int m, int n)
+  std::complex<double>& set_coefT(int T, int m, int n)
   {
     if (m >  Mmax)
       throw std::runtime_error("m>mmax");
@@ -318,10 +316,10 @@ protected:
       throw std::runtime_error(sout.str());
     }
     
-    return (*expcoefT[T][m])[n];
+    return (*expcoefT1[T][m])[n];
   }
   
-  double& set_covrT(int T, int m, int n, int o)
+  std::complex<double>& set_covrT(int T, int m, int n, int o)
   {
     if (m >  Mmax)
       throw std::runtime_error("m>mmax");
@@ -338,20 +336,9 @@ protected:
       throw std::runtime_error(sout.str());
     }
     
-    return (*expcoefM[T][m])(n, o);
+    return (*expcoefM1[T][m])(n, o);
   }
     
-  double& set_tvar(int m, int i, int j)
-  {
-    if (m >  Mmax)
-      throw std::runtime_error("m>mmax");
-
-    if (i >= nmax or j >= nmax)
-      throw std::runtime_error("n>nmax");
-
-    return tvar[0][m](i, j);
-  }
-
   double& set_massT(int T)
   {
     if (T >= sampT) {
@@ -360,7 +347,18 @@ protected:
       throw std::runtime_error(sout.str());
     }
 
-    return massT1[0][T];
+    return massT1[T];
+  }
+
+  unsigned& set_numbT(int T)
+  {
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+
+    return countT1[T];
   }
 
   //! A storage instance
@@ -389,7 +387,7 @@ protected:
   int mlim;
 
   //! Basis linear scale for mapping
-  double scale;
+  double scale=1.0;
 
   //! The minimum radius
   double rmin;
@@ -436,6 +434,12 @@ protected:
 
   //! Flag to use subset
   bool subset;
+
+  //! Turn on variance computation
+  bool pcavar=false;
+
+  //! Variance cadence
+  int nint=0;
 
   /** Extrapolate and sum coefficents per multistep level to get
       a complete set of coefficients for force evaluation at an
@@ -486,6 +490,13 @@ protected:
   //@{
   static pthread_mutex_t used_lock, cos_coef_lock, sin_coef_lock;
   //@}
+
+  //! MPI routines to sum the expansion coefficients variance moments
+  //! (overrides AxisymmetricBasis)
+  virtual void parallel_gather_coef2(void);
+
+  //! Write basis-specific parameters to HDF5 covariance file
+  void writeCovarH5Params(HighFive::File& file);
 
 public:
 
@@ -607,6 +618,15 @@ public:
 
   //! Dump current coefficients into named HDF5 file
   void dump_coefs_h5(const std::string& file);
+
+  /** Return a subsample of the basis coefficients and covariance
+      elements for matrices for analysis. The default implementation
+      returns empty vectors. */
+  CovarData getSubsample();
+
+  //! Indicate whether or not subsampling is supported
+  virtual bool hasSubsample() {	return true; }
+
 };
 
 #endif

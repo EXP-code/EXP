@@ -45,7 +45,10 @@ SphericalBasis::valid_keys = {
   "playback",
   "coefCompute",
   "coefMaster",
-  "orthocheck"
+  "orthocheck",
+  "subsampleFloat",
+  "totalCovar",
+  "fullCovar"
 };
 
 SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBasis *m) : 
@@ -119,7 +122,16 @@ SphericalBasis::SphericalBasis(Component* c0, const YAML::Node& conf, MixtureBas
     if (conf["EVEN_L"])  EVEN_L  = conf["EVEN_L"].as<bool>();
     if (conf["EVEN_M"])  EVEN_M  = conf["EVEN_M"].as<bool>();
     if (conf["M0_ONLY"]) M0_only = conf["M0_ONLY"].as<bool>();
+
+    if (conf["fullCovar"]) {
+      fullCovar = conf["fullCovar"].as<bool>();
+    }
     
+    if (conf["totalCovar"]) {
+      totlCovar = conf["totalCovar"].as<bool>();
+      if (totlCovar) fullCovar = true;
+    }
+
     if (conf["NOISE"]) {
       if (conf["NOISE"].as<bool>()) {
 	NOISE = true; 
@@ -491,7 +503,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	if (pcavar) {
 	  whch = indx % sampT;
 	  pthread_mutex_lock(&cc_lock);
-	  massT1[whch] += mass;
+	  countT1[whch] += 1;
+	  massT1 [whch] += mass;
 	  pthread_mutex_unlock(&cc_lock);
 	}
       }
@@ -513,8 +526,9 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      pthread_mutex_lock(&cc_lock);
 	      for (int n=0; n<nmax; n++) {
 		(*expcoefT1[whch][iC])[n] += wk[n];
-		for (int o=0; o<nmax; o++)
+		for (int o=0; o<nmax; o++) {
 		  (*expcoefM1[whch][iC])(n, o) += wk[n]*wk[o]/mass;
+		}
 	      }
 	      pthread_mutex_unlock(&cc_lock);
 	    }
@@ -549,7 +563,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      if (compute and pcavar) {
 		pthread_mutex_lock(&cc_lock);
 		for (int n=0; n<nmax; n++) {
-		  (*expcoefT1[whch][iC])[n] += wk[n]*facL;
+		  (*expcoefT1[whch][iC])[n] += wk[n]*std::complex<double>(fac1, fac2);
 		  for (int o=0; o<nmax; o++)
 		    (*expcoefM1[whch][iC])(n, o) += wk[n]*wk[o]*facL*facL/mass;
 		}
@@ -679,13 +693,29 @@ void SphericalBasis::determine_coefficients_particles(void)
   //
   if (!self_consistent && !firstime_coef && !initializing) return;
 
-  if (pcavar or pcaeof) {
-    if (this_step >= npca0) 
-      compute = (mstep == 0) && !( (this_step-npca0) % npca);
-    else
-      compute = false;
+  // No covarance by default
+  //
+  compute = false;
+
+  // Subsample computation flag
+  //
+  if (nint) {
+    // Computed only for mstep==0 and every nint steps
+    if (mstep==0 and this_step % nint == 0) {
+      compute = true;
+      requestSubsample = true;
+    }
+    else {
+      requestSubsample  = false;
+      subsampleComputed = false;
+    }
   }
 
+  if (pcavar or pcaeof) {
+    if (this_step >= npca0) {
+      compute = (mstep == 0) && !( (this_step-npca0) % npca);
+    }
+  }
 
   int loffset, moffset, use1;
 
@@ -696,29 +726,31 @@ void SphericalBasis::determine_coefficients_particles(void)
       else          sampT = floor(sqrt(component->CurTotal()));
       massT    .resize(sampT, 0);
       massT1   .resize(sampT, 0);
+      countT   .resize(sampT, 0);
+      countT1  .resize(sampT, 0);
       
       expcoefT .resize(sampT);
       for (auto & t : expcoefT ) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = std::make_shared<Eigen::VectorXd>(nmax);
+	for (auto & v : t) v = std::make_shared<Eigen::VectorXcd>(nmax);
       }
       
       expcoefT1.resize(sampT);
       for (auto & t : expcoefT1) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = std::make_shared<Eigen::VectorXd>(nmax);
+	for (auto & v : t) v = std::make_shared<Eigen::VectorXcd>(nmax);
       }
 
       expcoefM .resize(sampT);
       for (auto & t : expcoefM ) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = std::make_shared<Eigen::MatrixXd>(nmax, nmax);
+	for (auto & v : t) v = std::make_shared<Eigen::MatrixXcd>(nmax, nmax);
       }
       
       expcoefM1.resize(sampT);
       for (auto & t : expcoefM1) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = std::make_shared<Eigen::MatrixXd>(nmax, nmax);
+	for (auto & v : t) v = std::make_shared<Eigen::MatrixXcd>(nmax, nmax);
       }
 
     }
@@ -734,6 +766,7 @@ void SphericalBasis::determine_coefficients_particles(void)
       if (pcavar) {
 	for (auto & t : expcoefT1) { for (auto & v : t) v->setZero(); }
 	for (auto & t : expcoefM1) { for (auto & v : t) v->setZero(); }
+	for (auto & v : countT1)   v = 0;
 	for (auto & v : massT1)    v = 0;
       }
 
@@ -889,9 +922,12 @@ void SphericalBasis::determine_coefficients_particles(void)
       for (int i=0; i<nthrds; i++) muse0 += muse1[i];
       MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       parallel_gather_coef2();
+
+      requestSubsample  = false;
+      subsampleComputed = true;
     }
 
-    pca_hall(compute);
+    if (npca0 < std::numeric_limits<int>::max()) pca_hall(compute);
   }
 
   print_timings("SphericalBasis: coefficient timings");
@@ -2348,3 +2384,94 @@ void SphericalBasis::biorthogonality_check()
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   }
 }
+
+PotAccel::CovarData SphericalBasis::getSubsample()
+{
+  using covTuple = std::tuple<Eigen::VectorXcd,
+			      Eigen::MatrixXcd>;
+  // Prepare the covariance structure
+  PotAccel::CovarData ret;
+
+  // Number of real angular terms l in [0, Lmax], m in [0, l]
+  int totL = (Lmax+1)*(Lmax+2)/2;
+
+  // Sanity check
+  if (expcoefT[0].size() != totL) {
+    std::ostringstream ss;
+    ss << "SphericalBasis::getSubsample() "
+       << "internal error: unexpected number of absolute angular terms, "
+       << expcoefT[0].size() << " != " << totL;
+    throw std::runtime_error(ss.str());
+  }
+
+  std::get<0>(ret).resize(sampT);	// Sample counts
+  std::get<1>(ret).resize(sampT);	// Sample masses
+  std::get<2>(ret) = Eigen::Tensor<std::complex<double>, 3>(sampT, totL, nmax);
+
+  if (fullCovar or totlCovar)
+    std::get<3>(ret) = Eigen::Tensor<std::complex<double>, 4>(sampT, totL, nmax, nmax);
+
+  // Fill the covariance structure with subsamples
+  for (int T=0; T<sampT; T++) {
+
+    std::get<0>(ret)(T) = countT[T];
+    std::get<1>(ret)(T) =  massT[T];
+
+    // l loop
+    for (int l=0, k=0; l<=Lmax; l++) {
+      // m loop
+      for (int m=0; m<=l; m++) {
+	// outer n loop
+	for (int n1=0; n1<nmax; n1++) {
+	  auto z = (*expcoefT[T][k])(n1);
+#ifdef DEBUG
+	  if (isnan(z.real()) or isnan(z.imag())) {
+	    std::cout << "Pack coef NaN at " << l << ", " << m << ", "
+		      << n1 << std::endl;
+	  }
+	  if (std::abs(z.real()) < 1.0e-20) {
+	    std::cout << "Pack coef zero at " << l << ", " << m << ", "
+		      << n1 << std::endl;
+	  }
+#endif
+	  std::get<2>(ret)(T, k, n1) = (*expcoefT[T][k])(n1);
+	  // inner n loop
+	  for (int n2=0; n2<nmax; n2++) {
+	    auto z = (*expcoefM[T][k])(n1, n2);
+#ifdef DEBUG
+	    if (isnan(z.real()) or isnan(z.imag())) {
+	      std::cout << "Pack covar NaN at " << l << ", " << m << ", "
+			<< n1 << ", " << n1 << std::endl;
+	    }
+	    if (std::fabs(z) < 1.0e-20) {
+	      std::cout << "Pack covar zero at " << l << ", " << m << ", "
+			<< n1 << ", " << n2 << std::endl;
+	    }
+#endif
+	    if (fullCovar or totlCovar)
+	      std::get<3>(ret)(T, k, n1, n2) = (*expcoefM[T][k])(n1, n2);
+	  }
+	  // END: n2 loop
+	}
+	// END: n1 loop
+	k++;
+      }
+      // END: m loop
+    }
+    // END: l loop
+  }
+  // END: T loop
+    
+  return ret;
+}
+
+
+void SphericalBasis::writeCovarH5Params(HighFive::File& file)
+{
+  file.createAttribute<int>("lmax", HighFive::DataSpace::From(Lmax)).write(Lmax);
+  file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+  file.createAttribute<double>("scale", HighFive::DataSpace::From(scale)).write(scale);
+  file.createAttribute<double>("rmin", HighFive::DataSpace::From(rmin)).write(rmin);
+  file.createAttribute<double>("rmax", HighFive::DataSpace::From(rmax)).write(rmax);
+}
+

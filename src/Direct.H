@@ -48,6 +48,9 @@
 
 class Direct : public PotAccel
 {
+  //! Pull in base-class overrides
+  using PotAccel::determine_coefficients;
+
 private:
 
   int soft_indx;

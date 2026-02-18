@@ -5,6 +5,8 @@
 
 #include "SlabSL.H"
 
+using namespace std::literals::complex_literals;
+
 const std::set<std::string>
 SlabSL::valid_keys = {
   "nmaxx",
@@ -385,7 +387,6 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
   int ix, iy;
   std::complex<double> fac, facx, facy, potl, facf;
   std::complex<double> accx, accy, accz;
-  const std::complex<double> I(0.0, 1.0);
 
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);

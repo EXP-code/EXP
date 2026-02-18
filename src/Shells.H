@@ -27,6 +27,9 @@
 
 class Shells : public PotAccel
 {
+  //! Pull in base-class overrides
+  using PotAccel::determine_coefficients;
+
 private:
 
   bool self_consistent, firstime_accel;

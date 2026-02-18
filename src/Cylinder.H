@@ -11,8 +11,9 @@
 #include "config_exp.h"
 
 #if HAVE_LIBCUDA==1
-#include <cudaParticle.cuH>
-#include <cudaMappingConstants.cuH>
+#include "cudaParticle.cuH"
+#include "cudaMappingConstants.cuH"
+#include <thrust/complex.h>
 #endif
 
 #include "CoefContainer.H"
@@ -86,6 +87,8 @@ class MixtureBasis;
 
     @param pcavar turns on variance analysis
 
+    @param nint variance comptutation interval in time steps
+
     @param pcaeof turns on basis conditioning based on variance analysis
 
     @param pcadiag logs diagnostic output for variance analysis
@@ -127,6 +130,10 @@ class MixtureBasis;
 */
 class Cylinder : public Basis
 {
+
+  //! Pull in base-class overrides
+  using PotAccel::determine_coefficients;
+
 private:
 
   bool precond, EVEN_M, subsamp, sech2 = true;
@@ -193,13 +200,17 @@ protected:
 
   //! CUDA method for coefficient accumulation
 #if HAVE_LIBCUDA==1
-  virtual void determine_coefficients_cuda(bool compute_pca);
+  virtual void determine_coefficients_cuda();
   virtual void determine_acceleration_cuda();
   virtual void multistep_update_cuda();
 
-  thrust::host_vector  <cuFP_t> host_coefs, host_covar, host_massT;
+  thrust::host_vector<unsigned> host_numbT;
+  thrust::host_vector  <cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
-  std::vector<thrust::host_vector<cuFP_t>> host_coefsT, host_covarT;
+  std::vector<thrust::host_vector<cuFP_t>> host_coefsT;
+  std::vector<thrust::host_vector<thrust::complex<cuFP_t>>> host_coefsC;
+  thrust::host_vector<thrust::complex<cuFP_t>> host_covar;
+  std::vector<thrust::host_vector<thrust::complex<cuFP_t>>> host_covarT;
 
   virtual void HtoD_coefs();
   virtual void DtoH_coefs(int mlevel);
@@ -243,8 +254,10 @@ protected:
 
     std::vector<thrust::device_vector<cuFP_t>> T_covr;
 
+    using covr_t = thrust::complex<cuFP_t>;
+
     thrust::device_vector<cuFP_t> dN_tvar;
-    thrust::device_vector<cuFP_t> dW_tvar;
+    thrust::device_vector<covr_t> dW_tvar;
     thrust::device_vector<cuFP_t> dc_tvar;
     thrust::device_vector<cuFP_t> dw_tvar;
     thrust::device_vector<cuFP_t> df_tvar;
@@ -321,6 +334,9 @@ protected:
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+  //! Write basis-specific parameters to HDF5 covariance file
+  void writeCovarH5Params(HighFive::File& file);
 
 public:
 
@@ -483,6 +499,14 @@ public:
   //! Sanity check on grid: dumps SM-style images of initial field
   void dump_mzero(const string& name, int step);
 
+  /** Return a subsample of the basis coefficients and covariance
+      elements for matrices for analysis. The default implementation
+      returns empty vectors. This parallels the implementation in
+      expui. */
+  CovarData getSubsample();
+
+  //! Indicate whether or not subsampling is supported
+  virtual bool hasSubsample() {	return true; }
 };
 
 
