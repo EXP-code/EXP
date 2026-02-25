@@ -71,6 +71,7 @@ Cylinder::valid_keys = {
   "cmapz",
   "vflag",
   "mtype",
+  "ppower",
   "self_consistent",
   "playback",
   "coefCompute",
@@ -498,6 +499,9 @@ void Cylinder::initialize()
     if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
+    if (conf["mtype"     ])      mtype  = conf["mtype"     ].as<std::string>();
+    if (conf["ppower"    ])      ppow   = conf["ppower"    ].as<double>();
+
     // Deprecation warning
     if (not sech2 and not conf["pyname"]) {
       if (myid==0)

@@ -111,6 +111,9 @@ class MixtureBasis;
 
     @param cmapz is the vertical coordinate mapping type
 
+    @param mtype is the deprojected model type for conditioning the
+    basis. See ExpCylSL::mtype for options.
+
     @param self_consistent set to false turns off potential expansion;
     only performed the first time
 
@@ -321,6 +324,12 @@ protected:
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+  //! Power-law index for deprojected spherical model for basis conditioning
+  double ppow = 2.0;
+
+  //! Deprojection model for basis conditioning
+  std::string mtype = "Exponential";
 
 public:
 

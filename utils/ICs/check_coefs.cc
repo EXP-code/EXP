@@ -486,7 +486,7 @@ main(int ac, char **av)
       EmpCylSL::mtype = EmpCylSL::ExpSphere;
     else if (mtype.compare("gaussian")==0)
       EmpCylSL::mtype = EmpCylSL::Gaussian;
-    else if (mtype.compare("plummer")==0) {
+    else if (mtype.compare("plummer")==0)
       EmpCylSL::mtype = EmpCylSL::Plummer;
     else if (mtype.compare("power")==0) {
       EmpCylSL::mtype = EmpCylSL::Power;

@@ -694,7 +694,7 @@ main(int ac, char **av)
     if (mtype.compare("exponential")==0)
       EmpCylSL::mtype = EmpCylSL::Exponential;
     else if (mtype.compare("expsphere")==0)
-      EmpCylSL::mtype = EmpCylSL::ExpSphere
+      EmpCylSL::mtype = EmpCylSL::ExpSphere;
     else if (mtype.compare("gaussian")==0)
       EmpCylSL::mtype = EmpCylSL::Gaussian;
     else if (mtype.compare("plummer")==0)
