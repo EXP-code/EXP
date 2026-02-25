@@ -117,6 +117,10 @@ class MixtureBasis;
     @param mtype is the deprojected model type for conditioning the
     basis. See ExpCylSL::mtype for options.
 
+    @param ppower is the power-law index for the Power spherical model
+    used as the deprojected model for basis conditioning (default: 2.0).
+    Only used when mtype is set to the Power model.
+
     @param self_consistent set to false turns off potential expansion;
     only performed the first time
 
