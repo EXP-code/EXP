@@ -494,7 +494,7 @@ main(int ac, char **av)
     } else {
       if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
 			     << mtype << ">, valid types are: "
-			     << "Exponential, Gaussian, Plummer" << std::endl;
+			     << "Exponential, ExpSphere, Gaussian, Plummer, Power" << std::endl;
       MPI_Finalize();
       return -1;
     }
