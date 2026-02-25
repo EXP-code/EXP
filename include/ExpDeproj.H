@@ -15,7 +15,7 @@ class ExpDeproj
 
 public:
   //! Constructor
-  ExpDeproj(int n=4000) : ngrid(n) {}
+  ExpDeproj(int n=4000) : ngrid(n) { initialize(); }
 
   //! Destructor
   virtual ~ExpDeproj() {}

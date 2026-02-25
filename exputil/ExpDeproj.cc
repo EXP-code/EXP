@@ -48,11 +48,6 @@ double ExpDeproj::density(double R)
 
 double ExpDeproj::mass(double R)
 {
-  // Initialize precomputed arrays?
-  if (mv.size() == 0) {
-    initialize();
-  }
-
   if (R < 0) {
     throw std::invalid_argument("R must be non-negative");
   }
