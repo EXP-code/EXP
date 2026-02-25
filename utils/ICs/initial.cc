@@ -413,7 +413,7 @@ main(int ac, char **av)
     ("T,template", "Write template options file with current and all default values")
     ("sech2", "Use sech^2 vertical profile for disk density",
      cxxopts::value<bool>()->default_value("true"))
-    ("mtype", "EmpCylSL spherical model type (one of: Exponential, Gaussian, Plummer, Power)",
+    ("mtype", "EmpCylSL spherical model type (one of: Exponential, ExpSphere, Gaussian, Plummer, Power)",
      cxxopts::value<string>(mtype)->default_value("Exponential"))
     ("ppow", "Power-law index for EmpCylSL Power spherical model",
      cxxopts::value<double>(PPower)->default_value("2.0"))
@@ -693,6 +693,8 @@ main(int ac, char **av)
   if (vm.count("mtype")) {
     if (mtype.compare("exponential")==0)
       EmpCylSL::mtype = EmpCylSL::Exponential;
+    else if (mtype.compare("expsphere")==0)
+      EmpCylSL::mtype = EmpCylSL::ExpSphere
     else if (mtype.compare("gaussian")==0)
       EmpCylSL::mtype = EmpCylSL::Gaussian;
     else if (mtype.compare("plummer")==0)

@@ -1417,7 +1417,7 @@ namespace BasisClasses
     EVEN_M      = false;
     cmapR       = 1;
     cmapZ       = 1;
-    mtype       = "ExpSphere";
+    mtype       = "Exponential";
     dtype       = "exponential";
     vflag       = 0;
     
@@ -1578,10 +1578,14 @@ namespace BasisClasses
     // generate the EOF basis.  If "deproject" is set, this will be
     // overriden in EmpCylSL.
     //
-    EmpCylSL::mtype = EmpCylSL::ExpSphere; // Default
-    if (mtype.compare("exponential")==0)
+    EmpCylSL::mtype = EmpCylSL::Exponential; // Default
+    if (mtype.compare("exponential")==0) {
       EmpCylSL::mtype = EmpCylSL::Exponential;
-    else if (mtype.compare("expsphere")==0)
+      if (myid==0) {
+	std::cout << "---- Cylindrical: using original exponential deprojected disk for EOF conditioning" << std::endl;
+	std::cout << "---- Cylindrical: consider using the exact, spherically deprojected exponential with 'mtype: ExpSphere'" << std::endl;
+      }
+    } else if (mtype.compare("expsphere")==0)
       EmpCylSL::mtype = EmpCylSL::ExpSphere;
     else if (mtype.compare("gaussian")==0)
       EmpCylSL::mtype = EmpCylSL::Gaussian;

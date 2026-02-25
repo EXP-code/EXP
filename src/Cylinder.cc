@@ -70,6 +70,7 @@ Cylinder::valid_keys = {
   "cmapr",
   "cmapz",
   "vflag",
+  "mtype",
   "self_consistent",
   "playback",
   "coefCompute",
@@ -174,6 +175,40 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
   if (cachename.size()==0)
     throw std::runtime_error("EmpCylSL: you must specify a cachename");
+
+
+  // Set deprojected model type
+  //
+  // Convert mtype string to lower case
+  std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+      
+  // Set EmpCylSL mtype.  This is the spherical function used to
+  // generate the EOF basis.
+  //
+  EmpCylSL::mtype = EmpCylSL::Exponential; // Default
+  if (mtype.compare("exponential")==0) {
+    EmpCylSL::mtype = EmpCylSL::Exponential;
+    if (myid==0) {
+      std::cout << "---- Cylindrical: using original exponential deprojected disk for EOF conditioning" << std::endl;
+      std::cout << "---- Cylindrical: consider using the exact, spherically deprojected exponential with 'mtype: ExpSphere'" << std::endl;
+    }
+  } else if (mtype.compare("expsphere")==0)
+    EmpCylSL::mtype = EmpCylSL::ExpSphere;
+  else if (mtype.compare("gaussian")==0)
+    EmpCylSL::mtype = EmpCylSL::Gaussian;
+  else if (mtype.compare("plummer")==0)
+    EmpCylSL::mtype = EmpCylSL::Plummer;
+  else if (mtype.compare("power")==0) {
+    EmpCylSL::mtype = EmpCylSL::Power;
+    EmpCylSL::PPOW  = ppow;
+  } else {
+    if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
+			   << mtype << ">, valid types are: "
+			   << "Exponential, ExpSphere, Gaussian, Plummer, Power "
+			   << "(not case sensitive)" << std::endl;
+    throw std::runtime_error("Cylinder:initialize: EmpCylSL bad parameter");
+  }
 
   // Make the empirical orthogonal basis instance
   //

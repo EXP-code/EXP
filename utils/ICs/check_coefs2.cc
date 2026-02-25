@@ -419,7 +419,7 @@ main(int ac, char **av)
      cxxopts::value<std::string>(cachefile)->default_value(".eof.cache.file"))
     ("disktype", "Desired disktype for analytic computation of basis (constant, gaussian, mn, exponential)",
      cxxopts::value<std::string>(disktype)->default_value("exponential"))
-    ("mtype", "Desired deprojection sphericla models (Exponential, Gaussian, Plummer)",
+    ("mtype", "Desired deprojection sphericla models (Exponential, ExpSphere, Gaussian, Plummer, Power)",
      cxxopts::value<std::string>(mtype)->default_value("Exponential"))
     ("prefix", "Output file prefix",
      cxxopts::value<std::string>(prefix)->default_value("checkcoefs2"))
@@ -474,21 +474,30 @@ main(int ac, char **av)
     }
   }
 
+  // Convert mtype string to lower case
+  //
+  std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+      
   // Set EmpCylSL mtype
   //
   EmpCylSL::mtype = EmpCylSL::Exponential;
   if (vm.count("mtype")) {
-    if (mtype.compare("Exponential")==0)
+    if (mtype.compare("exponential")==0)
       EmpCylSL::mtype = EmpCylSL::Exponential;
-    else if (mtype.compare("Gaussian")==0)
+    else if (mtype.compare("expsphere")==0)
+      EmpCylSL::mtype = EmpCylSL::ExpSphere;
+    else if (mtype.compare("gaussian")==0)
       EmpCylSL::mtype = EmpCylSL::Gaussian;
-    else if (mtype.compare("Plummer")==0) {
+    else if (mtype.compare("plummer")==0) {
       EmpCylSL::mtype = EmpCylSL::Plummer;
+    } else if (mtype.compare("power")==0) {
+      EmpCylSL::mtype = EmpCylSL::Power;
       EmpCylSL::PPOW  = ppower;
     } else {
       if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
 			     << mtype << ">, valid types are: "
-			     << "Exponential, Gaussian, Plummer" << std::endl;
+			     << "Exponential, ExpSphere, Gaussian, Plummer, Power" << std::endl;
       MPI_Finalize();
       return -1;
     }
