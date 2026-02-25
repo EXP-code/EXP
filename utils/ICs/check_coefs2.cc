@@ -419,7 +419,7 @@ main(int ac, char **av)
      cxxopts::value<std::string>(cachefile)->default_value(".eof.cache.file"))
     ("disktype", "Desired disktype for analytic computation of basis (constant, gaussian, mn, exponential)",
      cxxopts::value<std::string>(disktype)->default_value("exponential"))
-    ("mtype", "Desired deprojection sphericla models (Exponential, ExpSphere, Gaussian, Plummer, Power)",
+    ("mtype", "Desired deprojection spherical models (Exponential, ExpSphere, Gaussian, Plummer, Power)",
      cxxopts::value<std::string>(mtype)->default_value("Exponential"))
     ("prefix", "Output file prefix",
      cxxopts::value<std::string>(prefix)->default_value("checkcoefs2"))
