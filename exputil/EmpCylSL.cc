@@ -3,6 +3,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <cassert>
 #include <memory>
 #include <limits>
 #include <string>
@@ -1931,11 +1932,18 @@ void EmpCylSL::setup_accumulation(int mlevel)
       }
     }
 
-    if (PCAVAR and sampT>1) {
+    if ((covar or PCAVAR) and sampT>0) {
       for (int nth=0; nth<nthrds; nth++) {
 	for (unsigned T=0; T<sampT; T++) {
 	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
+	}
+      }
+    }
+
+    if (PCAVAR and sampT>0) {
+      for (int nth=0; nth<nthrds; nth++) {
+	for (unsigned T=0; T<sampT; T++) {
 	  covV[nth][T].resize(MMAX+1);
 	  covM[nth][T].resize(MMAX+1);
 	  for (int mm=0; mm<=MMAX; mm++) {
@@ -2075,43 +2083,40 @@ void EmpCylSL::init_pca()
 
 void EmpCylSL::init_covar()
 {
-  if (covar) {
+  if (defSampT) sampT = defSampT;
+  else          sampT = floor(sqrt(nbodstot));
 
-    if (defSampT) sampT = defSampT;
-    else          sampT = floor(sqrt(nbodstot));
+  pthread_mutex_init(&used_lock, NULL);
 
-    pthread_mutex_init(&used_lock, NULL);
+  MV.resize(nthrds);
+  VC.resize(nthrds);
 
-    MV.resize(nthrds);
-    VC.resize(nthrds);
+  // These are shared with PCA
+  numbT1.resize(nthrds);
+  massT1.resize(nthrds);
+  numbT .resize(sampT, 0);
+  massT .resize(sampT, 0);
+  
+  for (int nth=0; nth<nthrds; nth++) {
+    
+    MV[nth].resize(sampT);
+    VC[nth].resize(sampT);
+    
+    for (unsigned T=0; T<sampT; T++) {
 
-    // These are shared with PCA
-    numbT1.resize(nthrds);
-    massT1.resize(nthrds);
-    numbT .resize(sampT, 0);
-    massT .resize(sampT, 0);
-
-    for (int nth=0; nth<nthrds;nth++) {
-
-      MV[nth].resize(sampT);
-      VC[nth].resize(sampT);
-
-      for (unsigned T=0; T<sampT; T++) {
-
-	MV[nth][T].resize(MMAX + 1);
-	VC[nth][T].resize(MMAX + 1);
-
-	for (unsigned mm=0; mm<=MMAX; mm++) {
-	  MV[nth][T][mm].resize(NORDER, NORDER);
-	  VC[nth][T][mm].resize(NORDER);
-	  MV[nth][T][mm].setZero();
-	  VC[nth][T][mm].setZero();
-	}
+      MV[nth][T].resize(MMAX + 1);
+      VC[nth][T].resize(MMAX + 1);
+      
+      for (unsigned mm=0; mm<=MMAX; mm++) {
+	MV[nth][T][mm].resize(NORDER, NORDER);
+	VC[nth][T][mm].resize(NORDER);
+	MV[nth][T][mm].setZero();
+	VC[nth][T][mm].setZero();
       }
-
-      numbT1[nth].resize(sampT, 0);
-      massT1[nth].resize(sampT, 0);
     }
+    
+    numbT1[nth].resize(sampT, 0);
+    massT1[nth].resize(sampT, 0);
   }
 }
 
@@ -3945,7 +3950,7 @@ void EmpCylSL::accumulate(std::vector<Particle>& part, int mlevel,
   int ncnt=0;
   if (myid==0 && verbose) cout << endl;
 
-  setup_accumulation();
+  setup_accumulation(mlevel);
 
   for (auto p=part.begin(); p!=part.end(); p++) {
 
@@ -4058,13 +4063,10 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 
   howmany1[mlevel][id]++;
 
-  double msin, mcos;
-  int mm;
-  
   double norm = -4.0*M_PI;
   
   unsigned whch;
-  if (compute and (covar or PCAVAR)) {
+  if (compute and (covar or PCAVAR) and sampT>0) {
     whch = seq % sampT;
     pthread_mutex_lock(&used_lock);
     numbT1[id][whch] += 1;
@@ -4074,10 +4076,10 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 
   get_pot(vc[id], vs[id], r, z);
 
-  for (mm=0; mm<=MMAX; mm++) {
+  for (int mm=0; mm<=MMAX; mm++) {
 
-    mcos = cos(phi*mm);
-    msin = sin(phi*mm);
+    double mcos = cos(phi*mm);
+    double msin = sin(phi*mm);
 
     for (int nn=0; nn<rank3; nn++) {
       double hold = norm * mass * mcos * vc[id](mm, nn);
@@ -4119,8 +4121,18 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
     }
 
     if (compute and covar) {
-      Eigen::VectorXcd vec = std::complex<double>(mcos, msin) *
-	vc[id].row(mm).transpose() * norm;
+      int size = vc[id].row(mm).size();
+      assert(size == NORDER && "size of vectors must match");
+      Eigen::VectorXcd vec(size);
+      
+      Eigen::VectorXd vC = vc[id].row(mm).transpose() * norm;
+      Eigen::VectorXd vS = vs[id].row(mm).transpose() * norm;
+
+      // Make sure we only have real part here
+      if (mm==0) vS.setZero();
+
+      vec.real() = vC*mcos + vS*msin;
+      vec.imag() = vC*msin - vS*mcos;
 
       VC[id][whch][mm] += mass * vec;
       MV[id][whch][mm] += mass * (vec * vec.adjoint());
@@ -4132,6 +4144,8 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 }
 
 
+// Multistep version
+//
 void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 {
   if (MPIin.size()==0) {
@@ -4144,12 +4158,14 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
   }
   
 
+  // Multistep variables
+  //
   for (unsigned M=M0; M<=multistep; M++) {
     
     if (coefs_made[M]) continue;
 
-				// Sum up over threads
-				//
+    // Sum up over threads
+    //
     for (int nth=1; nth<nthrds; nth++) {
 
       howmany1[M][0] += howmany1[M][nth];
@@ -4164,8 +4180,9 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	  sinN(M)[0][mm][nn] += sinN(M)[nth][mm][nn];
 	}
     }
-				// Begin distribution loop
-				//
+
+    // Begin distribution loop
+    //
     for (int mm=0; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
 	MPIin[mm*rank3 + nn] = cosN(M)[0][mm][nn];
@@ -4206,9 +4223,10 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
   }
   
 
+  // Sum up over threads for subsamples and EOF covariance
+  //
   if (compute) {
-				// Sum up over threads
-				//
+
     for (int nth=1; nth<nthrds; nth++) {
 
       if (PCAEOF) {
@@ -4224,14 +4242,8 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	  numbT1[0][T] += numbT1[nth][T];
 	  massT1[0][T] += massT1[nth][T];
 
-	  for (int mm=0; mm<=MMAX; mm++) {
-
-	    if (covar) {
-	      VC[0][T][mm] += VC[nth][T][mm];
-	      MV[0][T][mm] += MV[nth][T][mm];
-	    }
-
-	    if (PCAVAR) {
+	  if (PCAVAR) {
+	    for (int mm=0; mm<=MMAX; mm++) {
 	      for (int nn=0; nn<rank3; nn++) {
 		covV(0, T, mm)[nn] += covV(nth, T, mm)[nn];
 		for (int oo=0; oo<rank3; oo++) {
@@ -4239,16 +4251,15 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 		}
 	      }
 	    }
-
+	    // END: M loop
 	  }
-	  // END: M loop
+	  // END: PCAVAR
 	}
 	// END: T loop
-
       }
-      // END: PCAEOF/covar stanza
-      
-    } // Thread loop
+      // END: covar stanza
+    }
+    // END: thread loop
 
 
     // Mass used to compute variance in each partition
@@ -4267,19 +4278,6 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       }
     }
 
-    // Complex coariance components
-    //
-    if (covar and use_mpi) {
-
-      for (unsigned T=0; T<sampT; T++) {
-	for (int mm=0; mm<=MMAX; mm++) {
-	  MPI_Allreduce ( MPI_IN_PLACE, MV[0][T][mm].data(), MV[0][T][mm].size(),
-			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
-	  MPI_Allreduce ( MPI_IN_PLACE, VC[0][T][mm].data(), VC[0][T][mm].size(),
-			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
-	}
-      }
-    }
 
     // Test variance
     //
@@ -4307,38 +4305,41 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       
     // Begin distribution loop for variance jackknife
     //
-    for (unsigned T=0; T<sampT; T++) {
+    if (PCAVAR and sampT>0) {
+      for (unsigned T=0; T<sampT; T++) {
       
-      for (int mm=0; mm<=MMAX; mm++) {
-	for (int nn=0; nn<rank3; nn++) {
-	  MPIin[mm*rank3 + nn] = covV(0, T, mm)[nn];
-	  for (int oo=0; oo<rank3; oo++) {
-	    MPIin2[mm*rank3*rank3 + nn*rank3 + oo] = covM(0, T, mm)(nn, oo);
+	for (int mm=0; mm<=MMAX; mm++) {
+	  for (int nn=0; nn<rank3; nn++) {
+	    MPIin[mm*rank3 + nn] = covV(0, T, mm)[nn];
+	    for (int oo=0; oo<rank3; oo++) {
+	      MPIin2[mm*rank3*rank3 + nn*rank3 + oo] = covM(0, T, mm)(nn, oo);
+	    }
+	  }
+	}
+	
+	if (use_mpi) {
+	  MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
+			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	  
+	  MPI_Allreduce ( MPIin2.data(), MPIout2.data(), rank3*rank3*(MMAX+1),
+			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	} else {
+	  MPIout  = MPIin;
+	  MPIout2 = MPIin2;
+	}
+
+	for (int mm=0; mm<=MMAX; mm++) {
+	  for (int nn=0; nn<rank3; nn++) {
+	    covV(0, T, mm)[nn] = MPIout[mm*rank3 + nn];
+	    for (int oo=0; oo<rank3; oo++) {
+	      covM(0, T, mm)(nn, oo) = MPIout2[mm*rank3*rank3 + nn*rank3 + oo];
+	    }
 	  }
 	}
       }
-
-      if (use_mpi) {
-	MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
-			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-	MPI_Allreduce ( MPIin2.data(), MPIout2.data(), rank3*rank3*(MMAX+1),
-			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      } else {
-	MPIout  = MPIin;
-	MPIout2 = MPIin2;
-      }
-
-      for (int mm=0; mm<=MMAX; mm++) {
-	for (int nn=0; nn<rank3; nn++) {
-	  covV(0, T, mm)[nn] = MPIout[mm*rank3 + nn];
-	  for (int oo=0; oo<rank3; oo++) {
-	    covM(0, T, mm)(nn, oo) = MPIout2[mm*rank3*rank3 + nn*rank3 + oo];
-	  }
-	}
-      }
+      // END: T loop
     }
-    // END: T loop
+    // END: PCAVAR
   }
 }
 
@@ -4372,8 +4373,25 @@ void EmpCylSL::make_coefficients(bool compute)
     MPIout2.resize(rank3*rank3*(MMAX+1));
   }
 
-				// Sum up over threads
-				// 
+  // Sum up over threads for subsample
+  // 
+  if (compute and (covar or PCAVAR)) {
+
+    for (int nth=1; nth<nthrds; nth++) {
+
+      for (unsigned T=0; T<sampT; T++) {
+	numbT1[0][T] += numbT1[nth][T];
+	massT1[0][T] += massT1[nth][T];
+      }
+      // END: T loop
+    }
+    // END: sum over threads
+  }
+  // END: compute stanza
+
+
+  // Sum up over threads for multistep variables
+  //
   for (unsigned M=0; M<=multistep; M++) {
 
     if (coefs_made[M]) continue;
@@ -4381,24 +4399,6 @@ void EmpCylSL::make_coefficients(bool compute)
     for (int nth=1; nth<nthrds; nth++) {
 
       howmany1[M][0] += howmany1[M][nth];
-
-      if (compute and (covar or PCAVAR)) {
-
-	for (unsigned T=0; T<sampT; T++) {
-	  numbT1[0][T] += numbT1[nth][T];
-	  massT1[0][T] += massT1[nth][T];
-
-	  if (covar) {
-	    for (int mm=0; mm<=MMAX; mm++) {
-	      VC[0][T][mm] += VC[nth][T][mm];
-	      MV[0][T][mm] += MV[nth][T][mm];
-	    }
-	  }
-	  // END: covar stanza
-	}
-	// END: T loop
-      }
-
 
       for (int mm=0; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
@@ -4467,13 +4467,6 @@ void EmpCylSL::make_coefficients(bool compute)
 
     for (unsigned T=0; T<sampT; T++) {
       for (int mm=0; mm<=MMAX; mm++) {
-
-	if (covar and use_mpi) {
-	  MPI_Allreduce ( MPI_IN_PLACE, MV[0][T][mm].data(), MV[0][T][mm].size(),
-			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
-	  MPI_Allreduce ( MPI_IN_PLACE, VC[0][T][mm].data(), VC[0][T][mm].size(),
-			  MPI_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
-	}
 
 	if (PCAVAR) {
 	  for (int nn=0; nn<rank3; nn++) {
@@ -4554,6 +4547,30 @@ void EmpCylSL::make_coefficients(bool compute)
   std::fill(coefs_made.begin(), coefs_made.end(), true);
 }
 
+
+// Make complex covariance components
+void EmpCylSL::make_covar()
+{
+  if (not covar) return;
+  
+  for (unsigned T=0; T<sampT; T++) {
+    for (int mm=0; mm<=MMAX; mm++) {
+      // Reduce over thread index
+      for (int nth=1; nth<nthrds; nth++) {
+	VC[0][T][mm] += VC[nth][T][mm];
+	MV[0][T][mm] += MV[nth][T][mm];
+      }
+
+      // MPI reduction
+      if (use_mpi) {
+	MPI_Allreduce ( MPI_IN_PLACE, VC[0][T][mm].data(), VC[0][T][mm].size(),
+			MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce ( MPI_IN_PLACE, MV[0][T][mm].data(), MV[0][T][mm].size(),
+			MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+      }
+    }
+  }
+}
 
 void EmpCylSL::pca_hall(bool compute, bool subsamp)
 {
@@ -4930,15 +4947,6 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
       if (PCAEOF) 
 	for (auto & v : tvar[nth]) v.setZero();
 
-      if (covar) {
-	for (unsigned T=0; T<sampT; T++) {
-	  for (unsigned mm=0; mm<=MMAX; mm++) {
-	    MV[nth][T][mm].setZero();
-	    VC[nth][T][mm].setZero();
-	  }
-	}
-      }
-
       if (PCAVAR) {
 	for (unsigned T=0; T<sampT; T++) {
 	  numbT1[nth][T] = 0;
@@ -4959,20 +4967,27 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 
 /** Return a vector of tuples of basis functions and the
     covariance matrix for subsamples of particles */
-std::vector<std::vector<EmpCylSL::CoefCovarType>>
+std::tuple<Eigen::Tensor<std::complex<double>, 3>,
+	   Eigen::Tensor<std::complex<double>, 4>>
 EmpCylSL::getCoefCovariance()
 {
-  std::vector<std::vector<EmpCylSL::CoefCovarType>> ret;
-
+  std::tuple<Eigen::Tensor<std::complex<double>, 3>,
+	     Eigen::Tensor<std::complex<double>, 4>> ret;
+  
   if (covar) {
-    ret.resize(sampT);
+    std::get<0>(ret) = Eigen::Tensor<std::complex<double>, 3>(sampT, MMAX+1, NORDER);
+    std::get<1>(ret) = Eigen::Tensor<std::complex<double>, 4>(sampT, MMAX+1, NORDER, NORDER);
+ 
+    using Tmap1 = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 1>>;
+    using Tmap2 = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>;
+
     for (unsigned T=0; T<sampT; T++) {
-      ret[T].resize(MMAX+1);
       for (int M=0; M<=MMAX; M++)  {
-	std::get<0>(ret[T][M]) = VC[0][T][M];
-	std::get<1>(ret[T][M]) = MV[0][T][M];
+	std::get<0>(ret).chip(T, 0).chip(M, 0) = Tmap1(VC[0][T][M].data(), NORDER);
+	std::get<1>(ret).chip(T, 0).chip(M, 0) = Tmap2(MV[0][T][M].data(), NORDER, NORDER);
       }
     }
+
   }
 
   return ret;

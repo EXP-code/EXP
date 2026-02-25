@@ -10,10 +10,13 @@
 #include <numeric>
 #include <functional>
 
+#include "EXPmath.H"
+
+
 void ExpDeproj::initialize()
 {
-  if (ngrid <= 0) {
-    throw std::invalid_argument("n must be positive");
+  if (ngrid < 2) {
+    throw std::invalid_argument("n must be at least 2");
   }
 
   rv.resize(ngrid);
@@ -40,7 +43,7 @@ double ExpDeproj::density(double R)
   if (R < 0) {
     throw std::invalid_argument("R must be non-negative");
   }
-  return 0.5*std::cyl_bessel_k(0.0, R)/(M_PI*M_PI);
+  return 0.5*EXPmath::cyl_bessel_k(0.0, R)/(M_PI*M_PI);
 }
 
 double ExpDeproj::mass(double R)
@@ -58,7 +61,17 @@ double ExpDeproj::mass(double R)
   if (R > rmax) return mv.back();
 
   auto it = std::lower_bound(rv.begin(), rv.end(), R);
-  int idx = std::distance(rv.begin(), it);
+  // If R is slightly larger than the largest grid point due to rounding,
+  // lower_bound may return rv.end(); in that case, use the last mass value.
+  if (it == rv.end()) {
+    return mv.back();
+  }
+
+  std::size_t idx = static_cast<std::size_t>(std::distance(rv.begin(), it));
+  if (idx >= rv.size()) {
+    // Defensive guard; should not happen after the it == rv.end() check.
+    return mv.back();
+  }
   if (rv[idx] == R) {
     return mv[idx];
   } else {
