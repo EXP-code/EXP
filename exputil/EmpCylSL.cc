@@ -69,7 +69,7 @@ double   EmpCylSL::PPOW            = 4.0;
 bool     EmpCylSL::NewCoefs        = true;
  
 
-EmpCylSL::EmpModel EmpCylSL::mtype = ExpSphere;
+EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
 
 std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs =
   { {Exponential, "Exponential"},
