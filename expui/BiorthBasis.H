@@ -999,8 +999,9 @@ namespace BasisClasses
     std::string pyname;
 
     //! DiskType support
-    //
-    enum DiskType { constant, gaussian, mn, exponential, doubleexpon, diskbulge, python };
+    //!
+    enum class DiskType
+      { constant, gaussian, mn, exponential, doubleexpon, diskbulge, python };
     DiskType DTYPE;
     std::string mtype, dtype, dmodel;
 
@@ -1008,6 +1009,20 @@ namespace BasisClasses
     double DiskDens(double R, double z, double phi);
     double dcond(double R, double z, double phi, int M);
     std::shared_ptr<DiskDensityFunc> pyDens;
+
+    //@{
+    //! DeprojType support
+
+    //! Disk models used for deprojection
+    enum class DeprojType
+      { mn, toomre, python, exponential};
+
+    //! Current model
+    DeprojType PTYPE;
+
+    //! Look up by string
+    static const std::map<std::string, DeprojType> dplookup;
+    //@}
 
   protected:
 

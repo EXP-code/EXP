@@ -1198,6 +1198,14 @@ namespace BasisClasses
       {"python",      DiskType::python}
     };
 
+  // Dprojection model for cylindrical basis construction
+  const std::map<std::string, Cylindrical::DeprojType> Cylindrical::dplookup =
+    { {"mn",          DeprojType::mn},
+      {"exponential", DeprojType::exponential},
+      {"toomre",      DeprojType::toomre},
+      {"python",      DeprojType::python}
+    };
+
   const std::set<std::string>
   Cylindrical::valid_keys = {
     "tk_type",
@@ -1233,6 +1241,7 @@ namespace BasisClasses
     "expcond",
     "ignore",
     "deproject",
+    "dmodel",
     "logr",
     "pcavar",
     "pcaeof",
@@ -1494,7 +1503,7 @@ namespace BasisClasses
       if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
       if (conf["ignore"    ])      Ignore = conf["ignore"    ].as<bool>();
       if (conf["deproject" ])   deproject = conf["deproject" ].as<bool>();
-      if (conf["dmodel"    ])      dmodel = conf["dmodel"    ].as<bool>();
+      if (conf["dmodel"    ])      dmodel = conf["dmodel"    ].as<string>();
 
       if (conf["aratio"    ])      aratio = conf["aratio"    ].as<double>();
       if (conf["hratio"    ])      hratio = conf["hratio"    ].as<double>();
@@ -1697,16 +1706,45 @@ namespace BasisClasses
 	//
 	EmpCylSL::AxiDiskPtr model;
 	
-	if (dmodel.compare("MN")==0) // Miyamoto-Nagai
+	// Convert dmodel string to lower case
+	//
+	std::transform(dmodel.begin(), dmodel.end(), dmodel.begin(),
+		       [](unsigned char c){ return std::tolower(c); });
+
+
+	// Check for map entry
+	try {
+	  PTYPE = dplookup.at(dmodel);
+	
+	  // Report DeprojType
+	  if (myid==0) {
+	    std::cout << "---- Deprojection type is <" << dmodel
+		      << ">" << std::endl;
+	  }
+	}
+	catch (const std::out_of_range& err) {
+	  if (myid==0) {
+	    std::cout << "DeprojType error in configuraton file" << std::endl;
+	    std::cout << "Valid options are: ";
+	    for (auto v : dplookup) std::cout << v.first << " ";
+	    std::cout << std::endl;
+	  }
+	  throw std::runtime_error("Cylindrical::initialize: invalid DiskModel");
+	}
+
+	if (PTYPE == DeprojType::mn) // Miyamoto-Nagai
 	  model = std::make_shared<MNdisk>(1.0, H);
-	else if (DTYPE == DiskType::python) {
+	else if (PTYPE == DeprojType::toomre) {
+	  model = std::make_shared<Toomre>(1.0, H);
+	} else if (PTYPE == DeprojType::python and 
+		   DTYPE == DiskType::python) {
 	  model = std::make_shared<AxiSymPyModel>(pyname, acyl);
 	  std::cout << "Using AxiSymPyModel for deprojection from Python function <"
 		    << pyname << ">" << std::endl;
-	}
-	else			// Default to exponential
+	} else {		// Default to exponential
 	  model = std::make_shared<Exponential>(1.0, H);
-
+	}
+	
 	if (rwidth>0.0) {
 	  model = std::make_shared<Truncated>(rtrunc/acyl,
 					      rwidth/acyl,
