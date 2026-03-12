@@ -196,6 +196,35 @@ public:
   }
 };
 
+//! Toomre disk
+class Toomre : public EmpCylSL::AxiDisk
+{
+private:
+  double a, h, n;
+  double norm;
+  
+public:
+
+  Toomre(double a, double h, double n=3, double M=1) :
+    a(a), h(h), n(n), EmpCylSL::AxiDisk(M, "Toomre")
+  {
+    params.push_back(a);
+    params.push_back(h);
+    params.push_back(n);
+    if (n <= 2) throw std::runtime_error("Toomre index must be > 2");
+    norm = (n - 2.0)/(2.0*M_PI*a*a);
+  }
+
+  double operator()(double R, double z, double phi=0.)
+  {
+    double sigma = std::pow(1.0 * (R/a)*(R/a), -0.5*n) * norm;
+    double Z = std::fabs(z);
+    double Q = std::exp(-Z/h);
+    double sech = 2.0*Q/(1.0 + Q*Q);
+    return sigma * sech*sech * 0.25/h;
+  }
+};
+
 //! Truncate a AxiDisk
 class Truncated : public EmpCylSL::AxiDisk
 {
