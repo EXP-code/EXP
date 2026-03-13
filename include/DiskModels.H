@@ -3,6 +3,7 @@
 
 #include "EmpCylSL.H"
 #include "DiskDensityFunc.H"
+#include <stdexcept>
 
 //! A Ferrers Ellipsoid + Evacuated Exponential Disc (semi-realistic
 //! bar+disk model)
