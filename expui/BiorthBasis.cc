@@ -1503,7 +1503,7 @@ namespace BasisClasses
       if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
       if (conf["ignore"    ])      Ignore = conf["ignore"    ].as<bool>();
       if (conf["deproject" ])   deproject = conf["deproject" ].as<bool>();
-      if (conf["dmodel"    ])      dmodel = conf["dmodel"    ].as<string>();
+      if (conf["dmodel"    ])      dmodel = conf["dmodel"    ].as<std::string>();
 
       if (conf["aratio"    ])      aratio = conf["aratio"    ].as<double>();
       if (conf["hratio"    ])      hratio = conf["hratio"    ].as<double>();
