@@ -217,7 +217,7 @@ public:
 
   double operator()(double R, double z, double phi=0.)
   {
-    double sigma = std::pow(1.0 * (R/a)*(R/a), -0.5*n) * norm;
+    double sigma = norm * std::pow(1.0 + (R/a)*(R/a), -0.5*n);
     double Z = std::fabs(z);
     double Q = std::exp(-Z/h);
     double sech = 2.0*Q/(1.0 + Q*Q);
