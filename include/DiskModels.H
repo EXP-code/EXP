@@ -212,7 +212,7 @@ public:
     params.push_back(h);
     params.push_back(n);
     if (n <= 2) throw std::runtime_error("Toomre index must be > 2");
-    norm = (n - 2.0)/(2.0*M_PI*a*a);
+    norm = M*(n - 2.0)/(2.0*M_PI*a*a);
   }
 
   double operator()(double R, double z, double phi=0.)
