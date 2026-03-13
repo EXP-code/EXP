@@ -1198,7 +1198,7 @@ namespace BasisClasses
       {"python",      DiskType::python}
     };
 
-  // Dprojection model for cylindrical basis construction
+  // Deprojection model for cylindrical basis construction
   const std::map<std::string, Cylindrical::DeprojType> Cylindrical::dplookup =
     { {"mn",          DeprojType::mn},
       {"exponential", DeprojType::exponential},
