@@ -7,6 +7,7 @@
 #include <memory>
 #include <limits>
 #include <string>
+#include <cmath>
 
 #include "EmpDeproj.H"
 #include "gaussQ.H"
