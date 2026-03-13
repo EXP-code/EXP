@@ -1728,7 +1728,7 @@ namespace BasisClasses
 	}
 	catch (const std::out_of_range& err) {
 	  if (myid==0) {
-	    std::cout << "DeprojType error in configuraton file" << std::endl;
+	    std::cout << "DeprojType error in configuration file" << std::endl;
 	    std::cout << "Valid options are: ";
 	    for (auto v : dplookup) std::cout << v.first << " ";
 	    std::cout << std::endl;
