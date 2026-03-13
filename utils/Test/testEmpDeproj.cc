@@ -3,6 +3,11 @@
 #include <fstream>
 #include <vector>
 #include <cmath>
+#include <map>
+#include <algorithm>
+#include <cctype>
+#include <functional>
+#include <stdexcept>
 
 #include "Deprojector.H"
 #include "EmpDeproj.H"
