@@ -1711,6 +1711,10 @@ namespace BasisClasses
 	std::transform(dmodel.begin(), dmodel.end(), dmodel.begin(),
 		       [](unsigned char c){ return std::tolower(c); });
 
+	// Map legacy/short model names to canonical keys expected by dplookup
+	if (dmodel == "exp") {
+	  dmodel = "exponential";
+	}
 
 	// Check for map entry
 	try {
