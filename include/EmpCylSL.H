@@ -351,6 +351,12 @@ protected:
   //! with the new Eigen3 API
   bool allow_old_cache = false;
 
+  //! Abel type for deprojection
+  enum class AbelType { Derivative, Subtraction, IBP };
+
+  //! Deprojection method (default: derivative)
+  AbelType abel_type = AbelType::Derivative;
+
 public:
 
   /*! Enum listing the possible selection algorithms for coefficient

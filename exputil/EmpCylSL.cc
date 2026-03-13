@@ -487,28 +487,45 @@ void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
   // Now, compute Abel inverion integral
   //
   for (int i=0; i<NUMR; i++) {
+
+    double surfS = abel_type==AbelType::Subtraction ? surf.eval(rl[i]) : 0.0;
     double r = rr[i];
 
     // Interval by Legendre
     //
     rhoI[i] = 0.0;
+
     for (int n=0; n<NINT; n++) {
+
       double x   = lq.knot(n);
       double x12 = 1.0 - x*x;
-      double z   = x/sqrt(x12);
-      double R   = sqrt(z*z + r*r);
+      double R   = r/sqrt(x12);
       double lR  = log(R);
 
-      rhoI[i]   += lq.weight(n)*2.0*pow(x12, -1.5)*surf.eval(lR);
+      switch (abel_type) {
+      case AbelType::Derivative:
+	rhoI[i]   += lq.weight(n)/x12 * surf.deriv(lR)/R;
+	break;
+      case AbelType::Subtraction:
+	rhoI[i]   += lq.weight(n)/(x*x*sqrt(x12)*r) * ( surf.eval(lR) - surfS );
+	break;
+      case AbelType::IBP:
+	rhoI[i]   += lq.weight(n)/x12 * surf.eval(lR);
+	break;
+      }
     }
   }
 
+  Linear1d intgr;
+  if (abel_type == AbelType::IBP) intgr = Linear1d(rl, rhoI);
+
   std::vector<double> rho(NUMR), mass(NUMR);
-
-  Linear1d intgr(rl, rhoI);
-
-  for (int i=0; i<NUMR; i++)
-    rho[i] = -intgr.deriv(rl[i])/(2.0*M_PI*rr[i]*rr[i]);
+  for (int i=0; i<NUMR; i++) {
+    if (abel_type == AbelType::IBP)
+      rho[i] = -intgr.deriv(rl[i])/rr[i]/M_PI;
+    else
+      rho[i] = -rhoI[i]/M_PI;
+  }
 
   mass[0] = 0.0;
   for (int i=1; i<NUMR; i++) {
