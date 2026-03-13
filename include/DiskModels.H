@@ -213,16 +213,16 @@ public:
     params.push_back(h);
     params.push_back(n);
     if (n <= 2) throw std::runtime_error("Toomre index must be > 2");
-    norm = M*(n - 2.0)/(2.0*M_PI*a*a);
+    norm = M*(n - 2.0)/(2.0*M_PI*a*a*4.0*h);
   }
 
   double operator()(double R, double z, double phi=0.)
   {
     double sigma = norm * std::pow(1.0 + (R/a)*(R/a), -0.5*n);
     double Z = std::fabs(z);
-    double Q = std::exp(-Z/h);
+    double Q = std::exp(-0.5*Z/h);
     double sech = 2.0*Q/(1.0 + Q*Q);
-    return sigma * sech*sech * 0.25/h;
+    return sigma * sech*sech;
   }
 };
 
