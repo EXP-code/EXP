@@ -46,10 +46,14 @@ namespace Deproject
     for (size_t i=0;i<pairs.size();++i) { R[i] = pairs[i].first; S[i] = pairs[i].second; }
     
     // ensure positive radii and strictly increasing
+    double eps = 1e-12;
     if (R.front() <= 0.0) {
-      double eps = 1e-12;
-      if (R.front() <= 0.0) R[0] = eps;
-      for (size_t i=1;i<R.size();++i) if (R[i] <= R[i-1]) R[i] = R[i-1] + eps;
+      R[0] = eps;
+    }
+    for (size_t i=1;i<R.size();++i) {
+      if (R[i] <= R[i-1]) {
+        R[i] = R[i-1] + eps;
+      }
     }
     
     spline_.set_data(R, S);
