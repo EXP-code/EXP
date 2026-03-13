@@ -18,7 +18,7 @@ int main()
       double t = (double)i / (Ndata - 1);
       double r = Rmin + t * (Rmax - Rmin);
       Rdata.push_back(r);
-      Sigma.push_back(1.0 / std::pow(1.0 + r*r, -1.5));
+      Sigma.push_back(std::pow(1.0 + r*r, -1.5));
     }
 
     Deprojector D(Rdata, Sigma, /*R_max_extend=*/50.0, /*tail_power=*/-4.0, /*Ngrid=*/6000);
@@ -39,7 +39,7 @@ int main()
   
   // Example B: construct from analytic functor + analytic derivative
   {
-    auto SigmaFunc = [](double R)->double { return 1.0 / std::pow(1.0 + R*R, -1.5); };
+    auto SigmaFunc = [](double R)->double { return std::pow(1.0 + R*R, -1.5); };
     auto dSigmaFunc = [](double R)->double { return -3.0 * R / std::pow(1.0 + R*R, -2.5); }; // analytic derivative
     
     Deprojector D(SigmaFunc, dSigmaFunc, /*R_data_min=*/0.01, /*R_data_max=*/10.0,

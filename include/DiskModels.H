@@ -219,9 +219,8 @@ public:
   double operator()(double R, double z, double phi=0.)
   {
     double sigma = norm * std::pow(1.0 + (R/a)*(R/a), -0.5*n);
-    double Z = std::fabs(z);
-    double Q = std::exp(-0.5*Z/h);
-    double sech = 2.0*Q/(1.0 + Q*Q);
+    double Q = std::exp(-0.5*std::fabs(z)/h);
+    double sech = 2.0*Q/(1.0 + Q*Q); // Prevent overflow
     return sigma * sech*sech;
   }
 };

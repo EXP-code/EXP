@@ -1198,7 +1198,7 @@ namespace BasisClasses
       {"python",      DiskType::python}
     };
 
-  // Dprojection model for cylindrical basis construction
+  // Deprojection model for cylindrical basis construction
   const std::map<std::string, Cylindrical::DeprojType> Cylindrical::dplookup =
     { {"mn",          DeprojType::mn},
       {"exponential", DeprojType::exponential},
@@ -1503,7 +1503,7 @@ namespace BasisClasses
       if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
       if (conf["ignore"    ])      Ignore = conf["ignore"    ].as<bool>();
       if (conf["deproject" ])   deproject = conf["deproject" ].as<bool>();
-      if (conf["dmodel"    ])      dmodel = conf["dmodel"    ].as<string>();
+      if (conf["dmodel"    ])      dmodel = conf["dmodel"    ].as<std::string>();
 
       if (conf["aratio"    ])      aratio = conf["aratio"    ].as<double>();
       if (conf["hratio"    ])      hratio = conf["hratio"    ].as<double>();
@@ -1711,6 +1711,10 @@ namespace BasisClasses
 	std::transform(dmodel.begin(), dmodel.end(), dmodel.begin(),
 		       [](unsigned char c){ return std::tolower(c); });
 
+	// Map legacy/short model names to canonical keys expected by dplookup
+	if (dmodel == "exp") {
+	  dmodel = "exponential";
+	}
 
 	// Check for map entry
 	try {
@@ -1724,7 +1728,7 @@ namespace BasisClasses
 	}
 	catch (const std::out_of_range& err) {
 	  if (myid==0) {
-	    std::cout << "DeprojType error in configuraton file" << std::endl;
+	    std::cout << "DeprojType error in configuration file" << std::endl;
 	    std::cout << "Valid options are: ";
 	    for (auto v : dplookup) std::cout << v.first << " ";
 	    std::cout << std::endl;
@@ -1735,7 +1739,7 @@ namespace BasisClasses
 	if (PTYPE == DeprojType::mn) // Miyamoto-Nagai
 	  model = std::make_shared<MNdisk>(1.0, H);
 	else if (PTYPE == DeprojType::toomre) {
-	  model = std::make_shared<Toomre>(1.0, H);
+	  model = std::make_shared<Toomre>(1.0, H, 5.0);
 	} else if (PTYPE == DeprojType::python and 
 		   DTYPE == DiskType::python) {
 	  model = std::make_shared<AxiSymPyModel>(pyname, acyl);

@@ -104,18 +104,20 @@ EmpDeproj::EmpDeproj(double H, double RMIN, double RMAX, int NUMR, int NINT,
 
   // Debug
   //
-  if (true) {
+#ifdef EMPDEPROJ_DEBUG
+  {
     std::string fname("deproject_sl.txt");
     std::ofstream out(fname);
     if (out) {
       for (int i=0; i<NUMR; i++)
-	out << std::setw(18) << rl[i]
-	    << std::setw(18) << rr[i]
-	    << std::setw(18) << rho[i]
-	    << std::setw(18) << mass[i]
-	    << std::endl;
+        out << std::setw(18) << rl[i]
+            << std::setw(18) << rr[i]
+            << std::setw(18) << rho[i]
+            << std::setw(18) << mass[i]
+            << std::endl;
     }
   }
+#endif
 
   // Finalize
   //
