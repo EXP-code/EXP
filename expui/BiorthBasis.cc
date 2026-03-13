@@ -1735,7 +1735,7 @@ namespace BasisClasses
 	if (PTYPE == DeprojType::mn) // Miyamoto-Nagai
 	  model = std::make_shared<MNdisk>(1.0, H);
 	else if (PTYPE == DeprojType::toomre) {
-	  model = std::make_shared<Toomre>(1.0, H);
+	  model = std::make_shared<Toomre>(1.0, H, 5.0);
 	} else if (PTYPE == DeprojType::python and 
 		   DTYPE == DiskType::python) {
 	  model = std::make_shared<AxiSymPyModel>(pyname, acyl);
