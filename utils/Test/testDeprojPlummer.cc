@@ -64,12 +64,13 @@ int main()
   auto rho = D.rho(r_eval);
   
   std::ofstream ofs("rho_test.txt");
-  for (size_t i = 0; i < r_eval.size(); ++i)
+  for (size_t i = 0; i < r_eval.size(); ++i) {
     ofs << std::setw(16) << r_eval[i]
 	<< std::setw(16) << rho[i]
 	<< std::setw(16) << RhoFunc(r_eval[i])
 	<< std::endl;
-      ofs.close();
+  }
+  ofs.close();
   std::cout << "Wrote rho_test.txt\n";
   
   return 0;
