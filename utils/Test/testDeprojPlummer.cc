@@ -13,7 +13,7 @@ int main()
   std::function<double(double)> SigmaFunc, dSigmaFunc, RhoFunc;
 
   enum class Type { Plummer, Gaussian, Toomre };
-  Type which = Type::Toomre;
+  Type which = Type::Plummer;
 
   switch (which) {
   case Type::Toomre:
