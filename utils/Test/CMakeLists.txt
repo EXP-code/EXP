@@ -47,4 +47,7 @@ foreach(program ${bin_PROGRAMS})
   # install(TARGETS ${program} DESTINATION bin)
 endforeach()
 
+# For Python interpreter...
+target_link_libraries(testEmp ${common_LINKLIB} pybind11::embed)
+
 install(TARGETS expyaml DESTINATION bin)

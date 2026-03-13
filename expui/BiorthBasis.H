@@ -996,7 +996,7 @@ namespace BasisClasses
     //! Basis construction parameters
     double aratio, hratio, dweight, rwidth, ashift, rfactor, rtrunc, ppow, Mfac, HERNA;
     bool Ignore, deproject;
-    std::string pyname;
+    std::string pyname, pyproj;
 
     //! DiskType support
     //!

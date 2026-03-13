@@ -1270,7 +1270,8 @@ namespace BasisClasses
     "playback",
     "coefCompute",
     "coefMaster",
-    "pyname"
+    "pyname",
+    "pyproj"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
@@ -1519,6 +1520,7 @@ namespace BasisClasses
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
       if (conf["pyname"    ])      pyname = conf["pyname"    ].as<std::string>();
+      if (conf["pyproj"    ])      pyname = conf["pyproj"    ].as<std::string>();
       if (conf["pcavar"]    )      pcavar = conf["pcavar"    ].as<bool>();
       if (conf["subsamp"]   )      sampT  = conf["subsamp"   ].as<int>();
 
@@ -1712,11 +1714,13 @@ namespace BasisClasses
 		       [](unsigned char c){ return std::tolower(c); });
 
 	// Map legacy/short model names to canonical keys expected by dplookup
+	//
 	if (dmodel == "exp") {
 	  dmodel = "exponential";
 	}
 
 	// Check for map entry
+	//
 	try {
 	  PTYPE = dplookup.at(dmodel);
 	
@@ -1740,9 +1744,8 @@ namespace BasisClasses
 	  model = std::make_shared<MNdisk>(1.0, H);
 	else if (PTYPE == DeprojType::toomre) {
 	  model = std::make_shared<Toomre>(1.0, H, 5.0);
-	} else if (PTYPE == DeprojType::python and 
-		   DTYPE == DiskType::python) {
-	  model = std::make_shared<AxiSymPyModel>(pyname, acyl);
+	} else if (PTYPE == DeprojType::python) {
+	  model = std::make_shared<AxiSymPyModel>(pyproj, acyl);
 	  std::cout << "Using AxiSymPyModel for deprojection from Python function <"
 		    << pyname << ">" << std::endl;
 	} else {		// Default to exponential
