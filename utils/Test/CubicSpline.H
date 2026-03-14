@@ -14,7 +14,7 @@ namespace Deproject
     // set data (x must be strictly increasing)
     void set_data(const std::vector<double>& x_in, const std::vector<double>& y_in);
     
-    // evaluate spline and its derivative (xx should lie within [xmin(), xmax()], but endpoints are clamped)
+    // evaluate spline and its derivative (xx is expected in [xmin(), xmax()]; values outside are extrapolated using the end intervals)
     double eval(double xx) const;
     double deriv(double xx) const;
     
