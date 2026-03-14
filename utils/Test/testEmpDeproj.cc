@@ -150,8 +150,8 @@ int main(int argc, char* argv[])
 
   std::vector<double> r_eval;
   for (int i = 0; i < Nr; ++i) {
-    double t = (double)i / (Nr - 1);
-    r_eval.push_back(0.01 + t * 8.0);
+    double t = (Nr > 1) ? static_cast<double>(i) / (Nr - 1) : 0.0;
+    r_eval.push_back(Rmin + t * (Rmax - Rmin));
   }
   auto rho = D.rho(r_eval);
   
