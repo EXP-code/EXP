@@ -1745,9 +1745,10 @@ namespace BasisClasses
 	else if (PTYPE == DeprojType::toomre) {
 	  model = std::make_shared<Toomre>(1.0, H, 5.0);
 	} else if (PTYPE == DeprojType::python) {
-	  model = std::make_shared<AxiSymPyModel>(pyproj, acyl);
-	  std::cout << "Using AxiSymPyModel for deprojection from Python function <"
-		    << pyname << ">" << std::endl;
+	  model = std::make_shared<AxiSymPyModel>(pyproj, 1.0);
+	  if (myid==0)
+	    std::cout << "---- Using AxiSymPyModel for deprojection from "
+		      << "Python module <" << pyproj << ">" << std::endl;
 	} else {		// Default to exponential
 	  model = std::make_shared<Exponential>(1.0, H);
 	}
