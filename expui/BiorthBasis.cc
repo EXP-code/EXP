@@ -1253,7 +1253,7 @@ namespace BasisClasses
     "coefCompute",
     "coefMaster",
     "pyname",
-    "pyproj"
+    "pyproj",
     "nint",
     "totalCovar",
     "fullCovar"
