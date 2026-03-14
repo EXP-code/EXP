@@ -1520,7 +1520,7 @@ namespace BasisClasses
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
       if (conf["pyname"    ])      pyname = conf["pyname"    ].as<std::string>();
-      if (conf["pyproj"    ])      pyname = conf["pyproj"    ].as<std::string>();
+      if (conf["pyproj"    ])      pyproj = conf["pyproj"    ].as<std::string>();
       if (conf["pcavar"]    )      pcavar = conf["pcavar"    ].as<bool>();
       if (conf["subsamp"]   )      sampT  = conf["subsamp"   ].as<int>();
 
