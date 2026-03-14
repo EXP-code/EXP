@@ -44,7 +44,6 @@
 
 				// MDW classes
 #include "numerical.H"
-#include "Particle.h"
 #include "PSP2.H"
 #include "interp.H"
 #include "massmodel.H"

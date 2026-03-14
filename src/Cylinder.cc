@@ -62,6 +62,7 @@ Cylinder::valid_keys = {
   "pcavtk",
   "pcadiag",
   "subsamp",
+  "nint",
   "try_cache",
   "density",
   "EVEN_M",
@@ -74,7 +75,9 @@ Cylinder::valid_keys = {
   "coefCompute",
   "coefMaster",
   "pyname",
-  "dumpbasis"
+  "dumpbasis",
+  "fullCovar",
+  "totalCovar"
 };
 
 Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
@@ -120,8 +123,8 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
   vflag           = 0;
   eof             = 1;
-  npca            = 50;
-  npca0           = 0;
+  npca            = std::numeric_limits<int>::max();
+  npca0           = std::numeric_limits<int>::max();
   defSampT        = 1;
   hexp            = 1.0;
   snr             = 1.0;
@@ -137,6 +140,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   pcadiag         = false;
   pcaeof          = false;
   subsamp         = false;
+  nint            = 0;
   nvtk            = 1;
   pcainit         = true;
   coef_dump       = true;
@@ -183,7 +187,8 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   if (mlim>=0)  ortho->set_mlim(mlim);
   if (EVEN_M)   ortho->setEven(EVEN_M);
   ortho->setSampT(defSampT);
-
+  if (nint>0)   ortho->init_covar();
+  
   try {
     if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
   }
@@ -451,6 +456,7 @@ void Cylinder::initialize()
     if (conf["pcavtk"    ])     pcavtk  = conf["pcavtk"    ].as<bool>();
     if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
     if (conf["subsamp"   ])    subsamp  = conf["subsamp"   ].as<bool>();
+    if (conf["nint"      ])       nint  = conf["nint"      ].as<int>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["EVEN_M"    ])     EVEN_M  = conf["EVEN_M"    ].as<bool>();
     if (conf["cmap"      ])      cmapR  = conf["cmap"      ].as<int>();
@@ -569,6 +575,15 @@ void Cylinder::initialize()
     }
 
     if (conf["dumpbasis"]) dump_basis = true;
+
+    if (conf["fullCovar"]) {
+      fullCovar = conf["fullCovar"].as<bool>();
+    }
+    
+    if (conf["totalCovar"]) {
+      totlCovar = conf["totalCovar"].as<bool>();
+      if (totlCovar) fullCovar = true;
+    }
 
   }
   catch (YAML::Exception & error) {
@@ -943,11 +958,29 @@ void Cylinder::determine_coefficients_particles(void)
     pcainit = false;
   }
 
+  // No covarance by default
+  //
+  compute = false;
+
+  // Subsample computation flag
+  //
+  if (nint) {
+    // Computed only for mstep==0 and every nint steps
+    if (mstep==0 and this_step % nint == 0) {
+      compute = true;
+      ortho->set_covar(true);
+      requestSubsample = true;
+    } else {
+      ortho->set_covar(false);
+      subsampleComputed = false;
+    }
+  }
+
+  // PCA computation flag
+  //
   if (pcavar or pcaeof) {
     if (this_step >= npca0)
       compute = (mstep == 0) && !( (this_step-npca0) % npca);
-    else
-      compute = false;
   }
 
   ortho->setup_accumulation(mlevel);
@@ -987,7 +1020,7 @@ void Cylinder::determine_coefficients_particles(void)
 	std::fill(use.begin(), use.end(), 0.0);
 	std::fill(cylmass0.begin(), cylmass0.end(), 0.0);
       }
-      determine_coefficients_cuda(compute);
+      determine_coefficients_cuda();
       DtoH_coefs(mlevel);
       finish1 = std::chrono::high_resolution_clock::now();
     }
@@ -1039,13 +1072,22 @@ void Cylinder::determine_coefficients_particles(void)
   // Compute Hall smoothing
   //=========================
 
-  if ((pcavar or pcaeof) and mlevel==0) ortho->pca_hall(compute, subsamp);
+  if (npca0 < std::numeric_limits<int>::max() and mlevel==multistep)
+    ortho->pca_hall(compute, subsamp);
+
+  // If subsample requested and computed, turn off for next time
+  if (nint and compute and mlevel==multistep) {
+    ortho->make_covar();
+    requestSubsample  = false;
+    subsampleComputed = true;
+  }
 
   //=========================
   // Apply Hall smoothing
   //=========================
 
-  if (pcavar and used) ortho->set_trimmed(snr, rem);
+  if (pcavar and used and npca0 < std::numeric_limits<int>::max())
+    ortho->set_trimmed(snr, rem);
 
   //=========================
   // Dump basis on first call
@@ -1816,3 +1858,23 @@ void Cylinder::occt_output()
     }
   }
 }
+
+
+PotAccel::CovarData Cylinder::getSubsample()
+{
+  CovarData ret;
+  std::tie(std::get<0>(ret), std::get<1>(ret)) = ortho->getCovarSamples();
+  std::tie(std::get<2>(ret), std::get<3>(ret)) = ortho->getCoefCovariance();
+  return ret;
+}
+
+void Cylinder::writeCovarH5Params(HighFive::File& file)
+{
+  file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
+  file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+  file.createAttribute<double>("rcylmin", HighFive::DataSpace::From(rcylmin)).write(rcylmin);
+  file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
+  file.createAttribute<double>("acyl", HighFive::DataSpace::From(acyl)).write(acyl);
+  file.createAttribute<double>("hcyl", HighFive::DataSpace::From(hcyl)).write(hcyl);
+}
+  

@@ -15,7 +15,10 @@ Cube::valid_keys = {
   "nmaxy",
   "nmaxz",
   "method",
-  "wrap"
+  "wrap",
+  "nint",
+  "samplesz",
+  "subsampleFloat"
 };
 
 //@{
@@ -35,6 +38,7 @@ Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   coef_dump  = true;
   byPlanes   = true;
   cuMethod   = "planes";
+  sampT      = 100;
 
   // Default parameter values
   //
@@ -93,6 +97,15 @@ Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   //
   dfac = 2.0*M_PI;
   kfac = std::complex<double>(0.0, dfac);
+
+  // Initialize covariance
+  //
+  init_covariance();
+
+#if HAVE_LIBCUDA==1
+  cuda_initialize();
+#endif
+
 }
 
 Cube::~Cube(void)
@@ -119,6 +132,16 @@ void Cube::initialize(void)
     if (conf["nmaxz" ])  nmaxz      = conf["nmaxz" ].as<int>();
     if (conf["method"])  cuMethod   = conf["method"].as<std::string>();
     if (conf["wrap"  ])  wrap       = conf["wrap"  ].as<bool>();
+
+    if (conf["nint"]) {
+      nint = conf["nint"].as<int>();
+      if (nint>0) computeSubsample = true;
+    }
+
+    if (conf["samplesz"]) {
+      sampT = conf["samplesz"].as<int>();
+    }
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in Cube: "
@@ -134,11 +157,80 @@ void Cube::initialize(void)
   if (myid==0)
     std::cout << "---- Cube::initialize: wrap="
 	      << std::boolalpha << wrap << std::endl;
-
-#if HAVE_LIBCUDA==1
-  cuda_initialize();
-#endif
 }
+
+void Cube::init_covariance()
+{
+  if (computeSubsample) {
+
+    meanV.resize(sampT);
+    for (auto& v : meanV) {
+      v.resize(osize);
+    }
+
+    workV1.resize(nthrds);
+    for (auto& v : workV1) v.resize(osize);
+
+    if (fullCovar) {
+      covrV.resize(sampT);
+      for (auto& v : covrV) {
+	v.resize(osize, osize);
+      }
+    } else {
+      covrV.clear();
+    }
+
+    sampleCounts.resize(sampT);
+    sampleMasses.resize(sampT);
+      
+    meanV1.resize(nthrds);
+    covrV1.resize(nthrds);
+    countV1.resize(nthrds);
+    massV1.resize(nthrds);
+
+    for (int n=0; n<nthrds; n++) {
+      meanV1[n].resize(sampT);
+      covrV1[n].resize(sampT);
+      for (int T=0; T<sampT; T++) {
+	meanV1[n][T].resize(osize);
+	if (fullCovar) {
+	  covrV1[n][T].resize(osize, osize);
+	}
+      }
+      countV1[n].resize(sampT);
+      massV1[n].resize(sampT);
+    }
+
+    zero_covariance();
+  }
+}
+
+
+void Cube::zero_covariance()
+{
+  for (int T=0; T<sampT; T++) {
+    meanV[T].setZero();
+    if (fullCovar) {
+      covrV[T].setZero();
+    }
+  }
+    
+  sampleCounts.setZero();
+  sampleMasses.setZero();
+
+  for (int n=0; n<nthrds; n++) {
+    for (int T=0; T<sampT; T++) {
+      meanV1[n][T].setZero();
+      if (fullCovar) {
+	covrV1[n][T].setZero();
+      }
+    }
+    workV1[n].setZero();
+    countV1[n].setZero();
+    massV1[n].setZero();
+  }
+}
+
 
 void * Cube::determine_coefficients_thread(void * arg)
 {
@@ -153,7 +245,7 @@ void * Cube::determine_coefficients_thread(void * arg)
   //
   if (nbodies) {
 
-    // Partion bodies by thread
+    // Partition bodies by thread
     int nbeg = nbodies*(id  )/nthrds;
     int nend = nbodies*(id+1)/nthrds;
 
@@ -205,6 +297,8 @@ void * Cube::determine_coefficients_thread(void * arg)
       std::complex<double> facx, facy, facz;
       int ix, iy, iz;
 
+      if (requestSubsample) workV1[id].setZero();
+
       for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
 	for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	  for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
@@ -222,6 +316,11 @@ void * Cube::determine_coefficients_thread(void * arg)
 	    double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
 	    
 	    expcoef0[id](ix, iy, iz) += - mass * facx * facy * facz * norm;
+
+	    if (requestSubsample) {
+	      workV1[id]( ( (ii + nmaxx)*imy + (jj + nmaxy) )*imz + (kk + nmaxz) )
+		= facx * facy * facz * norm;
+	    }
 
 	    if (deepDebug and ii==1 and jj==0 and kk==0) {
 	      auto part = cC->Part(i);
@@ -244,9 +343,31 @@ void * Cube::determine_coefficients_thread(void * arg)
 			  << std::endl;
 	      }
 	    }
+	    // END: deepDebug
 	  }
+	  // END: iz loop
 	}
+	// END: iy loop
       }
+      // END: ix loop
+
+      if (requestSubsample) {
+	// Which subsample bin?
+	//
+	int T = q % sampT;
+
+	// Accumulate counts and masses
+	//
+	countV1[id](T) += 1;
+	massV1[id](T)  += mass;
+
+	// Accumulate subsample contributions
+	//
+	meanV1[id][T] += workV1[id] * mass;
+	if (fullCovar)
+	  covrV1[id][T] += workV1[id] * workV1[id].adjoint() * mass;
+      }
+
     }
     // END: particle loop
   }
@@ -285,6 +406,19 @@ void Cube::determine_coefficients(void)
   if (multistep==0) used = 0;
   if (mlevel==0) {
     for (int n=0; n<nthrds; n++) use[n] = 0.0;
+  }
+  
+  // Determine whether or not to compute a subsample
+  if (mstep==0 or mstep==std::numeric_limits<int>::max()) {
+    if (nint>0 && this_step % nint == 0) {
+      if (tnow > last) {
+	requestSubsample = true;
+	last = tnow;
+	zero_covariance();
+      }
+    }
+  } else {
+    subsampleComputed = false;
   }
   
 #if HAVE_LIBCUDA==1
@@ -328,9 +462,51 @@ void Cube::determine_coefficients(void)
   // Last level?
   //
   if (multistep and mlevel==multistep) {
-     compute_multistep_coefficients();
+      compute_multistep_coefficients();
   }
 
+  // Accumulate mean and covariance subsample contributions
+  //
+  if (requestSubsample) {
+
+    // Only finalize at the last multistep level
+    //
+    if ( (multistep and mlevel==multistep) or multistep==0 ) {
+      
+      // Sum over threads
+      //
+      for (int n=1; n<nthrds; n++) {
+	for (int T=0; T<sampT; T++) {
+	  meanV1[0][T] += meanV1[n][T];
+	  if (fullCovar) {
+	    covrV1[0][T] += covrV1[n][T];
+	  }
+	  countV1[0](T) += countV1[n](T);
+	  massV1[0](T)  += massV1[n](T);
+	}
+      }
+
+      // Sum over MPI ranks
+      //
+      for (int T=0; T<sampT; T++) {
+	MPI_Allreduce( meanV1[0][T].data(), meanV[T].data(), meanV[T].size(),
+		       MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	if (fullCovar)
+	  MPI_Allreduce( covrV1[0][T].data(), covrV[T].data(), covrV[T].size(),
+			 MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+      }
+
+      MPI_Allreduce( countV1[0].data(), sampleCounts.data(), sampleCounts.size(),
+		     MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    
+      MPI_Allreduce( massV1[0].data(), sampleMasses.data(), sampleMasses.size(),
+		     MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+      requestSubsample  = false;
+      subsampleComputed = true;
+    }
+  }
+    
   // Deep debug for checking a single wave number from cubeics
   //
   if (coefDebug and myid==0) {
@@ -840,5 +1016,51 @@ void Cube::compute_multistep_coefficients()
       expcoef.data()[i] += expcoefN[M]->data()[i];
     }
   }
+}
+
+void Cube::writeCovarH5Params(HighFive::File& file)
+{
+  file.createAttribute<int>("nminx", HighFive::DataSpace::From(nminx)).write(nminx);
+  file.createAttribute<int>("nminy", HighFive::DataSpace::From(nminy)).write(nminy);
+  file.createAttribute<int>("nminz", HighFive::DataSpace::From(nminz)).write(nminz);
+  file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(nmaxx)).write(nmaxx);
+  file.createAttribute<int>("nmaxy", HighFive::DataSpace::From(nmaxy)).write(nmaxy);
+  file.createAttribute<int>("nmaxz", HighFive::DataSpace::From(nmaxz)).write(nmaxz);
+}
+
+
+PotAccel::CovarData Cube::getSubsample()
+{
+  CovarData elem;
+
+  std::get<0>(elem) = sampleCounts;
+  std::get<1>(elem) = sampleMasses;
+  std::get<2>(elem) = Eigen::Tensor<std::complex<double>, 3>(sampT, 1, osize);
+  std::get<3>(elem) = Eigen::Tensor<std::complex<double>, 4>(sampT, 1, osize, osize);
+
+  // Fill the covariance structure with subsamples
+  for (int T=0; T<sampT; T++) {
+    /*
+    for (int n1=0; n1<osize; n1++) {
+      std::get<2>(elem)(T, 0, n1) = meanV[T](n1);
+      for (int n2=0; n2<osize; n2++)
+	if (fullCovar)
+	  std::get<3>(elem)(T, 0, n1, n2) = covrV[T](n1, n2);
+	else
+	  std::get<3>(elem)(T, 0, n1, n2) = 0.0;
+    } 
+    */
+
+    std::get<2>(elem).chip(T, 0).chip(0, 0) =
+      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 1>>
+      (meanV[T].data(), osize);
+	
+    std::get<3>(elem).chip(T, 0).chip(0, 0) =
+      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>
+      (covrV[T].data(), osize, osize);
+
+  }
+    
+  return elem;
 }
 

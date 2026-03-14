@@ -2,6 +2,11 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include <Eigen/Eigen>
+
+#include <highfive/highfive.hpp>
+#include <highfive/eigen.hpp>
+
 #include "expand.H"
 #include "PotAccel.H"
 

@@ -3,8 +3,9 @@
 #ifndef CUDA_REDUCE_CUH
 #define CUDA_REDUCE_CUH
 
-#include <cudaUtil.cuH>
 #include <thrust/iterator/discard_iterator.h>
+
+#include "cudaUtil.cuH"
 
 // Machine constants
 //
