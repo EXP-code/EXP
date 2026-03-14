@@ -27,8 +27,8 @@ int main(int argc, char* argv[])
   // Parse command-line options
   //
   cxxopts::Options options("testEmpDeproj",
-			   "Test the EmpDeproj class against Deprojector"
-			   "for various surface density profiles.");
+			   "Test the EmpDeproj class against Deproject"
+			   "for various surface density profiles.\n");
   options.add_options()
     ("h,help", "Print help")
     ("type", "Surface density type (plummer, gaussian, toomre)", cxxopts::value<std::string>(type)->default_value("toomre"))

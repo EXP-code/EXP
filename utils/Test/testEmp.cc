@@ -28,9 +28,10 @@ int main(int argc, char* argv[])
 
   // Parse command-line options
   cxxopts::Options options("testDonut",
-               "Test the EmpDeproj class for an inner donut-shaped "
-               "density distribution, using the Toomre profile as "
-               "a test case.");
+			   "Test the EmpDeproj class for any Python-supplied density function.\n"
+			   "If the Python module is not supplied,  one of the hard-coded\n"
+			   "functions: Plummer, Gaussian, Toomre may be selected.  The internal\n"
+			   "Abel method: Derivative, Substraction, or IBP may be chosen as well.\n");
 
   options.add_options()
     ("h,help", "Print help")
