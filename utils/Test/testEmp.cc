@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
 			   "Test the EmpDeproj class for any Python-supplied density function.\n"
 			   "If the Python module is not supplied,  one of the hard-coded\n"
 			   "functions: Plummer, Gaussian, Toomre may be selected.  The internal\n"
-			   "Abel method: Derivative, Substraction, or IBP may be chosen as well.\n");
+			   "Abel method: Derivative, Subtraction, or IBP may be chosen as well.\n");
 
   options.add_options()
     ("h,help", "Print help")
