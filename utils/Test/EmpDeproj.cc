@@ -53,7 +53,7 @@ EmpDeproj::EmpDeproj(double H, double RMIN, double RMAX, int NUMR, int NINT,
   Linear1d surf(rl, sigI);
   surfRg = surf;
   
-  // Now, compute Abel inverion integral
+  // Now, compute Abel inversion integral
   //
   for (int i=0; i<NUMR; i++) {
 
