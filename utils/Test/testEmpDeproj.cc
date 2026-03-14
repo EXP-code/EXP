@@ -24,6 +24,9 @@ int main(int argc, char* argv[])
   double H, Rmin, Rmax, Rcut, Rwid;
   int Nr, Ngrid, NumR, Nint;
 
+  // Define pi in a portable way instead of relying on non-standard M_PI
+  constexpr double pi = std::acos(-1.0);
+
   // Parse command-line options
   //
   cxxopts::Options options("testEmpDeproj",
@@ -105,8 +108,8 @@ int main(int argc, char* argv[])
     dSigmaFunc = [](double R)->double
     { return -3.0 * R / std::pow(1.0 + R*R, 2.5); };
     // Expected result
-    RhoFunc = [](double r)->double
-    { return 2.0 / std::pow(1.0 + r*r, 2.0) / M_PI; };
+    RhoFunc = [pi](double r)->double
+    { return 2.0 / std::pow(1.0 + r*r, 2.0) / pi; };
     break;
   case Type::Gaussian:
     // Test function
@@ -116,8 +119,8 @@ int main(int argc, char* argv[])
     dSigmaFunc = [](double R)->double
     { return -R*exp(-0.5*R*R); };
     // Expected result
-    RhoFunc = [](double r)->double
-    { return exp(-0.5*r*r)/sqrt(2.0*M_PI); };
+    RhoFunc = [pi](double r)->double
+    { return exp(-0.5*r*r)/sqrt(2.0*pi); };
     break;
   default:
   case Type::Plummer:
