@@ -7,6 +7,10 @@
 #include "Deprojector.H"
 #include "cxxopts.H"
 
+namespace {
+  constexpr double pi = std::acos(-1.0);
+}
+
 using namespace Deproject;
 
 int main(int argc, char* argv[])
@@ -70,7 +74,7 @@ int main(int argc, char* argv[])
     { return -3.0 * R / std::pow(1.0 + R*R, 2.5); };
     // Expected result
     RhoFunc = [](double r)->double
-    { return 2.0 / std::pow(1.0 + r*r, 2.0) / M_PI; };
+    { return 2.0 / std::pow(1.0 + r*r, 2.0) / pi; };
     break;
   case Type::Gaussian:
     // Test function
@@ -81,7 +85,7 @@ int main(int argc, char* argv[])
     { return -R*exp(-0.5*R*R); };
     // Expected result
     RhoFunc = [](double r)->double
-    { return exp(-0.5*r*r)/sqrt(2.0*M_PI); };
+    { return exp(-0.5*r*r)/sqrt(2.0*pi); };
     break;
   default:
   case Type::Plummer:
