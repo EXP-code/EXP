@@ -134,7 +134,7 @@ int main(int argc, char* argv[])
   }
   
   Deprojector D(SigmaFunc, dSigmaFunc, /*R_data_min=*/0.01, /*R_data_max=*/10.0,
-		/*R_max_extend=*/50.0, /*tail_power=*/-4.0, /*Ngrid=*/6000);
+		/*R_max_extend=*/50.0, /*tail_power=*/-4.0, /*Ngrid=*/Ngrid);
   
   auto SigmaZFunc = [SigmaFunc, H, Rcut, Rwid](double R, double z)->double
   { double Q = exp(-std::fabs(z)/(2.0*H));
