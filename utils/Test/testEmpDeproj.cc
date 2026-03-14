@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
   int Nr, Ngrid, NumR, Nint;
 
   // Define pi in a portable way instead of relying on non-standard M_PI
-  constexpr double pi = std::acos(-1.0);
+  const double pi = std::acos(-1.0);
 
   // Parse command-line options
   //

@@ -8,7 +8,7 @@
 #include "cxxopts.H"
 
 namespace {
-  constexpr double pi = std::acos(-1.0);
+  const double pi = std::acos(-1.0);
 }
 
 using namespace Deproject;
