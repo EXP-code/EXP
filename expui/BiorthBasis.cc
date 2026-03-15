@@ -1224,7 +1224,7 @@ namespace BasisClasses
     "ignore",
     "deproject",
     "dmodel",
-    "logr",
+    "ppow",
     "pcavar",
     "pcaeof",
     "pcavtk",
