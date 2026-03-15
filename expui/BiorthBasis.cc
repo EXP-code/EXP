@@ -1731,6 +1731,16 @@ namespace BasisClasses
 	else if (PTYPE == DeprojType::toomre) {
 	  model = std::make_shared<Toomre>(1.0, H, 5.0);
 	} else if (PTYPE == DeprojType::python) {
+	  if (pyproj.empty()) {
+	    if (myid==0) {
+	      std::cout << "DeprojType is set to 'python' but no Python "
+			<< "projection module name (pyname/pyproj) was provided."
+			<< std::endl;
+	    }
+	    throw std::runtime_error(
+	      "Cylindrical::initialize: DeprojType 'python' requires a "
+	      "non-empty Python module name (pyname/pyproj).");
+	  }
 	  model = std::make_shared<AxiSymPyModel>(pyproj, 1.0);
 	  if (myid==0)
 	    std::cout << "---- Using AxiSymPyModel for deprojection from "
