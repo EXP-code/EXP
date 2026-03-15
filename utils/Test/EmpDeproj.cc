@@ -8,6 +8,7 @@
 #include <limits>
 #include <string>
 #include <cmath>
+#include <stdexcept>
 
 #ifndef M_PI
 #define M_PI std::acos(-1.0)
@@ -22,6 +23,23 @@
 EmpDeproj::EmpDeproj(double H, double RMIN, double RMAX, int NUMR, int NINT,
 		     std::function<double(double, double)> func, AbelType type)
 {
+  // Validate input arguments to avoid domain errors and division by zero
+  if (H <= 0.0) {
+    throw std::invalid_argument("EmpDeproj: H must be > 0");
+  }
+  if (RMIN <= 0.0) {
+    throw std::invalid_argument("EmpDeproj: RMIN must be > 0");
+  }
+  if (RMAX <= RMIN) {
+    throw std::invalid_argument("EmpDeproj: RMAX must be > RMIN > 0");
+  }
+  if (NUMR < 2) {
+    throw std::invalid_argument("EmpDeproj: NUMR must be >= 2");
+  }
+  if (NINT < 1) {
+    throw std::invalid_argument("EmpDeproj: NINT must be >= 1");
+  }
+
   LegeQuad lq(NINT);
 
   std::vector<double> rr(NUMR), rl(NUMR), sigI(NUMR), rhoI(NUMR, 0.0);
