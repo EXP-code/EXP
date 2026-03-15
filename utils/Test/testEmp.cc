@@ -275,6 +275,9 @@ int main(int argc, char* argv[])
   EmpDeproj E(H, Rmin, Rmax, NumR, Nint, SigmaZFunc, type_enum);
 
   // radial evaluation points
+  if (Nr < 2) {
+    throw std::runtime_error("Nr must be at least 2 (received " + std::to_string(Nr) + ")");
+  }
   std::vector<double> r_eval;
   for (int i = 0; i < Nr; ++i) {
     double t = (double)i / (Nr - 1);
