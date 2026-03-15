@@ -1500,7 +1500,7 @@ namespace BasisClasses
       if (conf["ashift"    ])      ashift = conf["ashift"    ].as<double>();
       if (conf["rfactor"   ])     rfactor = conf["rfactor"   ].as<double>();
       if (conf["rtrunc"    ])      rtrunc = conf["rtrunc"    ].as<double>();
-      if (conf["pow"       ])        ppow = conf["ppow"      ].as<double>();
+      if (conf["ppow"      ])        ppow = conf["ppow"      ].as<double>();
       if (conf["mtype"     ])       mtype = conf["mtype"     ].as<std::string>();
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
