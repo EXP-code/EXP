@@ -1223,6 +1223,7 @@ namespace BasisClasses
     "expcond",
     "ignore",
     "deproject",
+    "logr",
     "dmodel",
     "ppow",
     "pcavar",
