@@ -1596,7 +1596,105 @@ namespace BasisClasses
 
     // Attempt to read EOF cache
     //
-    if (sl->read_cache() == 0) {
+    int cache_status = sl->read_cache();
+
+    // Define the HighFive mapping for DTYPE
+    //
+    HighFive::EnumType<DiskType> disk_type({
+	{"constant",    DiskType::constant},
+	{"gaussian",    DiskType::gaussian},
+	{"mn",          DiskType::mn},
+	{"exponential", DiskType::exponential},
+	{"doubleexpon", DiskType::doubleexpon},
+	{"diskbulge",   DiskType::diskbulge},
+	{"python",      DiskType::python}
+      });
+    
+    std::map<DiskType, std::string> disk_type_string = {
+      {DiskType::constant,    "constant"},
+      {DiskType::gaussian,    "gaussian"},
+      {DiskType::mn,          "mn"},
+      {DiskType::exponential, "exponential"},
+      {DiskType::doubleexpon, "doubleexpon"},
+      {DiskType::diskbulge,   "diskbulge"},
+      {DiskType::python,      "python"}
+    };
+
+
+    // Checking for cache consistency with current DiskType and Python module (if applicable)
+    //
+    if (cache_status == 1) {
+
+      try {
+	// Open the cache file for reading the Python metadata
+	//
+	HighFive::File file(cachename, HighFive::File::ReadOnly);
+    
+	// Sanity: check that the DiskType attribute exists
+	//
+	if (!file.hasAttribute("DiskType")) {
+	  if (myid==0) {
+	    std::cout << "---- Cylindrical: DiskType attribute not found in cache file <" << cachename << ">. "
+		      << "---- This may indicate an old cache file created before DiskType metadata was added. "
+		      << "---- We will continue...but consider remaking the cache to avoid confusion." << std::endl;
+	  }
+	} else {
+	  // Open existing DiskType attribute
+	  //
+	  auto read_attr = file.getAttribute("DiskType");
+
+	  DiskType loaded_dtype;
+	  read_attr.read(loaded_dtype); 
+
+	  if (loaded_dtype != DTYPE) {
+	    if (myid==0) {
+	      std::cout << "---- Cylindrical: DiskType for cache file <" << cachename << "> is <"
+			<< disk_type_string[loaded_dtype] << ">, which does not match the requested DiskType <"
+			<< disk_type_string[DTYPE] << ">. Forcing cache recomputation." << std::endl;
+	    }
+	    // Force cache recomputation
+	    cache_status = 0;	
+	  }
+	  else if (loaded_dtype == DiskType::python) {
+	    // Get the pyname attribute
+	    auto read_attr = file.getAttribute("pyname");
+	    std::string loaded_pyname;
+	    read_attr.read(loaded_pyname);
+	  
+	    std::string loaded_md5, current_md5;
+	
+	    // Get the md5sum for requested Python module
+	    try {
+	      current_md5 = get_md5sum(pyname);
+	      loaded_md5  = get_md5sum(loaded_pyname);
+	    } catch (const std::runtime_error& e) {
+	      std::cerr << "Error: " << e.what() << std::endl;
+	    }
+	  
+	    // Check that the md5sums match for the current Python
+	    // module and the loaded Python module used to create the
+	    // cache.  If they do not match, force cache recomputation
+	    // to ensure consistency with the current Python module.
+	    if (current_md5 != loaded_md5) {
+	      if (myid==0) {
+		std::cout << "---- Cylindrical: Python module for disk density has changed since cache creation." << std::endl
+			  << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
+			  << "---- Loaded module:  <" << loaded_pyname << ">, md5sum: " << loaded_md5  << std::endl
+			  << "---- Forcing cache recomputation to ensure consistency with current Python module." << std::endl;
+	      }
+	      cache_status = 0;
+	    }
+	  }
+	}
+      }
+      catch (const HighFive::Exception& err) {
+	std::cerr << "---- BiorthBasis inconsistency in Cylindrical cache: " << err.what() << std::endl;
+	std::cerr << "---- Forcing cache recomputation." << std::endl;
+	cache_status = 0;	// Fallback...
+      }
+    }
+
+    if (cache_status == 0) {
 
       // Remake cylindrical basis
       //
@@ -1771,6 +1869,41 @@ namespace BasisClasses
 	};
 
       sl->generate_eof(rnum, pnum, tnum, f);
+
+      try {
+	// Open the cache file for writing the Python metadata
+	//
+	HighFive::File file(cachename, HighFive::File::ReadWrite);
+
+	// Create a Scalar DataSpace for the single value
+	HighFive::DataSpace space = HighFive::DataSpace::From(DTYPE);
+
+	// Create the attribute using the explicit (Name, DataSpace,
+	// DataType) signature using the base class 'DataType' to
+	// match the expected signature
+	auto attr = file.createAttribute("DiskType", space, (HighFive::DataType)disk_type);
+
+	// Write the actual enum value
+	attr.write(DTYPE);
+
+	// Get the md5sum for the Python module
+	if (DTYPE == DiskType::python) {
+	  try {
+	    std::string md5_hash = get_md5sum(pyname);
+	    file.createAttribute<std::string>
+	      ("pyname",
+	       HighFive::DataSpace::From(pyname)).write(pyname);
+	  } catch (const std::runtime_error& e) {
+	    std::cerr << "Error: " << e.what() << std::endl;
+	    std::cerr << "Can not write the md5 hash to HDF5" << std::endl;
+	  }
+	}
+
+      } catch (const HighFive::Exception& err) {
+	std::cerr << err.what() << std::endl;
+	std::cerr << "Error writing metadata to cache file <" << cachename
+		  << std::endl;
+      }
     }
 
     // Orthogonality sanity check

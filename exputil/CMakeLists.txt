@@ -14,7 +14,7 @@ set(UTIL_SRC nrutil.cc elemfunc.cc euler.cc euler_slater.cc
 	     TransformFFT.cc QDHT.cc YamlCheck.cc # Hankel.cc
 	     parseVersionString.cc EXPmath.cc laguerre_polynomial.cpp
 	     YamlConfig.cc orthoTest.cc OrthoFunction.cc VtkGrid.cc
-	     Sutils.cc fpetrap.cc)
+	     Sutils.cc fpetrap.cc getmd5sum.cc)
 
 if(HAVE_VTK)
   list(APPEND UTIL_SRC VtkPCA.cc)
