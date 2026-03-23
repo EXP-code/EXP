@@ -239,7 +239,9 @@ protected:
   bool ReadH5Cache();
 
   //! Cache versioning
-  inline static const std::string Version = "1.0";
+  // Version 1.0 corresponds to bases generated with the first public release of EXP (7.8).
+  // Version 1.1 corresponds to bases generated with improved Abel inversion and deprojection methods (7.10).
+  inline static const std::string Version = "1.1";
 
   //! The cache file name
   std::string cachefile;
