@@ -18,6 +18,7 @@
 #include <dmalloc.h>
 #endif
 
+#include "ExpDeproj.H"
 #include "Particle.H"
 #include "SLGridMP2.H"
 #include "coef.H"
@@ -80,6 +81,9 @@ protected:
   std::vector<Eigen::MatrixXd> facC, facS;
 
   int rank2, rank3;
+
+  //! Precomputed exponential deprojection profile
+  ExpDeproj expdeproj;
 
   //@{
   //! Storage buffers for MPI
@@ -364,6 +368,7 @@ public:
   //! Type of density model to use
   enum EmpModel {
     Exponential,
+    ExpSphere,
     Gaussian, 
     Plummer,
     Power,
@@ -427,7 +432,21 @@ public:
   //! No extrapolating beyond grid (default: false)
   static bool enforce_limits;
 
-  //! Density model type
+  /**
+     @brief Density model type
+     Available options:
+     - Exponential = approximate exponential disk deprojection
+     - ExpSphere   = exact exponential spherical deprojection
+     - Gaussian    = Gaussian sphere
+     - Plummer     = Plummer sphere
+     - Power       = power-law sphere
+     - Deproject   = numerical deprojection of axisymmetric disk surface density (see create_deprojection)
+
+     @note The default option is Exponential for backwards
+     compatibility.  The ExpSphere is the exact spherical deproject
+     for the exponential disk and should be used instead of
+     Exponential for new projects.
+  */
   static EmpModel mtype;
   
   //! Radial basis grid in radial direction
