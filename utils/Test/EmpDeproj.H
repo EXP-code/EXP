@@ -1,6 +1,8 @@
 #pragma once
 
 #include <functional>
+#include <cassert>
+#include <cmath>
 #include "interp.H"
 
 class EmpDeproj
@@ -22,19 +24,22 @@ public:
   ~EmpDeproj() {}
 
   //! Evaluate deprojected density at a single radius
-  double density(double R)
+  double density(double R) const
   {
-    return densRg.eval(log(R));
+    assert(R > 0.0);
+    return densRg.eval(std::log(R));
   }
 
-  double surfaceDensity(double R)
+  double surfaceDensity(double R) const
   {
-    return surfRg.eval(log(R));
+    assert(R > 0.0);
+    return surfRg.eval(std::log(R));
   }
 
   //! Evaluate deprojected mass at a single radius
-  double mass(double R)
+  double mass(double R) const
   {
-    return massRg.eval(log(R));
+    assert(R > 0.0);
+    return massRg.eval(std::log(R));
   }
 };

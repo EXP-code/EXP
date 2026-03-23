@@ -485,7 +485,7 @@ void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
 
   Linear1d surf(rl, sigI);
   
-  // Now, compute Abel inverion integral
+  // Now, compute Abel inversion integral
   //
   for (int i=0; i<NUMR; i++) {
 
