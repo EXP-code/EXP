@@ -1638,9 +1638,15 @@ namespace BasisClasses
 
 	  if (disktype != DTYPE) {
 	    if (myid==0) {
-	      std::cout << "---- Cylindrical: DiskType for cache file <" << cachename << "> is <"
-			<< loaded_dtype << ">, which does not match the requested DiskType <"
-			<< dtype << ">. Forcing cache recomputation." << std::endl;
+	      std::cout << "---- Cylindrical: DiskType for cache file <"
+			<< cachename << "> is <"
+			<< loaded_dtype << ">," << std::endl
+			<< "which does not match the requested DiskType <"
+			<< dtype << ">, disktype="
+			<< (int)disktype << ", DTYPE="
+			<< (int)DTYPE << std::endl
+			<< "---- Cylindrical: forcing cache recomputation"
+			<< std::endl;
 	    }
 	    // Force cache recomputation
 	    cache_status = 0;	
@@ -1669,7 +1675,7 @@ namespace BasisClasses
 		std::cout << "---- Cylindrical: Python module for disk density has changed since cache creation." << std::endl
 			  << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
 			  << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
-			  << "---- Forcing cache recomputation to ensure consistency with current Python module." << std::endl;
+			  << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
 	      }
 	      cache_status = 0;
 	    }
@@ -1687,7 +1693,8 @@ namespace BasisClasses
 			<< std::boolalpha << loaded_deproject << std::noboolalpha
 			<< ">, which does not match the requested deproject flag <"
 			<< std::boolalpha << deproject << std::noboolalpha
-			<< ">. Forcing cache recomputation." << std::endl;
+			<< ">" << std::endl
+			<< "---- Cylindrical: forcing cache recomputation" << std::endl;
 	    }
 	    // Force cache recomputation
 	    cache_status = 0;	
@@ -1704,7 +1711,8 @@ namespace BasisClasses
 	      if (myid==0) {
 		std::cout << "---- Cylindrical: dmodel for cache file <" << cachename << "> is <"
 			  << loaded_dmodel << ">, which does not match the requested dmodel <"
-			  << dmodel << ">. Forcing cache recomputation." << std::endl;
+			  << dmodel << ">" << std::endl
+			  << "---- Cylindirical: forcing cache recomputation" << std::endl;
 	      }
 	      // Force cache recomputation
 	      cache_status = 0;
@@ -1732,7 +1740,7 @@ namespace BasisClasses
 		  std::cout << "---- Cylindrical: Python module for deprojection has changed since cache creation." << std::endl
 			    << "---- Current module: <" << pyproj << ">, md5sum: " << current_md5 << std::endl
 			    << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
-			    << "---- Forcing cache recomputation to ensure consistency with current Python projection module." << std::endl;
+			    << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
 		}
 		cache_status = 0;
 	      }
@@ -1742,7 +1750,7 @@ namespace BasisClasses
       }
       catch (const HighFive::Exception& err) {
 	std::cerr << "---- BiorthBasis inconsistency in Cylindrical cache: " << err.what() << std::endl;
-	std::cerr << "---- Forcing cache recomputation." << std::endl;
+	std::cerr << "---- Cylindrical: forcing cache recomputation" << std::endl;
 	cache_status = 0;	// Fallback...
       }
     }
