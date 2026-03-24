@@ -12,6 +12,8 @@
 #include <cfenv>
 #endif
 
+// Suppress HDF5 diagonostic messages from base layer when using
+// HighFive
 #define HDF5_QUIET
 
 namespace BasisClasses
@@ -1705,7 +1707,7 @@ namespace BasisClasses
 
 	      // Get the md5sum for requested Python module
 	      try {
-		current_md5 = QuickDigest5::fileToHash(pyname);
+		current_md5 = QuickDigest5::fileToHash(pyname + ".py");
 	      } catch (const std::runtime_error& e) {
 		if (myid==0)
 		  std::cerr << "Error: " << e.what() << std::endl;
@@ -1801,7 +1803,7 @@ namespace BasisClasses
 	
 		// Get the md5sum for requested Python projection module
 		try {
-		  current_md5 = QuickDigest5::fileToHash(pyproj);
+		  current_md5 = QuickDigest5::fileToHash(pyproj + ".py");
 		} catch (const std::runtime_error& e) {
 		  if (myid==0)
 		    std::cerr << "Error: " << e.what() << std::endl;
@@ -2013,7 +2015,7 @@ namespace BasisClasses
 	  if (DTYPE == DiskType::python) {
 	    try {
 	      std::vector<std::string> pyinfo =
-		{pyname, QuickDigest5::fileToHash(pyname)};
+		{pyname, QuickDigest5::fileToHash(pyname + ".py")};
 	      file.createAttribute<std::vector<std::string>>
 		("pythonDiskType",
 		 HighFive::DataSpace::From(pyinfo)).write(pyinfo);
@@ -2038,7 +2040,7 @@ namespace BasisClasses
 	    if (PTYPE == DeprojType::python) {
 	      try {
 		std::vector<std::string> pyinfo =
-		  {pyproj, QuickDigest5::fileToHash(pyproj)};
+		  {pyproj, QuickDigest5::fileToHash(pyproj + ".py")};
 		file.createAttribute<std::vector<std::string>>
 		  ("pythonProjType",
 		   HighFive::DataSpace::From(pyinfo)).write(pyinfo);
