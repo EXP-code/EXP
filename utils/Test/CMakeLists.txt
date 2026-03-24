@@ -1,6 +1,6 @@
 
 set(bin_PROGRAMS testBarrier expyaml orthoTest testDeproj
-		 testEmpDeproj testEmp)
+		 testEmpDeproj testEmp testED)
 
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX expui exputil
@@ -38,7 +38,7 @@ add_executable(testDeproj     testDeproject.cc CubicSpline.cc Deprojector.cc)
 add_executable(testEmpDeproj  testEmpDeproj.cc CubicSpline.cc
 			      Deprojector.cc EmpDeproj.cc)
 add_executable(testEmp        testEmp.cc EmpDeproj.cc)
-
+add_executable(testED         testED.cc EmpDeproj.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})
