@@ -1816,7 +1816,7 @@ namespace BasisClasses
 
 	      // Get the dmodel attribute
 	      //
-	      read_attr = file.getAttribute("dmodel");
+	      read_attr = file.getAttribute("ProjType");
 	      std::string loaded_dmodel;
 	      read_attr.read(loaded_dmodel);
 	  
