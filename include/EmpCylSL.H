@@ -18,6 +18,7 @@
 #include <dmalloc.h>
 #endif
 
+#include "ExpDeproj.H"
 #include "Particle.H"
 #include "SLGridMP2.H"
 #include "coef.H"
@@ -80,6 +81,9 @@ protected:
   std::vector<Eigen::MatrixXd> facC, facS;
 
   int rank2, rank3;
+
+  //! Precomputed exponential deprojection profile
+  ExpDeproj expdeproj;
 
   //@{
   //! Storage buffers for MPI
@@ -239,7 +243,9 @@ protected:
   bool ReadH5Cache();
 
   //! Cache versioning
-  inline static const std::string Version = "1.0";
+  // Version 1.0 corresponds to bases generated with the first public release of EXP (7.8).
+  // Version 1.1 corresponds to bases generated with improved Abel inversion and deprojection methods (7.10).
+  inline static const std::string Version = "1.1";
 
   //! The cache file name
   std::string cachefile;
@@ -370,6 +376,7 @@ public:
   //! Type of density model to use
   enum EmpModel {
     Exponential,
+    ExpSphere,
     Gaussian, 
     Plummer,
     Power,
@@ -433,7 +440,21 @@ public:
   //! No extrapolating beyond grid (default: false)
   static bool enforce_limits;
 
-  //! Density model type
+  /**
+     @brief Density model type
+     Available options:
+     - Exponential = approximate exponential disk deprojection
+     - ExpSphere   = exact exponential spherical deprojection
+     - Gaussian    = Gaussian sphere
+     - Plummer     = Plummer sphere
+     - Power       = power-law sphere
+     - Deproject   = numerical deprojection of axisymmetric disk surface density (see create_deprojection)
+
+     @note The default option is Exponential for backwards
+     compatibility.  The ExpSphere is the exact spherical deproject
+     for the exponential disk and should be used instead of
+     Exponential for new projects.
+  */
   static EmpModel mtype;
   
   //! Radial basis grid in radial direction

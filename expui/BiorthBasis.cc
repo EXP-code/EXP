@@ -1199,6 +1199,7 @@ namespace BasisClasses
     "rcylmin",
     "rcylmax",
     "acyl",
+    "bias",
     "hcyl",
     "sech2",
     "snr",
@@ -1392,6 +1393,7 @@ namespace BasisClasses
     rcylmin     = 0.001;
     rcylmax     = 20.0;
     acyl        = 0.01;
+    bias        = 1.0;
     hcyl        = 0.002;
     nmax        = 18;
     mmax        = 6;
@@ -1416,7 +1418,7 @@ namespace BasisClasses
     EVEN_M      = false;
     cmapR       = 1;
     cmapZ       = 1;
-    mtype       = "exponential";
+    mtype       = "Exponential";
     dtype       = "exponential";
     vflag       = 0;
     
@@ -1470,6 +1472,7 @@ namespace BasisClasses
       if (conf["rcylmax"   ])    rcylmax  = conf["rcylmax"   ].as<double>();
       
       if (conf["acyl"      ])       acyl  = conf["acyl"      ].as<double>();
+      if (conf["bias"      ])       bias  = conf["bias"      ].as<double>();
       if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
       if (conf["sech2"     ])      sech2  = conf["sech2"     ].as<bool>();
       if (conf["lmaxfid"   ])    lmaxfid  = conf["lmaxfid"   ].as<int>();
@@ -1557,6 +1560,17 @@ namespace BasisClasses
     pnum = std::max<int>(1,  pnum);
     tnum = std::max<int>(10, tnum);
     
+    // Validate bias parameter
+    //
+    if (!std::isfinite(bias)) {
+      throw std::runtime_error("Cylindrical: 'bias' parameter must be finite");
+    }
+    if (bias <= 0.0) {
+      std::ostringstream sout;
+      sout << "Cylindrical: 'bias' parameter must be positive, got " << bias;
+      throw std::runtime_error(sout.str());
+    }
+    
     EmpCylSL::RMIN        = rcylmin;
     EmpCylSL::RMAX        = rcylmax;
     EmpCylSL::NUMX        = ncylnx;
@@ -1566,6 +1580,40 @@ namespace BasisClasses
     EmpCylSL::CMAPZ       = cmapZ;
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
+
+    // Set deprojected model type
+    //
+    // Convert mtype string to lower case
+    std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+      
+    // Set EmpCylSL mtype.  This is the spherical function used to
+    // generate the EOF basis.  If "deproject" is set, this will be
+    // overriden in EmpCylSL.
+    //
+    EmpCylSL::mtype = EmpCylSL::Exponential; // Default
+    if (mtype.compare("exponential")==0) {
+      EmpCylSL::mtype = EmpCylSL::Exponential;
+      if (myid==0) {
+	std::cout << "---- Cylindrical: using original exponential deprojected disk for EOF conditioning" << std::endl;
+	std::cout << "---- Cylindrical: consider using the exact, spherically deprojected exponential with 'mtype: ExpSphere'" << std::endl;
+      }
+    } else if (mtype.compare("expsphere")==0)
+      EmpCylSL::mtype = EmpCylSL::ExpSphere;
+    else if (mtype.compare("gaussian")==0)
+      EmpCylSL::mtype = EmpCylSL::Gaussian;
+    else if (mtype.compare("plummer")==0)
+      EmpCylSL::mtype = EmpCylSL::Plummer;
+    else if (mtype.compare("power")==0) {
+      EmpCylSL::mtype = EmpCylSL::Power;
+      EmpCylSL::PPOW  = ppow;
+    } else {
+      if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
+			     << mtype << ">, valid types are: "
+			     << "Exponential, ExpSphere, Gaussian, Plummer, Power "
+			     << "(not case sensitive)" << std::endl;
+      throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
+    }
 
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
@@ -1582,7 +1630,7 @@ namespace BasisClasses
     // Make the empirical orthogonal basis instance
     //
     sl = std::make_shared<EmpCylSL>
-      (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
+      (nmaxfid, lmaxfid, mmax, nmax, bias*acyl, hcyl, ncylodd, cachename);
     
     // Set azimuthal harmonic order restriction?
     //
@@ -5554,6 +5602,7 @@ namespace BasisClasses
     file.createAttribute<double>("rcylmin", HighFive::DataSpace::From(rcylmin)).write(rcylmin);
     file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
     file.createAttribute<double>("acyl", HighFive::DataSpace::From(acyl)).write(acyl);
+    file.createAttribute<double>("bias", HighFive::DataSpace::From(bias)).write(bias);
     file.createAttribute<double>("hcyl", HighFive::DataSpace::From(hcyl)).write(hcyl);
   }
   

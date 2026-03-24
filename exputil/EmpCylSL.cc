@@ -17,6 +17,7 @@
 #include <thread>
 #include "exp_thread.h"
 #include "EXPException.H"
+#include "ExpDeproj.H"
 #include "exputils.H"
 
 #include <Eigen/Eigenvalues>
@@ -73,6 +74,7 @@ EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
 
 std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs =
   { {Exponential, "Exponential"},
+    {ExpSphere,   "ExpSphere"  },
     {Gaussian,    "Gaussian"   },
     {Plummer,     "Plummer"    },
     {Power,       "Power"      },
@@ -485,7 +487,7 @@ void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
 
   Linear1d surf(rl, sigI);
   
-  // Now, compute Abel inverion integral
+  // Now, compute Abel inversion integral
   //
   for (int i=0; i<NUMR; i++) {
 
@@ -569,6 +571,9 @@ double EmpCylSL::massR(double R)
   case Exponential:
     ans = 1.0 - (1.0 + R)*exp(-R); 
     break;
+  case ExpSphere:
+    ans = expdeproj.mass(R);
+    break;
   case Gaussian:
     arg = 0.5*R*R;
     ans = 1.0 - exp(-arg);
@@ -605,6 +610,9 @@ double EmpCylSL::densR(double R)
   switch (mtype) {
   case Exponential:
     ans = exp(-R)/(4.0*M_PI*R);
+    break;
+  case ExpSphere:
+    ans = expdeproj.density(R);
     break;
   case Gaussian:
     arg = 0.5*R*R;
@@ -2420,6 +2428,15 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
   int cntr = 0;			// Loop counter for spreading load to nodes
   
+  // Debug info output
+  //
+  if (VFLAG & 8 && myid==0) {
+    std::cout << "---- EmpCylSL: Generating EOF with"
+	      << " Rmin=" << xi_to_r(XMIN)
+      	      << " Rmax=" << xi_to_r(XMAX)
+	      << " numt=" << numt << std::endl;
+  }
+
   // *** Radial quadrature loop
   //
   for (int qr=0; qr<numr; qr++) { 
@@ -7548,6 +7565,7 @@ bool EmpCylSL::ReadH5Cache()
 
     if (not checkStr(geometry, "geometry"))  return false;
     if (not checkStr(forceID,  "forceID"))   return false;
+    if (not checkStr(model,    "model"))     return false;
     if (not checkInt(MMAX,     "mmax"))      return false;
     if (not checkInt(NUMX,     "numx"))      return false;
     if (not checkInt(NUMY,     "numy"))      return false;

@@ -29,6 +29,7 @@ Cylinder::valid_keys = {
   "rcylmin",
   "rcylmax",
   "acyl",
+  "bias",
   "hcyl",
   "sech2",
   "hexp",
@@ -76,6 +77,8 @@ Cylinder::valid_keys = {
   "cmapr",
   "cmapz",
   "vflag",
+  "mtype",
+  "ppower",
   "self_consistent",
   "playback",
   "coefCompute",
@@ -114,6 +117,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   ncylr           = 2000;
 
   acyl            = 0.01;
+  bias            = 1.0;
   lmaxfid         = 128;
   nmaxfid         = 64;
   mmax            = 6;
@@ -194,10 +198,44 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   if (cachename.size()==0)
     throw std::runtime_error("EmpCylSL: you must specify a cachename");
 
+
+  // Set deprojected model type
+  //
+  // Convert mtype string to lower case
+  std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+      
+  // Set EmpCylSL mtype.  This is the spherical function used to
+  // generate the EOF basis.
+  //
+  EmpCylSL::mtype = EmpCylSL::Exponential; // Default
+  if (mtype.compare("exponential")==0) {
+    EmpCylSL::mtype = EmpCylSL::Exponential;
+    if (myid==0) {
+      std::cout << "---- Cylindrical: using original exponential deprojected disk for EOF conditioning" << std::endl;
+      std::cout << "---- Cylindrical: consider using the exact, spherically deprojected exponential with 'mtype: ExpSphere'" << std::endl;
+    }
+  } else if (mtype.compare("expsphere")==0)
+    EmpCylSL::mtype = EmpCylSL::ExpSphere;
+  else if (mtype.compare("gaussian")==0)
+    EmpCylSL::mtype = EmpCylSL::Gaussian;
+  else if (mtype.compare("plummer")==0)
+    EmpCylSL::mtype = EmpCylSL::Plummer;
+  else if (mtype.compare("power")==0) {
+    EmpCylSL::mtype = EmpCylSL::Power;
+    EmpCylSL::PPOW  = ppow;
+  } else {
+    if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
+			   << mtype << ">, valid types are: "
+			   << "Exponential, ExpSphere, Gaussian, Plummer, Power "
+			   << "(not case sensitive)" << std::endl;
+    throw std::runtime_error("Cylinder:initialize: EmpCylSL bad parameter");
+  }
+
   // Make the empirical orthogonal basis instance
   //
   ortho = std::make_shared<CylEXP>
-    (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
+    (nmaxfid, lmaxfid, mmax, nmax, bias*acyl, hcyl, ncylodd, cachename);
   
   // Convert dtype string to lower case
   //
@@ -392,6 +430,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		<< std::endl << sep << "rcylmin="     << rcylmin
 		<< std::endl << sep << "rcylmax="     << rcylmax
 		<< std::endl << sep << "acyl="        << acyl
+		<< std::endl << sep << "bias="        << bias
 		<< std::endl << sep << "hcyl="        << hcyl
 		<< std::endl << sep << "precond="     << precond
 		<< std::endl << sep << "pcavar="      << pcavar
@@ -421,6 +460,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 	      << std::endl << sep << "rcylmin="     << rcylmin
 	      << std::endl << sep << "rcylmax="     << rcylmax
 	      << std::endl << sep << "acyl="        << acyl
+	      << std::endl << sep << "bias="        << bias
 	      << std::endl << sep << "hcyl="        << hcyl
 	      << std::endl << sep << "precond="     << precond
 	      << std::endl << sep << "pcavar="      << pcavar
@@ -477,6 +517,7 @@ void Cylinder::initialize()
     if (conf["rcylmax"   ])    rcylmax  = conf["rcylmax"   ].as<double>();
 
     if (conf["acyl"      ])       acyl  = conf["acyl"      ].as<double>();
+    if (conf["bias"      ])       bias  = conf["bias"      ].as<double>();
     if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
     if (conf["sech2"     ])      sech2  = conf["sech2"     ].as<bool>();
     if (conf["hexp"      ])       hexp  = conf["hexp"      ].as<double>();
@@ -527,6 +568,9 @@ void Cylinder::initialize()
     if (conf["dtype"     ])      dtype  = conf["dtype"     ].as<std::string>();
     if (conf["pyname"    ])     pyname  = conf["pyname"    ].as<std::string>();
     
+    if (conf["mtype"     ])      mtype  = conf["mtype"     ].as<std::string>();
+    if (conf["ppower"    ])      ppow   = conf["ppower"    ].as<double>();
+
     // Deprecation warning
     if (not sech2 and not conf["pyname"]) {
       if (myid==0)
