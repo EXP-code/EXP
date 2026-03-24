@@ -1,7 +1,7 @@
 #include <algorithm>
 
-#include "quickdigest5.hpp"
-#include "YamlCheck.H"
+#include "quickdigest5.hpp"	// for md5 hashing of Python modules
+#include "YamlCheck.H"		// for YAML configuration checking
 #include "EXPException.H"
 #include "BiorthBasis.H"
 #include "DiskModels.H"
@@ -13,8 +13,8 @@
 #endif
 
 // Suppress HDF5 diagonostic messages from base layer when using
-// HighFive
-#define HDF5_QUIET
+// HighFive.  This should be enabled unless one is debugging.
+// #define HDF5_QUIET
 
 namespace BasisClasses
 {
@@ -1608,7 +1608,7 @@ namespace BasisClasses
     // Mute HDF5 error messages
     H5Eset_auto2(H5E_DEFAULT, NULL, NULL);
 
-    // Unmute (Restore)
+    // For unmute, use:
     // H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
 #endif
 
@@ -1710,18 +1710,21 @@ namespace BasisClasses
 		current_md5 = QuickDigest5::fileToHash(pyname + ".py");
 	      } catch (const std::runtime_error& e) {
 		if (myid==0)
-		  std::cerr << "Error: " << e.what() << std::endl;
+		  std::cerr << "BiorthBasis::Cylindrical error: "
+			    << e.what() << ", error compuing pyname md5sum"
+			    << std::endl;
 	      }
 	  
 	      // Check that the md5sums match for the current Python
-	      // module and the loaded Python module used to create the
-	      // cache.  If they do not match, force cache recomputation
-	      // to ensure consistency with the current Python module.
+	      // module and the Python module used to create the
+	      // cache.  If they do not match, force cache
+	      // recomputation to ensure consistency with the current
+	      // Python module.
 	      if (current_md5 != pyinfo[1]) {
 		if (myid==0) {
 		  std::cout << "---- Cylindrical: Python module for disk density has changed since cache creation." << std::endl
 			    << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
-			    << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
+			    << "---- Cached module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
 			    << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
 		}
 		cache_status = 0;
@@ -1806,7 +1809,9 @@ namespace BasisClasses
 		  current_md5 = QuickDigest5::fileToHash(pyproj + ".py");
 		} catch (const std::runtime_error& e) {
 		  if (myid==0)
-		    std::cerr << "Error: " << e.what() << std::endl;
+		    std::cerr << "BiorthBasis::Cylindrical error: "
+			      << e.what() << ", error computing pyproj md5sum"
+			      << std::endl;
 		}
 		// Check that the md5sums match for the current Python projection
 		//
@@ -1814,7 +1819,7 @@ namespace BasisClasses
 		  if (myid==0) {
 		    std::cout << "---- Cylindrical: Python module for deprojection has changed since cache creation." << std::endl
 			      << "---- Current module: <" << pyproj << ">, md5sum: " << current_md5 << std::endl
-			      << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
+			      << "---- Cached module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
 			      << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
 		  }
 		  cache_status = 0;
@@ -2028,8 +2033,10 @@ namespace BasisClasses
 
 	    } catch (const std::runtime_error& e) {
 	      if (myid==0) {
-		std::cerr << "Error: " << e.what() << std::endl;
-		std::cerr << "Can not write the md5 hash to HDF5" << std::endl;
+		std::cerr << "BiorthBasis::Cylindrical error: "
+			  << e.what()
+			  << ", can not write the pyname and md5 hash to HDF5"
+			  << std::endl;
 	      }
 	    }
 	  }
@@ -2055,8 +2062,10 @@ namespace BasisClasses
 			  << "> to cache file <" << cachename << ">" << std::endl;
 	      } catch (const std::runtime_error& e) {
 		if (myid==0) {
-		  std::cerr << "Error: " << e.what() << std::endl;
-		  std::cerr << "Can not write the md5 hash to HDF5" << std::endl;
+		  std::cerr << "BiorthBasis::Cylindrical error: "
+			    << e.what()
+			    << ", can not write the pyinfo and md5 hash to HDF5"
+			    << std::endl;
 		}
 	      }
 	    }
@@ -2074,7 +2083,7 @@ namespace BasisClasses
     }
 
 #ifdef HDF5_QUIET
-    // Unmute HDF5 error messages (Restore)
+    // Unmute HDF5 error messages
     H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
 #endif
     // Orthogonality sanity check

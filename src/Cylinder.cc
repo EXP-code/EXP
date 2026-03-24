@@ -2080,7 +2080,7 @@ bool Cylinder::checkDtype()
 	  
       std::string current_md5;
 
-      // Get the md5sum for requested Python module
+      // Get the md5sum for requested Python module source file
       try {
 	current_md5 = QuickDigest5::fileToHash(pyname);
       } catch (const std::runtime_error& e) {
@@ -2088,10 +2088,10 @@ bool Cylinder::checkDtype()
 	  std::cerr << "Error: " << e.what() << std::endl;
       }
 	  
-      // Check that the md5sums match for the current Python
-      // module and the loaded Python module used to create the
-      // cache.  If they do not match, force cache recomputation
-      // to ensure consistency with the current Python module.
+      // Check that the md5sums match for the current Python module
+      // source files and the loaded Python module used to create the
+      // cache.  If they do not match, force cache recomputation to
+      // ensure consistency with the current Python module.
       if (current_md5 != pyinfo[1]) {
 	if (myid==0) {
 	  std::cout << "---- Cylinder::checkDtype: Python module for disk density has changed since cache creation." << std::endl
@@ -2125,10 +2125,11 @@ void Cylinder::saveDtype()
       ("DiskType",
        HighFive::DataSpace::From(dtype)).write(dtype);
     
-    // Write the md5sum for the Python module, if Python disk type is
-    // used.  This will allow us to check for consistency between the
-    // Python module used to create the cache and the current Python
-    // module, and force cache recomputation if they do not match.
+    // Write the md5sum for the Python module source file, if Python
+    // disk type is used.  This will allow us to check for consistency
+    // between the Python module used to create the cache and the
+    // current Python module, and force cache recomputation if they do
+    // not match.
     //
     if (DTYPE == DiskType::python) {
       try {
