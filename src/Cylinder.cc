@@ -2134,9 +2134,9 @@ void Cylinder::saveDtype()
       try {
 	std::vector<std::string> pyinfo =
 	  {pyname, QuickDigest5::fileToHash(pyname)};
-	file.createAttribute<std::string>
-	  ("pythonDiskType",
-	   HighFive::DataSpace::From(pyinfo)).write(pyinfo);
+
+	file.createAttribute("pythonDiskType", pyinfo);
+
       } catch (const std::runtime_error& e) {
 	std::cerr << "Cylinder::saveDtype error: " << e.what() << std::endl;
 	std::cerr << "Can not write the md5 hash to HDF5" << std::endl;

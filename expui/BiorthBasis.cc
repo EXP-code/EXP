@@ -2011,14 +2011,21 @@ namespace BasisClasses
 	  file.createAttribute<std::string>("DiskType",
 					    HighFive::DataSpace::From(dtype)).write(dtype);
 
+	  std::cout << "---- Cylindrical: writing DiskType <" << dtype
+		    << "> to cache file <" << cachename << ">" << std::endl;
+	  
 	  // Write the md5sum for the Python module
 	  if (DTYPE == DiskType::python) {
 	    try {
 	      std::vector<std::string> pyinfo =
 		{pyname, QuickDigest5::fileToHash(pyname + ".py")};
-	      file.createAttribute<std::vector<std::string>>
-		("pythonDiskType",
-		 HighFive::DataSpace::From(pyinfo)).write(pyinfo);
+
+	      file.createAttribute("pythonDiskType", pyinfo);
+
+	      std::cout << "---- Cylindrical: writing pythonDiskType <" << pyname + ".py"
+			<< "> to cache file <" << cachename << ">" << std::endl;
+	  
+
 	    } catch (const std::runtime_error& e) {
 	      if (myid==0) {
 		std::cerr << "Error: " << e.what() << std::endl;
@@ -2041,13 +2048,15 @@ namespace BasisClasses
 	      try {
 		std::vector<std::string> pyinfo =
 		  {pyproj, QuickDigest5::fileToHash(pyproj + ".py")};
-		file.createAttribute<std::vector<std::string>>
-		  ("pythonProjType",
-		   HighFive::DataSpace::From(pyinfo)).write(pyinfo);
+
+		file.createAttribute("pythonProjType", pyinfo);
+
+		std::cout << "---- Cylindrical: writing pythonProjType <" << pyproj + ".py"
+			  << "> to cache file <" << cachename << ">" << std::endl;
 	      } catch (const std::runtime_error& e) {
 		if (myid==0) {
 		  std::cerr << "Error: " << e.what() << std::endl;
-		  std::cerr << "Can not writine the md5 hash to HDF5" << std::endl;
+		  std::cerr << "Can not write the md5 hash to HDF5" << std::endl;
 		}
 	      }
 	    }
