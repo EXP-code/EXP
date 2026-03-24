@@ -1609,7 +1609,17 @@ namespace BasisClasses
       {DiskType::python,      "python"}
     };
 
-    // Checking for cache consistency with current DiskType and Python module (if applicable)
+    // Convert dtype string to lower case
+    //
+    std::transform(dtype.begin(), dtype.end(), dtype.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+
+
+    // Check for map entry, will throw if the key is not in the map.
+    DTYPE = dtlookup.at(dtype);
+
+    // Checking for cache consistency with current DiskType and Python
+    // module (if applicable)
     //
     if (cache_status == 1) {
 
@@ -1796,17 +1806,10 @@ namespace BasisClasses
 	throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
       }
 
-      // Convert dtype string to lower case
-      //
-      std::transform(dtype.begin(), dtype.end(), dtype.begin(),
-		     [](unsigned char c){ return std::tolower(c); });
-
       // Set DiskType.  This is the functional form for the disk used to
       // condition the basis.
       //
-      try {				// Check for map entry, will throw if the 
-	DTYPE = dtlookup.at(dtype);	// key is not in the map.
-	
+      try {
 	if (myid==0) {		// Report DiskType
 	  std::cout << "---- DiskType is <" << dtype << ">" << std::endl;
 
