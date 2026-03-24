@@ -361,11 +361,11 @@ protected:
   //! Write basis-specific parameters to HDF5 covariance file
   void writeCovarH5Params(HighFive::File& file);
 
+  //! Disk density function types for basis conditioning
   enum class DiskType
     { constant, gaussian, mn, exponential, doubleexpon, diskbulge, python };
 
-  //@{
-  //! Disk target types
+  //! Map human strings to disk target typenums
   const std::map<std::string, DiskType> dtlookup =
     { {"constant",    DiskType::constant},
       {"gaussian",    DiskType::gaussian},
@@ -376,6 +376,7 @@ protected:
       {"python",      DiskType::python}
     };
 
+  //! Disk target type strings for reporting
   const std::map<DiskType, std::string> dtstring =
     { {DiskType::constant,    "constant"},
       {DiskType::gaussian,    "gaussian"},
@@ -386,18 +387,25 @@ protected:
       {DiskType::python,      "python"}
     };
 
+  //! The default disk density function type for basis conditioning
   DiskType DTYPE = DiskType::exponential;
 
+  //! The string name of the disk density function type for basis conditioning
   std::string dtype;
 
   //! Dtype cache check for consistency between cache and current parameters
   bool checkDtype();
+
+  //! Reopen and write the current Dtype into the cache metadata
   void saveDtype();
 
+  //! Disk density functions for basis conditioning
   double DiskDens(double R, double z, double phi);
-  std::shared_ptr<DiskDensityFunc> pyDens;
-  //@}
 
+  //! If using a Python disk density function, this is the instance of
+  //! the wrapper class that allows us to call the Python function
+  //! from C++
+  std::shared_ptr<DiskDensityFunc> pyDens;
 
 public:
 
