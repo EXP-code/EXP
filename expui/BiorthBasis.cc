@@ -1646,6 +1646,11 @@ namespace BasisClasses
 	// Sanity: check that the DiskType attribute exists
 	//
 	if (!file.hasAttribute("DiskType")) {
+	  // If the DiskType attribute is missing, this may indicate
+	  // an old cache file created before the DiskType metadata
+	  // was added.  We will continue with a warning, but trigger
+	  // cache recomputation to ensure consistency with the
+	  // current DiskType.
 	  if (myid==0) {
 	    std::cout << "---- Cylindrical: DiskType attribute not found in cache file <" << cachename << ">. " << std::endl
 		      << "---- This may indicate an old cache file created before DiskType metadata was added. " << std::endl
@@ -1676,10 +1681,17 @@ namespace BasisClasses
 	  }
 	  else if (disktype == DiskType::python) {
 
+	    // If the DiskType is python, we also need to check that
+	    // the Python module used to create the cache matches the
+	    // current Python module to ensure consistency.  This tag
+	    // should be present in the cache if it was created with a
+	    // recent version of the code, but if it is missing we
+	    // will trigger cache recomputation to ensure consistency
+	    // with the current Python module.
 	    if (file.hasAttribute("pythonDiskType") == false) {
 	      if (myid==0) {
 		std::cout << "---- Cylindrical: pythonDiskType attribute not found in cache file <" << cachename << ">. " << std::endl;
-		std::cout << "---- This may indicate an old cache file created before pythonDiskType metadata was added. " << std::endl;
+		std::cout << "---- Cylindrical: this may be a logic error, trigger recomputation." << std::endl;
 	      }
 	      cache_status = 0;
 	    } else {
@@ -1718,9 +1730,13 @@ namespace BasisClasses
 	  // Get the deproject attribute
 	  //
 	  if (!file.hasAttribute("deproject")) {
+	    // We should not be able to get here since the deproject
+	    // attribute is required for cache creation, but if it is
+	    // missing we will trigger cache recomputation to ensure
+	    // consistency.
 	    if (myid==0) {
 	      std::cout << "---- Cylindrical: deproject attribute not found in cache file <" << cachename << ">. " << std::endl;
-	      std::cout << "---- This may indicate an old cache file created before deproject metadata was added. " << std::endl;
+	      std::cout << "---- Cylindrical: this may be a logic error, trigger recomputation." << std::endl;
 	    }
 	    cache_status = 0;
 	  } else {
@@ -1767,9 +1783,11 @@ namespace BasisClasses
 	      // Get the Python info
 	      //
 	      if (!file.hasAttribute("pythonProjType")) {
+		// We should not be able to get here since the pythonProjType
+		// attribute is required for cache creation with the Python
 		if (myid==0) {
 		  std::cout << "---- Cylindrical: pythonProjType attribute not found in cache file <" << cachename << ">. " << std::endl;
-		  std::cout << "---- This may indicate an old cache file created before pythonProjType metadata was added. " << std::endl;
+		  std::cout << "---- Cylindrical: this may be a logic error, trigger recomputation." << std::endl;
 		}
 
 		cache_status = 0;

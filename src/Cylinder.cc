@@ -2055,9 +2055,7 @@ bool Cylinder::checkDtype()
 		  << cachename << "> is <"
 		  << loaded_dtype << ">," << std::endl
 		  << "which does not match the requested DiskType <"
-		  << dtype << ">, disktype="
-		  << (int)disktype << ", DTYPE="
-		  << (int)DTYPE << std::endl
+		  << dtype << ">" << std::endl
 		  << "---- Cylindrical: forcing cache recomputation"
 		  << std::endl;
       }
@@ -2065,9 +2063,19 @@ bool Cylinder::checkDtype()
       cache_status = false;	
     }
     else if (disktype == DiskType::python) {
+      // Sanity check: if DiskType is python, then the pythonDiskType
+      // attribute must exist
+      if (!file.hasAttribute("pythonDiskType")) {
+	if (myid==0) {
+	  std::cout << "---- Cylinder: pythonDiskType attribute not found in cache file <" << cachename << ">. " << std::endl;
+	  std::cout << "---- Cylindier: this may indicate a logic error.  Forcing cache recomputation." << std::endl;
+	}
+	// Force cache recomputation
+	cache_status = false;
+      }
+      auto read_attr = file.getAttribute("pythonDiskType");
       // Get the pyname attribute
       std::vector<std::string> pyinfo;
-      auto read_attr = file.getAttribute("pythonDiskType");
       read_attr.read(pyinfo);
 	  
       std::string current_md5;
@@ -2101,7 +2109,7 @@ bool Cylinder::checkDtype()
 
 void Cylinder::saveDtype()
 {
-  // Only one process needs to write the dtype metadata
+  // Only one process must write the dtype metadata
   if (myid) return;
 
   std::string dtype = dtstring.at(DTYPE);
@@ -2111,11 +2119,15 @@ void Cylinder::saveDtype()
     //
     HighFive::File file(cachename, HighFive::File::ReadWrite);
     
+    // Write the DiskType attribute (as a string for human readability)
     file.createAttribute<std::string>
       ("DiskType",
        HighFive::DataSpace::From(dtype)).write(dtype);
     
-    // Write the md5sum for the Python module
+    // Write the md5sum for the Python module, if Python disk type is
+    // used.  This will allow us to check for consistency between the
+    // Python module used to create the cache and the current Python
+    // module, and force cache recomputation if they do not match.
     if (DTYPE == DiskType::python) {
       try {
 	std::vector<std::string> pyinfo =
