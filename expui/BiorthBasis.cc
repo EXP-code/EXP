@@ -1595,6 +1595,17 @@ namespace BasisClasses
     if (oldcache) sl->AllowOldCache();
     
 
+    // Temporary muting of HDF5 error messages for EOF cache reading
+    H5E_auto2_t old_func;
+    void* old_client_data;
+    H5Eget_auto2(H5E_DEFAULT, &old_func, &old_client_data);
+
+    // Mute HDF5 error messages
+    H5Eset_auto2(H5E_DEFAULT, NULL, NULL);
+
+    // Unmute (Restore)
+    // H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
+
     // Attempt to read EOF cache
     //
     int cache_status = sl->read_cache();
@@ -1652,9 +1663,7 @@ namespace BasisClasses
 			<< cachename << "> is <"
 			<< loaded_dtype << ">," << std::endl
 			<< "which does not match the requested DiskType <"
-			<< dtype << ">, disktype="
-			<< (int)disktype << ", DTYPE="
-			<< (int)DTYPE << std::endl
+			<< dtype << ">" << std::endl
 			<< "---- Cylindrical: forcing cache recomputation"
 			<< std::endl;
 	    }
@@ -1662,99 +1671,130 @@ namespace BasisClasses
 	    cache_status = 0;	
 	  }
 	  else if (disktype == DiskType::python) {
-	    // Get the pyname attribute
-	    std::vector<std::string> pyinfo;
-	    auto read_attr = file.getAttribute("pythonDiskType");
-	    read_attr.read(pyinfo);
-	  
-	    std::string current_md5;
 
-	    // Get the md5sum for requested Python module
-	    try {
-	      current_md5 = QuickDigest5::fileToHash(pyname);
-	    } catch (const std::runtime_error& e) {
-	      if (myid==0)
-		std::cerr << "Error: " << e.what() << std::endl;
-	    }
-	  
-	    // Check that the md5sums match for the current Python
-	    // module and the loaded Python module used to create the
-	    // cache.  If they do not match, force cache recomputation
-	    // to ensure consistency with the current Python module.
-	    if (current_md5 != pyinfo[1]) {
+	    if (file.hasAttribute("pythonDiskType") == false) {
 	      if (myid==0) {
-		std::cout << "---- Cylindrical: Python module for disk density has changed since cache creation." << std::endl
-			  << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
-			  << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
-			  << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
+		std::cout << "---- Cylindrical: pythonDiskType attribute not found in cache file <" << cachename << ">. " << std::endl;
+		std::cout << "---- This may indicate an old cache file created before pythonDiskType metadata was added. " << std::endl;
 	      }
 	      cache_status = 0;
+	    } else {
+	      // Get the pyname attribute
+	      auto read_attr = file.getAttribute("pythonDiskType");
+
+	      std::vector<std::string> pyinfo;
+	      read_attr.read(pyinfo);
+	  
+	      std::string current_md5;
+
+	      // Get the md5sum for requested Python module
+	      try {
+		current_md5 = QuickDigest5::fileToHash(pyname);
+	      } catch (const std::runtime_error& e) {
+		if (myid==0)
+		  std::cerr << "Error: " << e.what() << std::endl;
+	      }
+	  
+	      // Check that the md5sums match for the current Python
+	      // module and the loaded Python module used to create the
+	      // cache.  If they do not match, force cache recomputation
+	      // to ensure consistency with the current Python module.
+	      if (current_md5 != pyinfo[1]) {
+		if (myid==0) {
+		  std::cout << "---- Cylindrical: Python module for disk density has changed since cache creation." << std::endl
+			    << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
+			    << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
+			    << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
+		}
+		cache_status = 0;
+	      }
 	    }
 	  }
 
 	  // Get the deproject attribute
 	  //
-	  read_attr = file.getAttribute("deproject");
-	  bool loaded_deproject;
-	  read_attr.read(loaded_deproject);
-	  
-	  if (deproject != loaded_deproject) {
+	  if (!file.hasAttribute("deproject")) {
 	    if (myid==0) {
-	      std::cout << "---- Cylindrical: deproject flag for cache file <" << cachename << "> is <"
-			<< std::boolalpha << loaded_deproject << std::noboolalpha
-			<< ">, which does not match the requested deproject flag <"
-			<< std::boolalpha << deproject << std::noboolalpha
-			<< ">" << std::endl
-			<< "---- Cylindrical: forcing cache recomputation" << std::endl;
+	      std::cout << "---- Cylindrical: deproject attribute not found in cache file <" << cachename << ">. " << std::endl;
+	      std::cout << "---- This may indicate an old cache file created before deproject metadata was added. " << std::endl;
 	    }
-	    // Force cache recomputation
-	    cache_status = 0;	
-	  } 
-
-	  if (cache_status == 1 and deproject) {
-	    // Get the dmodel attribute
-	    //
-	    read_attr = file.getAttribute("dmodel");
-	    std::string loaded_dmodel;
-	    read_attr.read(loaded_dmodel);
-	  
-	    if (loaded_dmodel != dmodel) {
+	    cache_status = 0;
+	  } else {
+	    read_attr = file.getAttribute("deproject");
+	    bool loaded_deproject;
+	    read_attr.read(loaded_deproject);
+	    
+	    if (deproject != loaded_deproject) {
 	      if (myid==0) {
-		std::cout << "---- Cylindrical: dmodel for cache file <" << cachename << "> is <"
-			  << loaded_dmodel << ">, which does not match the requested dmodel <"
-			  << dmodel << ">" << std::endl
+		std::cout << "---- Cylindrical: deproject flag for cache file <" << cachename << "> is <"
+			  << std::boolalpha << loaded_deproject << std::noboolalpha
+			  << ">, which does not match the requested deproject flag <"
+			  << std::boolalpha << deproject << std::noboolalpha
+			  << ">" << std::endl
 			  << "---- Cylindrical: forcing cache recomputation" << std::endl;
 	      }
 	      // Force cache recomputation
-	      cache_status = 0;
-	    }
+	      cache_status = 0;	
+	    } 
 
+	    // Now check for deproject flag
+	    //
+	    if (cache_status == 1 and deproject) {
+
+	      // Get the dmodel attribute
+	      //
+	      read_attr = file.getAttribute("dmodel");
+	      std::string loaded_dmodel;
+	      read_attr.read(loaded_dmodel);
+	  
+	      if (loaded_dmodel != dmodel) {
+		if (myid==0) {
+		  std::cout << "---- Cylindrical: dmodel for cache file <" << cachename << "> is <"
+			    << loaded_dmodel << ">, which does not match the requested dmodel <"
+			    << dmodel << ">" << std::endl
+			    << "---- Cylindrical: forcing cache recomputation" << std::endl;
+		}
+		// Force cache recomputation
+		cache_status = 0;
+	      }
+	    }
+	      
 	    if (cache_status == 1 and dmodel == "python") {
 	      // Get the Python info
 	      //
-	      std::vector<std::string> pyinfo;
-	      read_attr = file.getAttribute("pythonProjType");
-	      read_attr.read(pyinfo);
-	  
-	      std::string current_md5;
-	
-	      // Get the md5sum for requested Python projection module
-	      try {
-		current_md5 = QuickDigest5::fileToHash(pyproj);
-	      } catch (const std::runtime_error& e) {
-		if (myid==0)
-		  std::cerr << "Error: " << e.what() << std::endl;
-	      }
-	      // Check that the md5sums match for the current Python projection
-	      //
-	      if (current_md5 != pyinfo[1]) {
+	      if (!file.hasAttribute("pythonProjType")) {
 		if (myid==0) {
-		  std::cout << "---- Cylindrical: Python module for deprojection has changed since cache creation." << std::endl
-			    << "---- Current module: <" << pyproj << ">, md5sum: " << current_md5 << std::endl
-			    << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
-			    << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
+		  std::cout << "---- Cylindrical: pythonProjType attribute not found in cache file <" << cachename << ">. " << std::endl;
+		  std::cout << "---- This may indicate an old cache file created before pythonProjType metadata was added. " << std::endl;
 		}
+
 		cache_status = 0;
+		
+	      } else {
+		read_attr = file.getAttribute("pythonProjType");
+		std::vector<std::string> pyinfo;
+		read_attr.read(pyinfo);
+	  
+		std::string current_md5;
+	
+		// Get the md5sum for requested Python projection module
+		try {
+		  current_md5 = QuickDigest5::fileToHash(pyproj);
+		} catch (const std::runtime_error& e) {
+		  if (myid==0)
+		    std::cerr << "Error: " << e.what() << std::endl;
+		}
+		// Check that the md5sums match for the current Python projection
+		//
+		if (current_md5 != pyinfo[1]) {
+		  if (myid==0) {
+		    std::cout << "---- Cylindrical: Python module for deprojection has changed since cache creation." << std::endl
+			      << "---- Current module: <" << pyproj << ">, md5sum: " << current_md5 << std::endl
+			      << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
+			      << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
+		  }
+		  cache_status = 0;
+		}
 	      }
 	    }
 	  }
@@ -1999,6 +2039,9 @@ namespace BasisClasses
       }
       // Only the root process should be updating the cache
     }
+
+    // Unmute HDF5 error messages (Restore)
+     H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
 
     // Orthogonality sanity check
     //
