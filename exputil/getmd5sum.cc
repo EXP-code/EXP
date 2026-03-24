@@ -1,3 +1,6 @@
+// Initial reference implementation.  Better to use QuickDigest5 which
+// is currently a git submodule.
+
 #include <string>
 #include <cstdio>
 #include <array>

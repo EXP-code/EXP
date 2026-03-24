@@ -1,5 +1,6 @@
 #include <algorithm>
 
+#include "quickdigest5.hpp"
 #include "YamlCheck.H"
 #include "EXPException.H"
 #include "BiorthBasis.H"
@@ -1654,7 +1655,7 @@ namespace BasisClasses
 
 	    // Get the md5sum for requested Python module
 	    try {
-	      current_md5 = get_md5sum(pyname);
+	      current_md5 = QuickDigest5::fileToHash(pyname);
 	    } catch (const std::runtime_error& e) {
 	      std::cerr << "Error: " << e.what() << std::endl;
 	    }
@@ -1720,7 +1721,7 @@ namespace BasisClasses
 	
 	      // Get the md5sum for requested Python projection module
 	      try {
-		current_md5 = get_md5sum(pyproj);
+		current_md5 = QuickDigest5::fileToHash(pyproj);
 	      } catch (const std::runtime_error& e) {
 		std::cerr << "Error: " << e.what() << std::endl;
 	      }
@@ -1933,7 +1934,8 @@ namespace BasisClasses
 	// Write the md5sum for the Python module
 	if (DTYPE == DiskType::python) {
 	  try {
-	    std::vector<std::string> pyinfo = {pyname, get_md5sum(pyname)};
+	    std::string hash = QuickDigest5::fileToHash(pyname);
+	    std::vector<std::string> pyinfo = {pyname, hash};
 	    file.createAttribute<std::string>
 	    ("pythonDiskType", HighFive::DataSpace::From(pyinfo)).write(pyinfo);
 	  } catch (const std::runtime_error& e) {
@@ -1954,7 +1956,8 @@ namespace BasisClasses
 
 	  if (PTYPE == DeprojType::python) {
 	    try {
-	      std::vector<std::string> pyinfo = {pyproj, get_md5sum(pyproj)};
+	      std::string hash = QuickDigest5::fileToHash(pyproj);
+	      std::vector<std::string> pyinfo = {pyproj, hash};
 	      file.createAttribute<std::string>
 		("pythonProjType",
 		 HighFive::DataSpace::From(pyinfo)).write(pyinfo);
