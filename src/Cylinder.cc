@@ -2118,6 +2118,7 @@ bool Cylinder::checkDtype()
 	cache_status = false;
       }
       auto read_attr = file.getAttribute("pythonDiskType");
+
       // Get the pyname attribute
       std::vector<std::string> pyinfo;
       read_attr.read(pyinfo);
@@ -2165,9 +2166,7 @@ void Cylinder::saveDtype()
     
     // Write the DiskType attribute (as a string for human readability)
     //
-    file.createAttribute<std::string>
-      ("DiskType",
-       HighFive::DataSpace::From(dtype)).write(dtype);
+    file.createAttribute("DiskType", dtype);
     
     // Write the md5sum for the Python module source file, if Python
     // disk type is used.  This will allow us to check for consistency

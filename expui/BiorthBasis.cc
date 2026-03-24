@@ -2061,8 +2061,7 @@ namespace BasisClasses
 	  //
 	  HighFive::File file(cachename, HighFive::File::ReadWrite);
 
-	  file.createAttribute<std::string>("DiskType",
-					    HighFive::DataSpace::From(dtype)).write(dtype);
+	  file.createAttribute("DiskType", dtype);
 
 	  std::cout << "---- Cylindrical: writing DiskType <" << dtype
 		    << "> to cache file <" << cachename << ">" << std::endl;
@@ -2090,14 +2089,11 @@ namespace BasisClasses
 	  }
 	  
 	  // Save the deprojection flag
-	  file.createAttribute<bool>
-	    ("deproject",
-	     HighFive::DataSpace::From(deproject)).write(deproject);
+	  file.createAttribute("deproject", deproject);
 	  
 	  // Reopen the DataSpace for DMODEL since we need to write it as a string
 	  if (deproject) {
-	    file.createAttribute<std::string>
-	      ("ProjType", HighFive::DataSpace::From(dmodel)).write(dmodel);
+	    file.createAttribute("ProjType", dmodel);
 	    
 	    if (PTYPE == DeprojType::python) {
 	      try {
