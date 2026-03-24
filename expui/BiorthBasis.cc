@@ -1673,7 +1673,8 @@ namespace BasisClasses
 	    try {
 	      current_md5 = QuickDigest5::fileToHash(pyname);
 	    } catch (const std::runtime_error& e) {
-	      std::cerr << "Error: " << e.what() << std::endl;
+	      if (myid==0)
+		std::cerr << "Error: " << e.what() << std::endl;
 	    }
 	  
 	    // Check that the md5sums match for the current Python
@@ -1722,7 +1723,7 @@ namespace BasisClasses
 		std::cout << "---- Cylindrical: dmodel for cache file <" << cachename << "> is <"
 			  << loaded_dmodel << ">, which does not match the requested dmodel <"
 			  << dmodel << ">" << std::endl
-			  << "---- Cylindirical: forcing cache recomputation" << std::endl;
+			  << "---- Cylindrical: forcing cache recomputation" << std::endl;
 	      }
 	      // Force cache recomputation
 	      cache_status = 0;
@@ -1741,7 +1742,8 @@ namespace BasisClasses
 	      try {
 		current_md5 = QuickDigest5::fileToHash(pyproj);
 	      } catch (const std::runtime_error& e) {
-		std::cerr << "Error: " << e.what() << std::endl;
+		if (myid==0)
+		  std::cerr << "Error: " << e.what() << std::endl;
 	      }
 	      // Check that the md5sums match for the current Python projection
 	      //
@@ -1759,8 +1761,10 @@ namespace BasisClasses
 	}
       }
       catch (const HighFive::Exception& err) {
-	std::cerr << "---- BiorthBasis inconsistency in Cylindrical cache: " << err.what() << std::endl;
-	std::cerr << "---- Cylindrical: forcing cache recomputation" << std::endl;
+	if (myid==0) {
+	  std::cerr << "---- Cylindrical: " << err.what() << std::endl;
+	  std::cerr << "---- Cylindrical: forcing cache recomputation" << std::endl;
+	}
 	cache_status = 0;	// Fallback...
       }
     }
@@ -1934,55 +1938,66 @@ namespace BasisClasses
 
       sl->generate_eof(rnum, pnum, tnum, f);
 
-      try {
-	// Open the cache file for writing the Python metadata
-	//
-	HighFive::File file(cachename, HighFive::File::ReadWrite);
+      if (myid==0) {
+	try {
+	  // Open the cache file for writing the Python metadata
+	  //
+	  HighFive::File file(cachename, HighFive::File::ReadWrite);
 
-	file.createAttribute<std::string>("DiskType",
-					  HighFive::DataSpace::From(dtype)).write(dtype);
+	  file.createAttribute<std::string>("DiskType",
+					    HighFive::DataSpace::From(dtype)).write(dtype);
 
-	// Write the md5sum for the Python module
-	if (DTYPE == DiskType::python) {
-	  try {
-	    std::string hash = QuickDigest5::fileToHash(pyname);
-	    std::vector<std::string> pyinfo = {pyname, hash};
-	    file.createAttribute<std::string>
-	    ("pythonDiskType", HighFive::DataSpace::From(pyinfo)).write(pyinfo);
-	  } catch (const std::runtime_error& e) {
-	    std::cerr << "Error: " << e.what() << std::endl;
-	    std::cerr << "Can not write the md5 hash to HDF5" << std::endl;
-	  }
-	}
-	  
-	// Save the deprojection flag
-	file.createAttribute<bool>
-	  ("deproject",
-	   HighFive::DataSpace::From(deproject)).write(deproject);
-
-	// Reopen the DataSpace for DMODEL since we need to write it as a string
-	if (deproject) {
-	  file.createAttribute<std::string>
-	    ("ProjType", HighFive::DataSpace::From(dmodel)).write(dmodel);
-
-	  if (PTYPE == DeprojType::python) {
+	  // Write the md5sum for the Python module
+	  if (DTYPE == DiskType::python) {
 	    try {
-	      std::string hash = QuickDigest5::fileToHash(pyproj);
-	      std::vector<std::string> pyinfo = {pyproj, hash};
+	      std::vector<std::string> pyinfo =
+		{pyname, QuickDigest5::fileToHash(pyname)};
 	      file.createAttribute<std::string>
-		("pythonProjType",
+		("pythonDiskType",
 		 HighFive::DataSpace::From(pyinfo)).write(pyinfo);
 	    } catch (const std::runtime_error& e) {
-	      std::cerr << "Error: " << e.what() << std::endl;
-	      std::cerr << "Can not writine the md5 hash to HDF5" << std::endl;
+	      if (myid==0) {
+		std::cerr << "Error: " << e.what() << std::endl;
+		std::cerr << "Can not write the md5 hash to HDF5" << std::endl;
+	      }
 	    }
 	  }
+	  
+	  // Save the deprojection flag
+	  file.createAttribute<bool>
+	    ("deproject",
+	     HighFive::DataSpace::From(deproject)).write(deproject);
+	  
+	  // Reopen the DataSpace for DMODEL since we need to write it as a string
+	  if (deproject) {
+	    file.createAttribute<std::string>
+	      ("ProjType", HighFive::DataSpace::From(dmodel)).write(dmodel);
+	    
+	    if (PTYPE == DeprojType::python) {
+	      try {
+		std::vector<std::string> pyinfo =
+		  {pyproj, QuickDigest5::fileToHash(pyproj)};
+		file.createAttribute<std::string>
+		  ("pythonProjType",
+		   HighFive::DataSpace::From(pyinfo)).write(pyinfo);
+	      } catch (const std::runtime_error& e) {
+		if (myid==0) {
+		  std::cerr << "Error: " << e.what() << std::endl;
+		  std::cerr << "Can not writine the md5 hash to HDF5" << std::endl;
+		}
+	      }
+	    }
+	  }
+	} catch (const HighFive::Exception& err) {
+	  if (myid==0) {
+	    std::cerr << err.what() << std::endl;
+	    std::cerr << "Error writing metadata to cache file <" << cachename
+		      << std::endl;
+	  }
 	}
-      } catch (const HighFive::Exception& err) {
-	std::cerr << err.what() << std::endl;
-	std::cerr << "Error writing metadata to cache file <" << cachename
-		  << std::endl;
+	// Errors will prevent metadata from being written to the cache
       }
+      // Only the root process should be updating the cache
     }
 
     // Orthogonality sanity check

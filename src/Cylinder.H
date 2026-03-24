@@ -7,6 +7,7 @@
 #include "Basis.H"
 #include "CylEXP.H"
 #include "Coefficients.H"
+#include "DiskDensityFunc.H"
 
 #include "config_exp.h"
 
@@ -36,6 +37,12 @@ class MixtureBasis;
     @param acyl is the scale length
 
     @param hcyl is the scale height
+
+    @param aratio is the scale length ratio for disk basis construction (default: 1.0)
+
+    @param hratio is the scale height ratio for disk basis construction (default: 1.0)
+
+    @param dweight is the relative weight of the second component in the double-exponential disk basis construction (default: 1.0)
 
     @param lmaxfid is the maximum spherical harmonic index for EOF construction
 
@@ -150,8 +157,11 @@ private:
 
   void initialize(void);
 
-				// Parameters
+  // Parameters
+  //
   double rcylmin, rcylmax, zmax, acyl;
+  double aratio, hratio, dweight; // Disk basis construction parameters for double-exponential disk
+  double Mfac, HERNA;		  // Disk bulge parameters: mass fraction and Hernquist scale length
   int nmaxfid, lmaxfid, mmax, mlim, nint;
   int ncylnx, ncylny, ncylr;
   double hcyl, hexp, snr, rem;
@@ -275,7 +285,6 @@ protected:
 
   //@}
 
-
 #endif
 
   /** Test change level counts for deep debugging enabled by setting
@@ -335,6 +344,44 @@ protected:
 
   //! Write basis-specific parameters to HDF5 covariance file
   void writeCovarH5Params(HighFive::File& file);
+
+  enum class DiskType
+    { constant, gaussian, mn, exponential, doubleexpon, diskbulge, python };
+
+  //@{
+  //! Disk target types
+  const std::map<std::string, DiskType> dtlookup =
+    { {"constant",    DiskType::constant},
+      {"gaussian",    DiskType::gaussian},
+      {"mn",          DiskType::mn},
+      {"exponential", DiskType::exponential},
+      {"doubleexpon", DiskType::doubleexpon},
+      {"diskbulge",   DiskType::diskbulge},
+      {"python",      DiskType::python}
+    };
+
+  const std::map<DiskType, std::string> dtstring =
+    { {DiskType::constant,    "constant"},
+      {DiskType::gaussian,    "gaussian"},
+      {DiskType::mn,          "mn"},
+      {DiskType::exponential, "exponential"},
+      {DiskType::doubleexpon, "doubleexpon"},
+      {DiskType::diskbulge,   "diskbulge"},
+      {DiskType::python,      "python"}
+    };
+
+  DiskType DTYPE = DiskType::exponential;
+
+  std::string dtype;
+
+  //! Dtype cache check for consistency between cache and current parameters
+  bool checkDtype();
+  void saveDtype();
+
+  double DiskDens(double R, double z, double phi);
+  std::shared_ptr<DiskDensityFunc> pyDens;
+  //@}
+
 
 public:
 

@@ -11,9 +11,10 @@
 #include "Cylinder.H"
 #include "MixtureBasis.H"
 #include "DiskDensityFunc.H"
-#include "Timer.H"
-#include "exputils.H"
-#include "NVTX.H"
+#include "Timer.H"		// for timing code sections
+#include "exputils.H"		// utility functions
+#include "NVTX.H"		// for NVTX profiling of CUDA code
+#include "quickdigest5.hpp"	// for md5 hashing of Python modules
 
 //@{
 //! These are for testing exclusively (should be set false for production)
@@ -31,6 +32,11 @@ Cylinder::valid_keys = {
   "hcyl",
   "sech2",
   "hexp",
+  "aratio",
+  "hratio",
+  "dweight",
+  "Mfac",
+  "HERNA",
   "snr",
   "evcut",
   "nmaxfid",
@@ -74,6 +80,7 @@ Cylinder::valid_keys = {
   "playback",
   "coefCompute",
   "coefMaster",
+  "dtype",
   "pyname",
   "dumpbasis",
   "fullCovar",
@@ -115,6 +122,16 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   nmax            = 18;
   ncylodd         = 9;
   ncylrecomp      = -1;
+
+  // For disk basis construction with doubleexpon
+  //
+  aratio          = 1.0; // Radial scale length ratio
+  hratio          = 1.0; // Vertical scale height ratio
+  dweight         = 1.0; // Ratio of second disk relative to the first disk
+
+  // For disk bulge
+  Mfac            = 1.0;  // mass fraction for disk
+  HERNA           = 0.10; // Hernquist scale a disk bulge
 
   rnum            = 200;
   pnum            = 1;
@@ -182,6 +199,14 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   ortho = std::make_shared<CylEXP>
     (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
   
+  // Convert dtype string to lower case
+  //
+  std::transform(dtype.begin(), dtype.end(), dtype.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  // Check for map entry, will throw if the key is not in the map.
+  DTYPE = dtlookup.at(dtype);
+
   // Set azimuthal harmonic order restriction?
   //
   if (mlim>=0)  ortho->set_mlim(mlim);
@@ -220,6 +245,10 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
     if (std::filesystem::exists(cachename)) {
 
       cache_ok = ortho->read_cache();
+
+      if (cache_ok) {
+	cache_ok = checkDtype();
+      }
       
       // If new cache is requested, backup existing basis file
       //
@@ -269,19 +298,44 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		  << "this step will take many minutes."
 		  << std::endl;
       
-      std::shared_ptr<DiskDensityFunc> dfunc;
-      if (pyname.size()) dfunc = std::make_shared<DiskDensityFunc>(pyname);
 
-      // Use either the user-supplied Python target or the default
-      // exponential disk model
-      auto DiskDens = [&](double R, double z, double phi)
-      {
-	if (dfunc) return (*dfunc)(R, z, phi);
-	double h = sech2 ? 0.5*hcyl : hcyl;
-	double f = exp(-fabs(z)/h); // Overflow prevention
-	double s = 2.0*f/(1.0 + f*f);  // in sech computation
-	return exp(-R/acyl)*s*s/(4.0*M_PI*acyl*acyl*h);
-      };
+      // Set DiskType.  This is the functional form for the disk used to
+      // condition the basis.
+      //
+      try {
+	if (myid==0) {		// Report DiskType
+	  std::cout << "---- DiskType is <" << dtype << ">" << std::endl;
+
+	  if (not sech2) {
+	    switch (DTYPE) {
+	    case DiskType::doubleexpon:
+	    case DiskType::exponential:
+	    case DiskType::diskbulge:
+	      std::cout << "---- pyEXP assumes sech^2(z/(2h)) by default in v7.9.0 and later" << std::endl
+			<< "---- Use the 'sech2: true' in your YAML config to use sech^2(z/(2h))" << std::endl
+			<< "---- This warning will be removed in v7.10.0." << std::endl;
+	      break;
+	    default:
+	      break;
+	    }
+	  }
+	}
+      }
+      catch (const std::out_of_range& err) {
+	if (myid==0) {
+	  std::cout << "DiskType error in configuraton file" << std::endl;
+	  std::cout << "Valid options are: ";
+	  for (auto v : dtlookup) std::cout << v.first << " ";
+	  std::cout << std::endl;
+	}
+	throw std::runtime_error("Cylindrical::initialize: invalid DiskType");
+      }
+
+      // Check for and initialize the Python density type
+      //
+      if (DTYPE == DiskType::python) {
+	pyDens = std::make_shared<DiskDensityFunc>(pyname);
+      }
 
       // The conditioning function for the EOF with an optional shift
       // for M>0
@@ -310,6 +364,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
       };
 
       ortho->generate_eof(rnum, pnum, tnum, dcond);
+      saveDtype();
     }
 
     firstime = false;
@@ -444,6 +499,12 @@ void Cylinder::initialize()
     if (conf["eof_file"  ])  cachename  = conf["eof_file"  ].as<std::string>();
     if (conf["samplesz"  ])   defSampT  = conf["samplesz"  ].as<int>();
     
+    if (conf["aratio"    ])     aratio  = conf["aratio"    ].as<double>();
+    if (conf["hratio"    ])     hratio  = conf["hratio"    ].as<double>();
+    if (conf["dweight"   ])    dweight  = conf["dweight"   ].as<double>();
+    if (conf["Mfac"      ])       Mfac  = conf["Mfac"      ].as<double>();
+    if (conf["HERNA"     ])      HERNA  = conf["HERNA"     ].as<double>();
+
     if (conf["rnum"      ])       rnum  = conf["rnum"      ].as<int>();
     if (conf["pnum"      ])       pnum  = conf["pnum"      ].as<int>();
     if (conf["tnum"      ])       tnum  = conf["tnum"      ].as<int>();
@@ -463,6 +524,8 @@ void Cylinder::initialize()
     if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
     if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
+    if (conf["dtype"     ])      dtype  = conf["dtype"     ].as<std::string>();
+    if (conf["pyname"    ])     pyname  = conf["pyname"    ].as<std::string>();
     
     // Deprecation warning
     if (not sech2 and not conf["pyname"]) {
@@ -596,6 +659,83 @@ void Cylinder::initialize()
 			   << std::string(60, '-') << std::endl;
     throw std::runtime_error("Cylinder::initialize: error parsing YAML");
   }
+}
+
+double Cylinder::DiskDens(double R, double z, double phi)
+{
+  double ans = 0.0;
+
+  switch (DTYPE) {
+
+  case DiskType::constant:
+    if (R < acyl && fabs(z) < hcyl)
+      ans = 1.0/(2.0*hcyl*M_PI*acyl*acyl);
+    break;
+      
+  case DiskType::gaussian:
+    if (fabs(z) < hcyl)
+      ans = 1.0/(2.0*hcyl*2.0*M_PI*acyl*acyl)*
+	exp(-R*R/(2.0*acyl*acyl));
+    break;
+      
+  case DiskType::mn:
+    {
+      double Z2 = z*z + hcyl*hcyl;
+      double Z  = sqrt(Z2);
+      double Q2 = (acyl + Z)*(acyl + Z);
+      ans = 0.25*hcyl*hcyl/M_PI*(acyl*R*R + (acyl + 3.0*Z)*Q2)/( pow(R*R + Q2, 2.5) * Z*Z2 );
+    }
+    break;
+      
+  case DiskType::doubleexpon:
+    {
+      double a1 = acyl;
+      double a2 = acyl*aratio;
+      double h1 = hcyl;
+      double h2 = hcyl*hratio;
+      double w1 = 1.0/(1.0+dweight);
+      double w2 = dweight/(1.0+dweight);
+      
+      if (sech2) { h1 *= 0.5; h2 *= 0.5; }
+      
+      double f1 = cosh(z/h1);
+      double f2 = cosh(z/h2);
+      
+      ans =
+	w1*exp(-R/a1)/(4.0*M_PI*a1*a1*h1*f1*f1) +
+	w2*exp(-R/a2)/(4.0*M_PI*a2*a2*h2*f2*f2) ;
+    }
+    break;
+    
+  case DiskType::diskbulge:
+    {
+      double h  = sech2 ? 0.5*hcyl : hcyl;
+      double f  = cosh(z/h);
+      double rr = pow(pow(R, 2) + pow(z,2), 0.5);
+      double w1 = Mfac;
+      double w2 = 1.0 - Mfac;
+      double as = HERNA;
+      
+      ans = w1*exp(-R/acyl)/(4.0*M_PI*acyl*acyl*h*f*f) + 
+	w2*pow(as, 4)/(2.0*M_PI*rr)*pow(rr+as,-3.0) ;
+    }
+    break;
+  case DiskType::python:
+    ans = (*pyDens)(R, z, phi);
+    break;
+  case DiskType::exponential:
+  default:
+    {
+      double h = sech2 ? 0.5*hcyl : hcyl;
+      double f = cosh(z/h);
+      ans = exp(-R/acyl)/(4.0*M_PI*acyl*acyl*h*f*f);
+    }
+    break;
+  }
+  
+  // if (rwidth>0.0) ans *= erf((rtrunc-R)/rwidth);
+    
+  return ans;
 }
 
 void Cylinder::get_acceleration_and_potential(Component* C)
@@ -919,6 +1059,10 @@ void Cylinder::determine_coefficients_particles(void)
     bool cache_ok = false;
     if (try_cache || restart) {
       cache_ok = ortho->read_cache();
+
+      if (cache_ok) {
+	cache_ok = checkDtype();
+      }
 				// For a restart, cache must be read
 				// otherwise, abort
       if (restart && !cache_ok) {
@@ -1878,3 +2022,115 @@ void Cylinder::writeCovarH5Params(HighFive::File& file)
   file.createAttribute<double>("hcyl", HighFive::DataSpace::From(hcyl)).write(hcyl);
 }
   
+
+bool Cylinder::checkDtype()
+{
+  bool cache_status = true;
+
+  // Open the cache file for reading the Python metadata
+  //
+  HighFive::File file(cachename, HighFive::File::ReadOnly);
+    
+  // Sanity: check that the DiskType attribute exists
+  //
+  if (!file.hasAttribute("DiskType")) {
+    if (myid==0) {
+      std::cout << "---- Cylinder: DiskType attribute not found in cache file <" << cachename << ">. " << std::endl
+		<< "---- This may indicate an old cache file created before DiskType metadata was added. " << std::endl
+		<< "---- We will continue...but consider remaking the cache to avoid confusion." << std::endl;
+    }
+  } else {
+    // Open existing DiskType attribute
+    //
+    auto read_attr = file.getAttribute("DiskType");
+    
+    std::string loaded_dtype;
+    read_attr.read(loaded_dtype); 
+
+    DiskType disktype = dtlookup.at(loaded_dtype);
+
+    if (disktype != DTYPE) {
+      if (myid==0) {
+	std::cout << "---- Cylindrical: DiskType for cache file <"
+		  << cachename << "> is <"
+		  << loaded_dtype << ">," << std::endl
+		  << "which does not match the requested DiskType <"
+		  << dtype << ">, disktype="
+		  << (int)disktype << ", DTYPE="
+		  << (int)DTYPE << std::endl
+		  << "---- Cylindrical: forcing cache recomputation"
+		  << std::endl;
+      }
+      // Force cache recomputation
+      cache_status = false;	
+    }
+    else if (disktype == DiskType::python) {
+      // Get the pyname attribute
+      std::vector<std::string> pyinfo;
+      auto read_attr = file.getAttribute("pythonDiskType");
+      read_attr.read(pyinfo);
+	  
+      std::string current_md5;
+
+      // Get the md5sum for requested Python module
+      try {
+	current_md5 = QuickDigest5::fileToHash(pyname);
+      } catch (const std::runtime_error& e) {
+	if (myid==0)
+	  std::cerr << "Error: " << e.what() << std::endl;
+      }
+	  
+      // Check that the md5sums match for the current Python
+      // module and the loaded Python module used to create the
+      // cache.  If they do not match, force cache recomputation
+      // to ensure consistency with the current Python module.
+      if (current_md5 != pyinfo[1]) {
+	if (myid==0) {
+	  std::cout << "---- Cylindrical: Python module for disk density has changed since cache creation." << std::endl
+		    << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
+		    << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
+		    << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
+	}
+	cache_status = false;
+      }
+    }
+  }
+
+  return cache_status;
+}
+
+void Cylinder::saveDtype()
+{
+  // Only one process needs to write the dtype metadata
+  if (myid) return;
+
+  std::string dtype = dtstring.at(DTYPE);
+
+  try {
+    // Open the cache file for writing the Python metadata
+    //
+    HighFive::File file(cachename, HighFive::File::ReadWrite);
+    
+    file.createAttribute<std::string>
+      ("DiskType",
+       HighFive::DataSpace::From(dtype)).write(dtype);
+    
+    // Write the md5sum for the Python module
+    if (DTYPE == DiskType::python) {
+      try {
+	std::vector<std::string> pyinfo =
+	  {pyname, QuickDigest5::fileToHash(pyname)};
+	file.createAttribute<std::string>
+	  ("pythonDiskType",
+	   HighFive::DataSpace::From(pyinfo)).write(pyinfo);
+      } catch (const std::runtime_error& e) {
+	std::cerr << "Error: " << e.what() << std::endl;
+	std::cerr << "Can not write the md5 hash to HDF5" << std::endl;
+      }
+    }
+  } catch (const HighFive::Exception& err) {
+    std::cerr << err.what() << std::endl;
+    std::cerr << "Error writing metadata to cache file <" << cachename
+	      << std::endl;
+  }
+}
