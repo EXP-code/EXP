@@ -1,5 +1,5 @@
-// Initial reference implementation.  Better to use QuickDigest5 which
-// is currently a git submodule.
+// Initial reference implementation for testing.  Production code uses
+// QuickDigest5 as a git submodule.
 
 #include <string>
 #include <cstdio>

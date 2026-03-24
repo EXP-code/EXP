@@ -33,6 +33,10 @@ int main(int argc, char* argv[])
   
   // System version of md5sum for comparison
   try {
+    if (std::system("which md5sum > /dev/null 2>&1") != 0) {
+      std::cerr << "Warning: md5sum command not found. Skipping system md5sum comparison." << std::endl;
+      return 0;
+    }
     std::string systemHash = get_md5sum(filePath);
     std::cout << "System md5sum: " << systemHash << std::endl;
     if (hash == systemHash) {
