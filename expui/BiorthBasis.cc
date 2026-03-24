@@ -12,6 +12,8 @@
 #include <cfenv>
 #endif
 
+#define HDF5_QUIET
+
 namespace BasisClasses
 {
   const std::set<std::string>
@@ -1596,6 +1598,7 @@ namespace BasisClasses
     
 
     // Temporary muting of HDF5 error messages for EOF cache reading
+#ifdef HDF5_QUIET
     H5E_auto2_t old_func;
     void* old_client_data;
     H5Eget_auto2(H5E_DEFAULT, &old_func, &old_client_data);
@@ -1605,6 +1608,7 @@ namespace BasisClasses
 
     // Unmute (Restore)
     // H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
+#endif
 
     // Attempt to read EOF cache
     //
@@ -1992,7 +1996,7 @@ namespace BasisClasses
 	    try {
 	      std::vector<std::string> pyinfo =
 		{pyname, QuickDigest5::fileToHash(pyname)};
-	      file.createAttribute<std::string>
+	      file.createAttribute<std::vector<std::string>>
 		("pythonDiskType",
 		 HighFive::DataSpace::From(pyinfo)).write(pyinfo);
 	    } catch (const std::runtime_error& e) {
@@ -2017,7 +2021,7 @@ namespace BasisClasses
 	      try {
 		std::vector<std::string> pyinfo =
 		  {pyproj, QuickDigest5::fileToHash(pyproj)};
-		file.createAttribute<std::string>
+		file.createAttribute<std::vector<std::string>>
 		  ("pythonProjType",
 		   HighFive::DataSpace::From(pyinfo)).write(pyinfo);
 	      } catch (const std::runtime_error& e) {
@@ -2040,9 +2044,10 @@ namespace BasisClasses
       // Only the root process should be updating the cache
     }
 
+#ifdef HDF5_QUIET
     // Unmute HDF5 error messages (Restore)
-     H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
-
+    H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
+#endif
     // Orthogonality sanity check
     //
     if (myid==0) orthoTest();
