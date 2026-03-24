@@ -1598,19 +1598,7 @@ namespace BasisClasses
     //
     int cache_status = sl->read_cache();
 
-    // Define the HighFive mapping for DTYPE
-    //
-    HighFive::EnumType<DiskType> disk_type({
-	{"constant",    DiskType::constant},
-	{"gaussian",    DiskType::gaussian},
-	{"mn",          DiskType::mn},
-	{"exponential", DiskType::exponential},
-	{"doubleexpon", DiskType::doubleexpon},
-	{"diskbulge",   DiskType::diskbulge},
-	{"python",      DiskType::python}
-      });
-    
-    std::map<DiskType, std::string> disk_type_string = {
+    std::map<DiskType, std::string> disk_type = {
       {DiskType::constant,    "constant"},
       {DiskType::gaussian,    "gaussian"},
       {DiskType::mn,          "mn"},
@@ -1619,7 +1607,6 @@ namespace BasisClasses
       {DiskType::diskbulge,   "diskbulge"},
       {DiskType::python,      "python"}
     };
-
 
     // Checking for cache consistency with current DiskType and Python module (if applicable)
     //
@@ -1634,8 +1621,8 @@ namespace BasisClasses
 	//
 	if (!file.hasAttribute("DiskType")) {
 	  if (myid==0) {
-	    std::cout << "---- Cylindrical: DiskType attribute not found in cache file <" << cachename << ">. "
-		      << "---- This may indicate an old cache file created before DiskType metadata was added. "
+	    std::cout << "---- Cylindrical: DiskType attribute not found in cache file <" << cachename << ">. " << std::endl
+		      << "---- This may indicate an old cache file created before DiskType metadata was added. " << std::endl
 		      << "---- We will continue...but consider remaking the cache to avoid confusion." << std::endl;
 	  }
 	} else {
@@ -1643,30 +1630,31 @@ namespace BasisClasses
 	  //
 	  auto read_attr = file.getAttribute("DiskType");
 
-	  DiskType loaded_dtype;
+	  std::string loaded_dtype;
 	  read_attr.read(loaded_dtype); 
 
-	  if (loaded_dtype != DTYPE) {
+	  DiskType disktype = dtlookup.at(loaded_dtype);
+
+	  if (disktype != DTYPE) {
 	    if (myid==0) {
 	      std::cout << "---- Cylindrical: DiskType for cache file <" << cachename << "> is <"
-			<< disk_type_string[loaded_dtype] << ">, which does not match the requested DiskType <"
-			<< disk_type_string[DTYPE] << ">. Forcing cache recomputation." << std::endl;
+			<< loaded_dtype << ">, which does not match the requested DiskType <"
+			<< dtype << ">. Forcing cache recomputation." << std::endl;
 	    }
 	    // Force cache recomputation
 	    cache_status = 0;	
 	  }
-	  else if (loaded_dtype == DiskType::python) {
+	  else if (disktype == DiskType::python) {
 	    // Get the pyname attribute
-	    auto read_attr = file.getAttribute("pyname");
-	    std::string loaded_pyname;
-	    read_attr.read(loaded_pyname);
+	    std::vector<std::string> pyinfo;
+	    auto read_attr = file.getAttribute("pythonDiskType");
+	    read_attr.read(pyinfo);
 	  
-	    std::string loaded_md5, current_md5;
-	
+	    std::string current_md5;
+
 	    // Get the md5sum for requested Python module
 	    try {
 	      current_md5 = get_md5sum(pyname);
-	      loaded_md5  = get_md5sum(loaded_pyname);
 	    } catch (const std::runtime_error& e) {
 	      std::cerr << "Error: " << e.what() << std::endl;
 	    }
@@ -1675,14 +1663,78 @@ namespace BasisClasses
 	    // module and the loaded Python module used to create the
 	    // cache.  If they do not match, force cache recomputation
 	    // to ensure consistency with the current Python module.
-	    if (current_md5 != loaded_md5) {
+	    if (current_md5 != pyinfo[1]) {
 	      if (myid==0) {
 		std::cout << "---- Cylindrical: Python module for disk density has changed since cache creation." << std::endl
 			  << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
-			  << "---- Loaded module:  <" << loaded_pyname << ">, md5sum: " << loaded_md5  << std::endl
+			  << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
 			  << "---- Forcing cache recomputation to ensure consistency with current Python module." << std::endl;
 	      }
 	      cache_status = 0;
+	    }
+	  }
+
+	  // Get the deproject attribute
+	  //
+	  read_attr = file.getAttribute("deproject");
+	  bool loaded_deproject;
+	  read_attr.read(loaded_deproject);
+	  
+	  if (deproject != loaded_deproject) {
+	    if (myid==0) {
+	      std::cout << "---- Cylindrical: deproject flag for cache file <" << cachename << "> is <"
+			<< std::boolalpha << loaded_deproject << std::noboolalpha
+			<< ">, which does not match the requested deproject flag <"
+			<< std::boolalpha << deproject << std::noboolalpha
+			<< ">. Forcing cache recomputation." << std::endl;
+	    }
+	    // Force cache recomputation
+	    cache_status = 0;	
+	  } 
+
+	  if (cache_status == 1 and deproject) {
+	    // Get the dmodel attribute
+	    //
+	    read_attr = file.getAttribute("dmodel");
+	    std::string loaded_dmodel;
+	    read_attr.read(loaded_dmodel);
+	  
+	    if (loaded_dmodel != dmodel) {
+	      if (myid==0) {
+		std::cout << "---- Cylindrical: dmodel for cache file <" << cachename << "> is <"
+			  << loaded_dmodel << ">, which does not match the requested dmodel <"
+			  << dmodel << ">. Forcing cache recomputation." << std::endl;
+	      }
+	      // Force cache recomputation
+	      cache_status = 0;
+	    }
+
+	    if (cache_status == 1 and dmodel == "python") {
+	      // Get the Python info
+	      //
+	      std::vector<std::string> pyinfo;
+	      read_attr = file.getAttribute("pythonProjType");
+	      read_attr.read(pyinfo);
+	  
+	      std::string current_md5;
+	
+	      // Get the md5sum for requested Python projection module
+	      try {
+		current_md5 = get_md5sum(pyproj);
+	      } catch (const std::runtime_error& e) {
+		std::cerr << "Error: " << e.what() << std::endl;
+	      }
+	      // Check that the md5sums match for the current Python projection
+	      //
+	      if (current_md5 != pyinfo[1]) {
+		if (myid==0) {
+		  std::cout << "---- Cylindrical: Python module for deprojection has changed since cache creation." << std::endl
+			    << "---- Current module: <" << pyproj << ">, md5sum: " << current_md5 << std::endl
+			    << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
+			    << "---- Forcing cache recomputation to ensure consistency with current Python projection module." << std::endl;
+		}
+		cache_status = 0;
+	      }
 	    }
 	  }
 	}
@@ -1743,7 +1795,7 @@ namespace BasisClasses
       // Set DiskType.  This is the functional form for the disk used to
       // condition the basis.
       //
-      try {				// Check for map entry, will through if the 
+      try {				// Check for map entry, will throw if the 
 	DTYPE = dtlookup.at(dtype);	// key is not in the map.
 	
 	if (myid==0) {		// Report DiskType
@@ -1875,30 +1927,43 @@ namespace BasisClasses
 	//
 	HighFive::File file(cachename, HighFive::File::ReadWrite);
 
-	// Create a Scalar DataSpace for the single value
-	HighFive::DataSpace space = HighFive::DataSpace::From(DTYPE);
+	file.createAttribute<std::string>("DiskType",
+					  HighFive::DataSpace::From(dtype)).write(dtype);
 
-	// Create the attribute using the explicit (Name, DataSpace,
-	// DataType) signature using the base class 'DataType' to
-	// match the expected signature
-	auto attr = file.createAttribute("DiskType", space, (HighFive::DataType)disk_type);
-
-	// Write the actual enum value
-	attr.write(DTYPE);
-
-	// Get the md5sum for the Python module
+	// Write the md5sum for the Python module
 	if (DTYPE == DiskType::python) {
 	  try {
-	    std::string md5_hash = get_md5sum(pyname);
+	    std::vector<std::string> pyinfo = {pyname, get_md5sum(pyname)};
 	    file.createAttribute<std::string>
-	      ("pyname",
-	       HighFive::DataSpace::From(pyname)).write(pyname);
+	    ("pythonDiskType", HighFive::DataSpace::From(pyinfo)).write(pyinfo);
 	  } catch (const std::runtime_error& e) {
 	    std::cerr << "Error: " << e.what() << std::endl;
 	    std::cerr << "Can not write the md5 hash to HDF5" << std::endl;
 	  }
 	}
+	  
+	// Save the deprojection flag
+	file.createAttribute<bool>
+	  ("deproject",
+	   HighFive::DataSpace::From(deproject)).write(deproject);
 
+	// Reopen the DataSpace for DMODEL since we need to write it as a string
+	if (deproject) {
+	  file.createAttribute<std::string>
+	    ("ProjType", HighFive::DataSpace::From(dmodel)).write(dmodel);
+
+	  if (PTYPE == DeprojType::python) {
+	    try {
+	      std::vector<std::string> pyinfo = {pyproj, get_md5sum(pyproj)};
+	      file.createAttribute<std::string>
+		("pythonProjType",
+		 HighFive::DataSpace::From(pyinfo)).write(pyinfo);
+	    } catch (const std::runtime_error& e) {
+	      std::cerr << "Error: " << e.what() << std::endl;
+	      std::cerr << "Can not writine the md5 hash to HDF5" << std::endl;
+	    }
+	  }
+	}
       } catch (const HighFive::Exception& err) {
 	std::cerr << err.what() << std::endl;
 	std::cerr << "Error writing metadata to cache file <" << cachename
