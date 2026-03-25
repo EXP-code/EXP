@@ -1578,17 +1578,27 @@ namespace BasisClasses
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
 
+    // Convert dmodel string to lower case
+    //
+    std::transform(dmodel.begin(), dmodel.end(), dmodel.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+      
+    // Convert mtype string to lower case
+    //
+    std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+
+    // Convert dtype string to lower case
+    //
+    std::transform(dtype.begin(), dtype.end(), dtype.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+
     // Set EmpCylSL mtype.  This is the spherical function used to
     // generate the EOF basis.  If "deproject" is set, this will be
     // auto-set to the same as the deprojection model.  Otherwise,
     // this can be set independently to allow for different spherical
     // functions for the EOF basis
 
-    // Convert mtype string to lower case
-    //
-    std::transform(mtype.begin(), mtype.end(), mtype.begin(),
-		   [](unsigned char c){ return std::tolower(c); });
-      
     // Set EmpCylSL mtype.  This is the spherical function used to
     // generate the EOF basis.
     //
@@ -1664,12 +1674,6 @@ namespace BasisClasses
       {DiskType::diskbulge,   "diskbulge"},
       {DiskType::python,      "python"}
     };
-
-    // Convert dtype string to lower case
-    //
-    std::transform(dtype.begin(), dtype.end(), dtype.begin(),
-		   [](unsigned char c){ return std::tolower(c); });
-
 
     // Check for map entry, will throw if the key is not in the map.
     DTYPE = dtlookup.at(dtype);
@@ -1936,11 +1940,6 @@ namespace BasisClasses
 	//
 	EmpCylSL::AxiDiskPtr model;
 	
-	// Convert dmodel string to lower case
-	//
-	std::transform(dmodel.begin(), dmodel.end(), dmodel.begin(),
-		       [](unsigned char c){ return std::tolower(c); });
-
 	// Map legacy/short model names to canonical keys expected by dplookup
 	//
 	if (dmodel == "exp") {
