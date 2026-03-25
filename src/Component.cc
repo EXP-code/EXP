@@ -2501,7 +2501,7 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
   auto dcplI = HighFive::DataSetCreateProps{};
   auto dcplD = HighFive::DataSetCreateProps{};
 
-  if (H5compress or H5chunk) {
+  if ((H5compress or H5chunk) and nbodies > 0) {
     int chunk = H5chunk;
 
     // Clamp chunk to [1, nbodies]: use nbodies/8 as a downsize when
@@ -2642,7 +2642,7 @@ void Component::write_H5(H5::Group& group)
 
     // This could be generalized by registering a user filter, like
     // blosc.  Right now, we're using the default (which is gzip)
-    if (H5compress or H5chunk) {
+    if ((H5compress or H5chunk) and h5_particles.size() > 0) {
       // Set chunking
       if (H5chunk) {
 	// Clamp chunk to [1, nbodies]: use nbodies/8 as a downsize when
