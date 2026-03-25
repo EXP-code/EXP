@@ -1416,7 +1416,7 @@ namespace BasisClasses
     EVEN_M      = false;
     cmapR       = 1;
     cmapZ       = 1;
-    mtype       = "Exponential";
+    mtype       = "exponential";
     dtype       = "exponential";
     vflag       = 0;
     

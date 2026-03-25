@@ -127,6 +127,9 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   ncylodd         = 9;
   ncylrecomp      = -1;
 
+  mtype           = "exponential";
+  dtype           = "exponential";
+
   // For disk basis construction with doubleexpon
   //
   aratio          = 1.0; // Radial scale length ratio
