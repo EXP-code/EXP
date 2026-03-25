@@ -2509,7 +2509,11 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
     if (H5chunk >= nbodies) {
       chunk = nbodies/8;
     }
-    chunk = std::max(1, std::min(chunk, nbodies));
+    if (chunk < 1) {
+      chunk = 1;
+    } else if (static_cast<unsigned int>(chunk) > nbodies) {
+      chunk = static_cast<int>(nbodies);
+    }
 
     dcpl1.add(HighFive::Chunking(chunk));
     if (H5shuffle) dcpl1.add(HighFive::Shuffle());
