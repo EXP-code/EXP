@@ -1691,54 +1691,27 @@ namespace BasisClasses
 	//
 	HighFive::File file(cachename, HighFive::File::ReadOnly);
     
-	if (!file.hasAttribute("EmpModel")) {
-	  // If the EmpModel attribute is missing, we have an old
-	  // cache type.  We will allow this for now to avoid breaking
-	  // old caches, but we will trigger a cache build in the future
-	  //
+	// mtype is already cached as "model" attribute in the HDF5
+	// cache file, so we do not need to write it here.  We just
+	// need to write the DiskType and Python metadata (if
+	// applicable).
+	//
+
+	// Check that the DiskType for the cache matches the requested
+	// DiskType If the DiskType attribute is missing from the
+	// cache, this indicates thet the cache was created with an
+	// older versions of the code that did not include the
+	// DiskType attribute in the cache.  We should trigger a cache
+	// recomputation in this case to be safe, but will let this
+	// pass for backward compatibility with older caches.
+	//
+	if (!file.hasAttribute("DiskType")) {
 	  if (myid==0) {
-	    std::cout << "---- Cylindrical: EmpModel attribute not found in cache file <" << cachename << ">. " << std::endl;
-	    std::cout << "---- Cylindrical: this may indicate an old cache file created before EmpModel metadata was added. " << std::endl;
-	    std::cout << "---- Cylindrical: we will continue...but consider remaking the cache to avoid confusion." << std::endl;
-	  }
-	} else {
-	  // Open existing EmpModel attribute and the the mtype string
-	  //
-	  auto read_attr = file.getAttribute("EmpModel");
-
-	  std::string empmodel;
-	  read_attr.read(empmodel); 
-
-	  // Check against the current mtype string.  If they do not
-	  // match, force cache recomputation to ensure consistency
-	  // with the current mtype.
-	  if (empmodel != mtype) {
-	    if (myid==0) {
-	      std::cout << "---- Cylindrical: EmpModel for cache file <"
-			<< cachename << "> is <"
-			<< empmodel << ">," << std::endl
-			<< "which does not match the requested EmpModel <"
-			<< mtype << ">" << std::endl
-			<< "---- Cylindrical: forcing cache recomputation"
-			<< std::endl;
-	    }
-	    // Force cache recomputation
-	    cache_status = 0;	
-	  }
-	}
-
-	if (cache_status == 1) {
-
-	  // Sanity: check that the DiskType attribute exists
-	  //
-	  if (!file.hasAttribute("DiskType")) {
-	    if (myid==0) {
 	      std::cout << "---- Cylindrical: DiskType attribute not found in cache file <" << cachename << ">. " << std::endl
-			<< "---- This is a logic error since the DiskType attribute is required for cache creation" << std::endl
-			<< "---- We will trigger cache recomputation to be safe." << std::endl;
-	    }
-	    // Force cache recomputation
-	    cache_status = 0;
+			<< "---- This indicates that the cache was created with an older version of the" << std::endl
+			<< "---- code that did not include the DiskType attribute in the cache. We" << std::endl
+			<< "---- suggest deleting the old cache file to prevent this warning and rebuild" << std::endl
+			<< "---- the cache, but we will continue..." << std::endl;
 	  } else {
 	    // Open existing DiskType attribute
 	    //
@@ -1880,7 +1853,9 @@ namespace BasisClasses
 	      }
 	    }
 	  }
+	  // End: DeprojType and Python module consistency checks with cache
 	}
+	// End: DiskType and Python module consistency checks with cache
       }
       catch (const HighFive::Exception& err) {
 	if (myid==0) {
@@ -2033,12 +2008,11 @@ namespace BasisClasses
 	  //
 	  HighFive::File file(cachename, HighFive::File::ReadWrite);
 
-	  file.createAttribute("EmpModel", mtype);
-
-	  std::cout << "---- Cylindrical: writing EmpModel <"
-		    << EmpCylSL::EmpModelLabs.at(EmpCylSL::mtype)
-		    << "> to cache file <" << cachename << ">" << std::endl;
-	  
+	  // mtype is already cached as "model" attribute in the HDF5
+	  // cache file, so we do not need to write it here.  We just
+	  // need to write the DiskType and Python metadata (if
+	  // applicable).
+	  //
 	  file.createAttribute("DiskType", dtype);
 
 	  std::cout << "---- Cylindrical: writing DiskType <" << dtype

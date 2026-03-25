@@ -2069,125 +2069,92 @@ bool Cylinder::checkMetaData()
   //
   HighFive::File file(cachename, HighFive::File::ReadOnly);
     
-  // Sanity: check that the EmpModel attribute exists
+  // Sanity: check that the DiskType attribute exists
   //
-  if (!file.hasAttribute("EmpModel")) {
+  if (!file.hasAttribute("DiskType")) {
     if (myid==0) {
-      std::cout << "---- Cylinder:checkDtype: EmpModel attribute not found in cache file <" << cachename << ">" << std::endl
+      std::cout << "---- Cylinder:checkMetaData: DiskType attribute not found in cache file <" << cachename << ">" << std::endl
 		<< "---- This may indicate an old cache file created before EmpModel metadata was added" << std::endl
 		<< "---- We will continue...but consider remaking the cache to avoid confusion" << std::endl;
 		}
-  } else {
-    // Check that the EmpModel attribute matches the current empirical model
+  }
+  else {
+    // Open existing DiskType attribute
     //
-    auto read_attr = file.getAttribute("EmpModel");
-		
-    std::string loaded_mtype;
-    read_attr.read(loaded_mtype); 
-
-    if (loaded_mtype != mtype) {
+    auto read_attr = file.getAttribute("DiskType");
+    
+    std::string loaded_dtype;
+    read_attr.read(loaded_dtype); 
+	
+    // Map the loaded dtype string to a DiskType enum value
+    //
+    DiskType disktype = dtlookup.at(loaded_dtype);
+    
+    if (disktype != DTYPE) {
       if (myid==0) {
-	std::cout << "---- Cylinder::checkDtype: EmpModel for cache file <"
-		  << cachename << "> is <" << loaded_mtype << ">,"
-		  << " which does not match the requested empirical model <"
-		  << mtype << ">" << std::endl
-		  << "---- Cylindrical: forcing cache recomputation"
+	std::cout << "---- Cylinder::checkMetaData: DiskType for cache file <"
+		  << cachename << "> is <"
+		  << loaded_dtype << ">," << std::endl
+		  << "which does not match the requested DiskType <"
+		  << dtype << ">" << std::endl
+		  << "---- Cylinder::checkMetaData: forcing cache recomputation"
 		  << std::endl;
       }
       // Force cache recomputation
       cache_status = false;	
     }
-    else {
-
-      if (!file.hasAttribute("DiskType")) {
+    else if (disktype == DiskType::python) {
+      // Sanity check: if DiskType is python, then the
+      // pythonDiskType attribute must exist
+      //
+      if (!file.hasAttribute("pythonDiskType")) {
 	if (myid==0) {
-	  std::cout << "---- Cylinder:checkDtype: DiskType attribute not found in cache file <" << cachename << ">" << std::endl
-		    << "---- Cylinder:checkDtype: this may indicate a logic error.  Forcing cache recomputation." << std::endl;
+	  std::cout << "---- Cylinder::checkMetaData: pythonDiskType attribute not found in cache file <" << cachename << ">. " << std::endl;
+	  std::cout << "---- Cylinder::checkMetaData: this may indicate a logic error.  Forcing cache recomputation." << std::endl;
 	}
 	// Force cache recomputation
 	cache_status = false;
-      }
-      else {
-	// Open existing DiskType attribute
-	//
-	auto read_attr = file.getAttribute("DiskType");
-    
-	std::string loaded_dtype;
-	read_attr.read(loaded_dtype); 
+      } else {
+	auto read_attr = file.getAttribute("pythonDiskType");
 	
-	// Map the loaded dtype string to a DiskType enum value
-	//
-	DiskType disktype = dtlookup.at(loaded_dtype);
+	// Get the pyname attribute
+	std::vector<std::string> pyinfo;
+	read_attr.read(pyinfo);
+	    
+	std::string current_md5;
+	    
+	// Get the md5sum for requested Python module source file
+	try {
+	  current_md5 = QuickDigest5::fileToHash(pyname);
+	} catch (const std::runtime_error& e) {
+	  if (myid==0)
+	    std::cerr << "Cylinder::checkMetaData error: "
+		      << e.what() << std::endl;
+	}
 	
-	if (disktype != DTYPE) {
+	// Check that the md5sums match for the current Python
+	// module source files and the loaded Python module used to
+	// create the cache.  If they do not match, force cache
+	// recomputation to ensure consistency with the current
+	// Python module.
+	//
+	if (current_md5 != pyinfo[1]) {
 	  if (myid==0) {
-	    std::cout << "---- Cylinder::checkDtype: DiskType for cache file <"
-		      << cachename << "> is <"
-		      << loaded_dtype << ">," << std::endl
-		      << "which does not match the requested DiskType <"
-		      << dtype << ">" << std::endl
-		      << "---- Cylindrical: forcing cache recomputation"
-		      << std::endl;
+	    std::cout << "---- Cylinder::checkMetaData: Python module for disk density has changed since cache creation." << std::endl
+		      << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
+		      << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
+		      << "---- Cylinder:checkMetaData: forcing cache recomputation to ensure consistency" << std::endl;
 	  }
-	  // Force cache recomputation
-	  cache_status = false;	
+	  cache_status = false;
 	}
-	else if (disktype == DiskType::python) {
-	  // Sanity check: if DiskType is python, then the
-	  // pythonDiskType attribute must exist
-	  //
-	  if (!file.hasAttribute("pythonDiskType")) {
-	    if (myid==0) {
-	      std::cout << "---- Cylinder::checkDtype: pythonDiskType attribute not found in cache file <" << cachename << ">. " << std::endl;
-	      std::cout << "---- Cylindier:checkDtype: this may indicate a logic error.  Forcing cache recomputation." << std::endl;
-	    }
-	    // Force cache recomputation
-	    cache_status = false;
-	  } else {
-	    auto read_attr = file.getAttribute("pythonDiskType");
-	
-	    // Get the pyname attribute
-	    std::vector<std::string> pyinfo;
-	    read_attr.read(pyinfo);
-	    
-	    std::string current_md5;
-	    
-	    // Get the md5sum for requested Python module source file
-	    try {
-	      current_md5 = QuickDigest5::fileToHash(pyname);
-	    } catch (const std::runtime_error& e) {
-	      if (myid==0)
-		std::cerr << "Cylinder::CheckDtype error: "
-			  << e.what() << std::endl;
-	    }
-	
-	    // Check that the md5sums match for the current Python
-	    // module source files and the loaded Python module used to
-	    // create the cache.  If they do not match, force cache
-	    // recomputation to ensure consistency with the current
-	    // Python module.
-	    //
-	    if (current_md5 != pyinfo[1]) {
-	      if (myid==0) {
-		std::cout << "---- Cylinder::checkDtype: Python module for disk density has changed since cache creation." << std::endl
-			  << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
-			  << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
-			  << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
-	      }
-	      cache_status = false;
-	    }
-	  }
-	  // End: have Python disk type, check md5 hashes
-	}
-	// End: Python disk type check
       }
-      // End: DiskType attribute check
-	
-      // Could add deprojection checks here in the future
+      // End: have Python disk type, check md5 hashes
     }
-    // End: DiskType attribute check
+    // End: Python disk type check
+
+    // Could add deprojection checks here in the future
   }
-  // End: EmpModel attribute check
+  // End: DiskType attribute check
 
   return cache_status;
 }
@@ -2199,7 +2166,11 @@ void Cylinder::saveMetaData()
   if (myid) return;
 
   std::string dtype = dtstring.at(DTYPE);
-
+  
+  // mtype is already cached as "model" attribute in the HDF5 cache
+  // file, so we do not need to write it here.  We just need to write
+  // the DiskType and Python metadata (if applicable).
+  //
   try {
     // Reopen the cache file for writing the Python metadata
     //
@@ -2223,7 +2194,7 @@ void Cylinder::saveMetaData()
 	file.createAttribute("pythonDiskType", pyinfo);
 
       } catch (const std::runtime_error& e) {
-	std::cerr << "Cylinder::saveDtype error: " << e.what() << std::endl;
+	std::cerr << "Cylinder::saveMetaData error: " << e.what() << std::endl;
 	std::cerr << "Can not write the md5 hash to HDF5" << std::endl;
       }
     }
@@ -2232,7 +2203,7 @@ void Cylinder::saveMetaData()
 
   } catch (const HighFive::Exception& err) {
     std::cerr << err.what() << std::endl;
-    std::cerr << "Cylinder::saveDtype: error writing metadata to cache file <"
+    std::cerr << "Cylinder::saveMetaData: error writing metadata to cache file <"
 	      << cachename << std::endl;
   }
 }
