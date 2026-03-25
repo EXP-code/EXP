@@ -2505,7 +2505,7 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
     int chunk = H5chunk;
 
     // Sanity
-    if (H5chunk >= nbodies) {
+    if (H5chunk >= nbodies and nbodies >= 8) {
       chunk = nbodies/8;
     }
 
@@ -2641,7 +2641,7 @@ void Component::write_H5(H5::Group& group)
       if (H5chunk) {
 	// Sanity
 	int chunk = H5chunk;
-	if (H5chunk >= nbodies) {
+	if (H5chunk >= nbodies and nbodies >= 8) {
 	  chunk = nbodies/8;
 	}
 	hsize_t chunk_dims[1] = {static_cast<hsize_t>(chunk)};
