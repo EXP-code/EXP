@@ -2504,10 +2504,12 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
   if (H5compress or H5chunk) {
     int chunk = H5chunk;
 
-    // Sanity
-    if (H5chunk >= nbodies and nbodies >= 8) {
+    // Clamp chunk to [1, nbodies]: use nbodies/8 as a downsize when
+    // H5chunk would exceed the dataset extent, then ensure at least 1
+    if (H5chunk >= nbodies) {
       chunk = nbodies/8;
     }
+    chunk = std::max(1, std::min(chunk, nbodies));
 
     dcpl1.add(HighFive::Chunking(chunk));
     if (H5shuffle) dcpl1.add(HighFive::Shuffle());
@@ -2639,11 +2641,13 @@ void Component::write_H5(H5::Group& group)
     if (H5compress or H5chunk) {
       // Set chunking
       if (H5chunk) {
-	// Sanity
+	// Clamp chunk to [1, nbodies]: use nbodies/8 as a downsize when
+	// H5chunk would exceed the dataset extent, then ensure at least 1
 	int chunk = H5chunk;
-	if (H5chunk >= nbodies and nbodies >= 8) {
+	if (H5chunk >= nbodies) {
 	  chunk = nbodies/8;
 	}
+	chunk = std::max(1, std::min(chunk, nbodies));
 	hsize_t chunk_dims[1] = {static_cast<hsize_t>(chunk)};
 	dcpl.setChunk(1, chunk_dims);
       }
