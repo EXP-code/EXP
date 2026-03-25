@@ -677,40 +677,40 @@ main(int ac, char **av)
     SphericalModelTable::linear = 1;
   }
 
-				// Convert mtype string to lower case
+  // Convert mtype string to lower case
+  //
   std::transform(mtype.begin(), mtype.end(), mtype.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
-				// Convert gentype string to lower case
+  // Convert gentype string to lower case
+  //
   std::transform(gentype.begin(), gentype.end(), gentype.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
+  // Convert mtype string to lower case
+  //
+  std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+      
   // Set EmpCylSL mtype.  This is the spherical function used to
   // generate the EOF basis.  If "deproject" is set, this will be
   // overriden in EmpCylSL.
   //
-  EmpCylSL::mtype = EmpCylSL::Exponential;
-  if (vm.count("mtype")) {
-    if (mtype.compare("exponential")==0)
-      EmpCylSL::mtype = EmpCylSL::Exponential;
-    else if (mtype.compare("expsphere")==0)
-      EmpCylSL::mtype = EmpCylSL::ExpSphere;
-    else if (mtype.compare("gaussian")==0)
-      EmpCylSL::mtype = EmpCylSL::Gaussian;
-    else if (mtype.compare("plummer")==0)
-      EmpCylSL::mtype = EmpCylSL::Plummer;
-    else if (mtype.compare("power")==0) {
-      EmpCylSL::mtype = EmpCylSL::Power;
-      EmpCylSL::PPOW  = PPower;
-    } else {
-      if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
-			     << mtype << ">, valid types are: "
-			     << "Exponential, Gaussian, Plummer, Power "
-			     << "(not case sensitive)" << std::endl;
-      MPI_Finalize();
-      return 0;
+  auto itm = EmpCylSL::EmpModelMap.find(mtype);
+  
+  if (itm == EmpCylSL::EmpModelMap.end()) {
+    if (myid==0) {
+      std::cout << "No EmpCylSL EmpModel named <"
+		<< mtype << ">, valid types are: "
+		<< "Exponential, ExpSphere, Gaussian, Plummer, Power, Deproject "
+		<< "(not case sensitive)" << std::endl;
     }
+
+    MPI_Finalize();
+    return 0;
   }
+
+  EmpCylSL::mtype = itm->second;
 
   // Set DiskType.  This is the functional form for the disk used to
   // condition the basis.

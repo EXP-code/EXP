@@ -1228,7 +1228,6 @@ namespace BasisClasses
     "ashift",
     "expcond",
     "ignore",
-    "deproject",
     "logr",
     "dmodel",
     "ppow",
@@ -1407,7 +1406,6 @@ namespace BasisClasses
     cachename   = ".eof_cache_file";
     oldcache    = false;
     Ignore      = false;
-    deproject   = false;
     
     rnum        = 200;
     pnum        = 1;
@@ -1497,7 +1495,6 @@ namespace BasisClasses
       if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
       if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
       if (conf["ignore"    ])      Ignore = conf["ignore"    ].as<bool>();
-      if (conf["deproject" ])   deproject = conf["deproject" ].as<bool>();
       if (conf["dmodel"    ])      dmodel = conf["dmodel"    ].as<std::string>();
 
       if (conf["aratio"    ])      aratio = conf["aratio"    ].as<double>();
@@ -1581,39 +1578,33 @@ namespace BasisClasses
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
 
-    // Set deprojected model type
-    //
+    // Set EmpCylSL mtype.  This is the spherical function used to
+    // generate the EOF basis.  If "deproject" is set, this will be
+    // auto-set to the same as the deprojection model.  Otherwise,
+    // this can be set independently to allow for different spherical
+    // functions for the EOF basis
+
     // Convert mtype string to lower case
+    //
     std::transform(mtype.begin(), mtype.end(), mtype.begin(),
 		   [](unsigned char c){ return std::tolower(c); });
       
     // Set EmpCylSL mtype.  This is the spherical function used to
-    // generate the EOF basis.  If "deproject" is set, this will be
-    // overriden in EmpCylSL.
+    // generate the EOF basis.
     //
-    EmpCylSL::mtype = EmpCylSL::Exponential; // Default
-    if (mtype.compare("exponential")==0) {
-      EmpCylSL::mtype = EmpCylSL::Exponential;
+    auto itm = EmpCylSL::EmpModelMap.find(mtype);
+
+    if (itm == EmpCylSL::EmpModelMap.end()) {
       if (myid==0) {
-	std::cout << "---- Cylindrical: using original exponential deprojected disk for EOF conditioning" << std::endl;
-	std::cout << "---- Cylindrical: consider using the exact, spherically deprojected exponential with 'mtype: ExpSphere'" << std::endl;
+	std::cout << "No EmpCylSL EmpModel named <"
+		  << mtype << ">, valid types are: "
+		  << "Exponential, ExpSphere, Gaussian, Plummer, Power, Deproject "
+		  << "(not case sensitive)" << std::endl;
       }
-    } else if (mtype.compare("expsphere")==0)
-      EmpCylSL::mtype = EmpCylSL::ExpSphere;
-    else if (mtype.compare("gaussian")==0)
-      EmpCylSL::mtype = EmpCylSL::Gaussian;
-    else if (mtype.compare("plummer")==0)
-      EmpCylSL::mtype = EmpCylSL::Plummer;
-    else if (mtype.compare("power")==0) {
-      EmpCylSL::mtype = EmpCylSL::Power;
-      EmpCylSL::PPOW  = ppow;
-    } else {
-      if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
-			     << mtype << ">, valid types are: "
-			     << "Exponential, ExpSphere, Gaussian, Plummer, Power "
-			     << "(not case sensitive)" << std::endl;
       throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
     }
+    
+    EmpCylSL::mtype = itm->second;
 
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
@@ -1693,18 +1684,41 @@ namespace BasisClasses
 	//
 	HighFive::File file(cachename, HighFive::File::ReadOnly);
     
+	if (!file.hasAttribute("EmpModel")) {
+	  // If the EmpModel attribute is missing, we have an old cache type
+	  if (myid==0) {
+	    std::cout << "---- Cylindrical: EmpModel attribute not found in cache file <" << cachename << ">. " << std::endl;
+	    std::cout << "---- Cylindrical: this may indicate an old cache file created before EmpModel metadata was added. " << std::endl;
+	    std::cout << "---- Cylindrical: we will continue...but consider remaking the cache to avoid confusion." << std::endl;
+	  }
+	} else {
+	  auto read_attr = file.getAttribute("EmpModel");
+
+	  std::string empmodel;
+	  read_attr.read(empmodel); 
+
+	  if (empmodel != mtype) {
+	    if (myid==0) {
+	      std::cout << "---- Cylindrical: EmpModel for cache file <"
+			<< cachename << "> is <"
+			<< empmodel << ">," << std::endl
+			<< "which does not match the requested EmpModel <"
+			<< mtype << ">" << std::endl
+			<< "---- Cylindrical: forcing cache recomputation"
+			<< std::endl;
+	    }
+	    // Force cache recomputation
+	    cache_status = 0;	
+	  }
+	}
+
 	// Sanity: check that the DiskType attribute exists
 	//
 	if (!file.hasAttribute("DiskType")) {
-	  // If the DiskType attribute is missing, this may indicate
-	  // an old cache file created before the DiskType metadata
-	  // was added.  We will continue with a warning, but trigger
-	  // cache recomputation to ensure consistency with the
-	  // current DiskType.
 	  if (myid==0) {
 	    std::cout << "---- Cylindrical: DiskType attribute not found in cache file <" << cachename << ">. " << std::endl
-		      << "---- This may indicate an old cache file created before DiskType metadata was added. " << std::endl
-		      << "---- We will continue...but consider remaking the cache to avoid confusion." << std::endl;
+		      << "---- This is a logic error since the DiskType attribute is required for cache creation" << std::endl
+		      << "---- We will trigger cache recomputation to be safe." << std::endl;
 	  }
 	} else {
 	  // Open existing DiskType attribute
@@ -1782,96 +1796,66 @@ namespace BasisClasses
 
 	  // Get the deproject attribute
 	  //
-	  if (!file.hasAttribute("deproject")) {
-	    // We should not be able to get here since the deproject
-	    // attribute is required for cache creation, but if it is
-	    // missing we will trigger cache recomputation to ensure
-	    // consistency.
-	    if (myid==0) {
-	      std::cout << "---- Cylindrical: deproject attribute not found in cache file <" << cachename << ">. " << std::endl;
-	      std::cout << "---- Cylindrical: this may be a logic error, trigger recomputation." << std::endl;
-	    }
-	    cache_status = 0;
-	  } else {
-	    read_attr = file.getAttribute("deproject");
-	    bool loaded_deproject;
-	    read_attr.read(loaded_deproject);
+	  if (cache_status == 1 and
+	      EmpCylSL::mtype == EmpCylSL::EmpModel::Deproject) {
+
+	    // Get the dmodel attribute
+	    //
+	    read_attr = file.getAttribute("ProjType");
+	    std::string loaded_dmodel;
+	    read_attr.read(loaded_dmodel);
 	    
-	    if (deproject != loaded_deproject) {
+	    if (loaded_dmodel != dmodel) {
 	      if (myid==0) {
-		std::cout << "---- Cylindrical: deproject flag for cache file <" << cachename << "> is <"
-			  << std::boolalpha << loaded_deproject << std::noboolalpha
-			  << ">, which does not match the requested deproject flag <"
-			  << std::boolalpha << deproject << std::noboolalpha
-			  << ">" << std::endl
+		std::cout << "---- Cylindrical: dmodel for cache file <" << cachename << "> is <"
+			  << loaded_dmodel << ">, which does not match the requested dmodel <"
+			  << dmodel << ">" << std::endl
 			  << "---- Cylindrical: forcing cache recomputation" << std::endl;
 	      }
 	      // Force cache recomputation
-	      cache_status = 0;	
-	    } 
-
-	    // Now check for deproject flag
-	    //
-	    if (cache_status == 1 and deproject) {
-
-	      // Get the dmodel attribute
-	      //
-	      read_attr = file.getAttribute("ProjType");
-	      std::string loaded_dmodel;
-	      read_attr.read(loaded_dmodel);
-	  
-	      if (loaded_dmodel != dmodel) {
-		if (myid==0) {
-		  std::cout << "---- Cylindrical: dmodel for cache file <" << cachename << "> is <"
-			    << loaded_dmodel << ">, which does not match the requested dmodel <"
-			    << dmodel << ">" << std::endl
-			    << "---- Cylindrical: forcing cache recomputation" << std::endl;
-		}
-		// Force cache recomputation
-		cache_status = 0;
-	      }
+	      cache_status = 0;
 	    }
+	  }
 	      
-	    if (cache_status == 1 and dmodel == "python") {
-	      // Get the Python info
-	      //
-	      if (!file.hasAttribute("pythonProjType")) {
-		// We should not be able to get here since the pythonProjType
-		// attribute is required for cache creation with the Python
-		if (myid==0) {
-		  std::cout << "---- Cylindrical: pythonProjType attribute not found in cache file <" << cachename << ">. " << std::endl;
-		  std::cout << "---- Cylindrical: this may be a logic error, trigger recomputation." << std::endl;
-		}
+	  if (cache_status == 1 and dmodel == "python") {
+	    // Get the Python info
+	    //
+	    if (!file.hasAttribute("pythonProjType")) {
+	      // We should not be able to get here since the pythonProjType
+	      // attribute is required for cache creation with the Python
+	      if (myid==0) {
+		std::cout << "---- Cylindrical: pythonProjType attribute not found in cache file <" << cachename << ">. " << std::endl;
+		std::cout << "---- Cylindrical: this may be a logic error, trigger recomputation." << std::endl;
+	      }
 
-		cache_status = 0;
+	      cache_status = 0;
 		
-	      } else {
-		read_attr = file.getAttribute("pythonProjType");
-		std::vector<std::string> pyinfo;
-		read_attr.read(pyinfo);
-	  
-		std::string current_md5;
-	
-		// Get the md5sum for requested Python projection module
-		try {
-		  current_md5 = QuickDigest5::fileToHash(pyproj + ".py");
-		} catch (const std::runtime_error& e) {
-		  if (myid==0)
-		    std::cerr << "BiorthBasis::Cylindrical error: "
-			      << e.what() << ", error computing pyproj md5sum"
-			      << std::endl;
+	    } else {
+	      read_attr = file.getAttribute("pythonProjType");
+	      std::vector<std::string> pyinfo;
+	      read_attr.read(pyinfo);
+	      
+	      std::string current_md5;
+	      
+	      // Get the md5sum for requested Python projection module
+	      try {
+		current_md5 = QuickDigest5::fileToHash(pyproj + ".py");
+	      } catch (const std::runtime_error& e) {
+		if (myid==0)
+		  std::cerr << "BiorthBasis::Cylindrical error: "
+			    << e.what() << ", error computing pyproj md5sum"
+			    << std::endl;
+	      }
+	      // Check that the md5sums match for the current Python projection
+	      //
+	      if (current_md5 != pyinfo[1]) {
+		if (myid==0) {
+		  std::cout << "---- Cylindrical: Python module for deprojection has changed since cache creation." << std::endl
+			    << "---- Current module: <" << pyproj << ">, md5sum: " << current_md5 << std::endl
+			    << "---- Cached module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
+			    << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
 		}
-		// Check that the md5sums match for the current Python projection
-		//
-		if (current_md5 != pyinfo[1]) {
-		  if (myid==0) {
-		    std::cout << "---- Cylindrical: Python module for deprojection has changed since cache creation." << std::endl
-			      << "---- Current module: <" << pyproj << ">, md5sum: " << current_md5 << std::endl
-			      << "---- Cached module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
-			      << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
-		  }
-		  cache_status = 0;
-		}
+		cache_status = 0;
 	      }
 	    }
 	  }
@@ -1900,32 +1884,6 @@ namespace BasisClasses
 		  << "----               remove 'ignore' from your YAML configuration." << std::endl;
       }
 
-      // Convert mtype string to lower case
-      //
-      std::transform(mtype.begin(), mtype.end(), mtype.begin(),
-		     [](unsigned char c){ return std::tolower(c); });
-      
-      // Set EmpCylSL mtype.  This is the spherical function used to
-      // generate the EOF basis.  If "deproject" is set, this will be
-      // overriden in EmpCylSL.
-      //
-      EmpCylSL::mtype = EmpCylSL::Exponential;
-      if (mtype.compare("exponential")==0)
-	EmpCylSL::mtype = EmpCylSL::Exponential;
-      else if (mtype.compare("gaussian")==0)
-	EmpCylSL::mtype = EmpCylSL::Gaussian;
-      else if (mtype.compare("plummer")==0)
-	EmpCylSL::mtype = EmpCylSL::Plummer;
-      else if (mtype.compare("power")==0) {
-	EmpCylSL::mtype = EmpCylSL::Power;
-	EmpCylSL::PPOW  = ppow;
-      } else {
-	if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
-			       << mtype << ">, valid types are: "
-			       << "Exponential, Gaussian, Plummer, Power "
-			       << "(not case sensitive)" << std::endl;
-	throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
-      }
 
       // Set DiskType.  This is the functional form for the disk used to
       // condition the basis.
@@ -1967,7 +1925,7 @@ namespace BasisClasses
 
       // Use these user models to deproject for the EOF spherical basis
       //
-      if (deproject) {
+      if (EmpCylSL::mtype == EmpCylSL::EmpModel::Deproject) {
 	// The scale in EmpCylSL is assumed to be 1 so we compute the
 	// height relative to the length
 	//
@@ -2061,6 +2019,12 @@ namespace BasisClasses
 	  //
 	  HighFive::File file(cachename, HighFive::File::ReadWrite);
 
+	  file.createAttribute("EmpModel", mtype);
+
+	  std::cout << "---- Cylindrical: writing EmpModel <"
+		    << EmpCylSL::EmpModelLabs.at(EmpCylSL::mtype)
+		    << "> to cache file <" << cachename << ">" << std::endl;
+	  
 	  file.createAttribute("DiskType", dtype);
 
 	  std::cout << "---- Cylindrical: writing DiskType <" << dtype
@@ -2088,11 +2052,8 @@ namespace BasisClasses
 	    }
 	  }
 	  
-	  // Save the deprojection flag
-	  file.createAttribute("deproject", deproject);
-	  
-	  // Reopen the DataSpace for DMODEL since we need to write it as a string
-	  if (deproject) {
+	  if (EmpCylSL::mtype == EmpCylSL::EmpModel::Deproject) {
+
 	    file.createAttribute("ProjType", dmodel);
 	    
 	    if (PTYPE == DeprojType::python) {

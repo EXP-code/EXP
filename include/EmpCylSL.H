@@ -374,7 +374,7 @@ public:
   };
 
   //! Type of density model to use
-  enum EmpModel {
+  enum class EmpModel {
     Exponential,
     ExpSphere,
     Gaussian, 
@@ -382,6 +382,9 @@ public:
     Power,
     Deproject,
   };
+
+  static std::map<std::string, EmpModel> EmpModelMap;
+  static std::map<EmpModel, std::string> EmpModelLabs;
 
   //! Axisymmetric disk density function for deprojection
   class AxiDisk
@@ -487,9 +490,6 @@ public:
 
   //! Use YAML header in coefficient file
   static bool NewCoefs;
-
-  //! Convert EmpModel to ascii label
-  static std::map<EmpModel, std::string> EmpModelLabs;
 
   //! Fraction of table range for basis images (for debug)
   static double HFAC;

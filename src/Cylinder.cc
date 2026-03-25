@@ -198,39 +198,28 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   if (cachename.size()==0)
     throw std::runtime_error("EmpCylSL: you must specify a cachename");
 
-
-  // Set deprojected model type
-  //
   // Convert mtype string to lower case
+  //
   std::transform(mtype.begin(), mtype.end(), mtype.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
       
   // Set EmpCylSL mtype.  This is the spherical function used to
-  // generate the EOF basis.
+  // generate the EOF basis.  If "deproject" is set, this will be
+  // overriden in EmpCylSL.
   //
-  EmpCylSL::mtype = EmpCylSL::Exponential; // Default
-  if (mtype.compare("exponential")==0) {
-    EmpCylSL::mtype = EmpCylSL::Exponential;
+  auto itm = EmpCylSL::EmpModelMap.find(mtype);
+  
+  if (itm == EmpCylSL::EmpModelMap.end()) {
     if (myid==0) {
-      std::cout << "---- Cylindrical: using original exponential deprojected disk for EOF conditioning" << std::endl;
-      std::cout << "---- Cylindrical: consider using the exact, spherically deprojected exponential with 'mtype: ExpSphere'" << std::endl;
+      std::cout << "No EmpCylSL EmpModel named <"
+		<< mtype << ">, valid types are: "
+		<< "Exponential, ExpSphere, Gaussian, Plummer, Power, Deproject "
+		<< "(not case sensitive)" << std::endl;
     }
-  } else if (mtype.compare("expsphere")==0)
-    EmpCylSL::mtype = EmpCylSL::ExpSphere;
-  else if (mtype.compare("gaussian")==0)
-    EmpCylSL::mtype = EmpCylSL::Gaussian;
-  else if (mtype.compare("plummer")==0)
-    EmpCylSL::mtype = EmpCylSL::Plummer;
-  else if (mtype.compare("power")==0) {
-    EmpCylSL::mtype = EmpCylSL::Power;
-    EmpCylSL::PPOW  = ppow;
-  } else {
-    if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
-			   << mtype << ">, valid types are: "
-			   << "Exponential, ExpSphere, Gaussian, Plummer, Power "
-			   << "(not case sensitive)" << std::endl;
-    throw std::runtime_error("Cylinder:initialize: EmpCylSL bad parameter");
+    throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
   }
+  
+  EmpCylSL::mtype = itm->second;
 
   // Make the empirical orthogonal basis instance
   //
@@ -285,7 +274,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
       cache_ok = ortho->read_cache();
 
       if (cache_ok) {
-	cache_ok = checkDtype();
+	cache_ok = checkMetaData();
       }
       
       // If new cache is requested, backup existing basis file
@@ -402,7 +391,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
       };
 
       ortho->generate_eof(rnum, pnum, tnum, dcond);
-      saveDtype();
+      saveMetaData();
     }
 
     firstime = false;
@@ -1105,7 +1094,7 @@ void Cylinder::determine_coefficients_particles(void)
       cache_ok = ortho->read_cache();
 
       if (cache_ok) {
-	cache_ok = checkDtype();
+	cache_ok = checkMetaData();
       }
 				// For a restart, cache must be read
 				// otherwise, abort
@@ -2067,7 +2056,7 @@ void Cylinder::writeCovarH5Params(HighFive::File& file)
 }
   
 
-bool Cylinder::checkDtype()
+bool Cylinder::checkMetaData()
 {
   // All processes must check the dtype metadata to ensure consistency
   //
@@ -2077,96 +2066,130 @@ bool Cylinder::checkDtype()
   //
   HighFive::File file(cachename, HighFive::File::ReadOnly);
     
-  // Sanity: check that the DiskType attribute exists
+  // Sanity: check that the EmpModel attribute exists
   //
-  if (!file.hasAttribute("DiskType")) {
+  if (!file.hasAttribute("EmpModel")) {
     if (myid==0) {
-      std::cout << "---- Cylinder:checkDtype: DiskType attribute not found in cache file <" << cachename << ">" << std::endl
-		<< "---- This may indicate an old cache file created before DiskType metadata was added" << std::endl
+      std::cout << "---- Cylinder:checkDtype: EmpModel attribute not found in cache file <" << cachename << ">" << std::endl
+		<< "---- This may indicate an old cache file created before EmpModel metadata was added" << std::endl
 		<< "---- We will continue...but consider remaking the cache to avoid confusion" << std::endl;
-    }
+		}
   } else {
-    // Open existing DiskType attribute
+    // Check that the EmpModel attribute matches the current empirical model
     //
-    auto read_attr = file.getAttribute("DiskType");
-    
-    std::string loaded_dtype;
-    read_attr.read(loaded_dtype); 
+    auto read_attr = file.getAttribute("EmpModel");
+		
+    std::string loaded_mtype;
+    read_attr.read(loaded_mtype); 
 
-    // Map the loaded dtype string to a DiskType enum value
-    //
-    DiskType disktype = dtlookup.at(loaded_dtype);
-
-    if (disktype != DTYPE) {
+    if (loaded_mtype != mtype) {
       if (myid==0) {
-	std::cout << "---- Cylinder::checkDtype: DiskType for cache file <"
-		  << cachename << "> is <"
-		  << loaded_dtype << ">," << std::endl
-		  << "which does not match the requested DiskType <"
-		  << dtype << ">" << std::endl
+	std::cout << "---- Cylinder::checkDtype: EmpModel for cache file <"
+		  << cachename << "> is <" << loaded_mtype << ">,"
+		  << " which does not match the requested empirical model <"
+		  << mtype << ">" << std::endl
 		  << "---- Cylindrical: forcing cache recomputation"
 		  << std::endl;
       }
       // Force cache recomputation
       cache_status = false;	
     }
-    else if (disktype == DiskType::python) {
-      // Sanity check: if DiskType is python, then the
-      // pythonDiskType attribute must exist
-      //
-      if (!file.hasAttribute("pythonDiskType")) {
+    else {
+
+      if (!file.hasAttribute("DiskType")) {
 	if (myid==0) {
-	  std::cout << "---- Cylinder::checkDtype: pythonDiskType attribute not found in cache file <" << cachename << ">. " << std::endl;
-	  std::cout << "---- Cylindier:checkDtype: this may indicate a logic error.  Forcing cache recomputation." << std::endl;
+	  std::cout << "---- Cylinder:checkDtype: DiskType attribute not found in cache file <" << cachename << ">" << std::endl
+		    << "---- Cylinder:checkDtype: this may indicate a logic error.  Forcing cache recomputation." << std::endl;
 	}
 	// Force cache recomputation
 	cache_status = false;
-      } else {
-	auto read_attr = file.getAttribute("pythonDiskType");
-	
-	// Get the pyname attribute
-	std::vector<std::string> pyinfo;
-	read_attr.read(pyinfo);
-	
-	std::string current_md5;
-	
-	// Get the md5sum for requested Python module source file
-	try {
-	  current_md5 = QuickDigest5::fileToHash(pyname);
-	} catch (const std::runtime_error& e) {
-	  if (myid==0)
-	    std::cerr << "Cylinder::CheckDtype error: "
-		      << e.what() << std::endl;
-	}
-	
-	// Check that the md5sums match for the current Python
-	// module source files and the loaded Python module used to
-	// create the cache.  If they do not match, force cache
-	// recomputation to ensure consistency with the current
-	// Python module.
-	//
-	if (current_md5 != pyinfo[1]) {
-	  if (myid==0) {
-	    std::cout << "---- Cylinder::checkDtype: Python module for disk density has changed since cache creation." << std::endl
-		      << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
-		      << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
-		      << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
-	  }
-	  cache_status = false;
-	}
       }
-      // End: have Python disk type, check md5 hashes
+      else {
+	// Open existing DiskType attribute
+	//
+	auto read_attr = file.getAttribute("DiskType");
+    
+	std::string loaded_dtype;
+	read_attr.read(loaded_dtype); 
+	
+	// Map the loaded dtype string to a DiskType enum value
+	//
+	DiskType disktype = dtlookup.at(loaded_dtype);
+	
+	if (disktype != DTYPE) {
+	  if (myid==0) {
+	    std::cout << "---- Cylinder::checkDtype: DiskType for cache file <"
+		      << cachename << "> is <"
+		      << loaded_dtype << ">," << std::endl
+		      << "which does not match the requested DiskType <"
+		      << dtype << ">" << std::endl
+		      << "---- Cylindrical: forcing cache recomputation"
+		      << std::endl;
+	  }
+	  // Force cache recomputation
+	  cache_status = false;	
+	}
+	else if (disktype == DiskType::python) {
+	  // Sanity check: if DiskType is python, then the
+	  // pythonDiskType attribute must exist
+	  //
+	  if (!file.hasAttribute("pythonDiskType")) {
+	    if (myid==0) {
+	      std::cout << "---- Cylinder::checkDtype: pythonDiskType attribute not found in cache file <" << cachename << ">. " << std::endl;
+	      std::cout << "---- Cylindier:checkDtype: this may indicate a logic error.  Forcing cache recomputation." << std::endl;
+	    }
+	    // Force cache recomputation
+	    cache_status = false;
+	  } else {
+	    auto read_attr = file.getAttribute("pythonDiskType");
+	
+	    // Get the pyname attribute
+	    std::vector<std::string> pyinfo;
+	    read_attr.read(pyinfo);
+	    
+	    std::string current_md5;
+	    
+	    // Get the md5sum for requested Python module source file
+	    try {
+	      current_md5 = QuickDigest5::fileToHash(pyname);
+	    } catch (const std::runtime_error& e) {
+	      if (myid==0)
+		std::cerr << "Cylinder::CheckDtype error: "
+			  << e.what() << std::endl;
+	    }
+	
+	    // Check that the md5sums match for the current Python
+	    // module source files and the loaded Python module used to
+	    // create the cache.  If they do not match, force cache
+	    // recomputation to ensure consistency with the current
+	    // Python module.
+	    //
+	    if (current_md5 != pyinfo[1]) {
+	      if (myid==0) {
+		std::cout << "---- Cylinder::checkDtype: Python module for disk density has changed since cache creation." << std::endl
+			  << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
+			  << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
+			  << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
+	      }
+	      cache_status = false;
+	    }
+	  }
+	  // End: have Python disk type, check md5 hashes
+	}
+	// End: Python disk type check
+      }
+      // End: DiskType attribute check
+	
+      // Could add deprojection checks here in the future
     }
-    // End: Python disk type check
-
-    // Could add deprojection checks here in the future
+    // End: DiskType attribute check
   }
-  // End: DiskType attribute check
+  // End: EmpModel attribute check
 
   return cache_status;
 }
 
-void Cylinder::saveDtype()
+void Cylinder::saveMetaData()
 {
   // Only one process must write the dtype metadata
   //

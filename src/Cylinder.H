@@ -394,10 +394,10 @@ protected:
   std::string dtype;
 
   //! Dtype cache check for consistency between cache and current parameters
-  bool checkDtype();
+  bool checkMetaData();
 
   //! Reopen and write the current Dtype into the cache metadata
-  void saveDtype();
+  void saveMetaData();
 
   //! Disk density functions for basis conditioning
   double DiskDens(double R, double z, double phi);
