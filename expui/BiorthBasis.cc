@@ -1578,17 +1578,20 @@ namespace BasisClasses
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
 
-    // Convert dmodel string to lower case
+    // Convert dmodel string to lower case (deprojection model for EOF
+    // basis construction)
     //
     std::transform(dmodel.begin(), dmodel.end(), dmodel.begin(),
 		   [](unsigned char c){ return std::tolower(c); });
       
-    // Convert mtype string to lower case
+    // Convert mtype string to lower case (EmpCylSL spherical function
+    // for EOF basis construction)
     //
     std::transform(mtype.begin(), mtype.end(), mtype.begin(),
 		   [](unsigned char c){ return std::tolower(c); });
 
-    // Convert dtype string to lower case
+    // Convert dtype string to lower case (disk density function for
+    // EOF conditioning)
     //
     std::transform(dtype.begin(), dtype.end(), dtype.begin(),
 		   [](unsigned char c){ return std::tolower(c); });
