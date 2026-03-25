@@ -2644,6 +2644,13 @@ void Component::write_H5(H5::Group& group)
 	if (H5chunk >= nbodies and nbodies >= 8) {
 	  chunk = nbodies/8;
 	}
+	// Ensure chunk size is valid for the dataspace: 1 <= chunk <= nbodies
+	if (chunk > nbodies) {
+	  chunk = nbodies;
+	}
+	if (chunk < 1) {
+	  chunk = 1;
+	}
 	hsize_t chunk_dims[1] = {static_cast<hsize_t>(chunk)};
 	dcpl.setChunk(1, chunk_dims);
       }
