@@ -2651,7 +2651,7 @@ void Component::write_H5(H5::Group& group)
 	if (H5chunk >= nbodies) {
 	  chunk = nbodies/8;
 	}
-	chunk = std::max(1, std::min(chunk, nbodies));
+	chunk = std::clamp<int>(chunk, 1, static_cast<int>(nbodies));
 	hsize_t chunk_dims[1] = {static_cast<hsize_t>(chunk)};
 	dcpl.setChunk(1, chunk_dims);
       }
