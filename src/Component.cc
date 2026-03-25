@@ -2501,6 +2501,10 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
   auto dcplI = HighFive::DataSetCreateProps{};
   auto dcplD = HighFive::DataSetCreateProps{};
 
+  // Compression and chunking.  Do not set chunk size larger than
+  // nbodies.  Turn off compression altogether if nbodies = 0 to avoid
+  // HDF5 errors.
+  //
   if ((H5compress or H5chunk) and nbodies > 0) {
     int chunk = H5chunk;
 
@@ -2642,6 +2646,10 @@ void Component::write_H5(H5::Group& group)
 
     // This could be generalized by registering a user filter, like
     // blosc.  Right now, we're using the default (which is gzip)
+    //
+    // Do not set chunk size larger than number of particles.  If the
+    // particle number is zero, do not compress.
+    //
     if ((H5compress or H5chunk) and h5_particles.size() > 0) {
       // Set chunking
       if (H5chunk) {
