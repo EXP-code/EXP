@@ -1605,19 +1605,19 @@ namespace BasisClasses
     // Set EmpCylSL mtype.  This is the spherical function used to
     // generate the EOF basis.
     //
-    auto itm = EmpCylSL::EmpModelMap.find(mtype);
-
-    if (itm == EmpCylSL::EmpModelMap.end()) {
-      if (myid==0) {
-	std::cout << "No EmpCylSL EmpModel named <"
-		  << mtype << ">, valid types are: "
-		  << "Exponential, ExpSphere, Gaussian, Plummer, Power, Deproject "
-		  << "(not case sensitive)" << std::endl;
-      }
-      throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
+    try {
+      auto itm = EmpCylSL::EmpModelMap.find(mtype);
+      EmpCylSL::mtype = itm->second;
     }
-    
-    EmpCylSL::mtype = itm->second;
+    catch (const std::out_of_range& err) {
+      if (myid==0) {
+	std::cout << "Cylindrical::initialize error parsing 'mtype' parameter in YAML config" << std::endl;
+	std::cout << "Valid options are: ";
+	for (auto p : EmpCylSL::EmpModelLabs) std::cout << p.second << " ";
+	std::cout << "(not case sensitive)" << std::endl;
+      }
+      throw std::runtime_error("Cylindrical::initialize: invalid 'mtype' parameter in YAML config");
+    }
 
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
