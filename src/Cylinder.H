@@ -46,6 +46,18 @@ class MixtureBasis;
 
     @param dweight is the relative weight of the second component in the double-exponential disk basis construction (default: 1.0)
 
+    @param dmodel is the disk model type for deprojection and EOF conditioning.  See Cylinder::DiskType for options.
+
+    @param mtype is the spherical model type for conditioning the basis.  See EmpCylSL::EmpModel for options.
+
+    @param dtype is the density model type for conditioning the basis.  See Cylinder::DiskType for options.
+
+    @param rwidth is the radial width of the error function truncation for disk basis construction (default: 0.0, which implies no truncation)
+
+    @param rtrunc is the radial truncation radius for disk basis construction (default: 0.1)
+
+    @param rfactor is the radial scale factor for disk basis construction (default: 1.0, which implies no scaling)
+
     @param lmaxfid is the maximum spherical harmonic index for EOF construction
 
     @param nmaxfid is the maximum radial index for EOF construction
@@ -121,7 +133,7 @@ class MixtureBasis;
 
     @param cmapz is the vertical coordinate mapping type
 
-    @param mtype is the deprojected model type for conditioning the
+    @param mtype is the spherical model type for conditioning the
     basis. See ExpCylSL::mtype for options.
 
     @param ppower is the power-law index for the Power spherical model
@@ -170,6 +182,7 @@ private:
   //
   double rcylmin, rcylmax, zmax, acyl, bias;
   double aratio, hratio, dweight; // Disk basis construction parameters for double-exponential disk
+  double rwidth, rtrunc, rfactor; // Disk basis construction parameters for numerical deprojection
   double Mfac, HERNA;		  // Disk bulge parameters: mass fraction and Hernquist scale length
 
   int nmaxfid, lmaxfid, mmax, mlim, nint;
@@ -355,7 +368,7 @@ protected:
   //! Power-law index for deprojected spherical model for basis conditioning
   double ppow = 2.0;
 
-  //! Deprojection model for basis conditioning
+  //! Spherical model for basis conditioning
   std::string mtype = "Exponential";
 
   //! Write basis-specific parameters to HDF5 covariance file
@@ -364,6 +377,9 @@ protected:
   //! Disk density function types for basis conditioning
   enum class DiskType
     { constant, gaussian, mn, exponential, doubleexpon, diskbulge, python };
+
+  //! The string name of the deprojection model
+  std::string dmodel;
 
   //! Map human strings to disk target typenums
   const std::map<std::string, DiskType> dtlookup =
@@ -392,6 +408,29 @@ protected:
 
   //! The string name of the disk density function type for basis conditioning
   std::string dtype;
+
+  //@{
+  //! DeprojType support
+  
+  //! Disk models used for deprojection
+  enum class DeprojType
+    { mn, toomre, python, exponential};
+  
+  //! Current model
+  DeprojType PTYPE;
+  
+  //! Python module name for disk density function if using Python deprojection
+  std::string pyproj;
+
+  //! Look up by string
+  const std::map<std::string, DeprojType> dplookup =
+    { {"mn",          DeprojType::mn},
+      {"toomre",      DeprojType::toomre},
+      {"python",      DeprojType::python},
+      {"exponential", DeprojType::exponential}
+    };
+  //@}
+
 
   //! Dtype cache check for consistency between cache and current parameters
   bool checkMetaData();

@@ -15,6 +15,7 @@
 #include "exputils.H"		// utility functions
 #include "NVTX.H"		// for NVTX profiling of CUDA code
 #include "quickdigest5.hpp"	// for md5 hashing of Python modules
+#include "DiskModels.H"		// 
 
 //@{
 //! These are for testing exclusively (should be set false for production)
@@ -61,6 +62,9 @@ Cylinder::valid_keys = {
   "pnum",
   "tnum",
   "ashift",
+  "rwidth",
+  "rtrunc",
+  "rfactor",
   "expcond",
   "precond",
   "logr",
@@ -129,6 +133,7 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 
   mtype           = "exponential";
   dtype           = "exponential";
+  dmodel          = "EXP";
 
   // For disk basis construction with doubleexpon
   //
@@ -144,7 +149,9 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   pnum            = 1;
   tnum            = 80;
   ashift          = 0.0;
-
+  rwidth          = 0.0;	// Width of error function truncation (ignored if zero)
+  rfactor         = 1.0;	// Radial scale factor for numerical basis construction
+  rtrunc          = 0.1;	// Radial truncation for numerical basis construction
   vflag           = 0;
   eof             = 1;
   npca            = std::numeric_limits<int>::max();
@@ -214,10 +221,10 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   
   if (itm == EmpCylSL::EmpModelMap.end()) {
     if (myid==0) {
-      std::cout << "No EmpCylSL EmpModel named <"
-		<< mtype << ">, valid types are: "
-		<< "Exponential, ExpSphere, Gaussian, Plummer, Power, Deproject "
-		<< "(not case sensitive)" << std::endl;
+	std::cout << "No EmpCylSL EmpModel named <"
+		  << mtype << ">, valid types are: ";
+	for (auto p : EmpCylSL::EmpModelLabs) std::cout << p.second << " ";
+	std::cout << "(not case sensitive)" << std::endl;
     }
     throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
   }
@@ -234,8 +241,24 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
   std::transform(dtype.begin(), dtype.end(), dtype.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
+  // Convert dmodel to lower case
+  //
+  std::transform(dmodel.begin(), dmodel.end(), dmodel.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
   // Check for map entry, will throw if the key is not in the map.
-  DTYPE = dtlookup.at(dtype);
+  try {
+    DTYPE = dtlookup.at(dtype);
+  }
+  catch (const std::out_of_range& err) {
+    if (myid==0) {
+      std::cout << "DiskType error in configuraton file" << std::endl;
+      std::cout << "Valid options are: ";
+      for (auto v : dtlookup) std::cout << v.first << " ";
+      std::cout << std::endl;
+    }
+    throw std::runtime_error("Cylinder: invalid DiskType");
+  }
 
   // Set azimuthal harmonic order restriction?
   //
@@ -329,36 +352,25 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
 		  << std::endl;
       
 
-      // Set DiskType.  This is the functional form for the disk used to
-      // condition the basis.
+      // Warning about DiskType and pyEXP assumptions for backward compatibility with
+      // previous versions of pyEXP.
       //
-      try {
-	if (myid==0) {		// Report DiskType
-	  std::cout << "---- DiskType is <" << dtype << ">" << std::endl;
+      if (myid==0) {
+	std::cout << "---- DiskType is <" << dtype << ">" << std::endl;
 
-	  if (not sech2) {
-	    switch (DTYPE) {
-	    case DiskType::doubleexpon:
-	    case DiskType::exponential:
-	    case DiskType::diskbulge:
-	      std::cout << "---- pyEXP assumes sech^2(z/(2h)) by default in v7.9.0 and later" << std::endl
-			<< "---- Use the 'sech2: true' in your YAML config to use sech^2(z/(2h))" << std::endl
-			<< "---- This warning will be removed in v7.10.0." << std::endl;
-	      break;
-	    default:
-	      break;
-	    }
+	if (not sech2) {
+	  switch (DTYPE) {
+	  case DiskType::doubleexpon:
+	  case DiskType::exponential:
+	  case DiskType::diskbulge:
+	    std::cout << "---- pyEXP assumes sech^2(z/(2h)) by default in v7.9.0 and later" << std::endl
+		      << "---- Use the 'sech2: true' in your YAML config to use sech^2(z/(2h))" << std::endl
+		      << "---- This warning will be removed in v7.10.0." << std::endl;
+	    break;
+	  default:
+	    break;
 	  }
 	}
-      }
-      catch (const std::out_of_range& err) {
-	if (myid==0) {
-	  std::cout << "DiskType error in configuraton file" << std::endl;
-	  std::cout << "Valid options are: ";
-	  for (auto v : dtlookup) std::cout << v.first << " ";
-	  std::cout << std::endl;
-	}
-	throw std::runtime_error("Cylindrical::initialize: invalid DiskType");
       }
 
       // Check for and initialize the Python density type
@@ -366,6 +378,82 @@ Cylinder::Cylinder(Component* c0, const YAML::Node& conf, MixtureBasis *m) :
       if (DTYPE == DiskType::python) {
 	pyDens = std::make_shared<DiskDensityFunc>(pyname);
       }
+
+      // Use these user models to deproject for the EOF spherical basis
+      //
+      if (EmpCylSL::mtype == EmpCylSL::EmpModel::Deproject) {
+	// The scale in EmpCylSL is assumed to be 1 so we compute the
+	// height relative to the length
+	//
+	double H = sech2 ? 0.5*hcyl/acyl : hcyl/acyl;
+
+	// The model instance (you can add others in DiskModels.H).
+	// It's MN or Exponential if not MN.
+	//
+	EmpCylSL::AxiDiskPtr model;
+	
+	// Map legacy/short model names to canonical keys expected by dplookup
+	//
+	if (dmodel == "exp") {
+	  dmodel = "exponential";
+	}
+
+	// Check for map entry
+	//
+	try {
+	  PTYPE = dplookup.at(dmodel);
+	
+	  // Report DeprojType
+	  if (myid==0) {
+	    std::cout << "---- Deprojection type is <" << dmodel
+		      << ">" << std::endl;
+	  }
+	}
+	catch (const std::out_of_range& err) {
+	  if (myid==0) {
+	    std::cout << "DeprojType error in configuration file" << std::endl;
+	    std::cout << "Valid options are: ";
+	    for (auto v : dplookup) std::cout << v.first << " ";
+	    std::cout << std::endl;
+	  }
+	  throw std::runtime_error("Cylinder: invalid DiskModel");
+	}
+
+	if (PTYPE == DeprojType::mn) // Miyamoto-Nagai
+	  model = std::make_shared<MNdisk>(1.0, H);
+	else if (PTYPE == DeprojType::toomre) {
+	  model = std::make_shared<Toomre>(1.0, H, 5.0);
+	} else if (PTYPE == DeprojType::python) {
+	  if (pyproj.empty()) {
+	    if (myid==0) {
+	      std::cout << "DeprojType is set to 'python' but no Python "
+			<< "projection module name (pyname/pyproj) was provided."
+			<< std::endl;
+	    }
+	    throw std::runtime_error(
+	      "Cylindrical::initialize: DeprojType 'python' requires a "
+	      "non-empty Python module name (pyname/pyproj).");
+	  }
+	  model = std::make_shared<AxiSymPyModel>(pyproj, 1.0);
+	  if (myid==0)
+	    std::cout << "---- Using AxiSymPyModel for deprojection from "
+		      << "Python module <" << pyproj << ">" << std::endl;
+	} else {		// Default to exponential
+	  model = std::make_shared<Exponential>(1.0, H);
+	}
+	
+	if (rwidth>0.0) {
+	  model = std::make_shared<Truncated>(rtrunc/acyl,
+					      rwidth/acyl,
+					      model);
+	  if (myid==0)
+	    std::cout << "Made truncated model with R=" << rtrunc/acyl
+		      << " and W=" << rwidth/acyl << std::endl;
+	}
+     
+	ortho->create_deprojection(H, rfactor, rnum, ncylr, model);
+      }
+
 
       // The conditioning function for the EOF with an optional shift
       // for M>0
@@ -542,6 +630,9 @@ void Cylinder::initialize()
     if (conf["pnum"      ])       pnum  = conf["pnum"      ].as<int>();
     if (conf["tnum"      ])       tnum  = conf["tnum"      ].as<int>();
     if (conf["ashift"    ])     ashift  = conf["ashift"    ].as<double>();
+    if (conf["rwidth"    ])     rwidth  = conf["rwidth"    ].as<double>();
+    if (conf["rfactor"   ])    rfactor  = conf["rfactor"   ].as<double>();
+    if (conf["rtrunc"    ])     rtrunc  = conf["rtrunc"    ].as<double>();
     if (conf["expcond"   ])    precond  = conf["expcond"   ].as<bool>();
     if (conf["precond"   ])    precond  = conf["precond"   ].as<bool>();
     if (conf["logr"      ]) logarithmic = conf["logr"      ].as<bool>();
@@ -557,8 +648,11 @@ void Cylinder::initialize()
     if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
     if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
+
     if (conf["dtype"     ])      dtype  = conf["dtype"     ].as<std::string>();
+    if (conf["dmodel"    ])     dmodel  = conf["dmodel"    ].as<std::string>();
     if (conf["pyname"    ])     pyname  = conf["pyname"    ].as<std::string>();
+    if (conf["pyproj"    ])     pyproj  = conf["pyproj"    ].as<std::string>();
     
     if (conf["mtype"     ])      mtype  = conf["mtype"     ].as<std::string>();
     if (conf["ppower"    ])      ppow   = conf["ppower"    ].as<double>();
@@ -2143,7 +2237,7 @@ bool Cylinder::checkMetaData()
 	    std::cout << "---- Cylinder::checkMetaData: Python module for disk density has changed since cache creation." << std::endl
 		      << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
 		      << "---- Loaded module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
-		      << "---- Cylinder:checkMetaData: forcing cache recomputation to ensure consistency" << std::endl;
+		      << "---- Cylinder::checkMetaData: forcing cache recomputation to ensure consistency" << std::endl;
 	  }
 	  cache_status = false;
 	}
@@ -2152,7 +2246,72 @@ bool Cylinder::checkMetaData()
     }
     // End: Python disk type check
 
-    // Could add deprojection checks here in the future
+    // Deprojection consistency checks with cache
+    if (EmpCylSL::mtype == EmpCylSL::EmpModel::Deproject) {
+
+      // Get the dmodel attribute
+      //
+      auto read_attr = file.getAttribute("ProjType");
+      std::string loaded_dmodel;
+      read_attr.read(loaded_dmodel);
+	    
+      if (loaded_dmodel != dmodel) {
+	if (myid==0) {
+	  std::cout << "---- Cylinder::checkMetaData: dmodel for cache file <" << cachename << "> is <"
+		    << loaded_dmodel << ">, which does not match the requested dmodel <"
+		    << dmodel << ">" << std::endl
+		    << "---- Cylinder::checkMetaData: forcing cache recomputation" << std::endl;
+	}
+	// Force cache recomputation
+	cache_status = 0;
+      }
+    }
+	      
+    if (cache_status == 1 and dmodel == "python") {
+      // Get the Python info
+      //
+      if (!file.hasAttribute("pythonProjType")) {
+	// We should not be able to get here since the pythonProjType
+	// attribute is required for cache creation with the Python
+	if (myid==0) {
+	  std::cout << "---- Cylinder::checkMetaData: pythonProjType attribute not found in cache file <" << cachename << ">. " << std::endl;
+	  std::cout << "---- Cylinder::checkMetaData: this may be a logic error, trigger recomputation." << std::endl;
+	}
+	
+	cache_status = 0;
+	
+      } else {
+	// Get the pyproj attribute and md5 hash from the cache
+	auto read_attr = file.getAttribute("pythonProjType");
+	std::vector<std::string> pyinfo;
+	read_attr.read(pyinfo);
+	
+	std::string current_md5;
+	
+	// Get the md5sum for requested Python projection module
+	try {
+	  current_md5 = QuickDigest5::fileToHash(pyproj + ".py");
+	} catch (const std::runtime_error& e) {
+	  if (myid==0)
+	    std::cerr << "BiorthBasis::Cylindrical error: "
+		      << e.what() << ", error computing pyproj md5sum"
+		      << std::endl;
+	}
+	// Check that the md5sums match for the current Python projection
+	//
+	if (current_md5 != pyinfo[1]) {
+	  if (myid==0) {
+	    std::cout << "---- Cylinder::checkMetaData: Python module for deprojection has changed since cache creation." << std::endl
+		      << "---- Current module: <" << pyproj << ">, md5sum: " << current_md5 << std::endl
+		      << "---- Cached module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
+		      << "---- Cylinder::checkMetaData: forcing cache recomputation to ensure consistency" << std::endl;
+	  }
+	  cache_status = 0;
+	}
+      }
+      // End: DeprojType and Python module consistency checks with cache
+    }
+    // End: DiskType and Python module consistency checks with cache
   }
   // End: DiskType attribute check
 
@@ -2199,8 +2358,30 @@ void Cylinder::saveMetaData()
       }
     }
 
-    // Deprojection metadata could be added here
+    // Deprojection metadata
+    if (EmpCylSL::mtype == EmpCylSL::EmpModel::Deproject) {
 
+      file.createAttribute("ProjType", dmodel);
+	    
+      if (PTYPE == DeprojType::python) {
+	try {
+	  std::vector<std::string> pyinfo =
+	    {pyproj, QuickDigest5::fileToHash(pyproj + ".py")};
+	  
+	  file.createAttribute("pythonProjType", pyinfo);
+	  
+	  std::cout << "---- Cylinder::saveMetaData: writing pythonProjType <" << pyproj + ".py"
+		    << "> to cache file <" << cachename << ">" << std::endl;
+	} catch (const std::runtime_error& e) {
+	  if (myid==0) {
+	    std::cerr << "Cylinder::saveMetaData error: "
+		      << e.what()
+		      << ", can not write the pyinfo and md5 hash to HDF5"
+		      << std::endl;
+	  }
+	}
+      }
+    }
   } catch (const HighFive::Exception& err) {
     std::cerr << err.what() << std::endl;
     std::cerr << "Cylinder::saveMetaData: error writing metadata to cache file <"
