@@ -4122,15 +4122,17 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 
     if (compute and covar) {
       int size = vc[id].row(mm).size();
-      assert(size == NORDER && "size of vectors must match");
+      if (size != NORDER) {
+        throw GenericError("size of vectors must match", __FILE__, __LINE__, 1039, false);
+      }
       Eigen::VectorXcd vec(size);
       
       Eigen::VectorXd vC = vc[id].row(mm).transpose() * norm;
       Eigen::VectorXd vS = vs[id].row(mm).transpose() * norm;
-
-      // Make sure we only have real part here
+      
+      // For m = 0, the azimuthal dependence vanishes; set vS to zero to ensure a purely real result
       if (mm==0) vS.setZero();
-
+      
       vec.real() = vC*mcos + vS*msin;
       vec.imag() = vC*msin - vS*mcos;
 
