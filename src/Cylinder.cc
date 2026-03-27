@@ -2219,7 +2219,7 @@ bool Cylinder::checkMetaData()
 	    
 	// Get the md5sum for requested Python module source file
 	try {
-	  current_md5 = QuickDigest5::fileToHash(pyname);
+	  current_md5 = QuickDigest5::fileToHash(pyname + ".py");
 	} catch (const std::runtime_error& e) {
 	  if (myid==0)
 	    std::cerr << "Cylinder::checkMetaData error: "
@@ -2348,7 +2348,7 @@ void Cylinder::saveMetaData()
     if (DTYPE == DiskType::python) {
       try {
 	std::vector<std::string> pyinfo =
-	  {pyname, QuickDigest5::fileToHash(pyname)};
+	  {pyname, QuickDigest5::fileToHash(pyname + ".py")};
 
 	file.createAttribute("pythonDiskType", pyinfo);
 
