@@ -1,6 +1,7 @@
 #include <algorithm>
 
-#include "YamlCheck.H"
+#include "quickdigest5.hpp"	// for md5 hashing of Python modules
+#include "YamlCheck.H"		// for YAML configuration checking
 #include "EXPException.H"
 #include "BiorthBasis.H"
 #include "DiskModels.H"
@@ -10,6 +11,10 @@
 #ifdef HAVE_FE_ENABLE
 #include <cfenv>
 #endif
+
+// Suppress HDF5 diagonostic messages from base layer when using
+// HighFive.  This should be enabled unless one is debugging.
+// #define HDF5_QUIET
 
 namespace BasisClasses
 {
@@ -1180,6 +1185,14 @@ namespace BasisClasses
       {"python",      DiskType::python}
     };
 
+  // Deprojection model for cylindrical basis construction
+  const std::map<std::string, Cylindrical::DeprojType> Cylindrical::dplookup =
+    { {"mn",          DeprojType::mn},
+      {"exponential", DeprojType::exponential},
+      {"toomre",      DeprojType::toomre},
+      {"python",      DeprojType::python}
+    };
+
   const std::set<std::string>
   Cylindrical::valid_keys = {
     "tk_type",
@@ -1215,8 +1228,9 @@ namespace BasisClasses
     "ashift",
     "expcond",
     "ignore",
-    "deproject",
     "logr",
+    "dmodel",
+    "ppow",
     "pcavar",
     "pcaeof",
     "pcavtk",
@@ -1245,6 +1259,7 @@ namespace BasisClasses
     "coefCompute",
     "coefMaster",
     "pyname",
+    "pyproj",
     "nint",
     "totalCovar",
     "fullCovar"
@@ -1391,7 +1406,6 @@ namespace BasisClasses
     cachename   = ".eof_cache_file";
     oldcache    = false;
     Ignore      = false;
-    deproject   = false;
     
     rnum        = 200;
     pnum        = 1;
@@ -1402,7 +1416,7 @@ namespace BasisClasses
     EVEN_M      = false;
     cmapR       = 1;
     cmapZ       = 1;
-    mtype       = "Exponential";
+    mtype       = "exponential";
     dtype       = "exponential";
     vflag       = 0;
     
@@ -1481,8 +1495,7 @@ namespace BasisClasses
       if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
       if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
       if (conf["ignore"    ])      Ignore = conf["ignore"    ].as<bool>();
-      if (conf["deproject" ])   deproject = conf["deproject" ].as<bool>();
-      if (conf["dmodel"    ])      dmodel = conf["dmodel"    ].as<bool>();
+      if (conf["dmodel"    ])      dmodel = conf["dmodel"    ].as<std::string>();
 
       if (conf["aratio"    ])      aratio = conf["aratio"    ].as<double>();
       if (conf["hratio"    ])      hratio = conf["hratio"    ].as<double>();
@@ -1493,11 +1506,12 @@ namespace BasisClasses
       if (conf["ashift"    ])      ashift = conf["ashift"    ].as<double>();
       if (conf["rfactor"   ])     rfactor = conf["rfactor"   ].as<double>();
       if (conf["rtrunc"    ])      rtrunc = conf["rtrunc"    ].as<double>();
-      if (conf["pow"       ])        ppow = conf["ppow"      ].as<double>();
+      if (conf["ppow"      ])        ppow = conf["ppow"      ].as<double>();
       if (conf["mtype"     ])       mtype = conf["mtype"     ].as<std::string>();
       if (conf["dtype"     ])       dtype = conf["dtype"     ].as<std::string>();
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
       if (conf["pyname"    ])      pyname = conf["pyname"    ].as<std::string>();
+      if (conf["pyproj"    ])      pyproj = conf["pyproj"    ].as<std::string>();
       if (conf["pcavar"]    )      pcavar = conf["pcavar"    ].as<bool>();
       if (conf["subsamp"]   )      sampT  = conf["subsamp"   ].as<int>();
 
@@ -1564,38 +1578,45 @@ namespace BasisClasses
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
 
-    // Set deprojected model type
+    // Convert dmodel string to lower case (deprojection model for EOF
+    // basis construction)
     //
-    // Convert mtype string to lower case
-    std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+    std::transform(dmodel.begin(), dmodel.end(), dmodel.begin(),
 		   [](unsigned char c){ return std::tolower(c); });
       
+    // Convert mtype string to lower case (EmpCylSL spherical function
+    // for EOF basis construction)
+    //
+    std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+
+    // Convert dtype string to lower case (disk density function for
+    // EOF conditioning)
+    //
+    std::transform(dtype.begin(), dtype.end(), dtype.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+
     // Set EmpCylSL mtype.  This is the spherical function used to
     // generate the EOF basis.  If "deproject" is set, this will be
-    // overriden in EmpCylSL.
+    // auto-set to the same as the deprojection model.  Otherwise,
+    // this can be set independently to allow for different spherical
+    // functions for the EOF basis
+
+    // Set EmpCylSL mtype.  This is the spherical function used to
+    // generate the EOF basis.
     //
-    EmpCylSL::mtype = EmpCylSL::Exponential; // Default
-    if (mtype.compare("exponential")==0) {
-      EmpCylSL::mtype = EmpCylSL::Exponential;
+    try {
+      auto itm = EmpCylSL::EmpModelMap.find(mtype);
+      EmpCylSL::mtype = itm->second;
+    }
+    catch (const std::out_of_range& err) {
       if (myid==0) {
-	std::cout << "---- Cylindrical: using original exponential deprojected disk for EOF conditioning" << std::endl;
-	std::cout << "---- Cylindrical: consider using the exact, spherically deprojected exponential with 'mtype: ExpSphere'" << std::endl;
+	std::cout << "Cylindrical::initialize error parsing 'mtype' parameter in YAML config" << std::endl;
+	std::cout << "Valid options are: ";
+	for (auto p : EmpCylSL::EmpModelLabs) std::cout << p.second << " ";
+	std::cout << "(not case sensitive)" << std::endl;
       }
-    } else if (mtype.compare("expsphere")==0)
-      EmpCylSL::mtype = EmpCylSL::ExpSphere;
-    else if (mtype.compare("gaussian")==0)
-      EmpCylSL::mtype = EmpCylSL::Gaussian;
-    else if (mtype.compare("plummer")==0)
-      EmpCylSL::mtype = EmpCylSL::Plummer;
-    else if (mtype.compare("power")==0) {
-      EmpCylSL::mtype = EmpCylSL::Power;
-      EmpCylSL::PPOW  = ppow;
-    } else {
-      if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
-			     << mtype << ">, valid types are: "
-			     << "Exponential, ExpSphere, Gaussian, Plummer, Power "
-			     << "(not case sensitive)" << std::endl;
-      throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
+      throw std::runtime_error("Cylindrical::initialize: invalid 'mtype' parameter in YAML config");
     }
 
     // Check for non-null cache file name.  This must be specified
@@ -1630,13 +1651,225 @@ namespace BasisClasses
     if (oldcache) sl->AllowOldCache();
     
 
+    // Temporary muting of HDF5 error messages for EOF cache reading
+#ifdef HDF5_QUIET
+    H5E_auto2_t old_func;
+    void* old_client_data;
+    H5Eget_auto2(H5E_DEFAULT, &old_func, &old_client_data);
+
+    // Mute HDF5 error messages
+    H5Eset_auto2(H5E_DEFAULT, NULL, NULL);
+
+    // For unmute, use:
+    // H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
+#endif
+
     // Attempt to read EOF cache
     //
-    if (sl->read_cache() == 0) {
+    int cache_status = sl->read_cache();
+
+    std::map<DiskType, std::string> disk_type = {
+      {DiskType::constant,    "constant"},
+      {DiskType::gaussian,    "gaussian"},
+      {DiskType::mn,          "mn"},
+      {DiskType::exponential, "exponential"},
+      {DiskType::doubleexpon, "doubleexpon"},
+      {DiskType::diskbulge,   "diskbulge"},
+      {DiskType::python,      "python"}
+    };
+
+    // Check for map entry, will throw if the key is not in the map.
+    DTYPE = dtlookup.at(dtype);
+
+    // Checking for cache consistency with current DiskType and Python
+    // module (if applicable)
+    //
+    if (cache_status == 1) {
+
+      try {
+	// Open the cache file for reading the Python metadata
+	//
+	HighFive::File file(cachename, HighFive::File::ReadOnly);
+    
+	// mtype is already cached as "model" attribute in the HDF5
+	// cache file, so we do not need to write it here.  We just
+	// need to write the DiskType and Python metadata (if
+	// applicable).
+	//
+
+	// Check that the DiskType for the cache matches the requested
+	// DiskType If the DiskType attribute is missing from the
+	// cache, this indicates thet the cache was created with an
+	// older versions of the code that did not include the
+	// DiskType attribute in the cache.  We should trigger a cache
+	// recomputation in this case to be safe, but will let this
+	// pass for backward compatibility with older caches.
+	//
+	if (!file.hasAttribute("DiskType")) {
+	  if (myid==0) {
+	      std::cout << "---- Cylindrical: DiskType attribute not found in cache file <" << cachename << ">. " << std::endl
+			<< "---- This indicates that the cache was created with an older version of the" << std::endl
+			<< "---- code that did not include the DiskType attribute in the cache. We" << std::endl
+			<< "---- suggest deleting the old cache file to prevent this warning and rebuild" << std::endl
+			<< "---- the cache, but we will continue..." << std::endl;
+	  } else {
+	    // Open existing DiskType attribute
+	    //
+	    auto read_attr = file.getAttribute("DiskType");
+
+	    std::string loaded_dtype;
+	    read_attr.read(loaded_dtype); 
+
+	    DiskType disktype = dtlookup.at(loaded_dtype);
+
+	    if (disktype != DTYPE) {
+	      if (myid==0) {
+		std::cout << "---- Cylindrical: DiskType for cache file <"
+			  << cachename << "> is <"
+			  << loaded_dtype << ">," << std::endl
+			  << "which does not match the requested DiskType <"
+			  << dtype << ">" << std::endl
+			  << "---- Cylindrical: forcing cache recomputation"
+			  << std::endl;
+	      }
+	      // Force cache recomputation
+	      cache_status = 0;	
+	    }
+	    else if (disktype == DiskType::python) {
+
+	      // If the DiskType is python, we also need to check that
+	      // the Python module used to create the cache matches the
+	      // current Python module to ensure consistency.  This tag
+	      // should be present in the cache if it was created with a
+	      // recent version of the code, but if it is missing we
+	      // will trigger cache recomputation to ensure consistency
+	      // with the current Python module.
+	      if (file.hasAttribute("pythonDiskType") == false) {
+		if (myid==0) {
+		  std::cout << "---- Cylindrical: pythonDiskType attribute not found in cache file <" << cachename << ">. " << std::endl;
+		  std::cout << "---- Cylindrical: this may be a logic error, trigger recomputation." << std::endl;
+		}
+		cache_status = 0;
+	      } else {
+		// Get the pyname attribute
+		auto read_attr = file.getAttribute("pythonDiskType");
+		
+		std::vector<std::string> pyinfo;
+		read_attr.read(pyinfo);
+		
+		std::string current_md5;
+		
+		// Get the md5sum for requested Python module
+		try {
+		  current_md5 = QuickDigest5::fileToHash(pyname + ".py");
+		} catch (const std::runtime_error& e) {
+		  if (myid==0)
+		    std::cerr << "BiorthBasis::Cylindrical error: "
+			      << e.what() << ", error compuing pyname md5sum"
+			      << std::endl;
+		}
+	  
+		// Check that the md5sums match for the current Python
+		// module and the Python module used to create the
+		// cache.  If they do not match, force cache
+		// recomputation to ensure consistency with the current
+		// Python module.
+		if (current_md5 != pyinfo[1]) {
+		  if (myid==0) {
+		    std::cout << "---- Cylindrical: Python module for disk density has changed since cache creation." << std::endl
+			      << "---- Current module: <" << pyname << ">, md5sum: " << current_md5 << std::endl
+			      << "---- Cached module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
+			      << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
+		  }
+		  cache_status = 0;
+		}
+	      }
+	    }
+	  }
+
+	  // Get the deproject attribute
+	  //
+	  if (cache_status == 1 and
+	      EmpCylSL::mtype == EmpCylSL::EmpModel::Deproject) {
+
+	    // Get the dmodel attribute
+	    //
+	    auto read_attr = file.getAttribute("ProjType");
+	    std::string loaded_dmodel;
+	    read_attr.read(loaded_dmodel);
+	    
+	    if (loaded_dmodel != dmodel) {
+	      if (myid==0) {
+		std::cout << "---- Cylindrical: dmodel for cache file <" << cachename << "> is <"
+			  << loaded_dmodel << ">, which does not match the requested dmodel <"
+			  << dmodel << ">" << std::endl
+			  << "---- Cylindrical: forcing cache recomputation" << std::endl;
+	      }
+	      // Force cache recomputation
+	      cache_status = 0;
+	    }
+	  }
+	      
+	  if (cache_status == 1 and dmodel == "python") {
+	    // Get the Python info
+	    //
+	    if (!file.hasAttribute("pythonProjType")) {
+	      // We should not be able to get here since the pythonProjType
+	      // attribute is required for cache creation with the Python
+	      if (myid==0) {
+		std::cout << "---- Cylindrical: pythonProjType attribute not found in cache file <" << cachename << ">. " << std::endl;
+		std::cout << "---- Cylindrical: this may be a logic error, trigger recomputation." << std::endl;
+	      }
+
+	      cache_status = 0;
+		
+	    } else {
+	      // Get the pyproj attribute and md5 hash from the cache
+	      auto read_attr = file.getAttribute("pythonProjType");
+	      std::vector<std::string> pyinfo;
+	      read_attr.read(pyinfo);
+	      
+	      std::string current_md5;
+	      
+	      // Get the md5sum for requested Python projection module
+	      try {
+		current_md5 = QuickDigest5::fileToHash(pyproj + ".py");
+	      } catch (const std::runtime_error& e) {
+		if (myid==0)
+		  std::cerr << "BiorthBasis::Cylindrical error: "
+			    << e.what() << ", error computing pyproj md5sum"
+			    << std::endl;
+	      }
+	      // Check that the md5sums match for the current Python projection
+	      //
+	      if (current_md5 != pyinfo[1]) {
+		if (myid==0) {
+		  std::cout << "---- Cylindrical: Python module for deprojection has changed since cache creation." << std::endl
+			    << "---- Current module: <" << pyproj << ">, md5sum: " << current_md5 << std::endl
+			    << "---- Cached module:  <" << pyinfo[0] << ">, md5sum: " << pyinfo[1]  << std::endl
+			    << "---- Cylindrical: forcing cache recomputation to ensure consistency" << std::endl;
+		}
+		cache_status = 0;
+	      }
+	    }
+	  }
+	  // End: DeprojType and Python module consistency checks with cache
+	}
+	// End: DiskType and Python module consistency checks with cache
+      }
+      catch (const HighFive::Exception& err) {
+	if (myid==0) {
+	  std::cerr << "---- Cylindrical: " << err.what() << std::endl;
+	  std::cerr << "---- Cylindrical: forcing cache recomputation" << std::endl;
+	}
+	cache_status = 0;	// Fallback...
+      }
+    }
+
+    if (cache_status == 0) {
 
       // Remake cylindrical basis
       //
-
       if (Ignore and myid==0) {
 	std::cout << "---- BasisFactory: We have deprecated the 'ignore' parameter for the" << std::endl
 		  << "----               Cylindrical class. If the cache file exists but does" << std::endl
@@ -1646,17 +1879,10 @@ namespace BasisClasses
 		  << "----               remove 'ignore' from your YAML configuration." << std::endl;
       }
 
-      // Convert dtype string to lower case
-      //
-      std::transform(dtype.begin(), dtype.end(), dtype.begin(),
-		     [](unsigned char c){ return std::tolower(c); });
-
       // Set DiskType.  This is the functional form for the disk used to
       // condition the basis.
       //
-      try {				// Check for map entry, will through if the 
-	DTYPE = dtlookup.at(dtype);	// key is not in the map.
-	
+      try {
 	if (myid==0) {		// Report DiskType
 	  std::cout << "---- DiskType is <" << dtype << ">" << std::endl;
 
@@ -1693,7 +1919,7 @@ namespace BasisClasses
 
       // Use these user models to deproject for the EOF spherical basis
       //
-      if (deproject) {
+      if (EmpCylSL::mtype == EmpCylSL::EmpModel::Deproject) {
 	// The scale in EmpCylSL is assumed to be 1 so we compute the
 	// height relative to the length
 	//
@@ -1704,16 +1930,56 @@ namespace BasisClasses
 	//
 	EmpCylSL::AxiDiskPtr model;
 	
-	if (dmodel.compare("MN")==0) // Miyamoto-Nagai
-	  model = std::make_shared<MNdisk>(1.0, H);
-	else if (DTYPE == DiskType::python) {
-	  model = std::make_shared<AxiSymPyModel>(pyname, acyl);
-	  std::cout << "Using AxiSymPyModel for deprojection from Python function <"
-		    << pyname << ">" << std::endl;
+	// Map legacy/short model names to canonical keys expected by dplookup
+	//
+	if (dmodel == "exp") {
+	  dmodel = "exponential";
 	}
-	else			// Default to exponential
-	  model = std::make_shared<Exponential>(1.0, H);
 
+	// Check for map entry
+	//
+	try {
+	  PTYPE = dplookup.at(dmodel);
+	
+	  // Report DeprojType
+	  if (myid==0) {
+	    std::cout << "---- Deprojection type is <" << dmodel
+		      << ">" << std::endl;
+	  }
+	}
+	catch (const std::out_of_range& err) {
+	  if (myid==0) {
+	    std::cout << "DeprojType error in configuration file" << std::endl;
+	    std::cout << "Valid options are: ";
+	    for (auto v : dplookup) std::cout << v.first << " ";
+	    std::cout << std::endl;
+	  }
+	  throw std::runtime_error("Cylindrical::initialize: invalid DiskModel");
+	}
+
+	if (PTYPE == DeprojType::mn) // Miyamoto-Nagai
+	  model = std::make_shared<MNdisk>(1.0, H);
+	else if (PTYPE == DeprojType::toomre) {
+	  model = std::make_shared<Toomre>(1.0, H, 5.0);
+	} else if (PTYPE == DeprojType::python) {
+	  if (pyproj.empty()) {
+	    if (myid==0) {
+	      std::cout << "DeprojType is set to 'python' but no Python "
+			<< "projection module name (pyname/pyproj) was provided."
+			<< std::endl;
+	    }
+	    throw std::runtime_error(
+	      "Cylindrical::initialize: DeprojType 'python' requires a "
+	      "non-empty Python module name (pyname/pyproj).");
+	  }
+	  model = std::make_shared<AxiSymPyModel>(pyproj, 1.0);
+	  if (myid==0)
+	    std::cout << "---- Using AxiSymPyModel for deprojection from "
+		      << "Python module <" << pyproj << ">" << std::endl;
+	} else {		// Default to exponential
+	  model = std::make_shared<Exponential>(1.0, H);
+	}
+	
 	if (rwidth>0.0) {
 	  model = std::make_shared<Truncated>(rtrunc/acyl,
 					      rwidth/acyl,
@@ -1735,8 +2001,84 @@ namespace BasisClasses
 	};
 
       sl->generate_eof(rnum, pnum, tnum, f);
+
+      if (myid==0) {
+	try {
+	  // Open the cache file for writing the Python metadata
+	  //
+	  HighFive::File file(cachename, HighFive::File::ReadWrite);
+
+	  // mtype is already cached as "model" attribute in the HDF5
+	  // cache file, so we do not need to write it here.  We just
+	  // need to write the DiskType and Python metadata (if
+	  // applicable).
+	  //
+	  file.createAttribute("DiskType", dtype);
+
+	  std::cout << "---- Cylindrical: writing DiskType <" << dtype
+		    << "> to cache file <" << cachename << ">" << std::endl;
+	  
+	  // Write the md5sum for the Python module
+	  if (DTYPE == DiskType::python) {
+	    try {
+	      std::vector<std::string> pyinfo =
+		{pyname, QuickDigest5::fileToHash(pyname + ".py")};
+
+	      file.createAttribute("pythonDiskType", pyinfo);
+
+	      std::cout << "---- Cylindrical: writing pythonDiskType <" << pyname + ".py"
+			<< "> to cache file <" << cachename << ">" << std::endl;
+	  
+
+	    } catch (const std::runtime_error& e) {
+	      if (myid==0) {
+		std::cerr << "BiorthBasis::Cylindrical error: "
+			  << e.what()
+			  << ", can not write the pyname and md5 hash to HDF5"
+			  << std::endl;
+	      }
+	    }
+	  }
+	  
+	  if (EmpCylSL::mtype == EmpCylSL::EmpModel::Deproject) {
+
+	    file.createAttribute("ProjType", dmodel);
+	    
+	    if (PTYPE == DeprojType::python) {
+	      try {
+		std::vector<std::string> pyinfo =
+		  {pyproj, QuickDigest5::fileToHash(pyproj + ".py")};
+
+		file.createAttribute("pythonProjType", pyinfo);
+
+		std::cout << "---- Cylindrical: writing pythonProjType <" << pyproj + ".py"
+			  << "> to cache file <" << cachename << ">" << std::endl;
+	      } catch (const std::runtime_error& e) {
+		if (myid==0) {
+		  std::cerr << "BiorthBasis::Cylindrical error: "
+			    << e.what()
+			    << ", can not write the pyinfo and md5 hash to HDF5"
+			    << std::endl;
+		}
+	      }
+	    }
+	  }
+	} catch (const HighFive::Exception& err) {
+	  if (myid==0) {
+	    std::cerr << err.what() << std::endl;
+	    std::cerr << "Error writing metadata to cache file <" << cachename
+		      << std::endl;
+	  }
+	}
+	// Errors will prevent metadata from being written to the cache
+      }
+      // Only the root process should be updating the cache
     }
 
+#ifdef HDF5_QUIET
+    // Unmute HDF5 error messages
+    H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
+#endif
     // Orthogonality sanity check
     //
     if (myid==0) orthoTest();
