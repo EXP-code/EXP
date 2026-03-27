@@ -62,7 +62,10 @@ namespace BasisClasses
     "cachename",
     "modelname",
     "pyname",
-    "rnum"
+    "rnum",
+    "nint",
+    "totalCovar",
+    "fullCovar"
   };
 
   std::vector<std::string> BiorthBasis::getFieldLabels(const Coord ctype)
@@ -208,6 +211,9 @@ namespace BasisClasses
 
   void Spherical::initialize()
   {
+    // Identifier
+    //
+    BasisID = "Spherical";
 
     // Assign some defaults
     //
@@ -326,12 +332,11 @@ namespace BasisClasses
 
     // Initialize covariance
     //
-    if (pcavar) init_covariance();
+    if (pcavar) enableCoefCovariance(true, sampT);
 
     // Set spherical coordinates
     //
     coordinates = Coord::Spherical;
-    BasisID = "Spherical";
   }
   
   void Spherical::init_covariance()
@@ -1024,29 +1029,6 @@ namespace BasisClasses
     return ret;
   }
 
-  
-  /** Return a vector of tuples of basis functions and the covariance
-      matrix for subsamples of particles */
-  std::vector<std::vector<BiorthBasis::CoefCovarType>>
-  Spherical::getCoefCovariance()
-  {
-    std::vector<std::vector<BiorthBasis::CoefCovarType>> ret;
-   if (pcavar) {
-     ret.resize(sampT);
-     for (int T=0; T<sampT; T++) {
-       int ltot = (lmax+1)*(lmax+2)/2;
-       ret[T].resize(ltot);
-       for (int l=0; l<ltot; l++) {
-	 std::get<0>(ret[T][l]) = meanV[T][l];
-	 std::get<1>(ret[T][l]) = covrV[T][l];
-       }
-     }
-   }
-    
-    return ret;
-  }
-
-
 #define MINEPS 1.0e-10
   
   void BiorthBasis::legendre_R(int lmax, double x, Eigen::MatrixXd& p)
@@ -1204,6 +1186,7 @@ namespace BasisClasses
     "rcylmin",
     "rcylmax",
     "acyl",
+    "bias",
     "hcyl",
     "sech2",
     "snr",
@@ -1261,7 +1244,10 @@ namespace BasisClasses
     "playback",
     "coefCompute",
     "coefMaster",
-    "pyname"
+    "pyname",
+    "nint",
+    "totalCovar",
+    "fullCovar"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
@@ -1391,6 +1377,7 @@ namespace BasisClasses
     rcylmin     = 0.001;
     rcylmax     = 20.0;
     acyl        = 0.01;
+    bias        = 1.0;
     hcyl        = 0.002;
     nmax        = 18;
     mmax        = 6;
@@ -1415,7 +1402,7 @@ namespace BasisClasses
     EVEN_M      = false;
     cmapR       = 1;
     cmapZ       = 1;
-    mtype       = "exponential";
+    mtype       = "Exponential";
     dtype       = "exponential";
     vflag       = 0;
     
@@ -1469,6 +1456,7 @@ namespace BasisClasses
       if (conf["rcylmax"   ])    rcylmax  = conf["rcylmax"   ].as<double>();
       
       if (conf["acyl"      ])       acyl  = conf["acyl"      ].as<double>();
+      if (conf["bias"      ])       bias  = conf["bias"      ].as<double>();
       if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
       if (conf["sech2"     ])      sech2  = conf["sech2"     ].as<bool>();
       if (conf["lmaxfid"   ])    lmaxfid  = conf["lmaxfid"   ].as<int>();
@@ -1555,6 +1543,17 @@ namespace BasisClasses
     pnum = std::max<int>(1,  pnum);
     tnum = std::max<int>(10, tnum);
     
+    // Validate bias parameter
+    //
+    if (!std::isfinite(bias)) {
+      throw std::runtime_error("Cylindrical: 'bias' parameter must be finite");
+    }
+    if (bias <= 0.0) {
+      std::ostringstream sout;
+      sout << "Cylindrical: 'bias' parameter must be positive, got " << bias;
+      throw std::runtime_error(sout.str());
+    }
+    
     EmpCylSL::RMIN        = rcylmin;
     EmpCylSL::RMAX        = rcylmax;
     EmpCylSL::NUMX        = ncylnx;
@@ -1564,6 +1563,40 @@ namespace BasisClasses
     EmpCylSL::CMAPZ       = cmapZ;
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
+
+    // Set deprojected model type
+    //
+    // Convert mtype string to lower case
+    std::transform(mtype.begin(), mtype.end(), mtype.begin(),
+		   [](unsigned char c){ return std::tolower(c); });
+      
+    // Set EmpCylSL mtype.  This is the spherical function used to
+    // generate the EOF basis.  If "deproject" is set, this will be
+    // overriden in EmpCylSL.
+    //
+    EmpCylSL::mtype = EmpCylSL::Exponential; // Default
+    if (mtype.compare("exponential")==0) {
+      EmpCylSL::mtype = EmpCylSL::Exponential;
+      if (myid==0) {
+	std::cout << "---- Cylindrical: using original exponential deprojected disk for EOF conditioning" << std::endl;
+	std::cout << "---- Cylindrical: consider using the exact, spherically deprojected exponential with 'mtype: ExpSphere'" << std::endl;
+      }
+    } else if (mtype.compare("expsphere")==0)
+      EmpCylSL::mtype = EmpCylSL::ExpSphere;
+    else if (mtype.compare("gaussian")==0)
+      EmpCylSL::mtype = EmpCylSL::Gaussian;
+    else if (mtype.compare("plummer")==0)
+      EmpCylSL::mtype = EmpCylSL::Plummer;
+    else if (mtype.compare("power")==0) {
+      EmpCylSL::mtype = EmpCylSL::Power;
+      EmpCylSL::PPOW  = ppow;
+    } else {
+      if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
+			     << mtype << ">, valid types are: "
+			     << "Exponential, ExpSphere, Gaussian, Plummer, Power "
+			     << "(not case sensitive)" << std::endl;
+      throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
+    }
 
     // Check for non-null cache file name.  This must be specified
     // to prevent recomputation and unexpected behavior.
@@ -1580,7 +1613,7 @@ namespace BasisClasses
     // Make the empirical orthogonal basis instance
     //
     sl = std::make_shared<EmpCylSL>
-      (nmaxfid, lmaxfid, mmax, nmax, acyl, hcyl, ncylodd, cachename);
+      (nmaxfid, lmaxfid, mmax, nmax, bias*acyl, hcyl, ncylodd, cachename);
     
     // Set azimuthal harmonic order restriction?
     //
@@ -1588,6 +1621,7 @@ namespace BasisClasses
     if (EVEN_M)   sl->setEven(EVEN_M);
     if (pcavar)  {
       sl->setSampT(sampT);
+      sl->init_covar();
       sl->set_covar(true);
     }
     
@@ -1610,33 +1644,6 @@ namespace BasisClasses
 		  << "----               will be moved to a .bak file, a new basis will be re-" << std::endl
 		  << "----               computed, and a new cache saved in its place.  Please" << std::endl
 		  << "----               remove 'ignore' from your YAML configuration." << std::endl;
-      }
-
-      // Convert mtype string to lower case
-      //
-      std::transform(mtype.begin(), mtype.end(), mtype.begin(),
-		     [](unsigned char c){ return std::tolower(c); });
-      
-      // Set EmpCylSL mtype.  This is the spherical function used to
-      // generate the EOF basis.  If "deproject" is set, this will be
-      // overriden in EmpCylSL.
-      //
-      EmpCylSL::mtype = EmpCylSL::Exponential;
-      if (mtype.compare("exponential")==0)
-	EmpCylSL::mtype = EmpCylSL::Exponential;
-      else if (mtype.compare("gaussian")==0)
-	EmpCylSL::mtype = EmpCylSL::Gaussian;
-      else if (mtype.compare("plummer")==0)
-	EmpCylSL::mtype = EmpCylSL::Plummer;
-      else if (mtype.compare("power")==0) {
-	EmpCylSL::mtype = EmpCylSL::Power;
-	EmpCylSL::PPOW  = ppow;
-      } else {
-	if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
-			       << mtype << ">, valid types are: "
-			       << "Exponential, Gaussian, Plummer, Power "
-			       << "(not case sensitive)" << std::endl;
-	throw std::runtime_error("Cylindrical:initialize: EmpCylSL bad parameter");
       }
 
       // Convert dtype string to lower case
@@ -1916,6 +1923,7 @@ namespace BasisClasses
   void Cylindrical::make_coefs(void)
   {
     sl->make_coefficients(pcavar);
+    if (pcavar) sl->make_covar();
   }
   
   
@@ -2003,7 +2011,11 @@ namespace BasisClasses
     "tksmooth",
     "tkcum",
     "tk_type",
-    "cachename"
+    "cachename",
+    "pcavar",
+    "nint",
+    "totalCovar",
+    "fullCovar"
   };
 
   FlatDisk::FlatDisk(const YAML::Node& CONF) :
@@ -2016,6 +2028,40 @@ namespace BasisClasses
     BiorthBasis(confstr, "flatdisk")
   {
     initialize();
+  }
+
+  void FlatDisk::init_covariance()
+  {
+    if (pcavar) {
+	
+      meanV.resize(sampT);
+      for (auto& v : meanV) {
+	v.resize(mmax+1);
+	for (auto& vec : v) vec.resize(nmax);
+      }
+
+      covrV.resize(sampT);
+      for (auto& v : covrV) {
+	v.resize(mmax+1);
+	for (auto& mat : v) mat.resize(nmax, nmax);
+      }
+
+      sampleCounts.resize(sampT);
+      sampleMasses.resize(sampT);
+      
+      zero_covariance();
+    }
+  }
+
+  void FlatDisk::zero_covariance()
+  {
+    for (int T=0; T<sampT; T++) {
+      for (auto& v : meanV[T]) v.setZero();
+      for (auto& v : covrV[T]) v.setZero();
+    }
+
+    sampleCounts.setZero();
+    sampleMasses.setZero();
   }
 
   void FlatDisk::initialize()
@@ -2069,6 +2115,10 @@ namespace BasisClasses
       if (conf["NO_M1"])     NO_M1     = conf["NO_M1"].as<bool>();
       if (conf["EVEN_M"])    EVEN_M    = conf["EVEN_M"].as<bool>();
       if (conf["M0_ONLY"])   M0_only   = conf["M0_ONLY"].as<bool>();
+      if (conf["pcavar"])    pcavar    = conf["pcavar"].as<bool>();
+      if (conf["subsamp"])   sampT     = conf["subsamp"].as<int>();
+
+      sampT = std::max(1, sampT); // Sanity
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -2136,6 +2186,11 @@ namespace BasisClasses
     // Set cylindrical coordindates
     //
     coordinates = Coord::Cylindrical;
+
+    // Initialize covariance
+    //
+    if (pcavar) enableCoefCovariance(true, sampT);
+
   }
   
   void FlatDisk::reset_coefs(void)
@@ -2144,6 +2199,7 @@ namespace BasisClasses
     totalMass = 0.0;
     used = 0;
     G = 1.0;
+    if (pcavar) zero_covariance();
   }
   
   
@@ -2263,9 +2319,21 @@ namespace BasisClasses
 
       ortho->get_pot(potd[tid], R, 0.0);
     
+      // Sample index for pcavar
+      int T = 0;
+      if (pcavar) {
+	T = used % sampT;
+	sampleCounts(T) += 1;
+	sampleMasses(T) += mass;
+      }
+
       // M loop
       for (int m=0, moffset=0; m<=mmax; m++) {
 	
+	double ccos = cos(phi*m);
+	double ssin = sin(phi*m);
+
+	// Coefficient accumulation
 	if (m==0) {
 	  for (int n=0; n<nmax; n++) {
 	    expcoef(moffset, n) += potd[tid](m, n)* mass * norm0;
@@ -2274,13 +2342,20 @@ namespace BasisClasses
 	  moffset++;
 	}
 	else {
-	  double ccos = cos(phi*m);
-	  double ssin = sin(phi*m);
 	  for (int n=0; n<nmax; n++) {
 	    expcoef(moffset  , n) += ccos * potd[tid](m, n) * mass * norm1;
 	    expcoef(moffset+1, n) += ssin * potd[tid](m, n) * mass * norm1;
 	  }
 	  moffset+=2;
+	}
+
+	// Covariance and subsample accumulation
+	if (pcavar) {
+	  Eigen::VectorXcd g = std::complex<double>(ccos, ssin) *
+	    potd[tid].row(m).transpose() * norm0;
+	  
+	  meanV[T][m].noalias() += g * mass;
+	  covrV[T][m].noalias() += g * g.adjoint() * mass;
 	}
       }
     }
@@ -3893,7 +3968,10 @@ namespace BasisClasses
     "check",
     "method",
     "pcavar,"
-    "subsamp"
+    "subsamp",
+    "nint",
+    "totalCovar",
+    "fullCovar"
   };
 
   Cube::Cube(const YAML::Node& CONF) : BiorthBasis(CONF, "cube")
@@ -3902,7 +3980,8 @@ namespace BasisClasses
 
     // Initialize covariance
     //
-    if (pcavar) init_covariance();
+    if (pcavar) enableCoefCovariance(true, sampT);
+
   }
 
   Cube::Cube(const std::string& confstr) : BiorthBasis(confstr, "cube")
@@ -3911,7 +3990,7 @@ namespace BasisClasses
 
     // Initialize covariance
     //
-    if (pcavar) init_covariance();
+    if (pcavar) enableCoefCovariance(true, sampT);
   }
 
   void Cube::initialize()
@@ -4200,6 +4279,7 @@ namespace BasisClasses
   
   /** Return a vector of tuples of basis functions and the covariance
       matrix for subsamples of particles for Cube type */
+  /*
   std::vector<std::vector<BiorthBasis::CoefCovarType>>
   Cube::getCoefCovariance()
   {
@@ -4220,6 +4300,7 @@ namespace BasisClasses
     
     return ret;
   }
+  */
 
 
   std::vector<double> Cube::crt_eval(double x, double y, double z)
@@ -5124,9 +5205,18 @@ namespace BasisClasses
     file.createAttribute<double>("rcylmin", HighFive::DataSpace::From(rcylmin)).write(rcylmin);
     file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
     file.createAttribute<double>("acyl", HighFive::DataSpace::From(acyl)).write(acyl);
+    file.createAttribute<double>("bias", HighFive::DataSpace::From(bias)).write(bias);
     file.createAttribute<double>("hcyl", HighFive::DataSpace::From(hcyl)).write(hcyl);
   }
   
+  void FlatDisk::writeCovarH5Params(HighFive::File& file)
+  {
+    file.createAttribute<int>("mmax", HighFive::DataSpace::From(mmax)).write(mmax);
+    file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
+    file.createAttribute<double>("rcylmin", HighFive::DataSpace::From(rcylmin)).write(rcylmin);
+    file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
+  }
+
   void Cube::writeCovarH5Params(HighFive::File& file)
   {
     file.createAttribute<int>("nminx", HighFive::DataSpace::From(nminx)).write(nminx);
@@ -5135,564 +5225,6 @@ namespace BasisClasses
     file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(nmaxx)).write(nmaxx);
     file.createAttribute<int>("nmaxy", HighFive::DataSpace::From(nmaxy)).write(nmaxy);
     file.createAttribute<int>("nmaxz", HighFive::DataSpace::From(nmaxz)).write(nmaxz);
-  }
-  
-  unsigned BiorthBasis::writeCovarH5(HighFive::Group& snaps, unsigned count, double time)
-  {
-    std::ostringstream stim;
-    stim << std::setw(8) << std::setfill('0') << std::right << count++;
-      
-    // Make a new group for this time
-    //
-    HighFive::Group stanza = snaps.createGroup(stim.str());
-      
-    // Add a time attribute
-    //
-    time = roundTime(time);
-    stanza.createAttribute<double>("Time", HighFive::DataSpace::From(time)).write(time);
-      
-    // Enable compression
-    //
-    auto dcpl1 = HighFive::DataSetCreateProps{}; // sample stats
-    auto dcpl2 = HighFive::DataSetCreateProps{}; // coefficients
-    auto dcpl3 = HighFive::DataSetCreateProps{}; // covariance
-
-    // Properties for sample stats
-    if (H5compress) {
-      unsigned int csz = sampleCounts.size();
-      dcpl1.add(HighFive::Chunking({csz, 1}));
-      if (H5shuffle) dcpl1.add(HighFive::Shuffle());
-      dcpl1.add(HighFive::Deflate(H5compress));
-    }
-
-    // Add the sample statistics
-    //
-    HighFive::DataSet s1data = stanza.createDataSet("sampleCounts", sampleCounts, dcpl1);
-    HighFive::DataSet s2data = stanza.createDataSet("sampleMasses", sampleMasses, dcpl1);
-
-    // Covariance data
-    //
-    auto covdata = getCoefCovariance();
-
-    // Number of samples
-    //
-    unsigned sampleSize   = covdata.size();
-    unsigned ltot         = covdata[0].size();
-    unsigned nmax         = std::get<0>(covdata[0][0]).rows();
-    unsigned diagonalSize = nmax;
-
-    // Save variance or full covariance
-    if (covar) diagonalSize = nmax*(nmax + 1)/2;
-
-    // Add data dimensions
-    //
-    stanza.createAttribute<unsigned>
-      ("sampleSize", HighFive::DataSpace::From(sampleSize)).write(sampleSize);
-
-    stanza.createAttribute<unsigned>
-      ("angularSize", HighFive::DataSpace::From(ltot)).write(ltot);
-
-    stanza.createAttribute<unsigned>
-      ("rankSize", HighFive::DataSpace::From(nmax)).write(nmax);
-      
-    int icov = covar ? 1 : 0;
-    stanza.createAttribute<unsigned>
-      ("fullCovar", HighFive::DataSpace::From(icov)).write(icov);
-
-    if (H5compress) {
-      // Szip parameters
-      const int options_mask = H5_SZIP_NN_OPTION_MASK;
-      const int pixels_per_block = 8;
-
-      // Properties for coefficients
-      //
-      unsigned int csz2 = nmax * ltot * sampleSize;
-      HighFive::Chunking data_dims2{std::min<unsigned>(csz2, H5chunk), 1};
-
-      dcpl2.add(data_dims2);
-      if (H5shuffle) dcpl2.add(HighFive::Shuffle());
-      if (H5szip) {
-	dcpl2.add(HighFive::Szip(options_mask, pixels_per_block));
-      } else {
-	dcpl2.add(HighFive::Deflate(H5compress));
-      }
-
-      // Properties for  covariance
-      //
-      unsigned int csz3 = ltot * diagonalSize * sampleSize;
-      HighFive::Chunking data_dims3{std::min<unsigned>(csz3, H5chunk), 1};
-
-      dcpl3.add(data_dims3);
-      if (H5shuffle) dcpl3.add(HighFive::Shuffle());
-      if (H5szip) {
-	dcpl3.add(HighFive::Szip(options_mask, pixels_per_block));
-      } else {
-	dcpl3.add(HighFive::Deflate(H5compress));
-      }
-    }
-
-    // Pack the coefficient data
-    //
-    if (floatType) {
-      // Create a vector of doubles for the real and imaginary parts
-      Eigen::VectorXf real_part(nmax*ltot*sampleSize);
-      Eigen::VectorXf imag_part(nmax*ltot*sampleSize);
-
-      for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
-	for (size_t l=0; l<ltot; l++) {
-	  for (size_t n=0; n<nmax; n++, c++) {
-	    real_part(c) = std::real(std::get<0>(covdata[T][l])(n));
-	    imag_part(c) = std::imag(std::get<0>(covdata[T][l])(n));
-	  }
-	}
-      }
-
-      // Create two separate, compressed datasets
-      stanza.createDataSet("coefficients_real", real_part, dcpl2);
-      stanza.createDataSet("coefficients_imag", imag_part, dcpl2);
-      
-      if (std::get<1>(covdata[0][0]).size()) {
-
-	real_part.resize(ltot*diagonalSize*sampleSize);
-	imag_part.resize(ltot*diagonalSize*sampleSize);
-
-	for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
-	  for (size_t l=0; l<ltot; l++) {
-	    for (size_t n1=0; n1<nmax; n1++) {
-	      // Pack the covariance data in an upper triangular format
-	      //
-	      if (covar) {
-		for (size_t n2=n1; n2<nmax; n2++, c++) {
-		  real_part(c) = std::real(std::get<1>(covdata[T][l])(n1, n2));
-		  imag_part(c) = std::imag(std::get<1>(covdata[T][l])(n1, n2));
-		}
-	      }
-	      // Pack the diagonal only
-	      //
-	      else {
-		real_part(c  ) = std::real(std::get<1>(covdata[T][l])(n1, n1));
-		imag_part(c++) = std::imag(std::get<1>(covdata[T][l])(n1, n1));
-	      }
-	    }
-	  }
-	}
-	// Create two separate, compressed datasets
-	stanza.createDataSet("covariance_real", real_part, dcpl3);
-	stanza.createDataSet("covariance_imag", imag_part, dcpl3);
-      }
-      
-    } else {
-      Eigen::VectorXd real_part(ltot*nmax*sampleSize);
-      Eigen::VectorXd imag_part(ltot*nmax*sampleSize);
-
-      for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
-	for (size_t l=0; l<ltot; l++) {
-	  for (size_t n=0; n<nmax; n++, c++) {
-	    real_part(c) = std::real(std::get<0>(covdata[T][l])(n));
-	    imag_part(c) = std::imag(std::get<0>(covdata[T][l])(n));
-	  }
-	}
-      }
-
-      // Create two separate, compressed datasets
-      //
-      stanza.createDataSet("coefficients_real", real_part, dcpl2);
-      stanza.createDataSet("coefficients_imag", imag_part, dcpl2);
-      
-      if (std::get<1>(covdata[0][0]).size()) {
-
-	real_part.resize(ltot*diagonalSize*sampleSize);
-	imag_part.resize(ltot*diagonalSize*sampleSize);
-
-	for (size_t T=0, c=0; T<sampleCounts.size(); T++) {
-	  for (size_t l=0; l<ltot; l++) {
-	    for (size_t n1=0; n1<nmax; n1++) {
-	      // Pack the covariance data in an upper triangular format
-	      //
-	      if (covar) {
-		for (size_t n2=n1; n2<nmax; n2++, c++) {
-		  real_part(c) = std::real(std::get<1>(covdata[T][l])(n1, n2));
-		  imag_part(c) = std::imag(std::get<1>(covdata[T][l])(n1, n2));
-		}
-	      }
-	      // Pack the diagonal only
-	      //
-	      else {
-		real_part(c  ) = std::real(std::get<1>(covdata[T][l])(n1, n1));
-		imag_part(c++) = std::imag(std::get<1>(covdata[T][l])(n1, n1));
-	      }
-	    }
-	  }
-	}
-	
-	// Create two separate, compressed datasets
-	//
-	stanza.createDataSet("covariance_real", real_part, dcpl3);
-	stanza.createDataSet("covariance_imag", imag_part, dcpl3);
-      }
-    }
-    // END: sample loop
-
-    return count;
-  }
-  
-  void BiorthBasis::writeCoefCovariance(const std::string& compname, const std::string& runtag, double time)
-  {
-    // Check that variance computation is on
-    //
-    if (not pcavar) {
-      std::cout << "BiorthBasis::writeCoefCovariance: covariance computation is disabled.  "
-		<< "Set 'pcavar: true' to enable." << std::endl;
-      return;
-    }
-
-    // Only root process writes
-    //
-    if (myid) return;
-
-    // Check that there is something to write
-    //
-    int totalCount = 0;
-    std::tie(sampleCounts, sampleMasses) = getCovarSamples();
-    totalCount += sampleCounts.sum();
-
-    if (totalCount==0) {
-      std::cout << "BiorthBasis::writeCoefCovariance: no data" << std::endl;
-      return;
-    }
-
-    // Round time
-    //
-    time = roundTime(time);
-
-    // The H5 filename
-    //
-    std::string fname = "coefcovar." + compname + "." + runtag + ".h5";
-
-    // Check if file exists?
-    //
-    try {
-      // Open the HDF5 file in read-write mode, creating if it doesn't
-      // exist
-      HighFive::File file(fname,
-			  HighFive::File::ReadWrite |
-			  HighFive::File::Create);
-
-      // Check for version string
-      std::string path = "CovarianceFileVersion"; 
-
-      // Check for valid HDF file by attribute
-      if (file.hasAttribute(path)) {
-	extendCoefCovariance(fname, time);
-	return;
-      }
-
-      // Write the Version string
-      //
-      file.createAttribute<std::string>("CovarianceFileVersion", HighFive::DataSpace::From(CovarianceFileVersion)).write(CovarianceFileVersion);
-
-      // Write the basis identifier string
-      //
-      file.createAttribute<std::string>("BasisID", HighFive::DataSpace::From(BasisID)).write(BasisID);
-      
-      // Write the data type size
-      //
-      int sz = 8; if (floatType) sz = 4;
-      file.createAttribute<int>("FloatSize", HighFive::DataSpace::From(sz)).write(sz);
-
-      // Write the specific parameters
-      //
-      writeCovarH5Params(file);
-      
-      // Group count variable
-      //
-      unsigned count = 0;
-      HighFive::DataSet dataset = file.createDataSet("count", count);
-      
-      // Create a new group for coefficient snapshots
-      //
-      HighFive::Group group = file.createGroup("snapshots");
-      
-      // Write the coefficients
-      //
-      count = writeCovarH5(group, count, time);
-      
-      // Update the count
-      //
-      dataset.write(count);
-      
-    } catch (const HighFive::Exception& err) {
-      // Handle HighFive specific errors (e.g., file not found)
-      throw std::runtime_error
-	(std::string("BiorthBasis::writeCoefCovariance HighFive Error: ") + err.what());
-    } catch (const std::exception& err) {
-      // Handle other general exceptions
-      throw std::runtime_error
-	(std::string("BiorthBasis::writeCoefCovariance Error: ") + err.what());
-    }
-  }
-  
-  void BiorthBasis::extendCoefCovariance(const std::string& fname, double time)
-  {
-    try {
-      // Open an hdf5 file
-      //
-      HighFive::File file(fname, HighFive::File::ReadWrite);
-      
-      // Get the dataset
-      HighFive::DataSet dataset = file.getDataSet("count");
-      
-      unsigned count;
-      dataset.read(count);
-      
-      HighFive::Group group = file.getGroup("snapshots");
-      
-      // Write the coefficients
-      //
-      count = writeCovarH5(group, count, time);
-      
-      // Update the count
-      //
-      dataset.write(count);
-      
-    } catch (HighFive::Exception& err) {
-      throw std::runtime_error
-	(std::string("BiorthBasis::extendCoefCovariance: HighFive error: ") + err.what());
-    }
-  }
-
-  // Read covariance data
-  CovarianceReader::CovarianceReader(const std::string& filename, int stride)
-  {
-    try {
-      // Open an existing hdf5 file for reading
-      //
-      HighFive::File file(filename, HighFive::File::ReadOnly);
-      
-      // Write the Version string
-      //
-      std::string version;
-      file.getAttribute("CovarianceFileVersion").read(version);
-      // Check for alpha version
-      if (version == std::string("1.0")) {
-	throw std::runtime_error("CovarianceReader: this is an early alpha test version. Please remake your files");
-      }
-      // Test for current version
-      if (version != std::string("1.1")) {
-	throw std::runtime_error(std::string("CovarianceReader: unsupported file version, ") + version);
-      }
-
-      // Read the basis identifier string
-      //
-      file.getAttribute("BasisID").read(basisID);
-      
-      // Get the float size
-      int sz = 8;
-      file.getAttribute("FloatSize").read(sz);
-      if (sz != 4 and sz != 8) {
-	std::ostringstream sout;
-	sout << "CovarianceReader: unsupported float size, " << sz;
-	throw std::runtime_error(sout.str());
-      }
-
-      int lmax, nmax, ltot;
-
-      // Current implemented spherical types
-      const std::set<std::string> sphereType = {"Spherical", "SphereSL", "Bessel"};
-
-      // Currently implemented cylindrical types
-      const std::set<std::string> cylinderType = {"Cylindrical"};
-
-      if (sphereType.find(basisID) != sphereType.end()) {
-	file.getAttribute("lmax").read(lmax);
-	file.getAttribute("nmax").read(nmax);
-	ltot = (lmax+1)*(lmax+2)/2;
-      } else if (cylinderType.find(basisID) != cylinderType.end()) {
-	file.getAttribute("mmax").read(lmax);
-	file.getAttribute("nmax").read(nmax);
-	ltot = lmax + 1;
-      } else if (basisID == "Cube") {
-	int nmaxx, nmaxy, nmaxz;
-	file.getAttribute("nmaxx").read(nmaxx);
-	file.getAttribute("nmaxy").read(nmaxy);
-	file.getAttribute("nmaxz").read(nmaxz);
-	ltot = (2*nmaxx + 1) * (2*nmaxy + 1) * (2*nmaxz + 1);
-      } else {
-	throw std::runtime_error(std::string("CovarianceReader: unknown or unimplemented covariance for basis type, ") + basisID);
-      }
-
-      // Group count variable
-      //
-      unsigned count = 0;
-      file.getDataSet("count").read(count);
-
-      // Open the snapshot group
-      //
-      auto snaps = file.getGroup("snapshots");
-      
-      for (unsigned n=0; n<count; n+=stride) {
-
-	std::ostringstream sout;
-	sout << std::setw(8) << std::setfill('0') << std::right << n;
-      
-	auto stanza = snaps.getGroup(sout.str());
-      
-	double Time;
-	stanza.getAttribute("Time").read(Time);
-
-	int itime = static_cast<int>(Time * fixedPointPrecision + 0.5);
-	timeMap[itime] = times.size();
-	times.push_back(Time);
-
-	// Get sample properties
-	//
-	sampleCounts.push_back(Eigen::VectorXi());
-	stanza.getDataSet("sampleCounts").read(sampleCounts.back());
-	
-	sampleMasses.push_back(Eigen::VectorXd());
-	stanza.getDataSet("sampleMasses").read(sampleMasses.back());
-
-	// Get data attributes
-	//
-	int nT, lSize, rank, icov=1;
-	stanza.getAttribute("sampleSize") .read(nT);
-	stanza.getAttribute("angularSize").read(lSize);
-	stanza.getAttribute("rankSize")   .read(rank);
-
-	if (stanza.hasAttribute("fullCovar"))
-	  stanza.getAttribute("fullCovar").read(icov);
-
-	// Full covariance or variance?
-	//
-	bool covar = icov==1 ? true : false;
-
-	// Allocate sample vector for current time
-	//
-	covarData.push_back(std::vector<std::vector<CoefCovarType>>(nT));
-
-	// Storage
-	//
-	Eigen::VectorXcd data0, data1;
-
-	// Get the flattened coefficient array
-	//
-	if (sz==4) {
-	  // Get the real and imaginary parts
-	  //
-	  Eigen::VectorXf data_real =
-	    stanza.getDataSet("coefficients_real").read<Eigen::VectorXf>();
-
-	  Eigen::VectorXf data_imag =
-	    stanza.getDataSet("coefficients_imag").read<Eigen::VectorXf>();
-	  
-	  // Resize the complex array and assign
-	  //
-	  data0.resize(data_real.size());
-	  data0.real() = data_real.cast<double>();
-	  data0.imag() = data_imag.cast<double>();
-
-	  // Check for existence of covariance
-	  //
-	  if (stanza.exist("covariance_real")) {
-
-	    data_real =
-	      stanza.getDataSet("covariance_real").read<Eigen::VectorXf>();
-
-	    data_imag =
-	      stanza.getDataSet("covariance_imag").read<Eigen::VectorXf>();
-	  
-	    // Resize the complex array and assign
-	    data1.resize(data_real.size());
-	    data1.real() = data_real.cast<double>();
-	    data1.imag() = data_imag.cast<double>();
-	  }
-	} else {
-	  // Get the real and imaginary parts
-	  Eigen::VectorXd data_real =
-	    stanza.getDataSet("coefficients_real").read<Eigen::VectorXd>();
-
-	  Eigen::VectorXd data_imag =
-	    stanza.getDataSet("coefficients_imag").read<Eigen::VectorXd>();
-	  
-	  // Resize the complex array and assign
-	  data0.resize(data_real.size());
-	  data0.real() = data_real;
-	  data0.imag() = data_imag;
-
-	  // Check for existence of covariance
-	  //
-	  if (stanza.exist("covariance_real")) {
-
-	    // Get the real and imaginary parts
-	    data_real =
-	      stanza.getDataSet("covariance_real").read<Eigen::VectorXd>();
-	    
-	    data_imag =
-	      stanza.getDataSet("covariance_imag").read<Eigen::VectorXd>();
-	    
-	    // Resize the complex array and assign
-	    data1.resize(data_real.size());
-	    data1.real() = data_real;
-	    data1.imag() = data_imag;
-	  }
-	}
-
-	// Positions in data stanzas
-	int sCof = 0, sCov = 0;
-
-	// Loop through all indices and repack
-	for (int T=0; T<nT; T++) {
-
-	  // Data element for this time
-	  std::vector<CoefCovarType> elem(lSize);
-	  for (auto & e : elem) {
-	    // Coefficients
-	    std::get<0>(e).resize(rank);
-	    // Covariance matrix
-	    if (data1.size()) std::get<1>(e).resize(rank, rank);
-	  }
-
-	  // Pack the coefficient data
-	  int c = 0;
-	  for (size_t l=0; l<lSize; l++) {
-	    for (size_t n=0; n<rank; n++) {
-	      std::get<0>(elem[l])(n) = data0(sCof + c++);
-	    }
-	  }
-	  sCof += c;
-
-	  // Pack the covariance data
-	  c = 0;
-	  for (size_t l=0; l<lSize; l++) {
-	    if (data1.size()) {
-	      for (size_t n1=0; n1<rank; n1++) {
-		for (size_t n2=n1; n2<rank; n2++) {
-		  if (covar) {
-		    std::get<1>(elem[l])(n1, n2) = data1(sCov + c++);
-		    if (n1 != n2)
-		      std::get<1>(elem[l])(n2, n1) = std::get<1>(elem[l])(n1, n2);
-		  }
-		  else {
-		    if (n1==n2)
-		      std::get<1>(elem[l])(n1, n2) = data1(sCov + c++);
-		    else
-		      std::get<1>(elem[l])(n1, n2) = 0.0;
-		  }
-		}
-	      }
-	    }
-	  }
-	  sCov += c;
-
-	  // Add the data
-	  covarData.back()[T] = std::move(elem);
-	}
-	// END: sample loop
-      }
-      // END: snapshot loop
-    } catch (HighFive::Exception& err) {
-      std::cerr << err.what() << std::endl;
-    }
   }
 
   CoefClasses::CoefStrPtr Spherical::makeFromFunction

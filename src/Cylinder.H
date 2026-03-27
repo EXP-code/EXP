@@ -11,8 +11,9 @@
 #include "config_exp.h"
 
 #if HAVE_LIBCUDA==1
-#include <cudaParticle.cuH>
-#include <cudaMappingConstants.cuH>
+#include "cudaParticle.cuH"
+#include "cudaMappingConstants.cuH"
+#include <thrust/complex.h>
 #endif
 
 #include "CoefContainer.H"
@@ -33,6 +34,8 @@ class MixtureBasis;
     @param rcylmax is the maximum cylindrical grid radius in scale-length units
 
     @param acyl is the scale length
+
+    @param bias is the O(1) bias correction for deprojected scale length
 
     @param hcyl is the scale height
 
@@ -84,6 +87,8 @@ class MixtureBasis;
 
     @param pcavar turns on variance analysis
 
+    @param nint variance comptutation interval in time steps
+
     @param pcaeof turns on basis conditioning based on variance analysis
 
     @param pcadiag logs diagnostic output for variance analysis
@@ -109,6 +114,13 @@ class MixtureBasis;
 
     @param cmapz is the vertical coordinate mapping type
 
+    @param mtype is the deprojected model type for conditioning the
+    basis. See ExpCylSL::mtype for options.
+
+    @param ppower is the power-law index for the Power spherical model
+    used as the deprojected model for basis conditioning (default: 2.0).
+    Only used when mtype is set to the Power model.
+
     @param self_consistent set to false turns off potential expansion;
     only performed the first time
 
@@ -125,6 +137,10 @@ class MixtureBasis;
 */
 class Cylinder : public Basis
 {
+
+  //! Pull in base-class overrides
+  using PotAccel::determine_coefficients;
+
 private:
 
   bool precond, EVEN_M, subsamp, sech2 = true;
@@ -144,8 +160,8 @@ private:
   void initialize(void);
 
 				// Parameters
-  double rcylmin, rcylmax, zmax, acyl;
-  int nmaxfid, lmaxfid, mmax, mlim;
+  double rcylmin, rcylmax, zmax, acyl, bias;
+  int nmaxfid, lmaxfid, mmax, mlim, nint;
   int ncylnx, ncylny, ncylr;
   double hcyl, hexp, snr, rem;
   int nmax, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
@@ -191,13 +207,17 @@ protected:
 
   //! CUDA method for coefficient accumulation
 #if HAVE_LIBCUDA==1
-  virtual void determine_coefficients_cuda(bool compute_pca);
+  virtual void determine_coefficients_cuda();
   virtual void determine_acceleration_cuda();
   virtual void multistep_update_cuda();
 
-  thrust::host_vector  <cuFP_t> host_coefs, host_covar, host_massT;
+  thrust::host_vector<unsigned> host_numbT;
+  thrust::host_vector  <cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
-  std::vector<thrust::host_vector<cuFP_t>> host_coefsT, host_covarT;
+  std::vector<thrust::host_vector<cuFP_t>> host_coefsT;
+  std::vector<thrust::host_vector<thrust::complex<cuFP_t>>> host_coefsC;
+  thrust::host_vector<thrust::complex<cuFP_t>> host_covar;
+  std::vector<thrust::host_vector<thrust::complex<cuFP_t>>> host_covarT;
 
   virtual void HtoD_coefs();
   virtual void DtoH_coefs(int mlevel);
@@ -241,8 +261,10 @@ protected:
 
     std::vector<thrust::device_vector<cuFP_t>> T_covr;
 
+    using covr_t = thrust::complex<cuFP_t>;
+
     thrust::device_vector<cuFP_t> dN_tvar;
-    thrust::device_vector<cuFP_t> dW_tvar;
+    thrust::device_vector<covr_t> dW_tvar;
     thrust::device_vector<cuFP_t> dc_tvar;
     thrust::device_vector<cuFP_t> dw_tvar;
     thrust::device_vector<cuFP_t> df_tvar;
@@ -320,6 +342,15 @@ protected:
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
 
+  //! Power-law index for deprojected spherical model for basis conditioning
+  double ppow = 2.0;
+
+  //! Deprojection model for basis conditioning
+  std::string mtype = "Exponential";
+
+  //! Write basis-specific parameters to HDF5 covariance file
+  void writeCovarH5Params(HighFive::File& file);
+
 public:
 
   //! Mutexes for multithreading
@@ -334,6 +365,7 @@ public:
   //! 
   //! Parameters settable in the configuration line include:
   //! \param acyl is the disk scale length for the basis
+  //! \param bias is the disk scale length bias factor for the basis
   //! \param hcyl is the disk scale height for the basis
   //! \param nmaxfid is the radial order for the underlying spherical basis
   //! \param lmaxfid is the harmonic order for the underlying spherical basis
@@ -480,6 +512,14 @@ public:
   //! Sanity check on grid: dumps SM-style images of initial field
   void dump_mzero(const string& name, int step);
 
+  /** Return a subsample of the basis coefficients and covariance
+      elements for matrices for analysis. The default implementation
+      returns empty vectors. This parallels the implementation in
+      expui. */
+  CovarData getSubsample();
+
+  //! Indicate whether or not subsampling is supported
+  virtual bool hasSubsample() {	return true; }
 };
 
 

@@ -7,6 +7,8 @@
 
 #include "OutVel.H"
 
+using namespace std::literals::complex_literals;
+
 const std::set<std::string>
 OutVel::valid_keys = {
   "modelname",
@@ -166,8 +168,6 @@ void OutVel::Run(int n, int mstep, bool last)
   //
   PartMapItr ibeg = tcomp->Particles().begin();
   PartMapItr iend = tcomp->Particles().end();
-
-  constexpr std::complex<double> I(0.0, 1.0);
 
 #pragma omp parallel
   {

@@ -6,6 +6,10 @@
 
 class PlummerSphere : public AxiSymModel
 {
+  using AxiSymModel::get_mass;
+  using AxiSymModel::get_density;
+  using AxiSymModel::get_pot;
+
 private:
 
   double rmin;

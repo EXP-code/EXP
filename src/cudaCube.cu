@@ -38,29 +38,16 @@ int cubeIndex(int i, int j, int k)
   i += cubeNumX;
   j += cubeNumY;
   k += cubeNumZ;
-  return k*cubeNX*cubeNY + j*cubeNX + i;
-}
 
-/*
-// Index function for modulus coefficients
-//
-__device__
-thrust::tuple<int, int, int> TensorIndices(int indx)
-{
-  int k = indx/(cubeNX*cubeNY);
-  int j = (indx - k*cubeNX*cubeNY)/cubeNX;
-  int i = indx - (j + k*cubeNY)*cubeNX;
-
-  return {i, j, k};
+  return (i*cubeNY + j)*cubeNZ + k;
 }
-*/
 
 __device__
 thrust::tuple<int, int, int> cubeWaveNumbers(int indx)
 {
-  int k = indx/(cubeNX*cubeNY);
-  int j = (indx - k*cubeNX*cubeNY)/cubeNX;
-  int i = indx - (j + k*cubeNY)*cubeNX;
+  int i = indx/(cubeNY*cubeNZ);
+  int j = (indx - i*cubeNY*cubeNZ)/cubeNY;
+  int k = indx - (j + i*cubeNY)*cubeNX;
 
   return {i-cubeNumX, j-cubeNumY, k-cubeNumZ};
 }
@@ -90,10 +77,10 @@ void testConstantsCube()
 //
 void Cube::cuda_initialize()
 {
-  // Default
+  // Turn off full covariance
   //
-  byPlanes = true;
-  
+  fullCovar = false;
+
   // Make method string lower case
   //
   std::transform(cuMethod.begin(), cuMethod.end(), cuMethod.begin(),
@@ -114,7 +101,8 @@ void Cube::cuda_initialize()
   if (cuMethod.find("1d")     != std::string::npos) byPlanes = true;
 
   if (myid==0)
-    std::cout << "---- Cube::cuda_initialize: byPlanes="
+    std::cout << "---- Cube::cuda_initialize: cuMethod=" << cuMethod << std::endl
+	      << "---- Cube::cuda_initialize: byPlanes="
 	      << std::boolalpha << byPlanes << std::endl;
 }
 
@@ -163,7 +151,7 @@ void Cube::initialize_constants()
 
 __global__ void coefKernelCube
 (dArray<cudaParticle> P, dArray<int> I, dArray<CmplxT> coef,
- int stride, PII lohi)
+ dArray<cuFP_t> used, int stride, PII lohi)
 {
   // Thread ID
   //
@@ -188,6 +176,8 @@ __global__ void coefKernelCube
       
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
       cuFP_t mm     = p.mass;
+
+      used._v[i] = mm;		// Mark particle as used
 
       // Enforce periodicity in the unit cube
       //
@@ -269,7 +259,7 @@ __global__ void coefKernelCube
 
 __global__ void coefKernelCubeX
 (dArray<cudaParticle> P, dArray<int> I, dArray<CmplxT> coef,
- int jj, int kk, int stride, PII lohi)
+ dArray<cuFP_t> used, int ii, int jj, int stride, PII lohi)
 {
   // Thread ID
   //
@@ -295,6 +285,8 @@ __global__ void coefKernelCubeX
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
       cuFP_t mm     = p.mass;
 
+      used._v[i] = mm;		// Mark particle as used
+
       // Enforce periodicity in the unit cube
       //
       if (cubeWrap) {
@@ -318,10 +310,10 @@ __global__ void coefKernelCubeX
 #ifdef NORECURSION
 	// Index loop
 	//
-	for (int s=0; s<cubeNX; s++) {
+	for (int s=0; s<cubeNZ; s++) {
 	  
 	  // Get the wave numbers
-	  int kk = s - cubeNumX;
+	  int kk = s - cubeNumZ;
 
 	  // Skip the constant term and the divide by zero
 	  //
@@ -331,7 +323,7 @@ __global__ void coefKernelCubeX
 	    
 	    coef._v[s*N + i] = -mm*thrust::exp(CmplxT(0.0, -expon))*norm;
 
-	    if (cubeDeepDebug and p.indx < 10 and ii==1 and jj==0 and kk==0) {
+	    if (cubeDeepDebug and p.indx < 10 and ii==0 and jj==0 and kk==1) {
 	      CmplxT tst = X*Y*Z*norm;
 	      printf("%d %16.6e %16.6e %16.6e "
 		     "%16.6e %16.6e\n",
@@ -350,19 +342,19 @@ __global__ void coefKernelCubeX
 	const auto zz = CmplxT(0.0, cubeDfac*pos[2]);
 	
 	// Recursion increments and initial values
-	const auto sx = thrust::exp(-xx), cx = thrust::exp(xx*cubeNumX);
-	const auto Y = thrust::exp(-yy*jj), Z = thrust::exp(-zz*kk);
+	const auto sz = thrust::exp(-zz), cz = thrust::exp(zz*cubeNumZ);
+	const auto X = thrust::exp(-xx*ii), Y = thrust::exp(-yy*jj);
       
-	CmplxT X;		// Will contain the incremented basis
+	CmplxT Z;		// Will contain the incremented basis
 
-	X = cx;			// Assign the min X wavenumber conjugate
-	for (int ii=-cubeNumX; ii<=cubeNumX; ii++, X*=sx) {
+	Z = cz;			// Assign the min Z wavenumber conjugate
+	for (int kk=-cubeNumZ; kk<=cubeNumZ; kk++, Z*=sz) {
 	  int l2 = ii*ii + jj*jj + kk*kk;
 	  if (l2) {		// Only compute for non-zero l-index
 	    cuFP_t norm = -mm/sqrt(M_PI*l2);
-	    coef._v[(ii+cubeNumX)*N + i] = X*Y*Z*norm;
+	    coef._v[(kk+cubeNumZ)*N + i] = X*Y*Z*norm;
 
-	    if (cubeDeepDebug and p.indx < 10 and ii==1 and jj==0 and kk==0) {
+	    if (cubeDeepDebug and p.indx < 10 and ii==0 and jj==0 and kk==1) {
 	      CmplxT tst = X*Y*Z*norm;
 	      printf("coef contrib: %d %16.6e %16.6e %16.6e "
 		     "%16.6e %16.6e "
@@ -413,8 +405,6 @@ forceKernelCube(dArray<cudaParticle> P, dArray<int> I,
       
       CmplxT acc[3] = {0.0, 0.0, 0.0}, pot = 0.0;
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
-      cuFP_t mm = p.mass;
-      int ind[3];
 
 #ifdef NORECURSION
       // Index loop
@@ -519,21 +509,30 @@ public:
   }
 };
 
-void Cube::cudaStorage::resize_coefs(int N, int osize, int gridSize, int stride)
+void Cube::cudaStorage::resize_coefs
+(int N, int osize, int psize, int gridSize, int stride, int sampT)
 {
   // Reserve space for coefficient reduction
   //
-  if (dN_coef.capacity() < osize*N)
-    dN_coef.reserve(osize*N);
+  if (dN_coef.capacity() < psize*N)
+    dN_coef.reserve(psize*N);
   
-  if (dc_coef.capacity() < osize*gridSize)
-    dc_coef.reserve(osize*gridSize);
+  if (dc_coef.capacity() < psize*gridSize)
+    dc_coef.reserve(psize*gridSize);
   
   // Set space for current step
   //
-  dN_coef.resize(osize*N);
-  dc_coef.resize(osize*gridSize);
-  dw_coef.resize(osize);	// This will stay fixed
+  dN_coef.resize(psize*N);
+  dc_coef.resize(psize*gridSize);
+  dw_coef.resize(psize);	// This will stay fixed
+
+  u_d.resize(N);
+
+  // Resize covariance storage, if sampT>0
+  if (sampT) {
+    T_samp.resize(sampT);
+    for (int T=0; T<sampT; T++) T_samp[T].resize(osize);
+  }
 }
 
 
@@ -547,6 +546,19 @@ void Cube::cuda_zero_coefs()
   //
   thrust::fill(thrust::cuda::par.on(cr->stream),
 	       cuS.df_coef.begin(), cuS.df_coef.end(), 0.0);
+
+  if (requestSubsample) {
+
+    cuS.T_samp.resize(sampT);
+
+    for (int T=0; T<sampT; T++) {
+
+      cuS.T_samp[T].resize(osize);
+
+      thrust::fill(thrust::cuda::par.on(cr->stream),
+		   cuS.T_samp[T].begin(), cuS.T_samp[T].end(), 0.0);
+    }
+  }
 }
 
 void Cube::determine_coefficients_cuda()
@@ -596,6 +608,10 @@ void Cube::determine_coefficients_cuda()
   // Zero out coefficient storage
   //
   cuda_zero_coefs();
+
+  // Zero mass accumulation array
+  //
+  thrust::fill(cuS.u_d.begin(), cuS.u_d.end(), 0.0);
 
   // Get sorted particle range for mlevel
   //
@@ -660,23 +676,30 @@ void Cube::determine_coefficients_cuda()
     //
     int sMemSize = BLOCK_SIZE * sizeof(CmplxT);
     
+    std::vector<thrust::device_vector<CmplxT>::iterator> bm;
+    if (requestSubsample) {
+      for (int T=0; T<sampT; T++) {
+	bm.push_back(cuS.T_samp[T].begin());
+      }
+    }
+
     if (byPlanes) {
 
       // Adjust cached storage, if necessary
       //
-      cuS.resize_coefs(N, imx, gridSize, stride);
+      cuS.resize_coefs(N, osize, imz, gridSize, stride, sampT);
     
       // Compute the coefficient contribution for each order
       //
       auto beg  = cuS.df_coef.begin();
 
-      for (int kk=-nmaxz; kk<=nmaxz; kk++) {
+      for (int ii=-nmaxx; ii<=nmaxx; ii++) {
 
 	for (int jj=-nmaxy; jj<=nmaxy; jj++) {
 	
 	  coefKernelCubeX<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	    (toKernel(cs->cuda_particles), toKernel(cs->indx1),
-	     toKernel(cuS.dN_coef), jj, kk, stride, cur);
+	     toKernel(cuS.dN_coef), toKernel(cuS.u_d), ii, jj, stride, cur);
       
 	  // Begin the reduction by blocks [perhaps this should use a
 	  // stride?]
@@ -686,12 +709,12 @@ void Cube::determine_coefficients_cuda()
 
 	  reduceSum<CmplxT, BLOCK_SIZE>
 	    <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
-	    (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), imx, N);
+	    (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), imz, N);
       
 	  // Finish the reduction for this order in parallel
 	  //
 	  thrust::counting_iterator<int> index_begin(0);
-	  thrust::counting_iterator<int> index_end(gridSize1*imx);
+	  thrust::counting_iterator<int> index_end(gridSize1*imz);
       
 	  // The key_functor indexes the sum reduced series by array index
 	  //
@@ -707,17 +730,91 @@ void Cube::determine_coefficients_cuda()
 			    cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			    beg, beg, thrust::plus<CmplxT>());
 	  
-	  thrust::advance(beg, imx);
+	  thrust::advance(beg, imz);
+	  
+	  if (requestSubsample) {
+
+	    int sN = N/sampT;
+	    int nT = sampT;
+	    
+	    if (sN==0) {	// Fail-safe underrun
+	      sN = 1;
+	      nT = N;
+	    }
+	    
+	    for (int T=0; T<nT; T++) {
+	      int k = sN*T;	// Starting position
+	      int s = sN;
+	      if (T==sampT-1) s = N - k;
+	      
+	      // Only do this for one plane
+	      if (ii==0 and jj==0) {
+		// Mass accumulation
+		//
+		auto mbeg = cuS.u_d.begin();
+		auto mend = mbeg;
+		thrust::advance(mbeg, sN*T);
+		if (T<sampT-1) thrust::advance(mend, sN*(T+1));
+		else mend = cuS.u_d.end();
+		
+		countV1[0][T] += static_cast<int>(mend - mbeg);
+		massV1 [0][T] += static_cast<double>(thrust::reduce(mbeg, mend));
+	      }
+
+	      // Begin the reduction per grid block
+	      //
+	      /* A reminder to consider implementing strides in reduceSum */
+	      /*
+		unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+		unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
+		
+		if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
+	      */
+		
+	      unsigned int gridSize1 = s/BLOCK_SIZE;
+	      if (s > gridSize1*BLOCK_SIZE) gridSize1++;
+
+	      // Sum reduce into gridsize1 blocks taking advantage of
+	      // GPU warp structure
+	      //
+	      
+	      // Mean computation only
+	      //
+	      reduceSumS<CmplxT, BLOCK_SIZE>
+		<<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+		(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), imz, N, k, k+s);
+		
+	      // Finish the reduction for this order in parallel
+	      //
+	      thrust::counting_iterator<int> index_begin(0);
+	      thrust::counting_iterator<int> index_end(gridSize1*imz);
+
+	      thrust::reduce_by_key
+		(
+		 thrust::cuda::par.on(cs->stream),
+		 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+		 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+		 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
+		 );
+
+	      
+	      thrust::transform(thrust::cuda::par.on(cs->stream),
+				cuS.dw_coef.begin(), cuS.dw_coef.end(),
+				bm[T], bm[T], thrust::plus<CmplxT>());
+	      
+	      thrust::advance(bm[T], imz);
+	    }
+	  }
 	}
 	// END: y wave number loop
       }
       // END: z wave number loop
       
     } else {
-
+      
       // Adjust cached storage, if necessary
       //
-      cuS.resize_coefs(N, osize, gridSize, stride);
+      cuS.resize_coefs(N, osize, osize, gridSize, stride, sampT);
     
       // Compute the coefficient contribution for each order
       //
@@ -725,7 +822,7 @@ void Cube::determine_coefficients_cuda()
 
       coefKernelCube<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	(toKernel(cs->cuda_particles), toKernel(cs->indx1),
-	 toKernel(cuS.dN_coef), stride, cur);
+	 toKernel(cuS.dN_coef), toKernel(cuS.u_d), stride, cur);
       
       // Begin the reduction by blocks [perhaps this should use a
       // stride?]
@@ -756,7 +853,74 @@ void Cube::determine_coefficients_cuda()
 			cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			beg, beg, thrust::plus<CmplxT>());
       
-      thrust::advance(beg, osize);
+      if (requestSubsample) {
+
+	int sN = N/sampT;
+	int nT = sampT;
+	    
+	if (sN==0) {	// Fail-safe underrun
+	  sN = 1;
+	  nT = N;
+	}
+	    
+	for (int T=0; T<nT; T++) {
+	  int k = sN*T;	// Starting position
+	  int s = sN;
+	  if (T==sampT-1) s = N - k;
+	      
+	  // Mass accumulation
+	  //
+	  auto mbeg = cuS.u_d.begin();
+	  auto mend = mbeg;
+	  thrust::advance(mbeg, sN*T);
+	  if (T<sampT-1) thrust::advance(mend, sN*(T+1));
+	  else mend = cuS.u_d.end();
+		
+	  countV1[0][T] += static_cast<int>(mend - mbeg);
+	  massV1 [0][T] += static_cast<double>(thrust::reduce(mbeg, mend));
+
+	  // Begin the reduction per grid block
+	  //
+	  /* A reminder to consider implementing strides in reduceSum */
+	  /*
+	    unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+	    unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
+	    
+	    if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
+	  */
+		
+	  unsigned int gridSize1 = s/BLOCK_SIZE;
+	  if (s > gridSize1*BLOCK_SIZE) gridSize1++;
+
+	  // Sum reduce into gridsize1 blocks taking advantage of
+	  // GPU warp structure
+	  //
+	      
+	  // Mean computation only
+	  //
+	  reduceSumS<CmplxT, BLOCK_SIZE>
+	    <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+	    (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N, k, k+s);
+		
+	  // Finish the reduction for this order in parallel
+	  //
+	  thrust::counting_iterator<int> index_begin(0);
+	  thrust::counting_iterator<int> index_end(gridSize1*osize);
+
+	  thrust::reduce_by_key
+	    (
+	     thrust::cuda::par.on(cs->stream),
+	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+	     cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
+	     );
+
+	      
+	  thrust::transform(thrust::cuda::par.on(cs->stream),
+			    cuS.dw_coef.begin(), cuS.dw_coef.end(),
+			    bm[T], bm[T], thrust::plus<CmplxT>());
+	}
+      }
     }
 
     use1 += N;			// Increment particle count
@@ -765,6 +929,18 @@ void Cube::determine_coefficients_cuda()
   // Accumulate the coefficients from the device to the host
   //
   host_coefs = cuS.df_coef;
+
+  if (requestSubsample) {
+    // T loop
+    //
+    for (int T=0; T<sampT; T++) {
+      thrust::host_vector<CmplxT> retV = cuS.T_samp[T];
+	  
+      for (int n=0; n<osize; n++) {
+	meanV1[0][T][n] += std::complex<cuFP_t>(retV[n]);
+      }
+    }
+  }
 
   // Create a wavenumber tuple from a flattened index
   //
@@ -1162,13 +1338,13 @@ void Cube::multistep_update_cuda()
 	if (byPlanes) {
 	  // Adjust cached storage, if necessary
 	  //
-	  cuS.resize_coefs(N, imx, gridSize, stride);
+	  cuS.resize_coefs(N, osize, imz, gridSize, stride, sampT);
 	
 	  // Compute the coefficient contribution for each order
 	  //
 	  auto beg  = cuS.df_coef.begin();
 
-	  for (int kk=-nmaxz; kk<=nmaxz; kk++) {
+	  for (int ii=-nmaxx; ii<=nmaxx; ii++) {
 	    
 	    for (int jj=-nmaxy; jj<=nmaxy; jj++) {
 
@@ -1176,19 +1352,19 @@ void Cube::multistep_update_cuda()
 	      //
 	      coefKernelCubeX<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 		(toKernel(cs->cuda_particles), toKernel(cs->indx1),
-		 toKernel(cuS.dN_coef), jj, kk, stride, cur);
+		 toKernel(cuS.dN_coef), toKernel(cuS.u_d), ii, jj, stride, cur);
       
 	      unsigned int gridSize1 = N/BLOCK_SIZE;
 	      if (N > gridSize1*BLOCK_SIZE) gridSize1++;
 	  
 	      reduceSum<CmplxT, BLOCK_SIZE>
 		<<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
-		(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), imx, N);
+		(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), imz, N);
 	  
 	      // Finish the reduction for this order in parallel
 	      //
 	      thrust::counting_iterator<int> index_begin(0);
-	      thrust::counting_iterator<int> index_end(gridSize1*imx);
+	      thrust::counting_iterator<int> index_end(gridSize1*imz);
 	      
 	      // The key_functor indexes the sum reduced series by array index
 	      //
@@ -1204,17 +1380,17 @@ void Cube::multistep_update_cuda()
 				cuS.dw_coef.begin(), cuS.dw_coef.end(),
 				beg, beg, thrust::plus<CmplxT>());
 	  
-	      thrust::advance(beg, imx);
+	      thrust::advance(beg, imz);
 	    }
-	    // END: z wave numbers
+	    // END: y wave numbers
 	  }
-	  // END: y wave numbers
+	  // END: x wave numbers
 	}
 	// END: bunch by planes
 	else {
 	  // Adjust cached storage, if necessary
 	  //
-	  cuS.resize_coefs(N, osize, gridSize, stride);
+	  cuS.resize_coefs(N, osize, osize, gridSize, stride, sampT);
 	
 	  // Shared memory size for the reduction
 	  //
@@ -1228,7 +1404,7 @@ void Cube::multistep_update_cuda()
 	  //
 	  coefKernelCube<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	    (toKernel(cs->cuda_particles), toKernel(cs->indx1),
-	     toKernel(cuS.dN_coef), stride, cur);
+	     toKernel(cuS.dN_coef), toKernel(cuS.u_d), stride, cur);
       
 	  unsigned int gridSize1 = N/BLOCK_SIZE;
 	  if (N > gridSize1*BLOCK_SIZE) gridSize1++;

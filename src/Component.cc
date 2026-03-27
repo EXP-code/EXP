@@ -2501,12 +2501,22 @@ void Component::write_HDF5(HighFive::Group& group, bool masses, bool IDs)
   auto dcplI = HighFive::DataSetCreateProps{};
   auto dcplD = HighFive::DataSetCreateProps{};
 
-  if (H5compress or H5chunk) {
+  // Compression and chunking.  Do not set chunk size larger than
+  // nbodies.  Turn off compression altogether if nbodies = 0 to avoid
+  // HDF5 errors.
+  //
+  if ((H5compress or H5chunk) and nbodies > 0) {
     int chunk = H5chunk;
 
-    // Sanity
+    // Clamp chunk to [1, nbodies]: use nbodies/8 as a downsize when
+    // H5chunk would exceed the dataset extent, then ensure at least 1
     if (H5chunk >= nbodies) {
       chunk = nbodies/8;
+    }
+    if (chunk < 1) {
+      chunk = 1;
+    } else if (static_cast<unsigned int>(chunk) > nbodies) {
+      chunk = static_cast<int>(nbodies);
     }
 
     dcpl1.add(HighFive::Chunking(chunk));
@@ -2636,14 +2646,20 @@ void Component::write_H5(H5::Group& group)
 
     // This could be generalized by registering a user filter, like
     // blosc.  Right now, we're using the default (which is gzip)
-    if (H5compress or H5chunk) {
+    //
+    // Do not set chunk size larger than number of particles.  If the
+    // particle number is zero, do not compress.
+    //
+    if ((H5compress or H5chunk) and h5_particles.size() > 0) {
       // Set chunking
       if (H5chunk) {
-	// Sanity
+	// Clamp chunk to [1, nbodies]: use nbodies/8 as a downsize when
+	// H5chunk would exceed the dataset extent, then ensure at least 1
 	int chunk = H5chunk;
 	if (H5chunk >= nbodies) {
 	  chunk = nbodies/8;
 	}
+	chunk = std::clamp<int>(chunk, 1, static_cast<int>(nbodies));
 	hsize_t chunk_dims[1] = {static_cast<hsize_t>(chunk)};
 	dcpl.setChunk(1, chunk_dims);
       }

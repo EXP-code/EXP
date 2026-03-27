@@ -46,7 +46,6 @@
 
 				// MDW classes
 #include "numerical.H"
-#include "Particle.h"
 #include "Coefs.H"
 #include "interp.H"
 #include "SphSL.H"

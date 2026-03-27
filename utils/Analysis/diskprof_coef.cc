@@ -51,7 +51,6 @@
 #include "cxxopts.H"
 #include "libvars.H"
 #include "EmpCylSL.H"
-#include "Particle.h"
 #include "interp.H"
 #include "Coefs.H"
 
