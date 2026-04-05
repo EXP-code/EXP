@@ -23,7 +23,7 @@ namespace __EXP__
     int major, minor, patch;
   };
 
-  // Compile-time parser for "X.Y.Z" format
+  // Compile-time parser for "X.Y.Z" format using c++-17 features
   constexpr EXPversion EXP_parse_version(const char* str)
   {
     EXPversion v = {0, 0, 0};
@@ -34,15 +34,16 @@ namespace __EXP__
     for (int i = 0; str[i] != '\0'; ++i) {
       if (str[i] == '.') {
 	*target = current;
-	if (target == &v.major) target = &v.minor;
+	if      (target == &v.major) target = &v.minor;
 	else if (target == &v.minor) target = &v.patch;
 	current = 0;
       } else {
-	// Add the current digit to the current version component
+	// Append the current decimal digit to the current version
 	current = current * 10 + (str[i] - '0');
       }
     }
-    *target = current;
+    // Store the int of this version string
+    *target = current;		
     return v;
   }
 }
