@@ -1859,7 +1859,7 @@ public:
 
   IsothermalSlab() {
     id = "iso";
-    if (myid==0 and __EXP__::exp_version.minor<11)
+    if (myid==0 and exp_build.minor<11)
       std::cout << "---- SLGridSlab: IMPORTANT UPDATE\n" << psa
 		<< std::endl;
   }

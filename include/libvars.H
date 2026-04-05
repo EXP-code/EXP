@@ -46,7 +46,7 @@ namespace __EXP__
   extern double orthoTol;
 
   //! Compile-time version parsing
-  static constexpr EXPversion exp_version = EXP_parse_version(VERSION);
+  static constexpr EXPversion exp_build = EXP_parse_version(VERSION);
 
 };
 
