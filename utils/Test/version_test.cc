@@ -1,4 +1,4 @@
-// Example of using the version string and parsed octet of integers from libvars.H
+// Example of using the version string and parsed integer triplet from libvars.H
 
 #include <iostream>
 #include "libvars.H"
