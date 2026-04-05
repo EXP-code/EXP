@@ -1852,16 +1852,16 @@ private:
     "----     If you are using the old profile proportional to sech(z/H), please update your model\n"
     "----     to use the new profile and set the scale height H to be half of the old value.  This\n"
     "----     will ensure that your model has the same density profile and potential as before, but\n"
-    "----     with a more standard functional form.  If you have any questions or concerns about this\n"
-    "----     change, please contact the developers on GitHUB.";
+    "----     with a more standard functional form.  If you have any questions or concerns about\n"
+    "----     this change, please contact the developers on GitHUB.";
 
 public:
 
   IsothermalSlab() {
     id = "iso";
     if (myid==0 and exp_build.minor<11)
-      std::cout << "---- SLGridSlab: IMPORTANT UPDATE\n" << psa
-		<< std::endl;
+      std::cout << "---- SLGridSlab: IMPORTANT UPDATE for EXP "
+		<< VERSION << '\n' << psa << std::endl;
   }
 
   double pot(double z)
