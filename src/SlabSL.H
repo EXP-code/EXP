@@ -152,7 +152,7 @@ private:
 
 #endif
 
-  //! Flag self_consitency
+  //! Flag self_consistency
   bool self_consistent = true;
 
   //! Flag whether coefficients have been initialized for the first time
