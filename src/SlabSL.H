@@ -20,7 +20,7 @@
 /** @class SlabSL
     @brief This routine computes the potential, acceleration and density
     using expansion periodic in X & Y and outgoing vacuum boundary
-    condtions in Z
+    conditions in Z
 
     @details **YAML configuration**
 
@@ -152,7 +152,7 @@ private:
 
 #endif
 
-  //! Flag self_consitency
+  //! Flag self_consistency
   bool self_consistent = true;
 
   //! Flag whether coefficients have been initialized for the first time

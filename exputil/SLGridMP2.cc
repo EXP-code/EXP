@@ -1849,17 +1849,18 @@ private:
 
   std::string psa =
     "----     IsothermalSlab NOW uses the traditional density profile proportional to sech^2(z/2H).\n"
-    "----     If you are using the old profile proportional to sech(z/H), please update your model\n"
+    "----     If you are using the old profile proportional to sech^2(z/H), please update your model\n"
     "----     to use the new profile and set the scale height H to be half of the old value.  This\n"
     "----     will ensure that your model has the same density profile and potential as before, but\n"
     "----     with a more standard functional form.  If you have any questions or concerns about\n"
-    "----     this change, please contact the developers on GitHUB.";
+    "----     this change, please contact the developers on GitHub.";
 
 public:
 
   IsothermalSlab() {
     id = "iso";
-    if (myid==0 and exp_build.minor<11)
+    if (myid==0 and (exp_build.major < 7 or
+                     (exp_build.major == 7 and exp_build.minor < 11)))
       std::cout << "---- SLGridSlab: IMPORTANT UPDATE for EXP "
 		<< VERSION << '\n' << psa << std::endl;
   }
