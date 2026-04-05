@@ -1,10 +1,8 @@
 #pragma once
 
-#include <iostream>
-
 namespace __EXP__
 {
-  // Runtime parser for "X.Y.Z" format
+  // Compile-time parser for "X.Y.Z" format
 
   /* Example usage:
 
