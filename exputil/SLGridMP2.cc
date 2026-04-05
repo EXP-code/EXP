@@ -1844,24 +1844,28 @@ static double poffset=0.0;
 class IsothermalSlab : public SlabModel
 {
 
+private:
+
+  std::string psa = "IsothermalSlab NOW uses the traditional density profile proportional to sech^2(z/2H).  If you are using the old profile proportional to sech(z/H), please update your model file to use the new profile and set the scale height H to be half of the old value.  This will ensure that your model has the same density profile and potential as before, but with a more standard functional form.  If you have any questions or concerns about this change, please contact the developers.";
+
 public:
 
-  IsothermalSlab() { id = "iso"; }
+  IsothermalSlab() { id = "iso"; if (myid==0) std::cout << "SLGridSlab: " << psa << std::endl; }
 
   double pot(double z)
   {
-    return 2.0*M_PI*SLGridSlab::H*log(cosh(z/SLGridSlab::H)) - poffset;
+    return 4.0*M_PI*SLGridSlab::H*log(cosh(0.5*z/SLGridSlab::H)) - poffset;
   }
 
   double dpot(double z)
   {
-    return 2.0*M_PI*tanh(z/SLGridSlab::H);
+    return 2.0*M_PI*tanh(0.5*z/SLGridSlab::H);
   }
 
   double dens(double z)
   {
-    double tmp = 1.0/cosh(z/SLGridSlab::H);
-    return 4.0*M_PI * 0.5/SLGridSlab::H * tmp*tmp;
+    double tmp = 1.0/cosh(0.5*z/SLGridSlab::H);
+    return 0.25/SLGridSlab::H * tmp*tmp;
   }
 };
 
