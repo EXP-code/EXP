@@ -17,9 +17,38 @@
 #include <cudaMappingConstants.cuH>
 #endif
 
-/*! This routine computes the potential, acceleration and density
-  using expansion periodic in X & Y and outgoing vacuum boundary
-  condtions in Z */
+/** @class SlabSL
+    @brief This routine computes the potential, acceleration and density
+    using expansion periodic in X & Y and outgoing vacuum boundary
+    condtions in Z
+
+    @details **YAML configuration**
+
+    @param nmaxx is the maximum order of the expansion in x (default 6)
+
+    @param nmaxy is the maximum order of the expansion in y (default 6)
+
+    @param nmaxz is the maximum order of the expansion in z (default 6)
+
+    @param nminx is the minimum order of the expansion in x (default 0)
+
+    @param nminy is the minimum order of the expansion in y (default 0)
+
+    @param hslab is the scale height of the slab (default 0.2)
+
+    @param zmax is the maximum z for the slab (default 10.0)
+
+    @param ngrid is the number of grid points in z for the
+    Sturm-Liouville solver (default 1000)
+
+    @param type is the type of slab to solve for (default
+    "isothermal", must be "isothermal", "parabolic", or "constant")
+
+    @param self_consistent set to true allows the particles to evolve
+    under the time-dependent basis expansion. For a basis fixed in time to
+    the initial time: set to false.
+
+*/
 class SlabSL : public PotAccel
 {
 
@@ -46,6 +75,9 @@ private:
 
   //! Current coefficient tensor
   std::vector<coefType> expccof, expccofP;
+
+  //! Coefficient tensor for frozen potential (if self_consistent=false)
+  coefType expcofF;
 
   int nminx, nminy;
   int nmaxx, nmaxy, nmaxz;
@@ -119,6 +151,12 @@ private:
   //@}
 
 #endif
+
+  //! Flag self_consitency
+  bool self_consistent = true;
+
+  //! Flag whether coefficients have been initialized for the first time
+  bool firstime_coef = true;
 
   //! Default number of grid points for SLGridSlab
   int ngrid = 1000;

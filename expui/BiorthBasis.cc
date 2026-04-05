@@ -3420,7 +3420,8 @@ namespace BasisClasses
     "knots",
     "verbose",
     "check",
-    "method"
+    "method",
+    "self_consistent"
   };
 
   Slab::Slab(const YAML::Node& CONF) : BiorthBasis(CONF, "slab")

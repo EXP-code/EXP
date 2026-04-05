@@ -1047,8 +1047,10 @@ void SlabSL::HtoD_coefs()
   host_coefs.resize(jmax);
 
   // Copy from Slab
-  for (int i=0; i<host_coefs.size(); i++)
-    host_coefs[i] = expccof[0].data()[i];
+  for (int i=0; i<host_coefs.size(); i++) {
+    if (self_consistent) host_coefs[i] = expccof[0].data()[i];
+    else                 host_coefs[i] = expcofF.data()[i];
+  }
 
   // Copy to device
   dev_coefs = host_coefs;
