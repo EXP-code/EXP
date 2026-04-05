@@ -7,6 +7,9 @@
 
 #include <mpi.h>
 
+#include "config_exp.h"		// For version string
+#include "EXPversion.H"		// For compile-time version parsing
+
 namespace __EXP__
 {
   //! @name Theading variables
@@ -41,6 +44,9 @@ namespace __EXP__
 
   //! Sanity tolerance for orthogonality
   extern double orthoTol;
+
+  //! Compile-time version parsing
+  static constexpr EXPversion exp_version = EXP_parse_version(VERSION);
 
 };
 
