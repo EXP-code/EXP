@@ -1846,11 +1846,18 @@ class IsothermalSlab : public SlabModel
 
 private:
 
-  std::string psa = "IsothermalSlab NOW uses the traditional density profile proportional to sech^2(z/2H).  If you are using the old profile proportional to sech(z/H), please update your model file to use the new profile and set the scale height H to be half of the old value.  This will ensure that your model has the same density profile and potential as before, but with a more standard functional form.  If you have any questions or concerns about this change, please contact the developers.";
+  std::string psa =
+    "----     IsothermalSlab NOW uses the traditional density profile proportional to sech^2(z/2H).\n"
+    "----     If you are using the old profile proportional to sech(z/H), please update your model\n"
+    "----     to use the new profile and set the scale height H to be half of the old value.  This\n"
+    "----     will ensure that your model has the same density profile and potential as before, but\n"
+    "----     with a more standard functional form.  If you have any questions or concerns about this\n"
+    "----     change, please contact the developers on GitHUB.";
 
 public:
 
-  IsothermalSlab() { id = "iso"; if (myid==0) std::cout << "SLGridSlab: " << psa << std::endl; }
+  IsothermalSlab() { id = "iso"; if (myid==0) std::cout << "---- SLGridSlab: IMPORTANT UPDATE\n" << psa
+							<< std::endl; }
 
   double pot(double z)
   {
@@ -1865,7 +1872,7 @@ public:
   double dens(double z)
   {
     double tmp = 1.0/cosh(0.5*z/SLGridSlab::H);
-    return 0.25/SLGridSlab::H * tmp*tmp;
+    return 4.0*M_PI*0.25/SLGridSlab::H * tmp*tmp;
   }
 };
 
@@ -2259,6 +2266,18 @@ bool SLGridSlab::ReadH5Cache(void)
     if (not checkStr(geometry, "geometry"))  return false;
     if (not checkStr(forceID,  "forceID"))   return false;
 
+    // Version check
+    //
+    if (h5file.hasAttribute("Version")) {
+      if (not checkStr(Version, "Version"))  return false;
+    } else {
+      if (myid==0)
+	std::cout << "---- SLGridSlab::ReadH5Cache: "
+		  << "recomputing cache for HighFive API change"
+		  << std::endl;
+      return false;
+    }
+
     // Parameter check
     //
     if (not checkStr(type,     "type"))      return false;
@@ -2352,6 +2371,7 @@ void SLGridSlab::WriteH5Cache(void)
 
     file.createAttribute<std::string>("geometry",  HighFive::DataSpace::From(geometry)).write(geometry);
     file.createAttribute<std::string>("forceID",   HighFive::DataSpace::From(forceID)).write(forceID);
+    file.createAttribute<std::string>("Version",   HighFive::DataSpace::From(Version)).write(Version);
       
     // Write parameters
     //
