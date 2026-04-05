@@ -292,12 +292,21 @@ private:
   void compute_table_worker(void);
 
 
-				// Local MPI stuff
+  //@{
+  //! Local MPI stuff
   void mpi_setup(void);
   void mpi_unpack_table(void);
   int  mpi_pack_table(TableSlab* table, int kx, int ky);
+  //@}
+
+  //@{
+  //! Cache reading and writing
   bool ReadH5Cache(void);
   void WriteH5Cache(void);
+  //@}
+
+  //! Cache versioning
+  inline static const std::string Version = "1.0";
 
   int mpi_myid, mpi_numprocs;
   int mpi_bufsz;
