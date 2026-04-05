@@ -21,6 +21,7 @@
 #include "SLGridMP2.H"
 #include "massmodel.H"
 #include "EXPmath.H"
+#include "libvars.H"		// For parsed version info
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -1856,8 +1857,12 @@ private:
 
 public:
 
-  IsothermalSlab() { id = "iso"; if (myid==0) std::cout << "---- SLGridSlab: IMPORTANT UPDATE\n" << psa
-							<< std::endl; }
+  IsothermalSlab() {
+    id = "iso";
+    if (myid==0 and __EXP__::exp_version.minor<11)
+      std::cout << "---- SLGridSlab: IMPORTANT UPDATE\n" << psa
+		<< std::endl;
+  }
 
   double pot(double z)
   {
