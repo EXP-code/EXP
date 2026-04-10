@@ -1973,8 +1973,12 @@ void SLGridSlab::bomb(string oops)
 				// Constructors
 
 SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
-		       const std::string TYPE, bool VERBOSE)
+		       const std::string cachename, const std::string TYPE,
+		       bool VERBOSE)
 {
+  if (cachename.size()) slab_cache_name  = cachename;
+  else throw std::runtime_error("SLGridSlab: you must specify a cachename");
+  
   int kx, ky;
 
   numk = NUMK;
@@ -2208,9 +2212,6 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
   if (tbdbg)
     std::cerr << "Process " << myid << ": exiting constructor" << std::endl;
 }
-
-
-const string slab_cache_name = ".slgrid_slab_cache";
 
 
 bool SLGridSlab::ReadH5Cache(void)

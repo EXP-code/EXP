@@ -305,6 +305,9 @@ private:
   void WriteH5Cache(void);
   //@}
 
+  //! Cache file name
+  std::string slab_cache_name;
+
   //! Cache versioning
   inline static const std::string Version = "1.0";
 
@@ -412,7 +415,8 @@ public:
 
   //! Constructor
   SLGridSlab(int kmax, int nmax, int numz, double zmax,
-	     const std::string type="isothermal", bool Verbose=false);
+	     const std::string cachename, const std::string type="isothermal",
+	     bool Verbose=false);
 
   //! Destructor
   ~SLGridSlab();

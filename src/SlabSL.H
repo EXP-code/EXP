@@ -48,6 +48,8 @@
     under the time-dependent basis expansion. For a basis fixed in time to
     the initial time: set to false.
 
+    @param cachename is the name of the basis cache file.  This is a
+    required parameter.
 */
 class SlabSL : public PotAccel
 {
@@ -86,6 +88,7 @@ private:
   int imx, imy, imz, jmax, nnmax;
   double  dfac;
   std::complex<double> kfac;
+  std::string cachename;
 
   std::vector<Eigen::VectorXd> zfrc, zpot;
 

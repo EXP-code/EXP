@@ -3421,7 +3421,8 @@ namespace BasisClasses
     "verbose",
     "check",
     "method",
-    "self_consistent"
+    "self_consistent",
+    "cachename"
   };
 
   Slab::Slab(const YAML::Node& CONF) : BiorthBasis(CONF, "slab")
@@ -3482,6 +3483,8 @@ namespace BasisClasses
       if (conf["knots"])      knots = conf["knots"].as<int>();
 
       if (conf["check"])      check = conf["check"].as<bool>();
+
+      if (conf["cachename"])  cachename = conf["cachename"].as<std::string>();
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -3494,6 +3497,19 @@ namespace BasisClasses
       throw std::runtime_error("Slab: error parsing YAML");
     }
     
+    // Check for non-null cache file name.  This must be specified
+    // to prevent recomputation and unexpected behavior.
+    //
+    if (cachename.size() == 0) {
+      throw std::runtime_error
+	("SlabSL requires a specified cachename in your YAML config\n"
+	 "for consistency with previous invocations and existing coefficient\n"
+	 "sets.  Please add explicitly add 'cachename: name' to your config\n"
+	 "with new 'name' for creating a basis or an existing 'name' for\n"
+	 "reading a previously generated basis cache\n");
+    }
+
+
     // Finally, make the basis
     //
     SLGridSlab::mpi  = 0;
@@ -3503,7 +3519,7 @@ namespace BasisClasses
   
     int nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
 
-    ortho = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, type);
+    ortho = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, cachename, type);
 
     // Orthogonality sanity check
     //

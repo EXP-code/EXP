@@ -4,69 +4,18 @@
 #include <string>
 #include <cmath>
 
-#include <getopt.h>
-
 #include "biorth1d.H"
 #include "SLGridMP2.H"
 #include "gaussQ.H"
 #include "localmpi.H"
+#include "cxxopts.H"
 
-//===========================================================================
-
-void usage(char *prog)
-{
-  cout << "Usage:\n\n"
-       << prog << " [options]\n\n"
-       << setw(15) << "Option" << setw(10) << "Argument" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Description" << endl << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Turn on MPI for SL computation" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-t or --Trig" << setw(10) << "No" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Use trigonometric basis" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-s or --SL" << setw(10) << "No" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Use Sturm-Liouville basis" << endl
-       << setw(15) << "-T or --type" << setw(10) << "string" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Density target (isothermal, constant, parabolic)" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-n " << setw(10) << "int" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Number of basis functions" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-H " << setw(10) << "double" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Slab scale height" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-k " << setw(10) << "double" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Wave number for Trig basis" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-x " << setw(10) << "double" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Wave number in X for SL basis" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-y " << setw(10) << "double" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Wave number in Y for SL basis" << endl
-       << resetiosflags(ios::left)
-       << "" << endl;
-
-  exit(0);
-}
 
 enum BioType1d {Trig, SL};
 
 int 
 main(int argc, char** argv)
 {
-  bool use_mpi = false;
   double KX = 0.5;
   double H = 0.1;
   double ZMAX = 1.0;
@@ -74,100 +23,39 @@ main(int argc, char** argv)
   int IKX = 1;
   int IKY = 3;
   BioType1d Type = Trig;
+  std::string cachename = ".slab_sl_cache";
   std::string slabID = "iso";
+  bool use_mpi = false;
 
-  int c;
-  while (1) {
-    int this_option_optind = optind ? optind : 1;
-    int option_index = 0;
-    static struct option long_options[] = {
-      {"mpi", 0, 0, 0},
-      {"Trig", 0, 0, 0},
-      {"SL", 0, 0, 0},
-      {0, 0, 0, 0}
-    };
+  cxxopts::Options options("orthochk", "Check orthogonality of 1D basis functions");
 
-    c = getopt_long (argc, argv, "msT:tx:y:k:n:z:H:h",
-		     long_options, &option_index);
+  options.add_options()
+    ("m,mpi", "Use MPI")
+    ("s,SL", "Use Sturm-Liouville slab basis")
+    ("T,type", "Slab type (iso, parabolic, or constant)", cxxopts::value<std::string>())
+    ("t,Trig", "Use trigonometric basis")
+    ("x,ikx", "IKX for SLGridSlab (default: 1)", cxxopts::value<int>())
+    ("y,iky", "IKY for SLGridSlab (default: 3)", cxxopts::value<int>())
+    ("k,kx", "KX for OneDTrig (default: 0.5)", cxxopts::value<double>())
+    ("z,zmax", "ZMAX for OneDTrig and SLGridSlab (default: 1.0)", cxxopts::value<double>())
+    ("H,h", "Scale height H for SLGridSlab (default: 0.1)", cxxopts::value<double>())
+    ("n,nmax", "NMAX for SLGridSlab (default: 10)", cxxopts::value<int>())
+    ("c,cachename", "Cache file name for SLGridSlab (default: .slab_sl_cache)", cxxopts::value<std::string>())
+    ("h,help", "Print usage");
 
-    if (c == -1) break;
+  auto result = options.parse(argc, argv);
 
-    switch (c) {
-    case 0:
-      {
-	string optname(long_options[option_index].name);
-
-	if (!optname.compare("mpi")) {
-	  use_mpi = true;
-	} else if (!optname.compare("Trig")) {
-	  Type = Trig;
-	} else if (!optname.compare("SL")) {
-	  Type = SL;
-	} else if (!optname.compare("type")) {
-	  slabID = optarg;
-	} else {
-	  cout << "Option " << long_options[option_index].name;
-	  if (optarg) cout << " with arg " << optarg;
-	  cout << " is not defined " << endl;
-	  exit(0);
-	}
-      }
-      break;
-
-    case 'm':
-      use_mpi = true;
-      break;
-
-    case 's':
-      Type = SL;
-      break;
-
-    case 'T':
-      slabID = optarg;
-      break;
-
-    case 't':
-      Type = Trig;
-      break;
-
-    case 'x':
-      IKX = atoi(optarg);
-      break;
-
-    case 'y':
-      IKY = atoi(optarg);
-      break;
-
-    case 'k':
-      KX = atof(optarg);
-      break;
-
-    case 'z':
-      ZMAX = atof(optarg);
-      break;
-
-    case 'H':
-      H = atof(optarg);
-      break;
-
-    case 'n':
-      NMAX = atoi(optarg);
-      break;
-
-    case 'h':
-    default:
-      usage(argv[0]);
-    }
-
-  }
-
-  //===================
-  // MPI preliminaries 
-  //===================
-
-  if (use_mpi) {
+  if (result.count("mpi")) {
     local_init_mpi(argc, argv);
+    use_mpi = true;
   }
+
+  if (result.count("help")) {
+    if (myid==0)
+      std::cout << options.help() << std::endl;
+    return 0;
+  }
+
 
   //===================
   // Construct ortho
@@ -190,7 +78,7 @@ main(int argc, char** argv)
       SLGridSlab::H = H;
       if (use_mpi) SLGridSlab::mpi = 1;
 
-      orthoSL = std::make_shared<SLGridSlab>(KMAX, NMAX, NUMZ, ZMAX, slabID, true);
+      orthoSL = std::make_shared<SLGridSlab>(KMAX, NMAX, NUMZ, ZMAX, cachename, slabID, true);
     }
     break;
 

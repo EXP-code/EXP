@@ -18,7 +18,8 @@ SlabSL::valid_keys = {
   "zmax",
   "ngrid",
   "type",
-  "self_consistent"
+  "self_consistent",
+  "cachename"
 };
 
 //@{
@@ -35,12 +36,16 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   zmax      = 10.0;
   hslab     = 0.2;
   coef_dump = true;
+  cachename = "";
 
 #if HAVE_LIBCUDA==1
   cuda_aware = true;
 #endif
 
   initialize();
+
+  if (cachename.size()==0)
+    throw std::runtime_error("SlabSL: you must specify a cachename");
 
   SLGridSlab::mpi  = 1;
   SLGridSlab::ZBEG = 0.0;
@@ -51,7 +56,7 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 
   // Make the Sturm-Liouville grid and basis functions
   //
-  grid = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, type);
+  grid = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, cachename, type);
 
   // Test for basis consistency (will generate an exception if maximum
   // error is out of tolerance)
@@ -167,6 +172,7 @@ void SlabSL::initialize()
     if (conf["hslab"])          hslab       = conf["hslab"].as<double>();
     if (conf["zmax" ])          zmax        = conf["zmax" ].as<double>();
     if (conf["type" ])          type        = conf["type" ].as<std::string>();
+    if (conf["cachename"])      cachename   = conf["cachename"].as<std::string>();
 
     if (conf["self_consistent"]) {
       self_consistent = conf["self_consistent"].as<bool>();
