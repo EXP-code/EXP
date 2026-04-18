@@ -311,6 +311,26 @@ void BasisFactoryClasses(py::module &m)
     addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin, bool posvelrows) override {
       PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
     }
+
+    virtual SubsampleCovariance::CovarData
+    getCoefCovariance(double time) override {
+      PYBIND11_OVERRIDE(SubsampleCovariance::CovarData, Basis, getCoefCovariance, time);
+    }
+
+    virtual void writeCoefCovariance
+    (const std::string& file, const std::string& runtag, double time) override {
+      PYBIND11_OVERRIDE(void, Basis, writeCoefCovariance, file, runtag, time);
+    }
+
+    virtual void makeCoefCovariance(void) override {
+      PYBIND11_OVERRIDE(void, Basis, makeCoefCovariance,);
+    }
+
+    virtual void
+    enableCoefCovariance(bool pcavar, int nsamples, bool ftype, bool total, bool covar) {
+      PYBIND11_OVERRIDE(void, Basis, enableCoefCovariance, pcavar, nsamples, ftype, total, covar);
+    }
+
   };
 
   class PyFieldBasis : public FieldBasis
@@ -505,8 +525,15 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE_PURE(std::vector<Eigen::MatrixXd>, Spherical, orthoCheck, knots);
     }
 
-    void enableCoefCovariance(bool pcavar, int nsamples, bool ftype, bool covar) override {
-      PYBIND11_OVERRIDE(void, Spherical, enableCoefCovariance, pcavar, nsamples, ftype, covar);
+    virtual void writeCoefCovariance
+    (const std::string& file, const std::string& runtag, double time) override {
+      PYBIND11_OVERRIDE(void, Spherical, writeCoefCovariance, file, runtag, time);
+    }
+
+
+    virtual void enableCoefCovariance
+    (bool pcavar, int nsamples, bool ftype, bool total, bool covar) override {
+      PYBIND11_OVERRIDE(void, Spherical, enableCoefCovariance, pcavar, nsamples, ftype, total, covar);
     }
 
   };
@@ -560,8 +587,14 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(void, Cylindrical, make_coefs,);
     }
 
-    void enableCoefCovariance(bool pcavar, int nsamples, bool ftype, bool covar) override {
-      PYBIND11_OVERRIDE(void, Cylindrical, enableCoefCovariance, pcavar, nsamples, ftype, covar);
+    virtual void writeCoefCovariance
+    (const std::string& file, const std::string& runtag, double time) override {
+      PYBIND11_OVERRIDE(void, Cylindrical, writeCoefCovariance, file, runtag, time);
+    }
+
+    virtual void enableCoefCovariance
+    (bool pcavar, int nsamples, bool ftype, bool total, bool covar) override {
+      PYBIND11_OVERRIDE(void, Cylindrical, enableCoefCovariance, pcavar, nsamples, ftype, total, covar);
     }
 
   };
@@ -635,6 +668,17 @@ void BasisFactoryClasses(py::module &m)
     {
       PYBIND11_OVERRIDE(void, FlatDisk, make_coefs,);
     }
+
+    virtual void writeCoefCovariance
+    (const std::string& file, const std::string& runtag, double time) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, writeCoefCovariance, file, runtag, time);
+    }
+
+    virtual void enableCoefCovariance
+    (bool pcavar, int nsamples, bool ftype, bool total, bool covar) override {
+      PYBIND11_OVERRIDE(void, FlatDisk, enableCoefCovariance, pcavar, nsamples, ftype, total, covar);
+    }
+
 
   };
 
@@ -855,8 +899,14 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(void, Cube, make_coefs,);
     }
 
-    void enableCoefCovariance(bool pcavar, int nsamples, bool ftype, bool covar) override {
-      PYBIND11_OVERRIDE(void, Cube, enableCoefCovariance, pcavar, nsamples, ftype, covar);
+    virtual void writeCoefCovariance
+    (const std::string& file, const std::string& runtag, double time) override {
+      PYBIND11_OVERRIDE(void, Cube, writeCoefCovariance, file, runtag, time);
+    }
+
+    virtual void enableCoefCovariance
+    (bool pcavar, int nsamples, bool ftype, bool total, bool covar) override {
+      PYBIND11_OVERRIDE(void, Cube, enableCoefCovariance, pcavar, nsamples, ftype, total, covar);
     }
 
   };
@@ -1333,82 +1383,7 @@ void BasisFactoryClasses(py::module &m)
          makeFromArray : create coefficients contributions
          )",
 	 py::arg("mass"), py::arg("pos"))
-    .def("getCoefCovariance",
-	 [](BasisClasses::BiorthBasis& A, double time)
-	 {
-	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
-	   py::array_t<std::complex<double>> cf = make_ndarray3<std::complex<double>>(coef);
-	   py::array_t<std::complex<double>> vr = make_ndarray4<std::complex<double>>(covr);
-	   return std::make_tuple(cnts, mass, cf, vr);
-	 },
-	 R"(
-         Get the covariance matrices for the basis coefficients
-
-         Parameters
-         ----------
-         time  : float
-                 the evaluation time
-
-         Returns
-         -------
-         tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
-            tuple of counts, masses, partitioned coefficients and their covariance
-            matrices for each subsample. The returns are complex-valued.
-        )",
-	 py::arg("time"))
-    .def("writeCoefCovariance", &BasisClasses::BiorthBasis::writeCoefCovariance,
-         R"(
-         Write the partitioned coefficient vectors and covariance matrices
-         to a specified HDF5 file.  The number of partitions is set by the
-         configuration parameter 'sampT' and defaults to 100.
-
-         On first call, the file is created, metadata is written, and the
-         coefficient vectors and covariance matrices are stored.  On subsequent
-         calls, the file is updated with new covariance datasets.
-
-         The file will be called 'coefcovar.<compname>.<runtag>.h5'.
-
-         Parameters
-         ----------
-         compname : str
-                    the component/basis name segment used in the output HDF5 filename
-         runtag   : str
-                    the run identifier tag
-         time     : float
-                    the snapshot time
-
-         Returns
-         -------
-         None
-
-         See also
-         --------
-         getCoefCovariance : get the counts, mass, coefficient vectors and covariance matrices
-         )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
-    .def("enableCoefCovariance", &BasisClasses::BiorthBasis::enableCoefCovariance,
-	 R"(
-         Enable or disable the coefficient covariance computation and set the
-         default number of partitions to use for the covariance computation.
-
-         Parameters
-         ----------
-         pcavar   : bool
-                    enable (true) or disable (false) the covariance computation
-         nsamples : int
-                    number of time partitions to use for covariance computation
-         ftype:     bool
-                    if true, use float32 for covariance storage; if false,
-                    use float64 (default: false)
-         covar:     bool
-		    if true, compute and save covariance to the HDF5 file; if false,
-                    save mean and variance vectors only (default: true)
-
-         Returns
-         -------
-         None
-	)", py::arg("pcavar"), py::arg("nsamples")=100, py::arg("ftype")=false,
-	 py::arg("covar")=true)
-    .def("setCovarH5Compress", &BasisClasses::BiorthBasis::setCovarH5Compress,
+    .def("setCovarH5Compress", &BasisClasses::Basis::setCovarH5Compress,
          R"(
 	 Set the HDF5 compression level for covariance storage in HDF5.  The Szip
      	 compression algorithm may also be enabled but seems to not have better
@@ -1857,7 +1832,85 @@ void BasisFactoryClasses(py::module &m)
       dict({tag: value},...)
           cache parameters
       )",
-      py::arg("cachefile"));
+      py::arg("cachefile"))
+    .def("getCoefCovariance",
+	 [](BasisClasses::Cylindrical& A, double time)
+	 {
+	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
+	   py::array_t<std::complex<double>> cf = make_ndarray3<std::complex<double>>(coef);
+	   py::array_t<std::complex<double>> vr = make_ndarray4<std::complex<double>>(covr);
+	   return std::make_tuple(cnts, mass, cf, vr);
+	 },
+	 R"(
+         Get the covariance matrices for the basis coefficients
+
+         Parameters
+         ----------
+         time  : float
+                 the evaluation time
+
+         Returns
+         -------
+         tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
+            tuple of counts, masses, partitioned coefficients and their covariance
+            matrices for each subsample. The returns are complex-valued.
+        )",
+	 py::arg("time"))
+    .def("writeCoefCovariance", &BasisClasses::Cylindrical::writeCoefCovariance,
+         R"(
+         Write the partitioned coefficient vectors and covariance matrices
+         to a specified HDF5 file.  The number of partitions is set by the
+         configuration parameter 'sampT' and defaults to 100.
+
+         On first call, the file is created, metadata is written, and the
+         coefficient vectors and covariance matrices are stored.  On subsequent
+         calls, the file is updated with new covariance datasets.
+
+         The file will be called 'coefcovar.<compname>.<runtag>.h5'.
+
+         Parameters
+         ----------
+         compname : str
+                    the component/basis name segment used in the output HDF5 filename
+         runtag   : str
+                    the run identifier tag
+         time     : float
+                    the snapshot time
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         getCoefCovariance : get the counts, mass, coefficient vectors and covariance matrices
+         )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
+    .def("enableCoefCovariance", &BasisClasses::Cylindrical::enableCoefCovariance,
+	 R"(
+         Enable or disable the coefficient covariance computation and set the
+         default number of partitions to use for the covariance computation.
+
+         Parameters
+         ----------
+         pcavar   : bool
+                    enable (true) or disable (false) the covariance computation
+         nsamples : int
+                    number of time partitions to use for covariance computation
+         ftype:     bool
+                    if true, use float32 for covariance storage; if false,
+                    use float64 (default: false)
+	 total:     bool
+		    if true, also compute the total covariance matrix; if false, save only
+		    the partitioned covariance matrices (default: true)
+         covar:     bool
+		    if true, compute and save covariance to the HDF5 file; if false,
+                    save mean and variance vectors only (default: true)
+
+         Returns
+         -------
+         None
+	)", py::arg("pcavar"), py::arg("nsamples")=100, py::arg("ftype")=false,
+	 py::arg("total")=true, py::arg("covar")=true);
 
 
     py::class_<BasisClasses::Spherical, std::shared_ptr<BasisClasses::Spherical>, PySpherical, BasisClasses::BiorthBasis>(m, "Spherical")
@@ -2091,7 +2144,85 @@ void BasisFactoryClasses(py::module &m)
         list(numpy.ndarray)
 	    list of numpy.ndarrays from [0, ... , Lmax]
         )",
-	py::arg("knots")=40);
+	py::arg("knots")=40)
+    .def("getCoefCovariance",
+	 [](BasisClasses::SphericalSL& A, double time)
+	 {
+	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
+	   py::array_t<std::complex<double>> cf = make_ndarray3<std::complex<double>>(coef);
+	   py::array_t<std::complex<double>> vr = make_ndarray4<std::complex<double>>(covr);
+	   return std::make_tuple(cnts, mass, cf, vr);
+	 },
+	 R"(
+         Get the covariance matrices for the basis coefficients
+
+         Parameters
+         ----------
+         time  : float
+                 the evaluation time
+
+         Returns
+         -------
+         tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
+            tuple of counts, masses, partitioned coefficients and their covariance
+            matrices for each subsample. The returns are complex-valued.
+        )",
+	 py::arg("time"))
+    .def("writeCoefCovariance", &BasisClasses::SphericalSL::writeCoefCovariance,
+         R"(
+         Write the partitioned coefficient vectors and covariance matrices
+         to a specified HDF5 file.  The number of partitions is set by the
+         configuration parameter 'sampT' and defaults to 100.
+
+         On first call, the file is created, metadata is written, and the
+         coefficient vectors and covariance matrices are stored.  On subsequent
+         calls, the file is updated with new covariance datasets.
+
+         The file will be called 'coefcovar.<compname>.<runtag>.h5'.
+
+         Parameters
+         ----------
+         compname : str
+                    the component/basis name segment used in the output HDF5 filename
+         runtag   : str
+                    the run identifier tag
+         time     : float
+                    the snapshot time
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         getCoefCovariance : get the counts, mass, coefficient vectors and covariance matrices
+         )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
+    .def("enableCoefCovariance", &BasisClasses::SphericalSL::enableCoefCovariance,
+	 R"(
+         Enable or disable the coefficient covariance computation and set the
+         default number of partitions to use for the covariance computation.
+
+         Parameters
+         ----------
+         pcavar   : bool
+                    enable (true) or disable (false) the covariance computation
+         nsamples : int
+                    number of time partitions to use for covariance computation
+         ftype:     bool
+                    if true, use float32 for covariance storage; if false,
+                    use float64 (default: false)
+	 total:     bool
+		    if true, also compute the total covariance matrix; if false, save only
+		    the partitioned covariance matrices (default: true)
+         covar:     bool
+		    if true, compute and save covariance to the HDF5 file; if false,
+                    save mean and variance vectors only (default: true)
+
+         Returns
+         -------
+         None
+	)", py::arg("pcavar"), py::arg("nsamples")=100, py::arg("ftype")=false,
+	 py::arg("total")=true, py::arg("covar")=true);
 
   
     py::class_<BasisClasses::Bessel, std::shared_ptr<BasisClasses::Bessel>, BasisClasses::Spherical>(m, "Bessel")
@@ -2221,7 +2352,86 @@ void BasisFactoryClasses(py::module &m)
       out : dict({tag: value})
           cache parameters
       )",
-      py::arg("cachefile"));
+      py::arg("cachefile"))
+    .def("getCoefCovariance",
+	 [](BasisClasses::FlatDisk& A, double time)
+	 {
+	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
+	   py::array_t<std::complex<double>> cf = make_ndarray3<std::complex<double>>(coef);
+	   py::array_t<std::complex<double>> vr = make_ndarray4<std::complex<double>>(covr);
+	   return std::make_tuple(cnts, mass, cf, vr);
+	 },
+	 R"(
+         Get the covariance matrices for the basis coefficients
+
+         Parameters
+         ----------
+         time  : float
+                 the evaluation time
+
+         Returns
+         -------
+         tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
+            tuple of counts, masses, partitioned coefficients and their covariance
+            matrices for each subsample. The returns are complex-valued.
+        )",
+	 py::arg("time"))
+    .def("writeCoefCovariance", &BasisClasses::FlatDisk::writeCoefCovariance,
+         R"(
+         Write the partitioned coefficient vectors and covariance matrices
+         to a specified HDF5 file.  The number of partitions is set by the
+         configuration parameter 'sampT' and defaults to 100.
+
+         On first call, the file is created, metadata is written, and the
+         coefficient vectors and covariance matrices are stored.  On subsequent
+         calls, the file is updated with new covariance datasets.
+
+         The file will be called 'coefcovar.<compname>.<runtag>.h5'.
+
+         Parameters
+         ----------
+         compname : str
+                    the component/basis name segment used in the output HDF5 filename
+         runtag   : str
+                    the run identifier tag
+         time     : float
+                    the snapshot time
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         getCoefCovariance : get the counts, mass, coefficient vectors and covariance matrices
+         )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
+    .def("enableCoefCovariance", &BasisClasses::FlatDisk::enableCoefCovariance,
+	 R"(
+         Enable or disable the coefficient covariance computation and set the
+         default number of partitions to use for the covariance computation.
+
+         Parameters
+         ----------
+         pcavar   : bool
+                    enable (true) or disable (false) the covariance computation
+         nsamples : int
+                    number of time partitions to use for covariance computation
+         ftype:     bool
+                    if true, use float32 for covariance storage; if false,
+                    use float64 (default: false)
+	 total:     bool
+		    if true, also compute the total covariance matrix; if false, save only
+		    the partitioned covariance matrices (default: true)
+         covar:     bool
+		    if true, compute and save covariance to the HDF5 file; if false,
+                    save mean and variance vectors only (default: true)
+
+         Returns
+         -------
+         None
+	)", py::arg("pcavar"), py::arg("nsamples")=100, py::arg("ftype")=false,
+	 py::arg("total")=true, py::arg("covar")=true);
+
 
   py::class_<BasisClasses::CBDisk, std::shared_ptr<BasisClasses::CBDisk>, PyCBDisk, BasisClasses::BiorthBasis>(m, "CBDisk")
     .def(py::init<const std::string&>(),
@@ -2369,7 +2579,7 @@ void BasisFactoryClasses(py::module &m)
 	 py::arg("zmin")=-1.0,
 	 py::arg("zmax")=1.0,
 	 py::arg("numz")=400)
-    .def("orthoCheck", [](BasisClasses::Cube& A)
+    .def("orthoCheck", [](BasisClasses::Slab& A)
     {
       return A.orthoCheck();
     },
@@ -2393,7 +2603,6 @@ void BasisFactoryClasses(py::module &m)
       )"
       );
 
-
   py::class_<BasisClasses::Cube, std::shared_ptr<BasisClasses::Cube>, PyCube, BasisClasses::BiorthBasis>(m, "Cube")
     .def(py::init<const std::string&>(),
 	 R"(
@@ -2412,36 +2621,6 @@ void BasisFactoryClasses(py::module &m)
          Cube
              the new instance
          )", py::arg("YAMLstring"))
-    .def("enableCoefCovariance", &BasisClasses::BiorthBasis::enableCoefCovariance,
-	 R"(
-         Enable or disable the coefficient covariance computation and set the
-         default number of partitions to use for the covariance computation.
-
-         Parameters
-         ----------
-         pcavar   : bool
-                    enable (true) or disable (false) the covariance computation
-         nsamples : int
-                    number of time partitions to use for covariance computation
-         ftype:     bool
-                    if true, use float32 for covariance storage; if false,
-                    use float64 (default: false)
-         covar:     bool
-		    if true, compute and save covariance to the HDF5 file; if false,
-                    save mean and variance vectors only (default: false)
-
-         Returns
-         -------
-         None
-
-         Notes
-      	 -----
-      	 The covariance computation for the Cube can be expensive in both time and memory
-         because the number of basis functions can be large. To save disk space, covariance
-         computation is disabled by default.  The user can enable it by calling this member
-         function with covar=True. 
-	)", py::arg("pcavar"), py::arg("nsamples")=100, py::arg("ftype")=false,
-	 py::arg("covar")=false)
     .def("index1D", &BasisClasses::Cube::index1D,
       R"(
       Returns a flattened 1-d index into the arrays and matrices returned by the
@@ -2507,7 +2686,85 @@ void BasisFactoryClasses(py::module &m)
       numpy.ndarray)
           list of numpy.ndarrays from [0, ... , dx*dy*dz]
       )"
-      );
+      )
+    .def("getCoefCovariance",
+	 [](BasisClasses::Cube& A, double time)
+	 {
+	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
+	   py::array_t<std::complex<double>> cf = make_ndarray3<std::complex<double>>(coef);
+	   py::array_t<std::complex<double>> vr = make_ndarray4<std::complex<double>>(covr);
+	   return std::make_tuple(cnts, mass, cf, vr);
+	 },
+	 R"(
+         Get the covariance matrices for the basis coefficients
+
+         Parameters
+         ----------
+         time  : float
+                 the evaluation time
+
+         Returns
+         -------
+         tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
+            tuple of counts, masses, partitioned coefficients and their covariance
+            matrices for each subsample. The returns are complex-valued.
+        )",
+	 py::arg("time"))
+    .def("writeCoefCovariance", &BasisClasses::Cube::writeCoefCovariance,
+         R"(
+         Write the partitioned coefficient vectors and covariance matrices
+         to a specified HDF5 file.  The number of partitions is set by the
+         configuration parameter 'sampT' and defaults to 100.
+
+         On first call, the file is created, metadata is written, and the
+         coefficient vectors and covariance matrices are stored.  On subsequent
+         calls, the file is updated with new covariance datasets.
+
+         The file will be called 'coefcovar.<compname>.<runtag>.h5'.
+
+         Parameters
+         ----------
+         compname : str
+                    the component/basis name segment used in the output HDF5 filename
+         runtag   : str
+                    the run identifier tag
+         time     : float
+                    the snapshot time
+
+         Returns
+         -------
+         None
+
+         See also
+         --------
+         getCoefCovariance : get the counts, mass, coefficient vectors and covariance matrices
+         )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
+    .def("enableCoefCovariance", &BasisClasses::Cube::enableCoefCovariance,
+	 R"(
+         Enable or disable the coefficient covariance computation and set the
+         default number of partitions to use for the covariance computation.
+
+         Parameters
+         ----------
+         pcavar   : bool
+                    enable (true) or disable (false) the covariance computation
+         nsamples : int
+                    number of time partitions to use for covariance computation
+         ftype:     bool
+                    if true, use float32 for covariance storage; if false,
+                    use float64 (default: false)
+	 total:     bool
+		    if true, also compute the total covariance matrix; if false, save only
+		    the partitioned covariance matrices (default: true)
+         covar:     bool
+		    if true, compute and save covariance to the HDF5 file; if false,
+                    save mean and variance vectors only (default: true)
+
+         Returns
+         -------
+         None
+	)", py::arg("pcavar"), py::arg("nsamples")=100, py::arg("ftype")=false,
+	 py::arg("total")=false, py::arg("covar")=false);
 
 
   py::class_<BasisClasses::FieldBasis, std::shared_ptr<BasisClasses::FieldBasis>, PyFieldBasis, BasisClasses::Basis>(m, "FieldBasis")
