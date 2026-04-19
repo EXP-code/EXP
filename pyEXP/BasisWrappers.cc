@@ -19,10 +19,10 @@ void BasisFactoryClasses(py::module &m)
     BasisFactory class bindings
     
     This module provides a factory class that will create biorthogonal
-    bases from input YAML configuration files.  Each basis can then be
-    used to compute coefficients, provide field quantities such as
-    forces and, together with the FieldGenerator, surfaces and fields
-    for visualization.
+    bases from input YAML configuration files.  Each basis can then be used
+    to compute coefficients, provide field quantities such as forces and,
+    together with the FieldGenerator, surfaces and fields for
+    visualization.
 
     Eight bases are currently implemented:
 
@@ -31,16 +31,16 @@ void BasisFactoryClasses(py::module &m)
      2. Bessel, the classic spherical biorthogonal constructed from
         the eigenfunctions of the spherical Laplacian;
 
-     3. Cylindrical, created created by computing empirical orthogonal functions
-        over a densely sampled SphericalSL basis;
+     3. Cylindrical, created created by computing empirical orthogonal
+        functions over a densely sampled SphericalSL basis;
 
      4. FlatDisk, an EOF rotation of the finite Bessel basis;
 
      5. CBDisk, the Clutton-Brock disk basis for testing;
 
-     6. Slab, a biorthogonal basis for a slab geometry with a finite
-        finite vertical extent.  The basis is constructed from direct
-        solution of the Sturm-Liouville equation.
+     6. Slab, a biorthogonal basis for a slab geometry with a finite finite
+        vertical extent.  The basis is constructed from direct solution of
+        the Sturm-Liouville equation.
 
      7. Cube, a periodic cube basis whose functions are the Cartesian
         eigenfunctions of the Cartesian Laplacian: sines and cosines.
@@ -48,23 +48,24 @@ void BasisFactoryClasses(py::module &m)
      8. FieldBasis, for computing user-provided quantities from a
         phase-space snapshot.
 
-     9. VelocityBasis, for computing the mean field velocity fields from
-        a phase-space snapshot.  This is a specialized version of FieldBasis.
+     9. VelocityBasis, for computing the mean field velocity fields from a
+        phase-space snapshot.  This is a specialized version of FieldBasis.
 
-    Each of these bases take a YAML configuration file as input. These parameter
-    lists are as subset of and have the same structure as those used by EXP.
-    The factory and the individual constructors will check the parameters keys
-    and warn of mismatches for safety.  See the EXP documentation and the pyEXP
-    examples for more detail.  The first four bases are the most often used bi-
-    orthogonal basis types used for computing the potential and forces from
-    density distributions.  Other biorthogonal bases in EXP but not in pyEXP
-    include those for cubic and slab geometries and other special-purpose bases
-    such as the Hernquist, Clutton-Brock sphere and two-dimensional disk basis.
-    These will be made available in a future release if there is demand.  Note
-    that the Hernquist and Clutton-Brock spheres can be constructed using
+    Each of these bases take a YAML configuration file as input. These
+    parameter lists are as subset of and have the same structure as those
+    used by EXP.  The factory and the individual constructors will check
+    the parameters keys and warn of mismatches for safety.  See the EXP
+    documentation and the pyEXP examples for more detail.  The first four
+    bases are the most often used bi- orthogonal basis types used for
+    computing the potential and forces from density distributions.  Other
+    biorthogonal bases in EXP but not in pyEXP include those for cubic and
+    slab geometries and other special-purpose bases such as the Hernquist,
+    Clutton-Brock sphere and two-dimensional disk basis.  These will be
+    made available in a future release if there is demand.  Note that the
+    Hernquist and Clutton-Brock spheres can be constructed using
     SphericalSL with a Hernquist of modified Plummer model as input.  The
-    FieldBasis and VelocityBasis are designed for producing summary data for
-    post-production analysis (using mSSA or eDMD, for example) and for
+    FieldBasis and VelocityBasis are designed for producing summary data
+    for post-production analysis (using mSSA or eDMD, for example) and for
     simulation cross-comparison.
 
     The primary functions of these basis classes are:
@@ -82,24 +83,24 @@ void BasisFactoryClasses(py::module &m)
     Introspection
     -------------
     The first two bases have a 'cacheInfo(str)' member that reports the
-    parameters used to create the cached basis.  This may be used to
-    grab the parameters for creating a basis.  Cache use ensures that
-    your analyses are computed with the same bases used in a simulation
-    or with the same basis used on previous pyEXP invocations.  At this
-    point, you must create the YAML configuration for the basis even if
-    the basis is cached.  This is a safety and consistency feature that
-    may be relaxed in a future version.
+    parameters used to create the cached basis.  This may be used to grab
+    the parameters for creating a basis.  Cache use ensures that your
+    analyses are computed with the same bases used in a simulation or with
+    the same basis used on previous pyEXP invocations.  At this point, you
+    must create the YAML configuration for the basis even if the basis is
+    cached.  This is a safety and consistency feature that may be relaxed
+    in a future version.
 
     Coefficient creation
     --------------------
-    The Basis class creates coefficients from phase space with two
-    methods: 'createFromReader()' and 'createFromArray()'.  The first
-    uses a ParticleReader, see help(pyEXP.read), and the second uses
-    arrays of mass and 3d position vectors.  Both methods take an
-    optional center vector (default: 0, 0, 0).  You may also register
-    and an optional boolean functor used to select which particles to
-    using the 'setSelector(functor)' member.  An example functor
-    would be defined in Python as follows:
+    The Basis class creates coefficients from phase space with two methods:
+    'createFromReader()' and 'createFromArray()'.  The first uses a
+    ParticleReader, see help(pyEXP.read), and the second uses arrays of
+    mass and 3d position vectors.  Both methods take an optional center
+    vector (default: 0, 0, 0).  You may also register and an optional
+    boolean functor used to select which particles to using the
+    'setSelector(functor)' member.  An example functor would be defined in
+    Python as follows:
 
        def myFunctor(m, pos, vel, index):
           ret = False  # Default return value
@@ -107,14 +108,14 @@ void BasisFactoryClasses(py::module &m)
           # integer index that sets ret to True if desired . . . 
           return ret
 
-    If you are using 'createFromArray()', you will only have access to
-    the mass and position vector.   You may clear and turn off the
-    selector using the 'clrSelector()' member.
+    If you are using 'createFromArray()', you will only have access to the
+    mass and position vector.  You may clear and turn off the selector
+    using the 'clrSelector()' member.
 
     The FieldBasis class requires a user-specified phase-space field
-    functor that produces an list of quantities derived from the
-    phase space for each particle.  For example, to get a total
-    velocity field, we could use:
+    functor that produces an list of quantities derived from the phase
+    space for each particle.  For example, to get a total velocity field,
+    we could use:
 
        def totalVelocity(m, pos, vel):
           # Some caculation with scalar mass, pos array, vel array.
@@ -123,41 +124,100 @@ void BasisFactoryClasses(py::module &m)
 
     This function is registered with the FieldBasis using:
 
-       basis->addPSFunction(totalVelocity, ['total velocity'])
+       basis.addPSFunction(totalVelocity, ['total velocity'])
 
     The VelocityBasis is a FieldBasis that automatically sets the
     phase-space field functor to cylindrical or spherical velocities
     based on the 'dof' parameter.  More on 'dof' below.
 
+    Covariance creation
+    -------------------
+
+    The SphericalSL, FlatDisk, Cylindrical and Cube bases have built-in
+    support for computing the coefficieint covariance from subsamples of
+    particles.  This is implemented by the enableCoefCovariance() method
+    for each of these supported bases.  The force configuration must
+    contain the parameters 'pcavar' (boolean) and 'subsamp' (integer) keys.
+    The 'pcavar' parameter turns on the covariance computation.  The
+    'subsamp' parameter sets the number of partions or subsamples for each
+    coefficient creation.  There are two additional control parameters that
+    may be optionally specified with the enableCoefCovariance() call.  The
+    'total' parameters enables computing the total covariance matrices only
+    rather than the covariance for each subsample which costs more
+    memory. The 'covar' parameter toggles the computation of the
+    off-diagonal terms covariance.  Set to 'False' to save internal memory
+    and disk space.  When enabled, the covariance data is stored in an HDF5
+    file with a name based on the component name and run tag.  The
+    covariance data must be written to the file at each time step with the
+    writeCoefCovariance call().
+
+    Typical usage might be:
+
+        basis = pyEXP.basis.Basis.factory('config.yml'))
+	basis.enableCoefCovariance(True, 100)
+        .
+       	.
+	.
+        # Loop over snapshots
+        for group in batches:
+	   reader = pyEXP.read.ParticleReader.createReader('PSPhdf5', group)
+           reader.SelectType('dark')
+	   coefs = basis.createFromReader(reader)
+  	   basis.writeCoefCovariance('dark', 'myrun', reader.CurrentTime())
+
+    Each call to writeCoefCovariance() writes the covariance data for the
+    current snapshot to the HDF5 file.
+
+    The covariance data is not available to the user until it is read from
+    the HDF5 file.  This is done by creating a CovarianceReader instance.
+    Once the covariance data is read, it is available to the user through
+    the getCoefCovariance() method of the CovarianceReader instance.  The
+    covariance data is returned as a tuple of four elements: the sample
+    counts, the sample masses, the coefficient means and the coefficient
+    covariance matrices.  The first two elements are vectors of length
+    equal to the number of subsamples.  The third element is a 4D array
+    with dimensions (subsamp, Nlm, nmax) where subsamp is the number of
+    subsamples, Nlm, is the number of harmonics (e.g. l, m values or m
+    values for the spherical and cylindrical bases), and nmax is the number
+    of coefficients.  The fourth element is a 4D array with dimensions
+    (subsamp, Nlm, nmax, namx) containing the covariance matrices for each
+    subsample in the last two dimensions.
+
+    Typical usage might be:
+       covarReader = pyEXP.covar.CovarianceReader('dark', 'myrun')
+       covarData = covarReader.getCoefCovariance(time)
+
+
     Scalability
     ------------
+
     createFromArray() is a convenience method allows you to transform
     coordinates and preprocess phase space using your own methods and
     readers.  Inside this method are three member functions calls that
     separately initialize, accumulate the coefficient contributions from
     the provided vectors, and finally construct and return the new coeffi-
-    cient instance (Coefs).  For scalability, we provide access to each 
-    of these three methods so that the phase space may be partitioned into
-    any number of smaller pieces.  These three members are: initFromArray(),
+    cient instance (Coefs).  For scalability, we provide access to each of
+    these three methods so that the phase space may be partitioned into any
+    number of smaller pieces.  These three members are: initFromArray(),
     addFromArray(), makeFromArray().  The initFromArray() is called once to
     begin the creation and the makeFromArray() method is called once to
     build the final set of coefficients.  The addFromArray() may be called
     any number of times in between.  For example, the addFromArray() call
     can be inside of a loop that iterates over any partition of phase space
     from your own pipeline.  The underlying computation is identical to
-    createFromArray().  However, access to the three underlying steps allows
-    you to scale your phase-space processing to snapshots of any size.
-    For reference, the createFromReader() method uses a producer-consumer
-    pattern internally to provide scalability.  These three methods allow
-    you to provide the same pattern in your own pipeline. Finally, the
-    makeFromFunction() creates coefficients from a user-supplied
-    density or potential field function.
+    createFromArray().  However, access to the three underlying steps
+    allows you to scale your phase-space processing to snapshots of any
+    size.  For reference, the createFromReader() method uses a
+    producer-consumer pattern internally to provide scalability.  These
+    three methods allow you to provide the same pattern in your own
+    pipeline. Finally, the makeFromFunction() creates coefficients from a
+    user-supplied density or potential field function.
 
 
     Coordinate systems
     -------------------
-    Each basis is assigned a natural coordinate system for field evaluation
-    as follows:
+    Each basis is assigned a natural coordinate system for field
+    evaluation as follows:
 
      1. SphericalSL uses spherical coordinates
 
@@ -177,45 +237,46 @@ void BasisFactoryClasses(py::module &m)
         the 'dof' parameter.  These use cylindrical and spherical
         coordinates, respectively, by default.
 
-    These default choices may be overridden by passing a string argument
-    to the 'setFieldType()' member. The argument is case insensitive and only 
-    distinguishing characters are necessary.  E.g. for 'Cylindrical', the 
-    argument 'cyl' or even 'cy' is sufficient.  The argument 'c' is clearly 
+    These default choices may be overridden by passing a string argument to
+    the 'setFieldType()' member. The argument is case insensitive and only
+    distinguishing characters are necessary.  E.g. for 'Cylindrical', the
+    argument 'cyl' or even 'cy' is sufficient.  The argument 'c' is clearly
     not enough.
 
     Orbit integration
     -----------------
     The IntegrateOrbits routine uses a fixed time step leap frog integrator
     to advance orbits from tinit to tfinal with time step h.  The initial
-    positions and velocities are supplied in an nx6 NumPy array.  Tuples
-    of the basis (a Basis instance) and coefficient database (a Coefs
+    positions and velocities are supplied in an nx6 NumPy array.  Tuples of
+    the basis (a Basis instance) and coefficient database (a Coefs
     instance) for each component is supplied to IntegrateOrbtis as a list.
-    Finally, the type of acceleration is an instance of the AccelFunc class.
-    The acceleration at each time step is computed by setting a coefficient
-    set in Basis and evaluating and accumulating the acceleration for each
-    phase-space point.  The coefficient are handled by implementing the
-    evalcoefs() method of AccelFunc. We supply two implemented derived
-    classes, AllTimeFunc and SingleTimeFunc.  The first interpolates on the
-    Coefs data base and installs the interpolated coefficients for the
-    current time in the basis instance.  The SingleTimeFunc interpolates on
-    the Coefs data base for a single fixed time and sets the interpolated
-    coefficients once at the beginning of the integration.  This implements
-    a fixed potential model.  AccelFunc can be inherited by a native Python
-    class and the evalcoefs() may be implemented in Python and passed to
-    IntegrateOrbits in the same way as a native C++ class.
+    Finally, the type of acceleration is an instance of the AccelFunc
+    class.  The acceleration at each time step is computed by setting a
+    coefficient set in Basis and evaluating and accumulating the
+    acceleration for each phase-space point.  The coefficient are handled
+    by implementing the evalcoefs() method of AccelFunc. We supply two
+    implemented derived classes, AllTimeFunc and SingleTimeFunc.  The first
+    interpolates on the Coefs data base and installs the interpolated
+    coefficients for the current time in the basis instance.  The
+    SingleTimeFunc interpolates on the Coefs data base for a single fixed
+    time and sets the interpolated coefficients once at the beginning of
+    the integration.  This implements a fixed potential model.  AccelFunc
+    can be inherited by a native Python class and the evalcoefs() may be
+    implemented in Python and passed to IntegrateOrbits in the same way as
+    a native C++ class.
 
     Non-inertial frames of reference
     --------------------------------
-    Each component of a multiple component simulation may have its own expansion
-    center. Orbit integration in the frame of reference of the expansion is
-    accomplished by defining a moving frame of reference using the setNonInertial()
-    call with either an array of n times and center positions (as an nx3 array)
-    or by initializing with an EXP orient file.
+    Each component of a multiple component simulation may have its own
+    expansion center. Orbit integration in the frame of reference of the
+    expansion is accomplished by defining a moving frame of reference using
+    the setNonInertial() call with either an array of n times and center
+    positions (as an nx3 array) or by initializing with an EXP orient file.
 
-    We provide a member function, setNonInertialAccel(t), to estimate the frame
-    acceleration at a given time.  This may be useful for user-defined acceleration
-    routines.  This is automatically called default C++ evalcoefs() routine.
-    )";
+    We provide a member function, setNonInertialAccel(t), to estimate the
+    frame acceleration at a given time.  This may be useful for
+    user-defined acceleration routines.  This is automatically called
+    default C++ evalcoefs() routine.  )";
 
   using namespace BasisClasses;
 
@@ -310,14 +371,6 @@ void BasisFactoryClasses(py::module &m)
     virtual void
     addFromArray(Eigen::VectorXd& m, RowMatrixXd& p, bool roundrobin, bool posvelrows) override {
       PYBIND11_OVERRIDE_PURE(void, Basis, addFromArray, m, p, roundrobin, posvelrows);
-    }
-
-    virtual SubsampleCovariance::CovarData
-    getCoefCovariance(double time) override {
-      // Do not use PYBIND11_OVERRIDE here: SubsampleCovariance::CovarData
-      // contains tensor-based data and this file does not define a pybind11
-      // caster for that return type. Fall back to the C++ implementation.
-      return Basis::getCoefCovariance(time);
     }
 
     virtual void writeCoefCovariance
@@ -1836,31 +1889,6 @@ void BasisFactoryClasses(py::module &m)
           cache parameters
       )",
       py::arg("cachefile"))
-    .def("getCoefCovariance",
-	 [](BasisClasses::Cylindrical& A, double time)
-	 {
-	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
-	   py::array_t<std::complex<double>> cf =
-	     make_ndarray3<std::complex<double>>(coef).attr("copy")().cast<py::array_t<std::complex<double>>>();
-	   py::array_t<std::complex<double>> vr =
-	     make_ndarray4<std::complex<double>>(covr).attr("copy")().cast<py::array_t<std::complex<double>>>();
-	   return std::make_tuple(cnts, mass, cf, vr);
-	 },
-	 R"(
-         Get the covariance matrices for the basis coefficients
-
-         Parameters
-         ----------
-         time  : float
-                 the evaluation time
-
-         Returns
-         -------
-         tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
-            tuple of counts, masses, partitioned coefficients and their covariance
-            matrices for each subsample. The returns are complex-valued.
-        )",
-	 py::arg("time"))
     .def("writeCoefCovariance", &BasisClasses::Cylindrical::writeCoefCovariance,
          R"(
          Write the partitioned coefficient vectors and covariance matrices
@@ -1886,9 +1914,21 @@ void BasisFactoryClasses(py::module &m)
          -------
          None
 
+         Notes
+	 -----
+         The coefficient covariance computation is enabled with the enableCoefCovariance()
+         member function.  This member function also sets the number of partitions to use for
+         the covariance computation and whether to save the covariance matrices or just the
+         mean and variance vectors.
+
+         Each call to writeCoefCovariance() saves the covariance data for 'time' to an HDF5
+         database file.  This file can be read with the CovarianceReader helper class.
+
          See also
          --------
-         getCoefCovariance : get the counts, mass, coefficient vectors and covariance matrices
+	 enableCoefCovariance : enable the coefficient covariance computation and set parameters
+         CovarianceReader     : helper class for reading and accessing the covariance data stored
+                                in the HDF5 file
          )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
     .def("enableCoefCovariance", &BasisClasses::Cylindrical::enableCoefCovariance,
 	 R"(
@@ -2150,31 +2190,6 @@ void BasisFactoryClasses(py::module &m)
 	    list of numpy.ndarrays from [0, ... , Lmax]
         )",
 	py::arg("knots")=40)
-    .def("getCoefCovariance",
-	 [](BasisClasses::SphericalSL& A, double time)
-	 {
-	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
-	   py::array_t<std::complex<double>> cf =
-	     make_ndarray3<std::complex<double>>(coef).attr("copy")().cast<py::array_t<std::complex<double>>>();
-	   py::array_t<std::complex<double>> vr =
-	     make_ndarray4<std::complex<double>>(covr).attr("copy")().cast<py::array_t<std::complex<double>>>();
-	   return std::make_tuple(cnts, mass, cf, vr);
-	 },
-	 R"(
-         Get the covariance matrices for the basis coefficients
-
-         Parameters
-         ----------
-         time  : float
-                 the evaluation time
-
-         Returns
-         -------
-         tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
-            tuple of counts, masses, partitioned coefficients and their covariance
-            matrices for each subsample. The returns are complex-valued.
-        )",
-	 py::arg("time"))
     .def("writeCoefCovariance", &BasisClasses::SphericalSL::writeCoefCovariance,
          R"(
          Write the partitioned coefficient vectors and covariance matrices
@@ -2182,8 +2197,9 @@ void BasisFactoryClasses(py::module &m)
          configuration parameter 'sampT' and defaults to 100.
 
          On first call, the file is created, metadata is written, and the
-         coefficient vectors and covariance matrices are stored.  On subsequent
-         calls, the file is updated with new covariance datasets.
+         coefficient vectors and covariance matrices are stored.  On
+         subsequent calls, the file is updated with new covariance
+         datasets.
 
          The file will be called 'coefcovar.<compname>.<runtag>.h5'.
 
@@ -2200,9 +2216,27 @@ void BasisFactoryClasses(py::module &m)
          -------
          None
 
+         Notes
+	 -----
+         The coefficient covariance computation is enabled with the
+         enableCoefCovariance() member function.  This member function also
+         sets the number of partitions to use for the covariance
+         computation and whether to save the covariance matrices or just
+         the mean and variance vectors.
+
+         Each call to writeCoefCovariance() saves the covariance data for
+         'time' to an HDF5 database file.  This file can be read with the
+         CovarianceReader helper class.
+
          See also
          --------
-         getCoefCovariance : get the counts, mass, coefficient vectors and covariance matrices
+
+	 enableCoefCovariance : enable the coefficient covariance
+	                        computation and set parameters
+
+         CovarianceReader     : helper class for reading and accessing the
+                                covariance data stored in the HDF5 file
+
          )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
     .def("enableCoefCovariance", &BasisClasses::SphericalSL::enableCoefCovariance,
 	 R"(
@@ -2360,31 +2394,6 @@ void BasisFactoryClasses(py::module &m)
           cache parameters
       )",
       py::arg("cachefile"))
-    .def("getCoefCovariance",
-	 [](BasisClasses::FlatDisk& A, double time)
-	 {
-	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
-	   py::array_t<std::complex<double>> cf =
-	     make_ndarray3<std::complex<double>>(coef).attr("copy")().cast<py::array_t<std::complex<double>>>();
-	   py::array_t<std::complex<double>> vr =
-	     make_ndarray4<std::complex<double>>(covr).attr("copy")().cast<py::array_t<std::complex<double>>>();
-	   return std::make_tuple(cnts, mass, cf, vr);
-	 },
-	 R"(
-         Get the covariance matrices for the basis coefficients
-
-         Parameters
-         ----------
-         time  : float
-                 the evaluation time
-
-         Returns
-         -------
-         tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
-            tuple of counts, masses, partitioned coefficients and their covariance
-            matrices for each subsample. The returns are complex-valued.
-        )",
-	 py::arg("time"))
     .def("writeCoefCovariance", &BasisClasses::FlatDisk::writeCoefCovariance,
          R"(
          Write the partitioned coefficient vectors and covariance matrices
@@ -2410,9 +2419,22 @@ void BasisFactoryClasses(py::module &m)
          -------
          None
 
+         Notes
+	 -----
+         The coefficient covariance computation is enabled with the enableCoefCovariance()
+         member function.  This member function also sets the number of partitions to use for
+         the covariance computation and whether to save the covariance matrices or just the
+         mean and variance vectors.
+
+         Each call to writeCoefCovariance() saves the covariance data for 'time' to an HDF5
+         database file.  This file can be read with the CovarianceReader helper class.
+
          See also
          --------
-         getCoefCovariance : get the counts, mass, coefficient vectors and covariance matrices
+	 enableCoefCovariance : enable the coefficient covariance computation and set parameters
+         CovarianceReader     : helper class for reading and accessing the covariance data stored
+                                in the HDF5 file
+
          )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
     .def("enableCoefCovariance", &BasisClasses::FlatDisk::enableCoefCovariance,
 	 R"(
@@ -2633,7 +2655,7 @@ void BasisFactoryClasses(py::module &m)
     .def("index1D", &BasisClasses::Cube::index1D,
       R"(
       Returns a flattened 1-d index into the arrays and matrices returned by the
-      getCoefCovariance() routines from wave number indexing.
+      CovarianceReader::getCoefCovariance() routines from wave number indexing.
 
       Parameters
       ----------
@@ -2659,7 +2681,7 @@ void BasisFactoryClasses(py::module &m)
     .def("index3D", &BasisClasses::Cube::index3D,
       R"(
       Returns a tuple of indices for the wave-numbers (kx, ky, kz) from the flattened
-      1-d index for the arrays and matrices returned by the getCoefCovariance() routines
+      1-d index for the arrays and matrices returned by the SubsampleCovariance::getCoefCovariance() routines
 
       Parameters
       ----------
@@ -2696,31 +2718,6 @@ void BasisFactoryClasses(py::module &m)
           list of numpy.ndarrays from [0, ... , dx*dy*dz]
       )"
       )
-    .def("getCoefCovariance",
-	 [](BasisClasses::Cube& A, double time)
-	 {
-	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
-	   py::array_t<std::complex<double>> cf =
-	     make_ndarray3<std::complex<double>>(coef).attr("copy")().cast<py::array_t<std::complex<double>>>();
-	   py::array_t<std::complex<double>> vr =
-	     make_ndarray4<std::complex<double>>(covr).attr("copy")().cast<py::array_t<std::complex<double>>>();
-	   return std::make_tuple(cnts, mass, cf, vr);
-	 },
-	 R"(
-         Get the covariance matrices for the basis coefficients
-
-         Parameters
-         ----------
-         time  : float
-                 the evaluation time
-
-         Returns
-         -------
-         tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
-            tuple of counts, masses, partitioned coefficients and their covariance
-            matrices for each subsample. The returns are complex-valued.
-        )",
-	 py::arg("time"))
     .def("writeCoefCovariance", &BasisClasses::Cube::writeCoefCovariance,
          R"(
          Write the partitioned coefficient vectors and covariance matrices
@@ -2746,9 +2743,22 @@ void BasisFactoryClasses(py::module &m)
          -------
          None
 
+         Notes
+	 -----
+         The coefficient covariance computation is enabled with the enableCoefCovariance()
+         member function.  This member function also sets the number of partitions to use for
+         the covariance computation and whether to save the covariance matrices or just the
+         mean and variance vectors.
+
+         Each call to writeCoefCovariance() saves the covariance data for 'time' to an HDF5
+         database file.  This file can be read with the CovarianceReader helper class.
+
          See also
          --------
-         getCoefCovariance : get the counts, mass, coefficient vectors and covariance matrices
+	 enableCoefCovariance : enable the coefficient covariance computation and set parameters
+         CovarianceReader     : helper class for reading and accessing the covariance data stored
+                                in the HDF5 file
+
          )", py::arg("compname"), py::arg("runtag"), py::arg("time")=0.0)
     .def("enableCoefCovariance", &BasisClasses::Cube::enableCoefCovariance,
 	 R"(
