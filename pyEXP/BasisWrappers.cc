@@ -2151,8 +2151,10 @@ void BasisFactoryClasses(py::module &m)
 	 [](BasisClasses::SphericalSL& A, double time)
 	 {
 	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
-	   py::array_t<std::complex<double>> cf = make_ndarray3<std::complex<double>>(coef);
-	   py::array_t<std::complex<double>> vr = make_ndarray4<std::complex<double>>(covr);
+	   py::array_t<std::complex<double>> cf =
+	     make_ndarray3<std::complex<double>>(coef).attr("copy")().cast<py::array_t<std::complex<double>>>();
+	   py::array_t<std::complex<double>> vr =
+	     make_ndarray4<std::complex<double>>(covr).attr("copy")().cast<py::array_t<std::complex<double>>>();
 	   return std::make_tuple(cnts, mass, cf, vr);
 	 },
 	 R"(
@@ -2696,8 +2698,10 @@ void BasisFactoryClasses(py::module &m)
 	 [](BasisClasses::Cube& A, double time)
 	 {
 	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
-	   py::array_t<std::complex<double>> cf = make_ndarray3<std::complex<double>>(coef);
-	   py::array_t<std::complex<double>> vr = make_ndarray4<std::complex<double>>(covr);
+	   py::array_t<std::complex<double>> cf =
+	     make_ndarray3<std::complex<double>>(coef).attr("copy")().cast<py::array_t<std::complex<double>>>();
+	   py::array_t<std::complex<double>> vr =
+	     make_ndarray4<std::complex<double>>(covr).attr("copy")().cast<py::array_t<std::complex<double>>>();
 	   return std::make_tuple(cnts, mass, cf, vr);
 	 },
 	 R"(
@@ -3189,8 +3193,10 @@ void BasisFactoryClasses(py::module &m)
 	 [](BasisClasses::SubsampleCovariance& A, double time)
 	 {
 	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
-	   py::array_t<std::complex<double>> cf = make_ndarray3<std::complex<double>>(coef);
-	   py::array_t<std::complex<double>> vr = make_ndarray4<std::complex<double>>(covr);
+	   py::array_t<std::complex<double>> cf =
+	     make_ndarray3<std::complex<double>>(coef).attr("copy")().cast<py::array_t<std::complex<double>>>();
+	   py::array_t<std::complex<double>> vr =
+	     make_ndarray4<std::complex<double>>(covr).attr("copy")().cast<py::array_t<std::complex<double>>>();
 	   return std::make_tuple(cnts, mass, cf, vr);
 	 },
        R"(
