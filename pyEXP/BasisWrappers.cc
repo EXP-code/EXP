@@ -1404,7 +1404,7 @@ void BasisFactoryClasses(py::module &m)
          Returns
          -------
          None
-         )", py::arg("compress")=5, py::arg("chunkSize")=1024*1024, py::arg("shuffle")=true, py::arg("azip")=false)
+         )", py::arg("compress")=5, py::arg("chunkSize")=1024*1024, py::arg("shuffle")=true, py::arg("szip")=false)
     .def("makeFromFunction", &BasisClasses::BiorthBasis::makeFromFunction,
 	 py::call_guard<py::gil_scoped_release>(),
 	 R"(
@@ -2755,10 +2755,10 @@ void BasisFactoryClasses(py::module &m)
                     use float64 (default: false)
 	 total:     bool
 		    if true, also compute the total covariance matrix; if false, save only
-		    the partitioned covariance matrices (default: true)
+		    the partitioned covariance matrices (default: false)
          covar:     bool
 		    if true, compute and save covariance to the HDF5 file; if false,
-                    save mean and variance vectors only (default: true)
+                    save mean and variance vectors only (default: false)
 
          Returns
          -------

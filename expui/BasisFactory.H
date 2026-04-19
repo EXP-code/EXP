@@ -354,7 +354,7 @@ namespace BasisClasses
       if (covarStore) {
 	covarStore->setCovarH5Compress(level, chunksize, shuffle, szip);
       } else {
-	throw std::runtime_error("BiorthBasis::setCovarH5Compress: covariance storage not initialized");
+	throw std::runtime_error("Basis::setCovarH5Compress: covariance storage not initialized");
       }
     }
 
