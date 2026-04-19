@@ -314,7 +314,10 @@ void BasisFactoryClasses(py::module &m)
 
     virtual SubsampleCovariance::CovarData
     getCoefCovariance(double time) override {
-      PYBIND11_OVERRIDE(SubsampleCovariance::CovarData, Basis, getCoefCovariance, time);
+      // Do not use PYBIND11_OVERRIDE here: SubsampleCovariance::CovarData
+      // contains tensor-based data and this file does not define a pybind11
+      // caster for that return type. Fall back to the C++ implementation.
+      return Basis::getCoefCovariance(time);
     }
 
     virtual void writeCoefCovariance
