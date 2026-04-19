@@ -1901,10 +1901,10 @@ void BasisFactoryClasses(py::module &m)
                     use float64 (default: false)
 	 total:     bool
 		    if true, also compute the total covariance matrix; if false, save only
-		    the partitioned covariance matrices (default: true)
+		    the partitioned covariance matrices (default: false)
          covar:     bool
 		    if true, compute and save covariance to the HDF5 file; if false,
-                    save mean and variance vectors only (default: true)
+                    save mean and variance vectors only (default: false)
 
          Returns
          -------
