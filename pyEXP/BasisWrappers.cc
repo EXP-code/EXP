@@ -2359,8 +2359,11 @@ void BasisFactoryClasses(py::module &m)
 	 [](BasisClasses::FlatDisk& A, double time)
 	 {
 	   auto [cnts, mass, coef, covr] = A.getCoefCovariance(time);
-	   py::array_t<std::complex<double>> cf = make_ndarray3<std::complex<double>>(coef);
-	   py::array_t<std::complex<double>> vr = make_ndarray4<std::complex<double>>(covr);
+	   py::object numpy = py::module_::import("numpy");
+	   py::array cf = numpy.attr("array")(make_ndarray3<std::complex<double>>(coef),
+					      py::arg("copy") = true);
+	   py::array vr = numpy.attr("array")(make_ndarray4<std::complex<double>>(covr),
+					      py::arg("copy") = true);
 	   return std::make_tuple(cnts, mass, cf, vr);
 	 },
 	 R"(
