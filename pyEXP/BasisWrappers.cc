@@ -184,7 +184,7 @@ void BasisFactoryClasses(py::module &m)
     subsample in the last two dimensions.
 
     Typical usage might be:
-       covarReader = pyEXP.covar.CovarianceReader('dark', 'myrun')
+       covarReader = pyEXP.basis.CovarianceReader(filename)
        covarData = covarReader.getCoefCovariance(time)
 
 
