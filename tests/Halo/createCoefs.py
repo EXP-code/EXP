@@ -61,7 +61,7 @@ basis.writeCoefCovariance('halo','test_covar', coef1.time )
 
 # read back in
 testcovar = pyEXP.basis.CovarianceReader('coefcovar.halo.test_covar.h5')
-testcovar.getCoefCovariance(0.0)
+testcovar.getCoefCovariance(coef1.time)
 
 print("Times:", coefs.Times())
 
