@@ -781,6 +781,10 @@ void BasisFactoryClasses(py::module &m)
       PYBIND11_OVERRIDE(void, Slab, make_coefs,);
     }
 
+    void enableCoefCovariance(bool pcavar, int nsamples, bool ftype, bool covar) override {
+      PYBIND11_OVERRIDE(void, Slab, enableCoefCovariance, pcavar, nsamples, ftype, covar);
+    }
+
   };
 
 

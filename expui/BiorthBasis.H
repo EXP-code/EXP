@@ -1256,7 +1256,7 @@ namespace BasisClasses
     //! SLGridSlab mesh size
     int ngrid = 1000;
 
-    //! Target model type for SLGridSlab
+    //! Targ*comet model type for SLGridSlab
     std::string type = "isothermal";
 
     //! Scale height for slab
@@ -1317,6 +1317,20 @@ namespace BasisClasses
     void computeAccel(double x, double y, double z,
 		      Eigen::Ref<Eigen::Vector3d> vstore);
 
+    //@{
+    //! Covariance structures.  First index is T, second is the
+    //! flattened 3-d k vector
+    std::vector<Eigen::VectorXcd> meanV;
+    std::vector<Eigen::MatrixXcd> covrV;
+    std::vector<Eigen::VectorXcd> dvarV;
+
+    void init_covariance();
+    void zero_covariance();
+    void writeCovarH5Params(HighFive::File& file);
+    int  sampT = 100;
+    bool diagcov = true;
+    //@}
+
   public:
     
     //! Constructor from YAML node
@@ -1371,6 +1385,52 @@ namespace BasisClasses
 
       if (worst > __EXP__::orthoTol) return false;
       return true;
+    }
+
+    //! Write coefficient covariance data to an HDF5 file
+    virtual void writeCoefCovariance(const std::string& compname, const std::string& runtag, double time=0.0)
+    {
+      if (covarStore) {
+	SubsampleCovariance::CovarData elem;
+	std::get<0>(elem) = sampleCounts;
+	std::get<1>(elem) = sampleMasses;
+
+	int sampT = meanV.size();
+	int Nsize = meanV[0].size();
+
+	std::get<2>(elem) = SubsampleCovariance::CoefType(sampT, 1, Nsize);
+	std::get<3>(elem) = SubsampleCovariance::CovrType(sampT, 1, Nsize, Nsize);
+
+	for (int T=0; T<sampT; ++T) {
+	  for (int n1=0; n1<Nsize; n1++) {
+	    std::get<2>(elem)(T, 0, n1) = meanV[T](n1);
+	    for (int n2=0; n2<Nsize; n2++) {
+	      std::get<3>(elem)(T, 0, n1, n2) = covrV[T](n1, n2);
+	    }
+	  }
+	}
+	covarStore->writeCoefCovariance(compname, runtag, elem, time);
+      } else {
+	throw std::runtime_error("Slab::writeCoefCovariance: covariance storage not initialized");
+      }
+    }
+
+
+    //! Enable coefficient covariance computation
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
+				      bool ftype=false,
+				      bool covr_tot=false,
+				      bool covar_in=false)
+    {
+      pcavar = pcavar_in;
+      sampT  = sampT_in;
+      scovr  = covr_tot;
+      covar  = covar_in;
+      if (pcavar) {
+	init_covariance();
+	covarStore = std::make_shared<SubsampleCovariance>
+	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, scovr, covar);
+      }
     }
 
   };

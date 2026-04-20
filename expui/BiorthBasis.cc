@@ -3991,6 +3991,57 @@ namespace BasisClasses
     "fullCovar"
   };
 
+  void Slab::init_covariance()
+  {
+    if (pcavar) {
+
+      int jmax = imx * imy * imz;
+
+      meanV.resize(sampT);
+      for (auto& v : meanV) {
+	v.resize(jmax);
+      }
+
+      if (covar) {
+	if (diagcov) {
+	  dvarV.resize(sampT);
+	  for (auto& v : dvarV) {
+	    v.resize(jmax);
+	  }
+	} else {
+	  covrV.resize(sampT);
+	  for (auto& v : covrV) {
+	    v.resize(jmax, jmax);
+	  }
+	}
+      } else {
+	covrV.clear();
+	dvarV.clear();
+      }
+
+      sampleCounts.resize(sampT);
+      sampleMasses.resize(sampT);
+      
+      zero_covariance();
+    }
+  }
+
+
+  void Slab::zero_covariance()
+  {
+    for (int T=0; T<sampT; T++) {
+      meanV[T].setZero();
+      if (covar) {
+	if (diagcov) dvarV[T].setZero();
+	else         covrV[T].setZero();
+      }
+    }
+
+    sampleCounts.setZero();
+    sampleMasses.setZero();
+  }
+
+
   Cube::Cube(const YAML::Node& CONF) : BiorthBasis(CONF, "cube")
   {
     initialize();
@@ -5232,6 +5283,16 @@ namespace BasisClasses
     file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
     file.createAttribute<double>("rcylmin", HighFive::DataSpace::From(rcylmin)).write(rcylmin);
     file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
+  }
+
+  void Slab::writeCovarH5Params(HighFive::File& file)
+  {
+    file.createAttribute<int>("nminx", HighFive::DataSpace::From(nminx)).write(nminx);
+    file.createAttribute<int>("nminy", HighFive::DataSpace::From(nminy)).write(nminy);
+    file.createAttribute<int>("nminz", HighFive::DataSpace::From(nminz)).write(nminz);
+    file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(nmaxx)).write(nmaxx);
+    file.createAttribute<int>("nmaxy", HighFive::DataSpace::From(nmaxy)).write(nmaxy);
+    file.createAttribute<int>("nmaxz", HighFive::DataSpace::From(nmaxz)).write(nmaxz);
   }
 
   void Cube::writeCovarH5Params(HighFive::File& file)

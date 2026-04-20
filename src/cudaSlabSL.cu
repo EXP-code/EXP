@@ -171,7 +171,9 @@ cuFP_t cu_d_xi_to_z(cuFP_t xi)
 //
 void SlabSL::cuda_initialize()
 {
-  // Nothing
+  // Turn off full covariance
+  //
+  fullCovar = false;
 }
 
 // Copy constants to device
@@ -516,7 +518,7 @@ public:
   }
 };
 
-void SlabSL::cudaStorage::resize_coefs(int N, int osize, int gridSize, int stride)
+void SlabSL::cudaStorage::resize_coefs(int N, int osize, int gridSize, int stride, int sampT)
 {
   // Reserve space for coefficient reduction
   //
@@ -531,6 +533,12 @@ void SlabSL::cudaStorage::resize_coefs(int N, int osize, int gridSize, int strid
   dN_coef.resize(osize*N);
   dc_coef.resize(osize*gridSize);
   dw_coef.resize(osize);	// This will stay fixed
+
+  // Resize covariance storage, if sampT>0
+  if (sampT) {
+    T_samp.resize(sampT);
+    for (int T=0; T<sampT; T++) T_samp[T].resize(osize);
+  }
 }
 
 
@@ -544,6 +552,17 @@ void SlabSL::cuda_zero_coefs()
   //
   thrust::fill(thrust::cuda::par.on(cr->stream),
 	       cuS.df_coef.begin(), cuS.df_coef.end(), 0.0);
+
+  if (requestSubsample) {
+
+    cuS.T_samp.resize(sampT);
+
+    for (int T=0; T<sampT; T++) {
+
+      thrust::fill(thrust::cuda::par.on(cr->stream),
+		   cuS.T_samp[T].begin(), cuS.T_samp[T].end(), 0.0);
+    }
+  }
 }
 
 void SlabSL::determine_coefficients_cuda()
@@ -684,6 +703,13 @@ void SlabSL::determine_coefficients_cuda()
     //
     int sMemSize = BLOCK_SIZE * sizeof(CmplxT);
     
+    std::vector<thrust::device_vector<CmplxT>::iterator> bm;
+    if (requestSubsample) {
+      for (int T=0; T<sampT; T++) {
+	bm.push_back(cuS.T_samp[T].begin());
+      }
+    }
+
     // Adjust cached storage, if necessary
     //
     cuS.resize_coefs(N, jmax, gridSize, stride);
@@ -726,6 +752,78 @@ void SlabSL::determine_coefficients_cuda()
 		      beg, beg, thrust::plus<CmplxT>());
 
     thrust::advance(beg, jmax);
+
+    if (requestSubsample) {
+
+      int sN = N/sampT;
+      int nT = sampT;
+	    
+      if (sN==0) {	// Fail-safe underrun
+	sN = 1;
+	nT = N;
+      }
+	    
+      for (int T=0; T<nT; T++) {
+	int k = sN*T;	// Starting position
+	int s = sN;
+	if (T==sampT-1) s = N - k;
+      
+	// Mass accumulation
+	//
+	auto mbeg = cuS.u_d.begin();
+	auto mend = mbeg;
+	thrust::advance(mbeg, sN*T);
+	if (T<sampT-1) thrust::advance(mend, sN*(T+1));
+	else mend = cuS.u_d.end();
+		
+	countV1[0][T] += static_cast<int>(mend - mbeg);
+	massV1 [0][T] += static_cast<double>(thrust::reduce(mbeg, mend));
+      }
+
+      // Begin the reduction per grid block
+      //
+      /* A reminder to consider implementing strides in reduceSum */
+      /*
+	unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+	unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
+      
+	if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
+      */
+		
+      unsigned int gridSize1 = s/BLOCK_SIZE;
+      if (s > gridSize1*BLOCK_SIZE) gridSize1++;
+
+      // Sum reduce into gridsize1 blocks taking advantage of
+      // GPU warp structure
+      //
+	      
+      // Mean computation only
+      //
+      reduceSumS<CmplxT, BLOCK_SIZE>
+	<<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+	(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), jmax, N, k, k+s);
+		
+      // Finish the reduction for this order in parallel
+      //
+      thrust::counting_iterator<int> index_begin(0);
+      thrust::counting_iterator<int> index_end(gridSize1*jmax);
+
+      thrust::reduce_by_key
+	(
+	 thrust::cuda::par.on(cs->stream),
+	 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+	 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
+	 );
+
+	      
+      thrust::transform(thrust::cuda::par.on(cs->stream),
+			cuS.dw_coef.begin(), cuS.dw_coef.end(),
+			bm[T], bm[T], thrust::plus<CmplxT>());
+      
+      thrust::advance(bm[T], imz);
+    }
+    // END: subsample loop
   }
 
   // use1 += N;			// Increment particle count
@@ -734,6 +832,18 @@ void SlabSL::determine_coefficients_cuda()
   // Accumulate the coefficients from the device to the host
   //
   host_coefs = cuS.df_coef;
+
+  if (requestSubsample) {
+    // T loop
+    //
+    for (int T=0; T<sampT; T++) {
+      thrust::host_vector<CmplxT> retV = cuS.T_samp[T];
+	  
+      for (int n=0; n<osize; n++) {
+	meanV1[0][T][n] += std::complex<cuFP_t>(retV[n]);
+      }
+    }
+  }
 
   // Create a wavenumber tuple from a flattened index
   //

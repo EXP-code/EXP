@@ -81,12 +81,12 @@ private:
   //! Coefficient tensor for frozen potential (if self_consistent=false)
   coefType expcofF;
 
-  int nminx, nminy;
+  int nminx, nminy, sampT=0, nint=0;
   int nmaxx, nmaxy, nmaxz;
   double zmax, hslab;
 
   int imx, imy, imz, jmax, nnmax;
-  double  dfac;
+  double  dfac, last=-std::numeric_limits<double>::max();
   std::complex<double> kfac;
   std::string cachename;
 
@@ -131,7 +131,9 @@ private:
     thrust::device_vector<thrust::complex<cuFP_t>> dw_coef;
     thrust::device_vector<thrust::complex<cuFP_t>> df_coef;
 
-    void resize_coefs(int N, int osize, int gridSize, int stride);
+    std::vector<thrust::device_vector<thrust::complex<cuFP_t>>> T_samp;
+
+    void resize_coefs(int N, int osize, int gridSize, int stride, int sampT);
   };
 
   //! A storage instance
@@ -166,6 +168,25 @@ private:
 
   //! Default slab type (must be "isothermal", "parabolic", or "constant")
   std::string type = "isothermal";
+
+  //@{
+  //! Covariance structures.  First index is T, second is the
+  //! flattened 3-d k vector
+  std::vector<Eigen::VectorXcd> meanV;
+  std::vector<Eigen::MatrixXcd> covrV;
+
+  //@{
+  //! Per thread covariance structures
+  std::vector<std::vector<Eigen::VectorXcd>> meanV1;
+  std::vector<std::vector<Eigen::MatrixXcd>> covrV1;
+  std::vector<Eigen::VectorXcd> workV1;
+  std::vector<Eigen::VectorXi>  countV1;
+  std::vector<Eigen::VectorXd>  massV1;
+  //@}
+
+  void init_covariance();
+  void zero_covariance();
+  //@}
 
   //@{
   //! Usual evaluation interface
@@ -229,6 +250,9 @@ private:
   // Biorth ID
   static const int ID=1;
 
+  //! Write basis-specific parameters to HDF5 covariance file
+  void writeCovarH5Params(HighFive::File& file);
+
 protected:
 
   //! Parse parameters and initialize on first call
@@ -250,6 +274,15 @@ public:
 
   //! Coefficient output
   void dump_coefs_h5(const std::string& file);
+
+  /** Return a subsample of the basis coefficients and covariance
+      elements for matrices for analysis. The default implementation
+      returns empty vectors. This parallels the implementation in
+      expui. */
+  CovarData getSubsample();
+
+  //! Indicate whether or not subsampling is supported
+  virtual bool hasSubsample() {	return true; }
 };
 
 

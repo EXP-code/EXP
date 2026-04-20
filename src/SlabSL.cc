@@ -18,6 +18,9 @@ SlabSL::valid_keys = {
   "zmax",
   "ngrid",
   "type",
+  "nint",
+  "samplesz",
+  "subsampleFloat",
   "self_consistent",
   "cachename"
 };
@@ -178,6 +181,15 @@ void SlabSL::initialize()
       self_consistent = conf["self_consistent"].as<bool>();
     } else
       self_consistent = true;
+
+    if (conf["nint"]) {
+      nint = conf["nint"].as<int>();
+      if (nint>0) computeSubsample = true;
+    }
+
+    if (conf["samplesz"]) {
+      sampT = conf["samplesz"].as<int>();
+    }
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in SlabSL: "
@@ -190,9 +202,87 @@ void SlabSL::initialize()
     throw std::runtime_error("SlabSL::initialze: error parsing YAML");
   }
 
+  // Initialize covariance
+  //
+  init_covariance();
+
 #if HAVE_LIBCUDA==1
+  // Cuda initialization (if needed)
+  //
   cuda_initialize();
 #endif
+}
+
+void SlabSL::init_covariance()
+{
+  if (computeSubsample) {
+
+    meanV.resize(sampT);
+    for (auto& v : meanV) {
+      v.resize(jmax);
+    }
+
+    workV1.resize(nthrds);
+    for (auto& v : workV1) v.resize(jmax);
+
+    if (fullCovar) {
+      covrV.resize(sampT);
+      for (auto& v : covrV) {
+	v.resize(jmax, jmax);
+      }
+    } else {
+      covrV.clear();
+    }
+
+    sampleCounts.resize(sampT);
+    sampleMasses.resize(sampT);
+      
+    meanV1.resize(nthrds);
+    covrV1.resize(nthrds);
+    countV1.resize(nthrds);
+    massV1.resize(nthrds);
+
+    for (int n=0; n<nthrds; n++) {
+      meanV1[n].resize(sampT);
+      covrV1[n].resize(sampT);
+      for (int T=0; T<sampT; T++) {
+	meanV1[n][T].resize(jmax);
+	if (fullCovar) {
+	  covrV1[n][T].resize(jmax, jmax);
+	}
+      }
+      countV1[n].resize(sampT);
+      massV1[n].resize(sampT);
+    }
+
+    zero_covariance();
+  }
+}
+
+
+void SlabSL::zero_covariance()
+{
+  for (int T=0; T<sampT; T++) {
+    meanV[T].setZero();
+    if (fullCovar) {
+      covrV[T].setZero();
+    }
+  }
+    
+  sampleCounts.setZero();
+  sampleMasses.setZero();
+
+  for (int n=0; n<nthrds; n++) {
+    for (int T=0; T<sampT; T++) {
+      meanV1[n][T].setZero();
+      if (fullCovar) {
+	covrV1[n][T].setZero();
+      }
+    }
+    workV1[n].setZero();
+    countV1[n].setZero();
+    massV1[n].setZero();
+  }
 }
 
 void SlabSL::determine_coefficients(void)
@@ -220,6 +310,19 @@ void SlabSL::determine_coefficients(void)
     // Clean arrays for current level
     //
     expccofN[mlevel]->setZero();
+  }
+
+  // Determine whether or not to compute a subsample
+  if (mstep==0 or mstep==std::numeric_limits<int>::max()) {
+    if (nint>0 && this_step % nint == 0) {
+      if (tnow > last) {
+	requestSubsample = true;
+	last = tnow;
+	zero_covariance();
+      }
+    }
+  } else {
+    subsampleComputed = false;
   }
 
 #if HAVE_LIBCUDA==1
@@ -259,6 +362,48 @@ void SlabSL::determine_coefficients(void)
     
     MPI_Allreduce( MPI_IN_PLACE, expccof[0].data(), expccof[0].size(),
 		   MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+  }
+
+  // Accumulate mean and covariance subsample contributions
+  //
+  if (requestSubsample) {
+
+    // Only finalize at the last multistep level
+    //
+    if ( (multistep and mlevel==multistep) or multistep==0 ) {
+      
+      // Sum over threads
+      //
+      for (int n=1; n<nthrds; n++) {
+	for (int T=0; T<sampT; T++) {
+	  meanV1[0][T] += meanV1[n][T];
+	  if (fullCovar) {
+	    covrV1[0][T] += covrV1[n][T];
+	  }
+	  countV1[0](T) += countV1[n](T);
+	  massV1[0](T)  += massV1[n](T);
+	}
+      }
+
+      // Sum over MPI ranks
+      //
+      for (int T=0; T<sampT; T++) {
+	MPI_Allreduce( meanV1[0][T].data(), meanV[T].data(), meanV[T].size(),
+		       MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+	if (fullCovar)
+	  MPI_Allreduce( covrV1[0][T].data(), covrV[T].data(), covrV[T].size(),
+			 MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
+      }
+
+      MPI_Allreduce( countV1[0].data(), sampleCounts.data(), sampleCounts.size(),
+		     MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    
+      MPI_Allreduce( massV1[0].data(), sampleMasses.data(), sampleMasses.size(),
+		     MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+      requestSubsample  = false;
+      subsampleComputed = true;
+    }
   }
 
   // Last level?
@@ -339,12 +484,36 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 	else
 	  grid->get_pot(zpot[id], zz, iiy, iix);
 
-	for (int iz=0; iz<imz; iz++)
+	for (int iz=0; iz<imz; iz++) {
 	  expccof[id](ix, iy, iz) += mm*facx*facy*zpot[id][iz];
 
+	  if (requestSubsample) {
+	    workV1[id][ ( (ii + nmaxx)*imy + (jj + nmaxy) )*imz + iz ]
+	      = facx * facy * zpot[id][iz];
+	  }
+	}
       }
     }
+
+    if (requestSubsample) {
+      // Which subsample bin?
+      //
+      int T = q % sampT;
+
+      // Accumulate counts and masses
+      //
+      countV1[id](T) += 1;
+      massV1[id](T)  += mm;
+
+      // Accumulate subsample contributions
+      //
+      meanV1[id][T] += workV1[id] * mm;
+      if (fullCovar)
+	covrV1[id][T] += workV1[id] * workV1[id].adjoint() * mm;
+    }
   }
+  // END: particle loop
+
     
   return (NULL);
 }
@@ -699,3 +868,37 @@ void SlabSL::compute_multistep_coefficients()
     }
   }
 }
+
+void SlabSL::writeCovarH5Params(HighFive::File& file)
+{
+  file.createAttribute<int>("nminx", HighFive::DataSpace::From(nminx)).write(nminx);
+  file.createAttribute<int>("nminy", HighFive::DataSpace::From(nminy)).write(nminy);
+  file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(nmaxx)).write(nmaxx);
+  file.createAttribute<int>("nmaxy", HighFive::DataSpace::From(nmaxy)).write(nmaxy);
+  file.createAttribute<int>("nmaxz", HighFive::DataSpace::From(nmaxz)).write(nmaxz);
+}
+
+PotAccel::CovarData SlabSL::getSubsample()
+{
+  CovarData elem;
+
+  std::get<0>(elem) = sampleCounts;
+  std::get<1>(elem) = sampleMasses;
+  std::get<2>(elem) = Eigen::Tensor<std::complex<double>, 3>(sampT, 1, jmax);
+  std::get<3>(elem) = Eigen::Tensor<std::complex<double>, 4>(sampT, 1, jmax, jmax);
+
+  // Fill the covariance structure with subsamples
+  for (int T=0; T<sampT; T++) {
+    std::get<2>(elem).chip(T, 0).chip(0, 0) =
+      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 1>>
+      (meanV[T].data(), jmax);
+	
+    std::get<3>(elem).chip(T, 0).chip(0, 0) =
+      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>
+      (covrV[T].data(), jmax, jmax);
+
+  }
+    
+  return elem;
+}
+
