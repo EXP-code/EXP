@@ -76,7 +76,7 @@ if(ENABLE_MINIMAL)
   set(ENABLE_UTILS OFF)
   set(ENABLE_TESTS OFF)
 endif()
-  
+
 # Metaflag for pyEXP only
 
 if(ENABLE_PYEXP_ONLY)
@@ -86,7 +86,7 @@ if(ENABLE_PYEXP_ONLY)
   set(ENABLE_UTILS OFF)
   set(ENABLE_TESTS OFF)
 endif()
-  
+
 # Set mpirun launcher for CTest
 
 set(EXP_MPI_LAUNCH "mpirun" CACHE STRING "Command to run an MPI application (for unit tests only)")
@@ -297,13 +297,13 @@ if(ENABLE_TESTS)
   add_subdirectory(tests)
 endif()
 
-# try to find pybind11 and build wrapper python module
-find_package(Python3 COMPONENTS Interpreter Development)
-message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
-if(Python3_FOUND)
-  set(HAVE_PYTHON3 TRUE)
-else()
-  if(ENABLE_PYEXP)
+if(ENABLE_PYEXP)
+  # try to find pybind11 and build wrapper python module
+  find_package(Python3 COMPONENTS Interpreter Development)
+  message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
+  if(Python3_FOUND)
+    set(HAVE_PYTHON3 TRUE)
+  else()
     message(FATAL_ERROR "You asked for pyEXP but I cannot find a Python3 environment. Please make Python3 available or disable pyEXP. CMake will exit." )
   endif()
 endif()
@@ -404,4 +404,3 @@ set(CMAKE_CXX_FLAGS_UBSAN
 # from the same source.
 configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_BINARY_DIR}/config_exp.h)
 include_directories(${PROJECT_BINARY_DIR})
-
