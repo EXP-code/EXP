@@ -16,6 +16,8 @@ parameters :
   rmapping : 0.0667
   modelname: SLGridSph.model
   cachename: SLGridSph.cache.run0
+  pcavar : true
+  subsamp : 10
 ...
 """
 
@@ -24,8 +26,9 @@ print("---- about to create basis")
 # Construct the basis instances
 #
 basis = pyEXP.basis.Basis.factory(config)
+basis.enableCoefCovariance(True, 100) # new for version 7.9.3
 
-print("---- created basis")
+print("---- created basis and enabled covariance")
 
 # Create a coefficient structure
 #
@@ -52,6 +55,13 @@ print("---- createFromArray usings lists")
 coef1 = basis.createFromArray(mass, [xpos, ypos, zpos], time=3.0)
 
 coefs.add(coef1)
+
+# do a covariance calculation to test that the covariance options are working : new for version 7.9.3
+basis.writeCoefCovariance('halo','test_covar', coef1.time )
+
+# read back in
+testcovar = pyEXP.basis.CovarianceReader('coefcovar.halo.test_covar.h5')
+testcovar.getCoefCovariance(coef1.time)
 
 print("Times:", coefs.Times())
 
