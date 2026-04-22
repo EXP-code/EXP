@@ -10,6 +10,7 @@
 #include "OrthoFunction.H"
 #include "Coefficients.H"
 #include "PseudoAccel.H"
+#include "Covariance.H"
 #include "YamlCheck.H"
 #include "localmpi.H"
 #include "exputils.H"
@@ -135,6 +136,32 @@ namespace BasisClasses
     Eigen::MatrixXd p_accel;
     //@}
     
+    //@{
+    //! Sample counts and masses for covariance computation
+    Eigen::VectorXi sampleCounts;
+    Eigen::VectorXd sampleMasses;
+    //@}
+
+    //! Covariance storage instance
+    std::shared_ptr<SubsampleCovariance> covarStore;
+
+    //! Coefficient variance computation enabled
+    bool pcavar = false;
+
+    //! Round time key to emulated fixed-point arithmetic
+    double roundTime(double time)
+    {
+      // Eight decimal places should be enough here...
+      const double multiplier = 1.0e+08;  // std::pow(10.0, 8);
+      return std::floor(time * multiplier + 0.5) / multiplier;
+    }
+
+    //! Store covariance matrix?
+    bool covar = true;
+
+    //! Store summed covariance only?
+    bool scovr = true;
+
     //! Number of center points in acceleration estimator
     int Naccel = 0;
 
@@ -291,6 +318,46 @@ namespace BasisClasses
 
     //! Get the basis expansion center
     RowMatrix3d getRotation() { return coefrot; }
+
+    //!! Sample counts, masses, coefficients, and covariance
+    virtual SubsampleCovariance::CovarData getCoefCovariance(double time)
+    {
+      if (!covarStore)
+	throw std::runtime_error("Basis::getCoefCovariance: covariance storage not initialized");
+      return covarStore->getCoefCovariance(time);
+    }
+
+    //! Write coefficient covariance data to an HDF5 file
+    virtual void writeCoefCovariance(const std::string& compname, const std::string& runtag,
+				     double time=0.0)
+    {
+      // Must be overriden; base implementation throws error
+      throw std::runtime_error("Basis::writeCoefCovariance: "
+			       "Not implemented for this basis");
+    }
+
+    //! Make covariance after accumulation
+    virtual void makeCoefCovariance(void) {}
+
+    //! Enable covariance computation with optional sample time
+    virtual void enableCoefCovariance(bool pcavar, int sampT_in, bool ftype, bool total, bool covar_in)
+    {
+      // Must be overriden; base implementation throws error
+      throw std::runtime_error("Basis::enableCoefCovariance: "
+			       "Not implemented for this basis");
+    }
+
+    //! HDF5 compression settings
+    void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle,
+			    bool szip=false)
+    {
+      if (covarStore) {
+	covarStore->setCovarH5Compress(level, chunksize, shuffle, szip);
+      } else {
+	throw std::runtime_error("Basis::setCovarH5Compress: covariance storage not initialized");
+      }
+    }
+
   };
   
   using BasisPtr = std::shared_ptr<Basis>;

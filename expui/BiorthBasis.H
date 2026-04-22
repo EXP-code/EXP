@@ -21,7 +21,6 @@
 #include "BiorthBess.H"
 #include "BasisFactory.H"
 #include "BiorthCube.H"
-#include "Covariance.H"
 #include "sltableMP2.H"
 #include "SLGridMP2.H"
 #include "YamlCheck.H"
@@ -103,32 +102,6 @@ namespace BasisClasses
     //! C++ local storage for the array version of getAccel
     RowMatrixXd varray;
     //@}
-
-    //! Coefficient variance computation enabled
-    bool pcavar = false;
-
-    //@{
-    //! Sample counts and masses for covariance computation
-    Eigen::VectorXi sampleCounts;
-    Eigen::VectorXd sampleMasses;
-    //@}
-
-    //! Covariance storage instance
-    std::shared_ptr<SubsampleCovariance> covarStore;
-
-    //! Round time key to emulated fixed-point arithmetic
-    double roundTime(double time)
-    {
-      // Eight decimal places should be enough here...
-      const double multiplier = 1.0e+08;  // std::pow(10.0, 8);
-      return std::floor(time * multiplier + 0.5) / multiplier;
-    }
-
-    //! Store covariance matrix?
-    bool covar = true;
-
-    //! Store summed covariance only?
-    bool scovr = true;
 
   public:
     
@@ -271,41 +244,6 @@ namespace BasisClasses
       }
 
       return varray;
-    }
-
-    //!! Sample counts, masses, coefficients, and covariance
-    SubsampleCovariance::CovarData getCoefCovariance(double time)
-    { return covarStore->getCoefCovariance(time); }
-
-    //! Write coefficient covariance data to an HDF5 file
-    virtual void writeCoefCovariance(const std::string& compname, const std::string& runtag,
-				     double time=0.0)
-    {
-      // Must be overriden; base implementation throws error
-      throw std::runtime_error("BiorthBasis::writeCoefCovariance: "
-			       "Not implemented for this basis");
-    }
-
-    //! Make covariance after accumulation
-    virtual void makeCoefCovariance(void) {}
-
-    //! Enable covariance computation with optional sample time
-    virtual void enableCoefCovariance(bool pcavar, int sampT_in, bool ftype, bool covar_in)
-    {
-      // Must be overriden; base implementation throws error
-      throw std::runtime_error("BiorthBasis::enableCoefCovariance: "
-			       "Not implemented for this basis");
-    }
-
-    //! HDF5 compression settings
-    void setCovarH5Compress(unsigned level, unsigned chunksize, bool shuffle,
-			    bool szip=false)
-    {
-      if (covarStore) {
-	covarStore->setCovarH5Compress(level, chunksize, shuffle, szip);
-      } else {
-	throw std::runtime_error("BiorthBasis::setCovarH5Compress: covariance storage not initialized");
-      }
     }
 
     //! Evaluate acceleration in Cartesian coordinates in centered
