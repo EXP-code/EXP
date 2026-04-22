@@ -292,12 +292,24 @@ private:
   void compute_table_worker(void);
 
 
-				// Local MPI stuff
+  //@{
+  //! Local MPI stuff
   void mpi_setup(void);
   void mpi_unpack_table(void);
   int  mpi_pack_table(TableSlab* table, int kx, int ky);
+  //@}
+
+  //@{
+  //! Cache reading and writing
   bool ReadH5Cache(void);
   void WriteH5Cache(void);
+  //@}
+
+  //! Cache file name
+  std::string slab_cache_name;
+
+  //! Cache versioning
+  inline static const std::string Version = "1.0";
 
   int mpi_myid, mpi_numprocs;
   int mpi_bufsz;
@@ -403,7 +415,8 @@ public:
 
   //! Constructor
   SLGridSlab(int kmax, int nmax, int numz, double zmax,
-	     const std::string type="isothermal", bool Verbose=false);
+	     const std::string cachename, const std::string type="isothermal",
+	     bool Verbose=false);
 
   //! Destructor
   ~SLGridSlab();

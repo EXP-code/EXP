@@ -17,7 +17,9 @@ SlabSL::valid_keys = {
   "hslab",
   "zmax",
   "ngrid",
-  "type"
+  "type",
+  "self_consistent",
+  "cachename"
 };
 
 //@{
@@ -34,12 +36,16 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   zmax      = 10.0;
   hslab     = 0.2;
   coef_dump = true;
+  cachename = "";
 
 #if HAVE_LIBCUDA==1
   cuda_aware = true;
 #endif
 
   initialize();
+
+  if (cachename.size()==0)
+    throw std::runtime_error("SlabSL: you must specify a cachename");
 
   SLGridSlab::mpi  = 1;
   SLGridSlab::ZBEG = 0.0;
@@ -48,7 +54,9 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   
   int nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
 
-  grid = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, type);
+  // Make the Sturm-Liouville grid and basis functions
+  //
+  grid = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, cachename, type);
 
   // Test for basis consistency (will generate an exception if maximum
   // error is out of tolerance)
@@ -164,6 +172,12 @@ void SlabSL::initialize()
     if (conf["hslab"])          hslab       = conf["hslab"].as<double>();
     if (conf["zmax" ])          zmax        = conf["zmax" ].as<double>();
     if (conf["type" ])          type        = conf["type" ].as<std::string>();
+    if (conf["cachename"])      cachename   = conf["cachename"].as<std::string>();
+
+    if (conf["self_consistent"]) {
+      self_consistent = conf["self_consistent"].as<bool>();
+    } else
+      self_consistent = true;
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in SlabSL: "
@@ -253,6 +267,11 @@ void SlabSL::determine_coefficients(void)
      compute_multistep_coefficients();
   }
 
+  // Only used if self_consistent is false to ensure that coefficients
+  // are only computed once (at the first time step)
+  //
+  if (not self_consistent and firstime_coef) expcofF = expccof[0];
+  firstime_coef = false;
 }
 
 void * SlabSL::determine_coefficients_thread(void * arg)
@@ -343,7 +362,7 @@ void SlabSL::get_acceleration_and_potential(Component* C)
 
   if (use_external == false) {
 
-    if (multistep && initializing) {
+    if (multistep && (self_consistent || initializing)) {
       compute_multistep_coefficients();
     }
 
@@ -454,11 +473,17 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	
 	  for (int iz=0; iz<imz; iz++) {
 	  
-	    fac  = facx*facy*zpot[id][iz]*expccof[0](ix, iy, iz);
-	    facf = facx*facy*zfrc[id][iz]*expccof[0](ix, iy, iz);
+	    // Live for frozen potential
+	    if (self_consistent) {
+	      fac  = facx*facy*zpot[id][iz]*expccof[0](ix, iy, iz);
+	      facf = facx*facy*zfrc[id][iz]*expccof[0](ix, iy, iz);
+	    } else {
+	      fac  = facx*facy*zpot[id][iz]*expcofF(ix, iy, iz);
+	      facf = facx*facy*zfrc[id][iz]*expcofF(ix, iy, iz);
+	    }
 	  
-				// Limit to minimum wave number
-	  
+	    // Limit to minimum wave number
+	    //
 	    if (abs(ii)<nminx || abs(jj)<nminy) continue;
 	  
 	    potl += fac;

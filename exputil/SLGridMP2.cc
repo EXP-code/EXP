@@ -21,6 +21,7 @@
 #include "SLGridMP2.H"
 #include "massmodel.H"
 #include "EXPmath.H"
+#include "libvars.H"		// For parsed version info
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -1844,24 +1845,40 @@ static double poffset=0.0;
 class IsothermalSlab : public SlabModel
 {
 
+private:
+
+  std::string psa =
+    "----     IsothermalSlab NOW uses the traditional density profile proportional to sech^2(z/2H).\n"
+    "----     If you are using the old profile proportional to sech^2(z/H), please update your model\n"
+    "----     to use the new profile and set the scale height H to be half of the old value.  This\n"
+    "----     will ensure that your model has the same density profile and potential as before, but\n"
+    "----     with a more standard functional form.  If you have any questions or concerns about\n"
+    "----     this change, please contact the developers on GitHub.";
+
 public:
 
-  IsothermalSlab() { id = "iso"; }
+  IsothermalSlab() {
+    id = "iso";
+    if (myid==0 and (exp_build.major < 7 or
+                     (exp_build.major == 7 and exp_build.minor < 11)))
+      std::cout << "---- SLGridSlab: IMPORTANT UPDATE for EXP "
+		<< VERSION << '\n' << psa << std::endl;
+  }
 
   double pot(double z)
   {
-    return 2.0*M_PI*SLGridSlab::H*log(cosh(z/SLGridSlab::H)) - poffset;
+    return 4.0*M_PI*SLGridSlab::H*log(cosh(0.5*z/SLGridSlab::H)) - poffset;
   }
 
   double dpot(double z)
   {
-    return 2.0*M_PI*tanh(z/SLGridSlab::H);
+    return 2.0*M_PI*tanh(0.5*z/SLGridSlab::H);
   }
 
   double dens(double z)
   {
-    double tmp = 1.0/cosh(z/SLGridSlab::H);
-    return 4.0*M_PI * 0.5/SLGridSlab::H * tmp*tmp;
+    double tmp = 1.0/cosh(0.5*z/SLGridSlab::H);
+    return 4.0*M_PI*0.25/SLGridSlab::H * tmp*tmp;
   }
 };
 
@@ -1956,8 +1973,12 @@ void SLGridSlab::bomb(string oops)
 				// Constructors
 
 SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
-		       const std::string TYPE, bool VERBOSE)
+		       const std::string cachename, const std::string TYPE,
+		       bool VERBOSE)
 {
+  if (cachename.size()) slab_cache_name  = cachename;
+  else throw std::runtime_error("SLGridSlab: you must specify a cachename");
+  
   int kx, ky;
 
   numk = NUMK;
@@ -2193,9 +2214,6 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 }
 
 
-const string slab_cache_name = ".slgrid_slab_cache";
-
-
 bool SLGridSlab::ReadH5Cache(void)
 {
   if (!cache) return false;
@@ -2254,6 +2272,18 @@ bool SLGridSlab::ReadH5Cache(void)
     //
     if (not checkStr(geometry, "geometry"))  return false;
     if (not checkStr(forceID,  "forceID"))   return false;
+
+    // Version check
+    //
+    if (h5file.hasAttribute("Version")) {
+      if (not checkStr(Version, "Version"))  return false;
+    } else {
+      if (myid==0)
+	std::cout << "---- SLGridSlab::ReadH5Cache: "
+		  << "recomputing cache for HighFive API change"
+		  << std::endl;
+      return false;
+    }
 
     // Parameter check
     //
@@ -2348,6 +2378,7 @@ void SLGridSlab::WriteH5Cache(void)
 
     file.createAttribute<std::string>("geometry",  HighFive::DataSpace::From(geometry)).write(geometry);
     file.createAttribute<std::string>("forceID",   HighFive::DataSpace::From(forceID)).write(forceID);
+    file.createAttribute<std::string>("Version",   HighFive::DataSpace::From(Version)).write(Version);
       
     // Write parameters
     //
