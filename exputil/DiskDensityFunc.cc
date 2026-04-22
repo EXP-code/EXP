@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include "DiskDensityFunc.H"
 
 #ifdef HAVE_PYTHON3
@@ -38,7 +39,7 @@ DiskDensityFunc::DiskDensityFunc(const std::string& modulename,
 				 const std::string& funcname)
   : funcname(funcname)
 {
-  throw std::runtime_error("DiskDensityFunc: you environoment does not have Python3 support.  Use a built-in density target or install Python3 and recompile");
+  throw std::runtime_error("DiskDensityFunc: your environoment does not have Python3 support.  Use a built-in density target or install Python3 and recompile");
 }
 
 DiskDensityFunc::~DiskDensityFunc()
