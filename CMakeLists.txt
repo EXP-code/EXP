@@ -259,6 +259,7 @@ execute_process(
 
 include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
 include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+include_directories(${PROJECT_SOURCE_DIR}/extern/QuickDigest5/include)
 
 # Report to the user
 message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")

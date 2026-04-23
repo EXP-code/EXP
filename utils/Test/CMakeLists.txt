@@ -1,5 +1,6 @@
 
-set(bin_PROGRAMS testBarrier expyaml orthoTest testED)
+set(bin_PROGRAMS testBarrier expyaml orthoTest testDeproj
+		 testEmpDeproj testEmp testED testmd5)
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX expui exputil
   yaml-cpp ${VTK_LIBRARIES})
@@ -10,6 +11,7 @@ endif()
 
 set(common_INCLUDE
   $<INSTALL_INTERFACE:include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/extern/QuickDigest5/include>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
   ${CMAKE_BINARY_DIR} ${DEP_INC}
@@ -32,7 +34,12 @@ endif()
 add_executable(testBarrier    test_barrier.cc)
 add_executable(expyaml        test_config.cc)
 add_executable(orthoTest      orthoTest.cc Biorth2Ortho.cc)
-add_executable(testED         testED.cc)
+add_executable(testDeproj     testDeproject.cc CubicSpline.cc Deprojector.cc)
+add_executable(testEmpDeproj  testEmpDeproj.cc CubicSpline.cc
+			      Deprojector.cc EmpDeproj.cc)
+add_executable(testEmp        testEmp.cc EmpDeproj.cc)
+add_executable(testmd5        testmd5.cc)
+add_executable(testED         testED.cc EmpDeproj.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})
@@ -40,5 +47,8 @@ foreach(program ${bin_PROGRAMS})
   # Don't install these tests
   # install(TARGETS ${program} DESTINATION bin)
 endforeach()
+
+# For Python interpreter...
+target_link_libraries(testEmp ${common_LINKLIB} pybind11::embed)
 
 install(TARGETS expyaml DESTINATION bin)

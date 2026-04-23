@@ -243,7 +243,9 @@ protected:
   bool ReadH5Cache();
 
   //! Cache versioning
-  inline static const std::string Version = "1.0";
+  // Version 1.0 corresponds to bases generated with the first public release of EXP (7.8).
+  // Version 1.1 corresponds to bases generated with improved Abel inversion and deprojection methods (7.10).
+  inline static const std::string Version = "1.1";
 
   //! The cache file name
   std::string cachefile;
@@ -355,6 +357,12 @@ protected:
   //! with the new Eigen3 API
   bool allow_old_cache = false;
 
+  //! Abel type for deprojection
+  enum class AbelType { Derivative, Subtraction, IBP };
+
+  //! Deprojection method (default: derivative)
+  AbelType abel_type = AbelType::Derivative;
+
 public:
 
   /*! Enum listing the possible selection algorithms for coefficient
@@ -366,7 +374,7 @@ public:
   };
 
   //! Type of density model to use
-  enum EmpModel {
+  enum class EmpModel {
     Exponential,
     ExpSphere,
     Gaussian, 
@@ -374,6 +382,9 @@ public:
     Power,
     Deproject,
   };
+
+  static std::map<std::string, EmpModel> EmpModelMap;
+  static std::map<EmpModel, std::string> EmpModelLabs;
 
   //! Axisymmetric disk density function for deprojection
   class AxiDisk
@@ -479,9 +490,6 @@ public:
 
   //! Use YAML header in coefficient file
   static bool NewCoefs;
-
-  //! Convert EmpModel to ascii label
-  static std::map<EmpModel, std::string> EmpModelLabs;
 
   //! Fraction of table range for basis images (for debug)
   static double HFAC;
