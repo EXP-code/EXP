@@ -1038,27 +1038,22 @@ PotAccel::CovarData Cube::getSubsample()
   std::get<2>(elem) = Eigen::Tensor<std::complex<double>, 3>(sampT, 1, osize);
   std::get<3>(elem) = Eigen::Tensor<std::complex<double>, 4>(sampT, 1, osize, osize);
 
-  // Fill the covariance structure with subsamples
-  for (int T=0; T<sampT; T++) {
-    /*
-    for (int n1=0; n1<osize; n1++) {
-      std::get<2>(elem)(T, 0, n1) = meanV[T](n1);
-      for (int n2=0; n2<osize; n2++)
-	if (fullCovar)
-	  std::get<3>(elem)(T, 0, n1, n2) = covrV[T](n1, n2);
-	else
-	  std::get<3>(elem)(T, 0, n1, n2) = 0.0;
-    } 
-    */
+  if (not fullCovar) std::get<3>(elem).setZero();
 
+  // Fill the covariance structure with subsamples
+  //
+  for (int T=0; T<sampT; T++) {
     std::get<2>(elem).chip(T, 0).chip(0, 0) =
       Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 1>>
       (meanV[T].data(), osize);
 	
-    std::get<3>(elem).chip(T, 0).chip(0, 0) =
-      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>
-      (covrV[T].data(), osize, osize);
-
+    // Only fill the covariance if requested
+    //
+    if (fullCovar) {
+      std::get<3>(elem).chip(T, 0).chip(0, 0) =
+	Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>
+	(covrV[T].data(), osize, osize);
+    }
   }
     
   return elem;

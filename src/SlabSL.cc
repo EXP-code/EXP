@@ -104,11 +104,6 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 		<< worst << std::endl;
   }
 
-  imx  = 1 + 2*nmaxx;		// Number of x wavenumber
-  imy  = 1 + 2*nmaxy;		// Number of y wavenumbers
-  imz  = nmaxz;			// Number of vertical functions
-  jmax = imx * imy * imz;	// Total storage in tensor
-
   expccof.resize(nthrds);
   for (auto & v : expccof) v.resize(imx, imy, imz);
     
@@ -201,6 +196,13 @@ void SlabSL::initialize()
 			   << std::string(60, '-') << std::endl;
     throw std::runtime_error("SlabSL::initialze: error parsing YAML");
   }
+
+  // Set dimensions of coefficient tensor and total storage in tensor
+  //
+  imx  = 1 + 2*nmaxx;		// Number of x wavenumber
+  imy  = 1 + 2*nmaxy;		// Number of y wavenumbers
+  imz  = nmaxz;			// Number of vertical functions
+  jmax = imx * imy * imz;	// Total storage in tensor
 
   // Initialize covariance
   //
@@ -887,16 +889,22 @@ PotAccel::CovarData SlabSL::getSubsample()
   std::get<2>(elem) = Eigen::Tensor<std::complex<double>, 3>(sampT, 1, jmax);
   std::get<3>(elem) = Eigen::Tensor<std::complex<double>, 4>(sampT, 1, jmax, jmax);
 
+  if (not fullCovar) std::get<3>(elem).setZero();
+
   // Fill the covariance structure with subsamples
+  //
   for (int T=0; T<sampT; T++) {
     std::get<2>(elem).chip(T, 0).chip(0, 0) =
       Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 1>>
       (meanV[T].data(), jmax);
 	
-    std::get<3>(elem).chip(T, 0).chip(0, 0) =
-      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>
-      (covrV[T].data(), jmax, jmax);
-
+    // Use the map to copy the covariance if requested
+    //
+    if (fullCovar) {
+      std::get<3>(elem).chip(T, 0).chip(0, 0) =
+	Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 2>>
+	(covrV[T].data(), jmax, jmax);
+    }
   }
     
   return elem;
