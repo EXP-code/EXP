@@ -30,18 +30,18 @@ main(int argc, char** argv)
   cxxopts::Options options("orthochk", "Check orthogonality of 1D basis functions");
 
   options.add_options()
-    ("m,mpi", "Use MPI")
-    ("s,SL", "Use Sturm-Liouville slab basis")
-    ("T,type", "Slab type (iso, parabolic, or constant)", cxxopts::value<std::string>())
-    ("t,Trig", "Use trigonometric basis")
-    ("x,ikx", "IKX for SLGridSlab (default: 1)", cxxopts::value<int>())
-    ("y,iky", "IKY for SLGridSlab (default: 3)", cxxopts::value<int>())
-    ("k,kx", "KX for OneDTrig (default: 0.5)", cxxopts::value<double>())
-    ("z,zmax", "ZMAX for OneDTrig and SLGridSlab (default: 1.0)", cxxopts::value<double>())
-    ("H,h", "Scale height H for SLGridSlab (default: 0.1)", cxxopts::value<double>())
-    ("n,nmax", "NMAX for SLGridSlab (default: 10)", cxxopts::value<int>())
+    ("m,mpi",       "Use MPI")
+    ("s,SL",        "Use Sturm-Liouville slab basis")
+    ("T,type",      "Slab type (iso, parabolic, or constant)", cxxopts::value<std::string>())
+    ("t,Trig",      "Use trigonometric basis")
+    ("x,ikx",       "IKX for SLGridSlab (default: 1)", cxxopts::value<int>())
+    ("y,iky",       "IKY for SLGridSlab (default: 3)", cxxopts::value<int>())
+    ("k,kx",        "KX for OneDTrig (default: 0.5)", cxxopts::value<double>())
+    ("z,zmax",      "ZMAX for OneDTrig and SLGridSlab (default: 1.0)", cxxopts::value<double>())
+    ("H,height",    "Scale height H for SLGridSlab (default: 0.1)", cxxopts::value<double>())
+    ("n,nmax",      "NMAX for SLGridSlab (default: 10)", cxxopts::value<int>())
     ("c,cachename", "Cache file name for SLGridSlab (default: .slab_sl_cache)", cxxopts::value<std::string>())
-    ("h,help", "Print usage");
+    ("h,help",      "Print usage");
 
   auto result = options.parse(argc, argv);
 
