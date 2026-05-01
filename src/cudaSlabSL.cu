@@ -216,7 +216,7 @@ void SlabSL::initialize_constants()
 		 __FILE__, __LINE__, "Error copying slabNum");
 
   // Sech map
-  int Cmap = 1;
+  int Cmap = static_cast<int>(cmtype);
 
   cuda_safe_call(cudaMemcpyToSymbol(slabCmap, &Cmap, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),

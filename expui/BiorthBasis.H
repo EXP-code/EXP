@@ -1194,7 +1194,10 @@ namespace BasisClasses
     //! SLGridSlab mesh size
     int ngrid = 1000;
 
-    //! Targ*comet model type for SLGridSlab
+    //! Coordinate map type for SLGridSlab
+    std::string cmap = "linear";
+
+    //! Target model type for SLGridSlab
     std::string type = "isothermal";
 
     //! Scale height for slab

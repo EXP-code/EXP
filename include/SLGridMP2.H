@@ -327,6 +327,13 @@ private:
   //! to finite interval
   enum CoordMapTypes {Tanh, Sech, Linear};
 
+  //! Coordinate map chooser
+  const std::map<CoordMapTypes, std::string> CoordMapNames = {
+    {Tanh,   "tanh"  },
+    {Sech,   "sech"  },
+    {Linear, "linear"}
+  };
+
   //! The base class for all coordinate maps
   class CoordMap
   {
@@ -386,6 +393,12 @@ private:
     virtual double d_xi_to_z(double z);
   };
 
+  //! Coordinate map type (enum)
+  CoordMapTypes cmtype;
+
+  //! Coordinate map type (string)
+  std::string cmap = "linear";
+
   //! Model type
   std::string type;
 
@@ -415,7 +428,9 @@ public:
 
   //! Constructor
   SLGridSlab(int kmax, int nmax, int numz, double zmax,
-	     const std::string cachename, const std::string type="isothermal",
+	     const std::string cachename,
+	     const std::string coordmap="linear",
+	     const std::string type="isothermal",
 	     bool Verbose=false);
 
   //! Destructor

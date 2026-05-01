@@ -17,6 +17,7 @@ SlabSL::valid_keys = {
   "hslab",
   "zmax",
   "ngrid",
+  "cmap",
   "type",
   "nint",
   "samplesz",
@@ -64,7 +65,8 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 
   // Make the Sturm-Liouville grid and basis functions
   //
-  grid = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, cachename, type);
+  grid = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, cachename,
+				      cmap, type);
 
   // Test for basis consistency (will generate an exception if maximum
   // error is out of tolerance)

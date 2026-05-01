@@ -34,6 +34,7 @@ main(int argc, char** argv)
   int IKY = 3;
   std::string bioTypeStr = "trig";
   std::string cachename = ".slab_sl_cache";
+  std::string cmap = "linear";
   std::string slabID = "iso";
   bool use_mpi = false;
 
@@ -95,7 +96,8 @@ main(int argc, char** argv)
       SLGridSlab::H = H;
       if (use_mpi) SLGridSlab::mpi = 1;
 
-      orthoSL = std::make_shared<SLGridSlab>(KMAX, NMAX, NUMZ, ZMAX, cachename, slabID, true);
+      orthoSL = std::make_shared<SLGridSlab>(KMAX, NMAX, NUMZ, ZMAX, cachename,
+					     cmap, slabID, true);
     }
     break;
 

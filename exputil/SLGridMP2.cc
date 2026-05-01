@@ -1973,7 +1973,9 @@ void SLGridSlab::bomb(string oops)
 				// Constructors
 
 SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
-		       const std::string cachename, const std::string TYPE,
+		       const std::string cachename,
+		       const std::string CMAP,
+		       const std::string TYPE,
 		       bool VERBOSE)
 {
   if (cachename.size()) slab_cache_name  = cachename;
@@ -1984,6 +1986,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
   numk = NUMK;
   nmax = NMAX;
   numz = NUMZ;
+  cmap = CMAP;
   type = TYPE;
 
   zmax = ZMAX;
@@ -1994,9 +1997,16 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
   tbdbg   = VERBOSE;
 
-  // This could be controlled by a parameter...but at this point, this
-  // is a fixed tuning.
-  mM      = CoordMap::factory(CoordMapTypes::Linear, H);
+  
+  std::transform(cmap.begin(), cmap.end(), cmap.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  cmtype =
+    std::find_if(CoordMapNames.begin(), CoordMapNames.end(),
+		 [&](const std::pair<CoordMapTypes, std::string>& pair)
+		 { return pair.second == cmap; })->first;
+
+  mM = CoordMap::factory(cmtype, H);
 
   init_table();
 
@@ -2287,6 +2297,7 @@ bool SLGridSlab::ReadH5Cache(void)
 
     // Parameter check
     //
+    if (not checkStr(cmap,     "cmap"))      return false;
     if (not checkStr(type,     "type"))      return false;
     if (not checkInt(numk,     "numk"))      return false;
     if (not checkInt(nmax,     "nmax"))      return false;
@@ -2382,6 +2393,7 @@ void SLGridSlab::WriteH5Cache(void)
       
     // Write parameters
     //
+    file.createAttribute<std::string> ("cmap",     HighFive::DataSpace::From(cmap)).write(cmap);
     file.createAttribute<std::string> ("type",     HighFive::DataSpace::From(type)).write(type);
     file.createAttribute<int>         ("numk",     HighFive::DataSpace::From(numk)).write(numk);
     file.createAttribute<int>         ("nmax",     HighFive::DataSpace::From(nmax)).write(nmax);

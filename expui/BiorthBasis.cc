@@ -3416,6 +3416,7 @@ namespace BasisClasses
     "hslab",
     "zmax",
     "ngrid",
+    "cmap",
     "type",
     "knots",
     "verbose",
@@ -3478,6 +3479,7 @@ namespace BasisClasses
       if (conf["hslab"])      hslab = conf["hslab"].as<double>();
       if (conf["zmax" ])      zmax  = conf["zmax" ].as<double>();
       if (conf["ngrid"])      ngrid = conf["ngrid"].as<int>();
+      if (conf["cmap" ])      cmap  = conf["cmap" ].as<std::string>();
       if (conf["type" ])      type  = conf["type" ].as<std::string>();
 
       if (conf["knots"])      knots = conf["knots"].as<int>();
@@ -3519,7 +3521,8 @@ namespace BasisClasses
   
     int nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
 
-    ortho = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, cachename, type);
+    ortho = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, cachename,
+					 cmap, type);
 
     // Orthogonality sanity check
     //

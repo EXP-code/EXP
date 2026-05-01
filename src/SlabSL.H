@@ -41,6 +41,8 @@
     @param ngrid is the number of grid points in z for the
     Sturm-Liouville solver (default 1000)
 
+    @param cmap is the coordinate mapping for the SL solver (must be one of "tanh", "sech", or "linear", default "linear")
+
     @param type is the type of slab to solve for (default
     "isothermal", must be "isothermal", "parabolic", or "constant")
 
@@ -165,6 +167,9 @@ private:
 
   //! Default number of grid points for SLGridSlab
   int ngrid = 1000;
+
+  //! Default coordinate mapping for SLGridSlab (must be "tanh", "sech", or "linear")
+  std::string cmap = "linear";
 
   //! Default slab type (must be "isothermal", "parabolic", or "constant")
   std::string type = "isothermal";
