@@ -1,5 +1,3 @@
-// -*- C++ -*-
-
 #include <map>
 #include <thrust/tuple.h>
 
@@ -279,7 +277,7 @@ __global__ void coefKernelSlab
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
       cuFP_t mm     = - p.mass * 2.0*slabDfac;
 
-      used._v[i] = mm;		// Mark particle as used
+      used._v[i] = p.mass;	// Mark particle as used
 
       // Restore particles to the unit slab
       //
@@ -1328,4 +1326,4 @@ void SlabSL::destroy_cuda()
   // Nothing
 }
 
-
+// -*- C++ -*-
