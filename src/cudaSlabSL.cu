@@ -1,5 +1,6 @@
 // -*- C++ -*-
 
+#include <map>
 #include <thrust/tuple.h>
 
 #include <cudaReduce.cuH>
@@ -215,8 +216,15 @@ void SlabSL::initialize_constants()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabNum");
 
-  // Sech map
-  int Cmap = static_cast<int>(cmtype);
+  // Coordinate map
+  std::map<std::string, int> CoordMap =
+    {
+      {"tanh"  , 0},
+      {"sech"  , 1},
+      {"linear", 2}
+    };
+
+  int Cmap = CoordMap[cmap];
 
   cuda_safe_call(cudaMemcpyToSymbol(slabCmap, &Cmap, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),
@@ -246,7 +254,7 @@ void SlabSL::initialize_constants()
 
 __global__ void coefKernelSlab
 (dArray<cudaParticle> P, dArray<int> I, dArray<CmplxT> coef,
- dArray<cudaTextureObject_t> tex, int stride, PII lohi)
+ dArray<cudaTextureObject_t> tex, dArray<cuFP_t> used, int stride, PII lohi)
 {
   // Thread ID
   //
@@ -270,6 +278,8 @@ __global__ void coefKernelSlab
       
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
       cuFP_t mm     = - p.mass * 2.0*slabDfac;
+
+      used._v[i] = mm;		// Mark particle as used
 
       // Restore particles to the unit slab
       //
@@ -518,7 +528,7 @@ public:
   }
 };
 
-void SlabSL::cudaStorage::resize_coefs(int N, int osize, int gridSize, int stride, int sampT)
+void SlabSL::cudaStorage::resize_coefs(int N, int osize, int gridSize, int sampT)
 {
   // Reserve space for coefficient reduction
   //
@@ -534,6 +544,9 @@ void SlabSL::cudaStorage::resize_coefs(int N, int osize, int gridSize, int strid
   dc_coef.resize(osize*gridSize);
   dw_coef.resize(osize);	// This will stay fixed
 
+  u_d.resize(N);
+
+  // Resize covariance storage, if sampT>0
   // Resize covariance storage, if sampT>0
   if (sampT) {
     T_samp.resize(sampT);
@@ -640,6 +653,11 @@ void SlabSL::determine_coefficients_cuda()
   //
   cuda_zero_coefs();
 
+  // Zero mass accumulation array
+  //
+  thrust::fill(cuS.u_d.begin(), cuS.u_d.end(), 0.0);
+
+  // Get sorted particle range for mlevel
   // Get sorted particle range for mlevel
   //
   PII lohi = component->CudaGetLevelRange(mlevel, mlevel), cur;
@@ -712,7 +730,7 @@ void SlabSL::determine_coefficients_cuda()
 
     // Adjust cached storage, if necessary
     //
-    cuS.resize_coefs(N, jmax, gridSize, stride);
+    cuS.resize_coefs(N, jmax, gridSize, sampT);
     
     // Compute the coefficient contribution for each order
     //
@@ -720,7 +738,8 @@ void SlabSL::determine_coefficients_cuda()
     
     coefKernelSlab<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
-       toKernel(cuS.dN_coef), toKernel(t_d), stride, cur);
+       toKernel(cuS.dN_coef), toKernel(t_d), toKernel(cuS.u_d),
+       stride, cur);
       
     // Begin the reduction by blocks [perhaps this should use a
     // stride?]
@@ -778,52 +797,52 @@ void SlabSL::determine_coefficients_cuda()
 		
 	countV1[0][T] += static_cast<int>(mend - mbeg);
 	massV1 [0][T] += static_cast<double>(thrust::reduce(mbeg, mend));
+
+	// Begin the reduction per grid block
+	//
+	/* A reminder to consider implementing strides in reduceSum */
+	/*
+	  unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+	  unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
+	  
+	  if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
+	*/
+		
+	unsigned int gridSize1 = s/BLOCK_SIZE;
+	if (s > gridSize1*BLOCK_SIZE) gridSize1++;
+
+	// Sum reduce into gridsize1 blocks taking advantage of
+	// GPU warp structure
+	//
+	
+	// Mean computation only
+	//
+	reduceSumS<CmplxT, BLOCK_SIZE>
+	  <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+	  (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), jmax, N, k, k+s);
+	
+	// Finish the reduction for this order in parallel
+	//
+	thrust::counting_iterator<int> index_begin(0);
+	thrust::counting_iterator<int> index_end(gridSize1*jmax);
+
+	thrust::reduce_by_key
+	  (
+	   thrust::cuda::par.on(cs->stream),
+	   thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	   thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+	   cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
+	   );
+	
+	
+	thrust::transform(thrust::cuda::par.on(cs->stream),
+			  cuS.dw_coef.begin(), cuS.dw_coef.end(),
+			  bm[T], bm[T], thrust::plus<CmplxT>());
+	
+	thrust::advance(bm[T], imz);
       }
-
-      // Begin the reduction per grid block
-      //
-      /* A reminder to consider implementing strides in reduceSum */
-      /*
-	unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-	unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
-      
-	if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
-      */
-		
-      unsigned int gridSize1 = s/BLOCK_SIZE;
-      if (s > gridSize1*BLOCK_SIZE) gridSize1++;
-
-      // Sum reduce into gridsize1 blocks taking advantage of
-      // GPU warp structure
-      //
-	      
-      // Mean computation only
-      //
-      reduceSumS<CmplxT, BLOCK_SIZE>
-	<<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
-	(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), jmax, N, k, k+s);
-		
-      // Finish the reduction for this order in parallel
-      //
-      thrust::counting_iterator<int> index_begin(0);
-      thrust::counting_iterator<int> index_end(gridSize1*jmax);
-
-      thrust::reduce_by_key
-	(
-	 thrust::cuda::par.on(cs->stream),
-	 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
-	 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-	 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
-	 );
-
-	      
-      thrust::transform(thrust::cuda::par.on(cs->stream),
-			cuS.dw_coef.begin(), cuS.dw_coef.end(),
-			bm[T], bm[T], thrust::plus<CmplxT>());
-      
-      thrust::advance(bm[T], imz);
+      // END: subsample loop
     }
-    // END: subsample loop
   }
 
   // use1 += N;			// Increment particle count
@@ -839,7 +858,7 @@ void SlabSL::determine_coefficients_cuda()
     for (int T=0; T<sampT; T++) {
       thrust::host_vector<CmplxT> retV = cuS.T_samp[T];
 	  
-      for (int n=0; n<osize; n++) {
+      for (int n=0; n<jmax; n++) {
 	meanV1[0][T][n] += std::complex<cuFP_t>(retV[n]);
       }
     }
@@ -1242,7 +1261,7 @@ void SlabSL::multistep_update_cuda()
 
 	// Adjust cached storage, if necessary
 	//
-	cuS.resize_coefs(N, jmax, gridSize, stride);
+	cuS.resize_coefs(N, jmax, gridSize, sampT);
 	
 	// Compute the coefficient contribution for each order
 	//
@@ -1252,7 +1271,8 @@ void SlabSL::multistep_update_cuda()
 	//
 	coefKernelSlab<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	  (toKernel(cs->cuda_particles), toKernel(cs->indx1),
-	   toKernel(cuS.dN_coef), toKernel(t_d), stride, cur);
+	   toKernel(cuS.dN_coef), toKernel(t_d), toKernel(cuS.u_d),
+	   stride, cur);
 	
 	unsigned int gridSize1 = N/BLOCK_SIZE;
 	if (N > gridSize1*BLOCK_SIZE) gridSize1++;
