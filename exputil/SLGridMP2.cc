@@ -1996,7 +1996,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
   // This could be controlled by a parameter...but at this point, this
   // is a fixed tuning.
-  mM      = CoordMap::factory(CoordMapTypes::Sech, H);
+  mM      = CoordMap::factory(CoordMapTypes::Linear, H);
 
   init_table();
 
