@@ -13,6 +13,16 @@
 
 enum BioType1d {Trig, SL};
 
+std::map<std::string, BioType1d> bioTypeMap = {
+  {"trig", Trig},
+  {"sl",   SL}
+};
+
+std::map<BioType1d, std::string>  bioStrMap = {
+  {Trig, "trig"},
+  {SL,   "sl"}
+};
+
 int 
 main(int argc, char** argv)
 {
@@ -22,7 +32,7 @@ main(int argc, char** argv)
   int NMAX = 10;
   int IKX = 1;
   int IKY = 3;
-  BioType1d Type = Trig;
+  std::string bioTypeStr = "trig";
   std::string cachename = ".slab_sl_cache";
   std::string slabID = "iso";
   bool use_mpi = false;
@@ -31,15 +41,15 @@ main(int argc, char** argv)
 
   options.add_options()
     ("m,mpi",       "Use MPI")
-    ("s,SL",        "Use Sturm-Liouville slab basis")
-    ("T,type",      "Slab type (iso, parabolic, or constant)", cxxopts::value<std::string>())
+    ("T,type",      "Slab type (iso, parabolic, or constant)", cxxopts::value<std::string>(bioTypeStr)->default_value("trig"))
     ("t,Trig",      "Use trigonometric basis")
-    ("x,ikx",       "IKX for SLGridSlab (default: 1)", cxxopts::value<int>())
-    ("y,iky",       "IKY for SLGridSlab (default: 3)", cxxopts::value<int>())
-    ("k,kx",        "KX for OneDTrig (default: 0.5)", cxxopts::value<double>())
-    ("z,zmax",      "ZMAX for OneDTrig and SLGridSlab (default: 1.0)", cxxopts::value<double>())
-    ("H,height",    "Scale height H for SLGridSlab (default: 0.1)", cxxopts::value<double>())
-    ("n,nmax",      "NMAX for SLGridSlab (default: 10)", cxxopts::value<int>())
+    ("M,matrix",    "Print orthogonality matrix for a particular kx, ky choice")
+    ("x,ikx",       "IKX for SLGridSlab (default: 1)", cxxopts::value<int>(IKX))
+    ("y,iky",       "IKY for SLGridSlab (default: 3)", cxxopts::value<int>(IKY))
+    ("k,kx",        "KX for OneDTrig (default: 0.5)", cxxopts::value<double>(KX))
+    ("z,zmax",      "ZMAX for OneDTrig and SLGridSlab (default: 1.0)", cxxopts::value<double>(ZMAX))
+    ("H,height",    "Scale height H for SLGridSlab (default: 0.1)", cxxopts::value<double>(H))
+    ("n,nmax",      "NMAX for SLGridSlab (default: 10)", cxxopts::value<int>(NMAX))
     ("c,cachename", "Cache file name for SLGridSlab (default: .slab_sl_cache)", cxxopts::value<std::string>())
     ("h,help",      "Print usage");
 
@@ -57,6 +67,13 @@ main(int argc, char** argv)
   }
 
 
+  // Determine biorthogonal function type
+  std::transform(bioTypeStr.begin(), bioTypeStr.end(), bioTypeStr.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  BioType1d Type = std::find_if(bioTypeMap.begin(), bioTypeMap.end(),
+				[bioTypeStr](const std::pair<std::string, BioType1d>& pair) { return pair.first == bioTypeStr; }) != bioTypeMap.end() ? bioTypeMap[bioTypeStr] : Trig;
+
   //===================
   // Construct ortho
   //===================
@@ -71,7 +88,7 @@ main(int argc, char** argv)
 
   case SL:
     {
-      const int NUMZ=800;
+      const int NUMZ=2000;
       int KMAX = max<int>(IKX+1, IKY+1);
       SLGridSlab::ZBEG = 0.0;
       SLGridSlab::ZEND = 0.1;
@@ -169,64 +186,66 @@ main(int argc, char** argv)
 	  int num;
 	  cin >> num;
 	  
-	  cout << "N? ";
-	  int N;
-	  cin >> N;
+	  cout << "eps? ";
+	  double eps;
+	  cin >> eps;
 	  
-	  cout << "dz? ";
-	  double dz;
-	  cin >> dz;
-	  
+	  double dz = 2.0*ZMAX/num;
+	  double h  = dz*eps;
 	  double x, z, d1, d2, d3;
 	  
 	  for (int i=0; i<num; i++) {
-	    z = -ZMAX + 2.0*ZMAX*(0.5 + i)/num;
+	    z = -ZMAX + dz*(0.5 + i);
+
+	    out << setw(15) << z;
+
 	    if (Type == Trig) {
-	      x = ortho->r_to_rb(z);
 
-	      d1 = (
-		    ortho->potl(N, i, z+dz)    -
-		    ortho->potl(N, i, z)*2.0   +
-		    ortho->potl(N, i, z-dz)
-		    ) / (dz*dz);
+	      for (int n=0; n<NMAX; n++) {
 
-	      d2 = (
-		    ortho->force(N, i, z-0.5*dz) -
-		    ortho->force(N, i, z+0.5*dz)
-		    ) / dz;
+		d1 = (
+		      ortho->potl(n, i, z+h)    -
+		      ortho->potl(n, i, z)*2.0   +
+		      ortho->potl(n, i, z-h)
+		      ) / (dz*dz);
+		
+		d2 = (
+		      ortho->force(n, i, z-0.5*h) -
+		      ortho->force(n, i, z+0.5*h)
+		      ) / dz;
 
-	      d3 = -KX*KX*ortho->potl(N, i, z);
+		d3 = -KX*KX*ortho->potl(n, i, z);
 
 
-	      out << setw(15) << z
-		  << setw(15) << d1+d3
-		  << setw(15) << d2+d3
-		  << setw(15) << -ortho->dens(N, i, z)
-		  << endl;
+		out << setw(15) << d1+d3
+		    << setw(15) << d2+d3
+		    << setw(15) << -ortho->dens(n, i, z);
+	      }
+
 	    } else {
-	      x = orthoSL->z_to_xi(z);
 
-	      d1 = (
-		    orthoSL->get_pot(x+dz, IKX, IKY, N)   -
-		    orthoSL->get_pot(x, IKX, IKY, N)*2.0  +
-		    orthoSL->get_pot(x-dz, IKX, IKY, N) 
-		    ) / (dz*dz);
+	      Eigen::VectorXd pot0(NMAX), potN(NMAX), potP(NMAX), den0(NMAX);
+	      Eigen::VectorXd frcP(NMAX), frcN(NMAX);
 
-	      d2 = (
-		    orthoSL->get_force(x+0.5*dz, IKX, IKY, N) -
-		    orthoSL->get_force(x-0.5*dz, IKX, IKY, N)
-		    ) / dz;
+	      orthoSL->get_pot  (pot0, z  ,     IKX, IKY);
+	      orthoSL->get_pot  (potN, z-h,     IKX, IKY);
+	      orthoSL->get_pot  (potP, z+h,     IKX, IKY);
+	      orthoSL->get_force(frcN, z-0.5*h, IKX, IKY);
+	      orthoSL->get_force(frcP, z+0.5*h, IKX, IKY);
+	      orthoSL->get_dens (den0, z,       IKX, IKY);
 
-	      d3 = -4.0*M_PI*M_PI*(IKX*IKX+IKY*IKY)*
-		orthoSL->get_pot(x, IKX, IKY, N);
+	      for (int n=0; n<NMAX; n++) {
 
-	      out << setw(15) << z
-		  << setw(15) << d1+d3
-		  << setw(15) << d2+d3
-		  << setw(15) << orthoSL->get_dens(x, IKX, IKY, N)
-		  << endl;
+		d1 = (potP(n) - 2.0*pot0(n) + potN(n)) / (h*h);
+		d2 = (frcP(n) - frcN(n)) / h;
+		d3 = -4.0*M_PI*M_PI*(IKX*IKX+IKY*IKY) * pot0(n);
 
+		out << setw(15) << d1+d3
+		    << setw(15) << d2+d3
+		    << setw(15) << den0(n);
+	      }
 	    }
+	    out << endl;
 	  }
 	}
 	
@@ -240,54 +259,79 @@ main(int argc, char** argv)
 	  
 	  LegeQuad lw(num);
 	  
-	  std::cout << "N1, N2? ";
-	  int N1, N2;
-	  std::cin >> N1;
-	  std::cin >> N2;
-	  
-	  double ximin, ximax;
-	  switch (Type) {
-	  case Trig:
-	    ximin = ortho->r_to_rb(-ZMAX);
-	    ximax = ortho->r_to_rb( ZMAX);
-	    break;
-	  case SL:
-	    ximin = orthoSL->z_to_xi(-ZMAX);
-	    ximax = orthoSL->z_to_xi( ZMAX);
-	    break;
+	  if (result.count("matrix")) {
+
+	    Eigen::MatrixXd ans(NMAX, NMAX);
+	    ans.setZero();
+
+	    for (int i=0; i<num; i++) {
+	      double z = -ZMAX + 2.0*ZMAX*lw.knot(i);
+	      double W = 2.0*ZMAX*lw.weight(i);
+
+	      for (int n1=0; n1<NMAX; n1++) {
+		for (int n2=0; n2<NMAX; n2++) {
+		  switch (Type) {
+		  case Trig:
+		    ans(n1, n2) +=
+		      ortho->potl(n1, i, z) * ortho->dens(n2, i, z) * W;
+		    break;
+		  case SL:
+		    ans(n1, n2) +=
+		      orthoSL->get_pot(z, IKX, IKY, n1) * orthoSL->get_dens(z, IKX, IKY, n2) * W;
+		    break;
+		  }
+		}
+	      }
+	    }
+
+	    std::cout << std::endl << ans << std::endl;
 	  }
+	  else {
+	    std::cout << "N1, N2? ";
+	    int N1, N2;
+	    std::cin >> N1;
+	    std::cin >> N2;
 	  
-	  double x, r, ans=0.0;
-	  for (int i=0; i<num; i++) {
-	    
-	    x = ximin + (ximax - ximin)*lw.knot(i);
-	    
+	    double ximin, ximax;
 	    switch (Type) {
 	    case Trig:
-	      {
-	      
-	      double tmp1 = ortho->potl(N1, i, x);
-	      double tmp2 = ortho->dens(N1, i, x);
-	      double tmp3 = ortho->d_r_to_rb(x);
-
-	      ans += ortho->potl(N1, i, x)*
-		ortho->dens(N2, i, x) *
-		ortho->d_r_to_rb(x) * (ximax - ximin)*lw.weight(i);
-	      }
-	      
+	      ximin = ortho->r_to_rb(-ZMAX);
+	      ximax = ortho->r_to_rb( ZMAX);
 	      break;
-	      
 	    case SL:
-	      
-	      ans += orthoSL->get_pot(x, IKX, IKY, N1)*
-		orthoSL->get_dens(x, IKX, IKY, N2) /
-		orthoSL->d_xi_to_z(x) * (ximax - ximin)*lw.weight(i);
-	      
+	      ximin = orthoSL->z_to_xi(-ZMAX);
+	      ximax = orthoSL->z_to_xi( ZMAX);
 	      break;
 	    }
-	  }
 	  
-	  cout << "<" << N1 << "|" << N2 << "> = " << ans << endl;
+	    double z, r, ans=0.0;
+	    for (int i=0; i<num; i++) {
+	    
+	      z = -ZMAX + 2.0*ZMAX*lw.knot(i);
+	    
+	      switch (Type) {
+	      case Trig:
+		{
+		  
+		  double tmp1 = ortho->potl(N1, i, z);
+		  double tmp2 = ortho->dens(N1, i, z);
+		  
+		  ans += ortho->potl(N1, i, z)*
+		    ortho->dens(N2, i, z) * 2.0*ZMAX*lw.weight(i);
+		}
+	      
+		break;
+	      
+	      case SL:
+	      
+		ans += orthoSL->get_pot(z, IKX, IKY, N1)*
+		  orthoSL->get_dens(z, IKX, IKY, N2) * 2.0*ZMAX*lw.weight(i);
+		
+		break;
+	      }
+	    }
+	    std::cout << "<" << N1 << "|" << N2 << "> = " << ans << std::endl;
+	  }
 	}
 	
 	break;
