@@ -34,6 +34,9 @@ static bool cudaAccelOverride = false;
 SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 {
   id = "Slab (Sturm-Liouville)";
+
+  // Default values
+  //
   nminx = nminy = 0;
   nmaxx = nmaxy = nmaxz = 6;
   zmax      = 10.0;
@@ -45,6 +48,8 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   cuda_aware = true;
 #endif
 
+  // Parse the YAML and initialize CUDA if needed
+  //
   initialize();
 
   if (cachename.size()==0)
@@ -68,6 +73,8 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   int kxw = 0, kyw = 0;
   auto test = grid->orthoCheck(10000);
   for (int kx=0, indx=0; kx<=nnmax; kx++) {
+    // We only need the lower triangle of the kx-ky plane since the
+    // basis is symmetric in kx and ky
     for (int ky=0; ky<=kx; ky++, indx++) {
       for (int n1=0; n1<nmaxz; n1++) {
 	for (int n2=0; n2<nmaxz; n2++) {
@@ -83,6 +90,7 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
     }
   }
 	  
+  // Diagnostic output for debugging
   if (true) {
     std::ofstream tmp("SlabSL.ortho");
     for (int kx=0, indx=0; kx<=nnmax; kx++) {
@@ -93,6 +101,7 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
     }
   }
 
+  // Tolerance checking for basis orthgonality
   if (worst > __EXP__::orthoTol) {
     if (myid==0)
       std::cout << "SlabSL: orthogonality failure, worst=" << worst
@@ -104,12 +113,17 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
 		<< worst << std::endl;
   }
 
+  // Allocate temporary storage for coefficients
+  //
   expccof.resize(nthrds);
   for (auto & v : expccof) v.resize(imx, imy, imz);
     
+  // Lx and Ly are both 1.0, so the wavenumbers are 2*pi*n with n an
+  // integer
   dfac = 2.0*M_PI;
   kfac = std::complex<double>(0.0, dfac);
     
+  // Arrays for multithreading force evaluation
   zpot.resize(nthrds);
   zfrc.resize(nthrds);
 
@@ -315,6 +329,7 @@ void SlabSL::determine_coefficients(void)
   }
 
   // Determine whether or not to compute a subsample
+  //
   if (mstep==0 or mstep==std::numeric_limits<int>::max()) {
     if (nint>0 && this_step % nint == 0) {
       if (tnow > last) {
@@ -481,6 +496,8 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 	  std::cerr << "Out of bounds: iiy=" << jj << std::endl;
 	}
 	
+	// We only populate the lower triangle of the kx-ky plane
+	// since the basis is symmetric in kx and ky
 	if (iix>=iiy)
 	  grid->get_pot(zpot[id], zz, iix, iiy);
 	else
