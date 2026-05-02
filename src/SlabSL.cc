@@ -185,6 +185,7 @@ void SlabSL::initialize()
     if (conf["ngrid"])          ngrid       = conf["ngrid"].as<int>();
     if (conf["hslab"])          hslab       = conf["hslab"].as<double>();
     if (conf["zmax" ])          zmax        = conf["zmax" ].as<double>();
+    if (conf["cmap" ])          cmap        = conf["cmap" ].as<std::string>();
     if (conf["type" ])          type        = conf["type" ].as<std::string>();
     if (conf["cachename"])      cachename   = conf["cachename"].as<std::string>();
 
@@ -446,9 +447,9 @@ void * SlabSL::determine_coefficients_thread(void * arg)
   std::complex<double> stepx, stepy;
 
   unsigned nbodies = component->levlist[mlevel].size();
-  int id = *((int*)arg);
-  int nbeg = nbodies*id/nthrds;
-  int nend = nbodies*(id+1)/nthrds;
+  int id     = *((int*)arg);
+  int nbeg   = nbodies*id/nthrds;
+  int nend   = nbodies*(id+1)/nthrds;
   double adb = cC->Adiabatic();
 
   for (int q=nbeg; q<nend; q++) {
