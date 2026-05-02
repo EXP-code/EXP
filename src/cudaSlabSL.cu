@@ -250,6 +250,44 @@ void SlabSL::initialize_constants()
 }
 
 
+__global__ void wrapKernelSlab
+(dArray<cudaParticle> P, dArray<int> I, int stride, PII lohi)
+{
+  // Thread ID
+  //
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+  const int N   = lohi.second - lohi.first;
+
+  for (int n=0; n<stride; n++) {
+
+    // Particle counter
+    //
+    int i     = tid*stride + n;
+    int npart = i + lohi.first;
+
+    if (npart < lohi.second) {	// Check that particle index is in
+				// range for consistency with other
+				// kernels
+#ifdef BOUNDS_CHECK
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+      cudaParticle & p = P._v[I._v[npart]];
+      
+      // Truncate to box with sides in [0,1]
+      //
+      for (int k=0; k<2; k++) {
+	if (p.pos[k]<0.0)
+	  p.pos[k] += floor(-p.pos[k]) + 1.0;
+	else
+	  p.pos[k] += -floor(p.pos[k]);
+      }
+    }
+    // END: particle index limit
+  }
+  // END: stride loop
+}
+
+
 __global__ void coefKernelSlab
 (dArray<cudaParticle> P, dArray<int> I, dArray<CmplxT> coef,
  dArray<cudaTextureObject_t> tex, dArray<cuFP_t> used, int stride, PII lohi)
@@ -730,6 +768,11 @@ void SlabSL::determine_coefficients_cuda()
     //
     cuS.resize_coefs(N, jmax, gridSize, sampT);
     
+    // Wrap the coordinates to the unit slab
+    //
+    wrapKernelSlab<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+      (toKernel(cs->cuda_particles), toKernel(cs->indx1), stride, cur);
+
     // Compute the coefficient contribution for each order
     //
     auto beg  = cuS.df_coef.begin();
