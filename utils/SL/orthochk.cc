@@ -32,6 +32,7 @@ main(int argc, char** argv)
   int NMAX = 10;
   int IKX = 1;
   int IKY = 3;
+  int numz = 2000;
   std::string bioTypeStr = "trig";
   std::string cachename = ".slab_sl_cache";
   std::string cmap = "linear";
@@ -50,6 +51,7 @@ main(int argc, char** argv)
     ("z,zmax",      "ZMAX for OneDTrig and SLGridSlab (default: 1.0)", cxxopts::value<double>(ZMAX))
     ("H,height",    "Scale height H for SLGridSlab (default: 0.1)", cxxopts::value<double>(H))
     ("n,nmax",      "NMAX for SLGridSlab (default: 10)", cxxopts::value<int>(NMAX))
+    ("N,numz",      "Number of z points for SLGridSlab (default: 2000)", cxxopts::value<int>(numz)->default_value("2000"))
     ("C,cmap",       "Coordinate map for SLGridSlab (linear, tanh, or sech; default: linear)", cxxopts::value<std::string>(cmap)->default_value("linear"))
     ("s,slabid",    "Slab model ID for SLGridSlab (iso, parabolic, or constant; default: iso)", cxxopts::value<std::string>(slabID)->default_value("iso"))
     ("c,cachename", "Cache file name for SLGridSlab (default: .slab_sl_cache)", cxxopts::value<std::string>())
@@ -102,14 +104,13 @@ main(int argc, char** argv)
 
   case SL:
     {
-      const int NUMZ=2000;
       int KMAX = max<int>(IKX+1, IKY+1);
       SLGridSlab::ZBEG = 0.0;
       SLGridSlab::ZEND = 0.1;
       SLGridSlab::H = H;
       if (use_mpi) SLGridSlab::mpi = 1;
 
-      orthoSL = std::make_shared<SLGridSlab>(KMAX, NMAX, NUMZ, ZMAX, cachename,
+      orthoSL = std::make_shared<SLGridSlab>(KMAX, NMAX, numz, ZMAX, cachename,
 					     cmap, slabID, true);
     }
     break;
@@ -141,7 +142,7 @@ main(int argc, char** argv)
       cout << "?? ";
       cin >> iwhich;
       
-      if (iwhich < 1 || iwhich > 4) iwhich = 4;
+      if (iwhich < 1 || iwhich > 5) iwhich = 5;
 
       switch(iwhich) {
       case 1:
