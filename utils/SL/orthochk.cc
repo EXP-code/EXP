@@ -42,8 +42,7 @@ main(int argc, char** argv)
 
   options.add_options()
     ("m,mpi",       "Use MPI")
-    ("T,type",      "Slab type (iso, parabolic, or constant)", cxxopts::value<std::string>(bioTypeStr)->default_value("trig"))
-    ("t,Trig",      "Use trigonometric basis")
+    ("T,type",      "Slab type (trig or SL)", cxxopts::value<std::string>(bioTypeStr)->default_value("trig"))
     ("M,matrix",    "Print orthogonality matrix for a particular kx, ky choice")
     ("x,ikx",       "IKX for SLGridSlab (default: 1)", cxxopts::value<int>(IKX))
     ("y,iky",       "IKY for SLGridSlab (default: 3)", cxxopts::value<int>(IKY))
@@ -51,6 +50,8 @@ main(int argc, char** argv)
     ("z,zmax",      "ZMAX for OneDTrig and SLGridSlab (default: 1.0)", cxxopts::value<double>(ZMAX))
     ("H,height",    "Scale height H for SLGridSlab (default: 0.1)", cxxopts::value<double>(H))
     ("n,nmax",      "NMAX for SLGridSlab (default: 10)", cxxopts::value<int>(NMAX))
+    ("C,cmap",       "Coordinate map for SLGridSlab (linear, tanh, or sech; default: linear)", cxxopts::value<std::string>(cmap)->default_value("linear"))
+    ("s,slabid",    "Slab model ID for SLGridSlab (iso, parabolic, or constant; default: iso)", cxxopts::value<std::string>(slabID)->default_value("iso"))
     ("c,cachename", "Cache file name for SLGridSlab (default: .slab_sl_cache)", cxxopts::value<std::string>())
     ("h,help",      "Print usage");
 
@@ -74,6 +75,18 @@ main(int argc, char** argv)
 
   BioType1d Type = std::find_if(bioTypeMap.begin(), bioTypeMap.end(),
 				[bioTypeStr](const std::pair<std::string, BioType1d>& pair) { return pair.first == bioTypeStr; }) != bioTypeMap.end() ? bioTypeMap[bioTypeStr] : Trig;
+
+  // Check for valid coordinate map choice
+  std::transform(cmap.begin(), cmap.end(), cmap.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  std::vector<std::string> valid_cmaps = { "tanh", "sech", "linear" };
+  if (valid_cmaps.end() ==
+      std::find_if(valid_cmaps.begin(), valid_cmaps.end(),
+		   [cmap](const std::string& vmap) { return vmap == cmap; })) {
+    std::cerr << "Invalid coordinate map choice: " << cmap << std::endl;
+    return 1;
+  }
 
   //===================
   // Construct ortho
@@ -123,7 +136,8 @@ main(int argc, char** argv)
       cout << "1: Print out density, potential pairs" << endl;
       cout << "2: Check density" << endl;
       cout << "3: Check orthogonality" << endl;
-      cout << "4: Quit" << endl;
+      cout << "4: Internal ortho check" << endl;
+      cout << "5: Quit" << endl;
       cout << "?? ";
       cin >> iwhich;
       
@@ -335,9 +349,27 @@ main(int argc, char** argv)
 	    std::cout << "<" << N1 << "|" << N2 << "> = " << ans << std::endl;
 	  }
 	}
-	
-	break;
-	
+	case 4:
+	{
+	  std::vector<Eigen::MatrixXd> orthoMat;
+	  switch (Type) {
+	  case Trig:
+	    std::cout << "No internal orthogonality check for OneDTrig"
+		      << std::endl;
+	    break;
+	  case SL:
+	    {
+	      int knots;
+	      std::cout << "Number of knots? ";
+	      std::cin >> knots;
+	      auto orthoMat = orthoSL->orthoCheck(knots);
+	      std::cout << "Orthogonality check for SLGridSlab" << std::endl;
+	      for (size_t i=0; i<orthoMat.size(); i++)
+		std::cout << orthoMat[i] << std::endl << std::endl;
+	    }
+	    break;
+	  }
+	}
       default:
 	done = true;
 	break;
@@ -346,7 +378,7 @@ main(int argc, char** argv)
       if (done) break;
     }
   }
-  
+
   if (use_mpi) MPI_Finalize();
   
   return 0;
