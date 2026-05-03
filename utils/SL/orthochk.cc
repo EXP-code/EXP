@@ -352,7 +352,6 @@ main(int argc, char** argv)
 	}
 	case 4:
 	{
-	  std::vector<Eigen::MatrixXd> orthoMat;
 	  switch (Type) {
 	  case Trig:
 	    std::cout << "No internal orthogonality check for OneDTrig"
