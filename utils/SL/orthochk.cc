@@ -54,7 +54,7 @@ main(int argc, char** argv)
     ("N,numz",      "Number of z points for SLGridSlab (default: 2000)", cxxopts::value<int>(numz)->default_value("2000"))
     ("C,cmap",       "Coordinate map for SLGridSlab (linear, tanh, or sech; default: linear)", cxxopts::value<std::string>(cmap)->default_value("linear"))
     ("s,slabid",    "Slab model ID for SLGridSlab (iso, parabolic, or constant; default: iso)", cxxopts::value<std::string>(slabID)->default_value("iso"))
-    ("c,cachename", "Cache file name for SLGridSlab (default: .slab_sl_cache)", cxxopts::value<std::string>())
+    ("c,cachename", "Cache file name for SLGridSlab (default: .slab_sl_cache)", cxxopts::value<std::string>(cachename)->default_value(".slab_sl_cache"))
     ("h,help",      "Print usage");
 
   auto result = options.parse(argc, argv);
