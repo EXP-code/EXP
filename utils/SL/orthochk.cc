@@ -224,12 +224,12 @@ main(int argc, char** argv)
 		      ortho->potl(n, i, z+h)    -
 		      ortho->potl(n, i, z)*2.0   +
 		      ortho->potl(n, i, z-h)
-		      ) / (dz*dz);
+		      ) / (h*h);
 		
 		d2 = (
 		      ortho->force(n, i, z-0.5*h) -
 		      ortho->force(n, i, z+0.5*h)
-		      ) / dz;
+		      ) / h;
 
 		d3 = -KX*KX*ortho->potl(n, i, z);
 
