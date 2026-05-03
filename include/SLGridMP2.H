@@ -405,6 +405,9 @@ private:
   //! The current map created by the SLGridSlab constructor
   std::unique_ptr<CoordMap> mM;
 
+  //! Default cache file name
+  const std::string default_cache = ".slgrid_slab_cache";
+
 public:
 
   //! Global MPI flag, default: 0=off
@@ -437,7 +440,8 @@ public:
   SLGridSlab(int kmax, int nmax, int numz, double zmax,
 	     const std::string type,
 	     bool Verbose=false)
-    : SLGridSlab(kmax, nmax, numz, zmax, default_cache, "linear", type, Verbose) {}
+    : SLGridSlab(kmax, nmax, numz, zmax,
+		 default_cache, "linear", type, Verbose) {}
 
   //! Destructor
   ~SLGridSlab();

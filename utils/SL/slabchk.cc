@@ -89,7 +89,9 @@ main(int argc, char** argv)
 
   // Generate Sturm-Liouville grid
   //
-  auto ortho = std::make_shared<SLGridSlab>(kmax, nmax, numz, zmax, "isothermal");
+  auto ortho = std::make_shared<SLGridSlab>(kmax, nmax, numz, zmax,
+					    ".slgrid_slab_cache",
+					    "linear", "isothermal");
 
   LegeQuad lw(knots);
 	  
