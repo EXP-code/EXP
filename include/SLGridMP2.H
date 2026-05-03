@@ -433,6 +433,12 @@ public:
 	     const std::string type="isothermal",
 	     bool Verbose=false);
 
+  //! Backward-compatible constructor for legacy call sites
+  SLGridSlab(int kmax, int nmax, int numz, double zmax,
+	     const std::string type,
+	     bool Verbose=false)
+    : SLGridSlab(kmax, nmax, numz, zmax, default_cache, "linear", type, Verbose) {}
+
   //! Destructor
   ~SLGridSlab();
 
