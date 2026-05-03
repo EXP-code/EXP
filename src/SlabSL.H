@@ -50,6 +50,12 @@
     under the time-dependent basis expansion. For a basis fixed in time to
     the initial time: set to false.
 
+    @param nint integer number of steps between subsample computations
+    (default: 0, no subsampling)
+
+    @param samplesz integer number of subsample bins (default: 0,
+    no subsampling). Must be greater than 0 when `nint>0`.
+
     @param cachename is the name of the basis cache file.  This is a
     required parameter.
 */
