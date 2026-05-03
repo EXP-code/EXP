@@ -364,6 +364,7 @@ decode_switches (int argc, char **argv)
 			   "R:"	/* runit   */
 			   "N:"	/* number  */
 			   "S:"	/* seed    */
+			   "V"  /* version */
 			   "h", /* help    */
 			   long_options, (int *) 0)) != EOF)
     {
@@ -398,6 +399,10 @@ decode_switches (int argc, char **argv)
 	  break;
 	case 'h':
 	  usage (0);
+
+	case 'V':
+	  cout << program_name << " version " << VERSION << endl;
+	  exit (0);
 
 	default:
 	  usage (-1);

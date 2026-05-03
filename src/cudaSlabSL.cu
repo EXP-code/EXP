@@ -222,7 +222,14 @@ void SlabSL::initialize_constants()
       {"linear", 2}
     };
 
-  int Cmap = CoordMap[cmap];
+  auto it = CoordMap.find(cmap);
+  if (it == CoordMap.end()) {
+    std::ostringstream sout;
+    sout << "cudaSlabSL: unknown coordinate map type '" << cmap
+	 << "'. Valid values are: tanh, sech, linear";
+    throw std::runtime_error(sout.str());
+  }
+  int Cmap = it->second;
 
   cuda_safe_call(cudaMemcpyToSymbol(slabCmap, &Cmap, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),

@@ -92,8 +92,11 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
     }
   }
 	  
-  // Diagnostic output for debugging
-  if (true) {
+  // Diagnostic output for debugging.
+  //  +--- Set to 'true' only for deep debugging; 'false' for production.
+  //  |
+  //  v
+  if (false) {
     std::ofstream tmp("SlabSL.ortho");
     for (int kx=0, indx=0; kx<=nnmax; kx++) {
       for (int ky=0; ky<=kx; ky++, indx++) {
