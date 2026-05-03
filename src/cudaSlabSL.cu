@@ -377,15 +377,18 @@ __global__ void coefKernelSlab
 
 	Y = cy;			// Assign the min Y wavenumber conjugate
 
-	int kx = abs(ii);	// X index into texture array
-
 	for (int jj=-slabNumY; jj<=slabNumY; jj++, Y*=sy) {
 
-	  int ky = abs(jj);	// Y index into texture array
-
+	  // Compute the offset into the texture array for the (kx,
+	  // ky) pair.  The storage is the upper triangular part of
+	  // the (kx, ky) plane.
+	  //
+	  int kx = max(abs(ii), abs(jj));
+	  int ky = min(abs(ii), abs(jj));
 	  int offset = 1 + (kx*(kx+1)/2 + ky)*slabNumZ;
 
-				// The vertical basis iteration
+	  // The vertical basis iteration
+	  //
 	  for (int n=0; n<slabNumZ; n++) {
 
 	    // Flip sign for antisymmetric basis functions
@@ -507,8 +510,13 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 
 	    // Flip sign for antisymmetric basis functions
 	    //
-	    int sign = 1;
-	    if (pos[2]<0 && 2*(n/2)==n) sign = -1;
+	    int signV = 1, signF = 1;
+
+	    // potential: flip odd modes
+	    if (pos[2]<0 && 2*(n/2)!=n) signV = -1;
+
+	    // z-force:   flip even modes
+	    if (pos[2]<0 && 2*(n/2)==n) signF = -1;
 
 	    int k = offset + n;
 
@@ -523,7 +531,7 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 			  a*int2_as_double(tex1D<int2>(tex._v[k], in0  )) +
 			  b*int2_as_double(tex1D<int2>(tex._v[k], in0+1))
 #endif
-			  ) * p0 * sign;
+			  ) * p0 * signV;
 	  
 	      cuFP_t f = (
 #if cuREAL == 4
@@ -535,7 +543,7 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 			  -2.0*s*int2_as_double(tex1D<int2>(tex._v[k], jn0)) * int2_as_double(tex1D<int2>(tex._v[0], jn0)) + 
 			  (s + 0.5)*int2_as_double(tex1D<int2>(tex._v[k], jn0+1)) * int2_as_double(tex1D<int2>(tex._v[0], jn0+1))
 #endif
-			  ) * sign * dx;
+			  ) * signF * dx;
 
 	      fac  = X * Y * v * coef._v[slabIndex(ii, jj, n)];
 	      facf = X * Y * f * coef._v[slabIndex(ii, jj, n)];

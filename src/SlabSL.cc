@@ -313,8 +313,8 @@ void SlabSL::determine_coefficients(void)
   //  n=-nmax,-nmax+1,...,0,...,nmax-1,nmax in a single array for each
   //  dimension with z dimension changing most rapidly
 
-  // Clean 
-
+  // Clean acculumulation arrays
+  //
   for (int i=0; i<nthrds; i++) {
     use[i] = 0;
     expccof[i].setZero();
@@ -366,12 +366,11 @@ void SlabSL::determine_coefficients(void)
   exp_thread_fork(true);
 #endif
 
-  int used1 = 0, rank = expccof[0].size();
+  int used1 = 0;		// Reduce over threads
   used = 0;
   for (int i=1; i<nthrds; i++) {
     used1 += use[i];
-    
-    for (int j=0; j<rank; j++) expccof[0].data()[j] += expccof[i].data()[j];
+    expccof[0] += expccof[i];
   }
   
   MPI_Allreduce ( &used1, &used,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -483,7 +482,8 @@ void * SlabSL::determine_coefficients_thread(void * arg)
     startx = exp(static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
     starty = exp(static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
     
-    double zz = cC->Pos(i, 2), mm = -4.0*M_PI * cC->Mass(i) * adb;
+    double zz = cC->Pos(i, 2), ms = cC->Mass(i);
+    double mm = -4.0*M_PI * ms * adb;
 
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
@@ -528,13 +528,13 @@ void * SlabSL::determine_coefficients_thread(void * arg)
       // Accumulate counts and masses
       //
       countV1[id](T) += 1;
-      massV1[id](T)  += mm;
+      massV1[id](T)  += ms;
 
       // Accumulate subsample contributions
       //
-      meanV1[id][T] += workV1[id] * mm;
+      meanV1[id][T] += workV1[id] * ms;
       if (fullCovar)
-	covrV1[id][T] += workV1[id] * workV1[id].adjoint() * mm;
+	covrV1[id][T] += workV1[id] * workV1[id].adjoint() * ms;
     }
   }
   // END: particle loop
