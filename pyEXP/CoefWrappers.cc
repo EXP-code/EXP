@@ -1000,8 +1000,13 @@ void CoefficientClasses(py::module &m) {
   py::class_<CoefClasses::SlabStruct, std::shared_ptr<CoefClasses::SlabStruct>, CoefStruct>
     (m, "SlabStruct")
     .def(py::init<>(), "Slab coefficient data structure object")
-    .def("assign", &SlabStruct::assign,
-              R"(
+    .def("assign",
+         [](CoefClasses::SlabStruct& A, py::array_t<std::complex<double>> mat)
+         {
+           auto M = make_tensor3<std::complex<double>>(mat);
+           A.assign(M);
+         },
+        R"(
         Assign a coefficient matrix to CoefStruct.
 
         Parameters
@@ -1022,8 +1027,13 @@ void CoefficientClasses(py::module &m) {
   py::class_<CoefClasses::CubeStruct, std::shared_ptr<CoefClasses::CubeStruct>, CoefStruct>
     (m, "CubeStruct")
     .def(py::init<>(), "Cube coefficient data structure object")
-    .def("assign", &CubeStruct::assign,
-              R"(
+    .def("assign",
+         [](CoefClasses::SlabStruct& A, py::array_t<std::complex<double>> mat)
+         {
+           auto M = make_tensor3<std::complex<double>>(mat);
+           A.assign(M);
+         },
+        R"(
         Assign a coefficient matrix to CoefStruct.
 
         Parameters
@@ -1045,13 +1055,13 @@ void CoefficientClasses(py::module &m) {
     (m, "TblStruct")
     .def(py::init<>(), "Multicolumn table data structure object")
     .def("assign", &TblStruct::assign,
-              R"(
+        R"(
         Assign a coefficient matrix to CoefStruct.
 
         Parameters
         ----------
         mat  : numpy.ndarray, complex
-             complex-valued NumPy array of table values
+               complex-valued NumPy array of table values
 
         Returns
         -------
@@ -1585,9 +1595,9 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          time : float
-             snapshot time corresponding to the the coefficient matrix
-             mat : numpy.ndarray
-                 the new coefficient array.
+                snapshot time corresponding to the the coefficient matrix
+         mat  : numpy.ndarray
+                the new coefficient array.
 
          Returns
          -------
@@ -1660,9 +1670,9 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          time : float
-             snapshot time corresponding to the the coefficient matrix
-             mat : numpy.ndarray
-                 the new coefficient array.
+                snapshot time corresponding to the the coefficient matrix
+         mat  : numpy.ndarray
+                the new coefficient array.
 
          Returns
          -------
@@ -1772,9 +1782,9 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          time : float
-             snapshot time corresponding to the the coefficient matrix
-         mat : numpy.ndarray
-             the new coefficient array.
+                snapshot time corresponding to the the coefficient matrix
+         mat  : numpy.ndarray
+                the new coefficient array.
 
          Returns
          -------
@@ -1856,9 +1866,9 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          time : float
-             snapshot time corresponding to the the coefficient matrix
-         mat : numpy.ndarray
-             the new coefficient array.
+                snapshot time corresponding to the the coefficient matrix
+         mat  : numpy.ndarray
+                the new coefficient array.
 
          Returns
          -------
@@ -1919,16 +1929,21 @@ void CoefficientClasses(py::module &m) {
          )",
          py::arg("time"))
     .def("setTensor",
-         &CoefClasses::SlabCoefs::setTensor,
+         [](CoefClasses::SlabCoefs& A, double time,
+            py::array_t<std::complex<double>> mat)
+         {
+           auto M = make_tensor3<std::complex<double>>(mat);
+           A.setTensor(time, M);
+         },
          R"(
          Enter and/or rewrite the coefficient tensor at the provided time
 
          Parameters
          ----------
          time : float
-             snapshot time corresponding to the the coefficient tensor
-             mat : numpy.ndarray
-                 the new coefficient array.
+                snapshot time corresponding to the the coefficient matrix
+         mat  : numpy.ndarray of complex values
+                the new coefficient array.
 
          Returns
          -------
@@ -2020,9 +2035,9 @@ void CoefficientClasses(py::module &m) {
          Parameters
          ----------
          time : float
-             snapshot time corresponding to the the coefficient tensor
-             mat : numpy.ndarray
-                 the new coefficient array.
+                snapshot time corresponding to the the coefficient tensor
+         mat  : numpy.ndarray
+                the new coefficient array.
 
          Returns
          -------
