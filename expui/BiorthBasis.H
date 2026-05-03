@@ -1346,7 +1346,13 @@ namespace BasisClasses
 	  for (int n1=0; n1<Nsize; n1++) {
 	    std::get<2>(elem)(T, 0, n1) = meanV[T](n1);
 	    for (int n2=0; n2<Nsize; n2++) {
-	      std::get<3>(elem)(T, 0, n1, n2) = covrV[T](n1, n2);
+	      double cov = 0.0;
+	      if (diagcov) {
+		if (n1 == n2) cov = dvarV[T](n1);
+	      } else if (covar && T < covrV.size()) {
+		cov = covrV[T](n1, n2);
+	      }
+	      std::get<3>(elem)(T, 0, n1, n2) = cov;
 	    }
 	  }
 	}
