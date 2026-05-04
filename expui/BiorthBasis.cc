@@ -3669,10 +3669,8 @@ namespace BasisClasses
 	  ortho->get_pot(zpot, z, iiy, iix);
 
 	for (int iz=0; iz<imz; iz++) {
-	                       // +--- density in orthogonal series
-                               // |    is 4.0*M_PI rho
-                               // v
-	  expcoef(ix, iy, iz) += -4.0*M_PI*mass*facx*facy*zpot[iz];
+	  // Biorthogonality gives a minus sign here
+	  expcoef(ix, iy, iz) += -mass*facx*facy*zpot[iz];
 	}
       }
     }
@@ -4596,6 +4594,8 @@ namespace BasisClasses
       coef = std::make_shared<CoefClasses::CylStruct>();
     else if (name.compare("flatdisk") == 0)
       coef = std::make_shared<CoefClasses::CylStruct>();
+    else if (name.compare("slab") == 0)
+      coef = std::make_shared<CoefClasses::SlabStruct>();
     else if (name.compare("cube") == 0)
       coef = std::make_shared<CoefClasses::CubeStruct>();
     else {
@@ -4661,6 +4661,10 @@ namespace BasisClasses
       coefret = std::make_shared<CoefClasses::CylStruct>();
     else if (name.compare("flatdisk") == 0)
       coefret = std::make_shared<CoefClasses::CylStruct>();
+    else if (name.compare("slab") == 0)
+      coefret = std::make_shared<CoefClasses::SlabStruct>();
+    else if (name.compare("cube") == 0)
+      coefret = std::make_shared<CoefClasses::CubeStruct>();
     else {
       std::ostringstream sout;
       sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
