@@ -2496,7 +2496,7 @@ double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
   int hold;
 
   int sign=1;
-  if (x<0 && 2*(n/2)!=n) sign=-1;
+  if (x<0 && 2*(n/2)==n) sign=-1;
   x = fabs(x);
   
   if (which)			// Convert from z to x
@@ -2557,10 +2557,10 @@ double SLGridSlab::get_force(double x, int kx, int ky, int n, int which)
 				// Point  1: indx+1
 
   return mM->d_xi_to_z(x)/dxi * (
-			     (p - 0.5)*table[kx][ky].ef(n, indx-1)*p0[indx-1]
-			     -2.0*p*table[kx][ky].ef(n, indx)*p0[indx]
-			     + (p + 0.5)*table[kx][ky].ef(n, indx+1)*p0[indx+1]
-			     ) / sqrt(table[kx][ky].ev[n]) * sign;
+				 (p - 0.5)*table[kx][ky].ef(n, indx-1)*p0[indx-1]
+				 -2.0*p*table[kx][ky].ef(n, indx)*p0[indx]
+				 + (p + 0.5)*table[kx][ky].ef(n, indx+1)*p0[indx+1]
+				 ) / sqrt(table[kx][ky].ev[n]) * sign;
 }
 
 
