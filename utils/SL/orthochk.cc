@@ -122,6 +122,8 @@ main(int argc, char** argv)
   }
 
 
+  int ikx = max(IKX, IKY), iky = min(IKX, IKY);
+
   //===================
   // Get info
   //===================
@@ -178,9 +180,9 @@ main(int argc, char** argv)
 	    } else {
 	      x = orthoSL->z_to_xi(z);
 	      out << setw(15) << z
-		  << setw(15) << orthoSL->get_pot(x, IKX, IKY, N)
-		  << setw(15) << orthoSL->get_force(x, IKX, IKY, N)
-		  << setw(15) << orthoSL->get_dens(x, IKX, IKY, N)
+		  << setw(15) << orthoSL->get_pot  (x, ikx, iky, N)
+		  << setw(15) << orthoSL->get_force(x, ikx, iky, N)
+		  << setw(15) << orthoSL->get_dens (x, ikx, iky, N)
 		  << endl;
 	    }
 	  }
@@ -244,12 +246,12 @@ main(int argc, char** argv)
 	      Eigen::VectorXd pot0(NMAX), potN(NMAX), potP(NMAX), den0(NMAX);
 	      Eigen::VectorXd frcP(NMAX), frcN(NMAX);
 
-	      orthoSL->get_pot  (pot0, z  ,     IKX, IKY);
-	      orthoSL->get_pot  (potN, z-h,     IKX, IKY);
-	      orthoSL->get_pot  (potP, z+h,     IKX, IKY);
-	      orthoSL->get_force(frcN, z-0.5*h, IKX, IKY);
-	      orthoSL->get_force(frcP, z+0.5*h, IKX, IKY);
-	      orthoSL->get_dens (den0, z,       IKX, IKY);
+	      orthoSL->get_pot  (pot0, z  ,     ikx, iky);
+	      orthoSL->get_pot  (potN, z-h,     ikx, iky);
+	      orthoSL->get_pot  (potP, z+h,     ikx, iky);
+	      orthoSL->get_force(frcN, z-0.5*h, ikx, iky);
+	      orthoSL->get_force(frcP, z+0.5*h, ikx, iky);
+	      orthoSL->get_dens (den0, z,       ikx, iky);
 
 	      for (int n=0; n<NMAX; n++) {
 
@@ -278,6 +280,7 @@ main(int argc, char** argv)
 	  
 	  if (result.count("matrix")) {
 
+	    Eigen::VectorXd pot(NMAX), den(NMAX);
 	    Eigen::MatrixXd ans(NMAX, NMAX);
 	    ans.setZero();
 
@@ -285,18 +288,17 @@ main(int argc, char** argv)
 	      double z = -ZMAX + 2.0*ZMAX*lw.knot(i);
 	      double W = 2.0*ZMAX*lw.weight(i);
 
+	      if (Type == Trig) {
+		ortho->potl(i, i, z, pot);
+		ortho->dens(i, i, z, den);
+	      } else {
+		orthoSL->get_pot (pot, z, ikx, iky);
+		orthoSL->get_dens(den, z, ikx, iky);
+	      }
+
 	      for (int n1=0; n1<NMAX; n1++) {
 		for (int n2=0; n2<NMAX; n2++) {
-		  switch (Type) {
-		  case Trig:
-		    ans(n1, n2) +=
-		      ortho->potl(n1, i, z) * ortho->dens(n2, i, z) * W;
-		    break;
-		  case SL:
-		    ans(n1, n2) +=
-		      orthoSL->get_pot(z, IKX, IKY, n1) * orthoSL->get_dens(z, IKX, IKY, n2) * W;
-		    break;
-		  }
+		  ans(n1, n2) += pot(n1) * den(n2) * W;
 		}
 	      }
 	    }
@@ -349,6 +351,7 @@ main(int argc, char** argv)
 	    }
 	    std::cout << "<" << N1 << "|" << N2 << "> = " << ans << std::endl;
 	  }
+	  break;
 	}
 	case 4:
 	{
