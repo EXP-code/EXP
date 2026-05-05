@@ -173,9 +173,9 @@ main(int argc, char** argv)
 	    if (Type == Trig) {
 	      x = ortho->r_to_rb(z);
 	      out << setw(15) << z
-		  << setw(15) << ortho->potl(N, i, z)
+		  << setw(15) << ortho->potl (N, i, z)
 		  << setw(15) << ortho->force(N, i, z)
-		  << setw(15) << ortho->dens(N, i, z)
+		  << setw(15) << ortho->dens (N, i, z)
 		  << endl;
 	    } else {
 	      x = orthoSL->z_to_xi(z);

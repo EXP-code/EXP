@@ -1878,7 +1878,10 @@ public:
   double dens(double z)
   {
     double tmp = 1.0/cosh(0.5*z/SLGridSlab::H);
-    return 0.25/SLGridSlab::H * tmp*tmp;
+    return 4.0*M_PI * 0.25/SLGridSlab::H * tmp*tmp;
+    //       ^
+    //       |
+    //       +--- The 4*pi factor simplifies the SL solution
   }
 };
 
@@ -1903,7 +1906,10 @@ public:
 
   double dens(double z)
   {
-    return 1.0 / (2.0 * SLGridSlab::H);
+    return 4.0*M_PI / (2.0 * SLGridSlab::H);
+    //       ^
+    //       |
+    //       +--- The 4*pi factor simplifies the SL solution
   }
 };
 
@@ -1935,7 +1941,10 @@ public:
   {
     double h  = SLGridSlab::H;
     double h2 = h*h;
-    return 3.0*(1.0 - z*z/h2)/(4.0*h);
+    return 4.0*M_PI * 3.0*(1.0 - z*z/h2)/(4.0*h);
+    //       ^
+    //       |
+    //       +--- The 4*pi factor simplifies the SL solution
   }
 };
 
