@@ -320,7 +320,8 @@ __global__ void coefKernelSlab
       cudaParticle & p = P._v[I._v[npart]];
       
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
-      cuFP_t mm     = - p.mass; // Biorthogonality gives a minus here
+				// Biorthogonality gives a minus here
+      cuFP_t mm  = - 2.0 * slabDfac * p.mass;
 
       used._v[i] = p.mass;	// Mark particle as used
 

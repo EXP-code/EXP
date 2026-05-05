@@ -485,7 +485,7 @@ void * SlabSL::determine_coefficients_thread(void * arg)
     double zz = cC->Pos(i, 2), ms = cC->Mass(i);
 				// Biorthogonaity gives a minus sign
 				// here
-    double mm = - ms * adb;
+    double mm = - 4.0*M_PI * ms * adb;
 
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
