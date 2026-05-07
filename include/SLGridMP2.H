@@ -74,10 +74,10 @@ private:
   bool tbdbg;
 
   //! Default model file name
-  static const std::string default_model = "SLGridSph.model";
+  static const std::string default_model;
 
   //! Default cache file name
-  static const std::string default_cache = ".slgrid_sph_cache";
+  static const std::string default_cache;
 
   //! Model file name
   std::string model_file_name;
@@ -406,7 +406,7 @@ private:
   std::unique_ptr<CoordMap> mM;
 
   //! Default cache file name
-  const std::string default_cache = ".slgrid_slab_cache";
+  static const std::string default_cache;
 
 public:
 

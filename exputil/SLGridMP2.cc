@@ -88,6 +88,14 @@ static int sl_dim;
 //======================================================================
 
 
+// Default model file names
+const std::string SLGridSph::default_model = "SLGridSph.model";
+
+// Default cache file names
+const std::string SLGridSph::default_cache = ".slgrid_sph_cache";
+const std::string SLGridSlab::default_cache = ".slgrid_slab_cache";
+
+
 int SLGridSph::mpi = 0;		// initially off
 
 extern "C" {
