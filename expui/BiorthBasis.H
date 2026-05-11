@@ -1380,6 +1380,12 @@ namespace BasisClasses
       }
     }
 
+    //! Return wave-number indices from flattened index
+    std::tuple<int, int, int> index3D(unsigned k);
+
+    //! Get flattened index from wave-number indicies
+    unsigned index1D(int kx, int ky, int kz);
+
   };
   
   /**

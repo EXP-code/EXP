@@ -3632,8 +3632,17 @@ namespace BasisClasses
     // Storage for basis evaluation
     Eigen::VectorXd zpot(nmaxz);
 
+    Eigen::VectorXcd g;
+    if (pcavar) {
+      g.resize(imx*imy*imz);
+      g.setZero();
+    }
+
     // Loop indices
     int ix, iy;
+
+    // Leading constants for biorthogonality
+    const double norm = -4.0*M_PI;
 
     // Recursion multipliers
     std::complex<double> stepx = exp(-kfac*x), facx;
@@ -3669,9 +3678,23 @@ namespace BasisClasses
 	  ortho->get_pot(zpot, z, iiy, iix);
 
 	for (int iz=0; iz<imz; iz++) {
-	  // Biorthogonality gives a minus sign here
-	  expcoef(ix, iy, iz) += -mass*facx*facy*zpot[iz];
+	  expcoef(ix, iy, iz) += norm*mass*facx*facy*zpot[iz];
+	  if (pcavar) g[index1D(ix, iy, iz)] = norm*facx*facy*zpot[iz];
 	}
+      }
+    }
+
+    if (pcavar) {
+      // Sample index for pcavar
+      int T = 0;
+      T = used % sampT;
+      sampleCounts(T) += 1;
+      sampleMasses(T) += mass;
+      //
+      meanV[T].noalias() += g * mass;
+      if (covar) {
+	if (diagcov) dvarV[T].noalias() += g.cwiseProduct(g.conjugate()) * mass;
+	else         covrV[T].noalias() += g * g.adjoint() * mass;
       }
     }
   }
@@ -3973,25 +3996,6 @@ namespace BasisClasses
     return ortho->orthoCheck();
   }
   
-  const std::set<std::string>
-  Cube::valid_keys = {
-    "nminx",
-    "nminy",
-    "nminz",
-    "nmaxx",
-    "nmaxy",
-    "nmaxz",
-    "knots",
-    "verbose",
-    "check",
-    "method",
-    "pcavar,"
-    "subsamp",
-    "nint",
-    "totalCovar",
-    "fullCovar"
-  };
-
   void Slab::init_covariance()
   {
     if (pcavar) {
@@ -4042,6 +4046,72 @@ namespace BasisClasses
     sampleMasses.setZero();
   }
 
+  unsigned Slab::index1D(int kx, int ky, int kz)
+  {
+    if (kx < 0 or kx > 2*nmaxx) {
+      std::ostringstream sout;
+      sout << "Slab::index1D: x index [" << kx << "] must be in [0, "
+	   << 2*nmaxx << "]";
+      throw std::runtime_error(sout.str());
+    }
+
+    if (ky < 0 or ky > 2*nmaxy) {
+      std::ostringstream sout;
+      sout << "Slab::index1D: y index [" << ky << "] must be in [0, "
+	   << 2*nmaxy << "]";
+      throw std::runtime_error(sout.str());
+    }
+
+    if (kz < 0 or kx >= nmaxz) {
+      std::ostringstream sout;
+      sout << "Slab::index1D: z index [" << kz << "] must be in [0, "
+	   << nmaxz-1 << "]";
+      throw std::runtime_error(sout.str());
+    }
+
+    return
+      kx*(2*nmaxy+1)*nmaxz +
+      ky*nmaxz +
+      kz;
+  }
+
+  std::tuple<int, int, int> Slab::index3D(unsigned indx)
+  {
+    // Sanity check
+    //
+    if (indx >= imx*imy*imz) {
+      std::ostringstream sout;
+      sout << "Slab::index3D: index [" << indx << "] must be in 0 <= indx < " << imx*imy*imz;
+      throw std::runtime_error(sout.str());
+    }
+
+    // Compute the 3d index
+    //
+    int ix = indx/(imy*imz);
+    int iy = (indx - ix*imy*imz)/imz;
+    int iz = indx - ix*imy*imz - iy*imz;
+  
+    return {ix, iy, iz};
+  }
+
+  const std::set<std::string>
+  Cube::valid_keys = {
+    "nminx",
+    "nminy",
+    "nminz",
+    "nmaxx",
+    "nmaxy",
+    "nmaxz",
+    "knots",
+    "verbose",
+    "check",
+    "method",
+    "pcavar,"
+    "subsamp",
+    "nint",
+    "totalCovar",
+    "fullCovar"
+  };
 
   Cube::Cube(const YAML::Node& CONF) : BiorthBasis(CONF, "cube")
   {
@@ -4576,7 +4646,7 @@ namespace BasisClasses
     //
     int ix = indx/((2*nmaxy+1)*(2*nmaxz+1));
     int iy = (indx - ix*(2*nmaxy+1)*(2*nmaxz+1))/(2*nmaxz+1);
-    int iz = indx - ix*(2*nmaxy+1)*(2*nmaxz+1)/(2*nmaxz+1) - iy*(2*nmaxz+1);
+    int iz = indx - ix*(2*nmaxy+1)*(2*nmaxz+1) - iy*(2*nmaxz+1);
   
     return {ix, iy, iz};
   }
