@@ -20,6 +20,8 @@ SlabSL::valid_keys = {
   "cmap",
   "type",
   "nint",
+  "no_even",
+  "no_odd",
   "samplesz",
   "subsampleFloat",
   "self_consistent",
@@ -190,6 +192,8 @@ void SlabSL::initialize()
     if (conf["zmax" ])          zmax        = conf["zmax" ].as<double>();
     if (conf["cmap" ])          cmap        = conf["cmap" ].as<std::string>();
     if (conf["type" ])          type        = conf["type" ].as<std::string>();
+    if (conf["no_even"])        no_even     = conf["no_even"].as<bool>();
+    if (conf["no_odd"])         no_odd      = conf["no_odd"].as<bool>();
     if (conf["cachename"])      cachename   = conf["cachename"].as<std::string>();
 
     if (conf["self_consistent"]) {
@@ -514,10 +518,9 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 
 	for (int iz=0; iz<imz; iz++) {
 	  expccof[id](ix, iy, iz) += mm*facx*facy*zpot[id][iz];
-
+	  
 	  if (requestSubsample) {
-	    workV1[id][ ( (ii + nmaxx)*imy + (jj + nmaxy) )*imz + iz ]
-	      = nrm * facx * facy * zpot[id][iz];
+	    workV1[id][(ix*imy + iy)*imz + iz] = nrm*facx*facy*zpot[id][iz];
 	  }
 	}
       }
@@ -670,6 +673,12 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	
 	  for (int iz=0; iz<imz; iz++) {
 	  
+	    // Only exclude even or odd for k!=0
+	    if (ii!=0 or jj!=0) {
+	      if (no_even and iz%2==0) continue;
+	      if (no_odd  and iz%2==1) continue;
+	    }
+
 	    // Live for frozen potential
 	    if (self_consistent) {
 	      fac  = facx*facy*zpot[id][iz]*expccof[0](ix, iy, iz);

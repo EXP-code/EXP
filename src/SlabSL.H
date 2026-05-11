@@ -93,6 +93,8 @@ private:
   int nmaxx, nmaxy, nmaxz;
   double zmax, hslab;
 
+  bool no_even = false, no_odd = false;
+
   int imx, imy, imz, jmax, nnmax;
   double  dfac, last=-std::numeric_limits<double>::max();
   std::complex<double> kfac;
