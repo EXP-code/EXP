@@ -46,6 +46,12 @@
     @param type is the type of slab to solve for (default
     "isothermal", must be "isothermal", "parabolic", or "constant")
 
+    @param no_even is a flag to exclude even modes in the expansion or
+    K!=0 (default false)
+
+    @param no_odd is a flag to exclude odd modes in the expansion for
+    K!=0 (default false)
+
     @param self_consistent set to true allows the particles to evolve
     under the time-dependent basis expansion. For a basis fixed in time to
     the initial time: set to false.

@@ -19,6 +19,9 @@ __device__ __constant__
 int slabNumX, slabNumY, slabNumZ, slabNX, slabNY, slabNZ, slabNdim, slabNum;
 
 __device__ __constant__
+bool slabNoEven, slabNoOdd;
+
+__device__ __constant__
 int slabCmap;
 
 __device__ __constant__
@@ -80,6 +83,10 @@ void testConstantsSlab()
   printf("   Xmin   = %e\n", slabXmin );
   printf("   Xmax   = %e\n", slabXmax );
   printf("   Dxi    = %e\n", slabDxi  );
+  if (slabNoOdd)  printf("   NoOdd  = true\n" );
+  else            printf("   NoOdd  = false\n");
+  if (slabNoEven) printf("   NoEven = true\n" );
+  else            printf("   NoEven = false\n");
   printf("-------------------------\n");
 }
 
@@ -213,6 +220,14 @@ void SlabSL::initialize_constants()
   cuda_safe_call(cudaMemcpyToSymbol(slabNum, &f.numr, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabNum");
+
+  cuda_safe_call(cudaMemcpyToSymbol(slabNoEven, &no_even, sizeof(bool),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabNoEven");
+
+  cuda_safe_call(cudaMemcpyToSymbol(slabNoOdd, &no_odd, sizeof(bool),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabNoOdd");
 
   // Coordinate map
   std::map<std::string, int> CoordMap =
@@ -508,6 +523,12 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 	  int offset = 1 + (kx*(kx+1)/2 + ky)*slabNumZ;
 
 	  for (int n=0; n<slabNumZ; n++) {
+
+	    // Even-odd exclusion check
+	    if (ii!=0 or jj!=0) {
+	      if (slabNoEven and 2*(n/2)==n) continue;
+	      if (slabNoOdd  and 2*(n/2)!=n) continue;
+	    }
 
 	    // Flip sign for antisymmetric basis functions
 	    //
