@@ -3024,6 +3024,8 @@ namespace CoefClasses
       ret = std::make_shared<SphCoefs>(ret.get());
     } else if (dynamic_cast<CylStruct*>(coef.get())) {
       ret = std::make_shared<CylCoefs>(ret.get());
+    } else if (dynamic_cast<SlabStruct*>(coef.get())) {
+      ret = std::make_shared<SlabCoefs>(ret.get());
     } else if (dynamic_cast<CubeStruct*>(coef.get())) {
       ret = std::make_shared<CubeCoefs>(ret.get());
     } else if (dynamic_cast<TblStruct*>(coef.get())) {
