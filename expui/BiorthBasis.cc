@@ -3422,6 +3422,8 @@ namespace BasisClasses
     "verbose",
     "check",
     "method",
+    "no_even",
+    "no_odd",
     "self_consistent",
     "cachename"
   };
@@ -3481,6 +3483,9 @@ namespace BasisClasses
       if (conf["ngrid"])      ngrid = conf["ngrid"].as<int>();
       if (conf["cmap" ])      cmap  = conf["cmap" ].as<std::string>();
       if (conf["type" ])      type  = conf["type" ].as<std::string>();
+
+      if (conf["no_even"])  no_even = conf["no_even"].as<bool>();
+      if (conf["no_odd"] )   no_odd = conf["no_odd" ].as<bool>();
 
       if (conf["knots"])      knots = conf["knots"].as<int>();
 
@@ -3853,6 +3858,11 @@ namespace BasisClasses
 	
 	for (int iz=0; iz<imz; iz++) {
 	  
+	  if (ii != 0 or jj != 0) {
+	    if (no_even and iz%2==0) continue;
+	    if (no_odd  and iz%2==1) continue;
+	  }
+
 	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz);
 	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz);
 	  

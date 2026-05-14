@@ -1191,6 +1191,9 @@ namespace BasisClasses
     //! Number of integration knots for orthogonal check
     int knots;
 
+    //! Even/odd exclusion flags
+    bool no_even = false, no_odd = false;
+
     //! SLGridSlab mesh size
     int ngrid = 1000;
 
