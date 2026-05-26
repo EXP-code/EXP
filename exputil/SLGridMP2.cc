@@ -144,8 +144,8 @@ void SLGridSph::bomb(string oops)
   throw std::runtime_error(sout.str());
 }
 
-				// Constructors
-
+// Constructors
+//
 SLGridSph::SLGridSph(std::string modelname,
 		     int LMAX, int NMAX, int NUMR,
 		     double RMIN, double RMAX, 
@@ -1894,27 +1894,40 @@ public:
 };
 
 
-//! Constant density slab with G = M = 1
-class ConstantSlab : public SlabModel
+//! Uniform density slab with G = M = 1
+class UniformSlab : public SlabModel
 {
 
 public:
 
-  ConstantSlab()  { id = "const"; }
+  UniformSlab()  { id = "uniform"; }
 
   double pot(double z)
   {
-    return z*z/(4.0*SLGridSlab::H) - poffset;
+    // Offset defined so that potential is zero at |z|=H, and negative
+    // for |z|<H inside the slab.
+    double zz = fabs(z);
+    if (zz > SLGridSlab::H)
+      return 2.0*M_PI*zz - 2.0*M_PI*SLGridSlab::H;
+    else
+      return M_PI*zz*zz/SLGridSlab::H - M_PI*SLGridSlab::H;
   }
 
   double dpot(double z)
   {
-    return z/(2.0*SLGridSlab::H);
+    double zz = fabs(z);
+    if (zz > SLGridSlab::H)
+      return 2.0*M_PI*z/zz;
+    else
+      return 2.0*M_PI*z/SLGridSlab::H;
   }
 
   double dens(double z)
   {
-    return 4.0*M_PI / (2.0 * SLGridSlab::H);
+    if (fabs(z) > SLGridSlab::H)
+      return 0.0;
+    else
+      return 4.0*M_PI/(2.0 * SLGridSlab::H);
     //       ^
     //       |
     //       +--- The 4*pi factor simplifies the SL solution
@@ -1971,8 +1984,8 @@ std::shared_ptr<SlabModel> SlabModel::createModel(const std::string type)
     return std::make_shared<ParabolicSlab>();
   }
 
-  if (data.find("const") != std::string::npos) {
-    return std::make_shared<ConstantSlab>();
+  if (data.find("unif") != std::string::npos) {
+    return std::make_shared<UniformSlab>();
   }
 
   // Default
@@ -2005,7 +2018,6 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
   numz = NUMZ;
   cmap = CMAP;
   type = TYPE;
-
   zmax = ZMAX;
 
   slab  = SlabModel::createModel(type);
@@ -2014,7 +2026,6 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
   tbdbg   = VERBOSE;
 
-  
   std::transform(cmap.begin(), cmap.end(), cmap.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
