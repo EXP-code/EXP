@@ -123,7 +123,7 @@ double sphdens(double r)
 {
   // This 4pi from Poisson's eqn
   //        |
-  //        |       /-- This begins the true density profile
+  //        |       +--- This begins the true density profile
   //        |       |
   //        v       v
   return 4.0*M_PI * model->get_density(r);
@@ -1908,9 +1908,9 @@ public:
     // for |z|<H inside the slab.
     double zz = fabs(z);
     if (zz > SLGridSlab::H)
-      return 2.0*M_PI*zz - 2.0*M_PI*SLGridSlab::H;
+      return 2.0*M_PI*(zz - SLGridSlab::H);
     else
-      return M_PI*zz*zz/SLGridSlab::H - M_PI*SLGridSlab::H;
+      return M_PI*(zz*zz/SLGridSlab::H - SLGridSlab::H);
   }
 
   double dpot(double z)
@@ -2342,7 +2342,6 @@ bool SLGridSlab::ReadH5Cache(void)
 
     // Create table instances
     //
-
     table = table_ptr_2D(new table_ptr_1D [numk+1]);
     for (int kx=0; kx<=numk; kx++)
       table[kx] = table_ptr_1D(new TableSlab [kx+1]);
@@ -2484,18 +2483,19 @@ double SLGridSlab::LinearMap::d_xi_to_z(double xi) { return 1.0; }
 
 double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
 {
-  int hold;
-
-				// Flip sign for antisymmetric basis functions
+  // Flip sign for antisymmetric basis functions
+  //
   int sign=1;
   if (x<0 && 2*(n/2)!=n) sign=-1;
   x = fabs(x);
 
-  if (which)			// Convert from z to x
+  // Convert from z to x
+  //
+  if (which)
     x = mM->z_to_xi(x);
 
   if (ky > kx) {
-    hold = ky;
+    int hold = ky;
     ky = kx;
     kx = hold;
   }
@@ -2521,17 +2521,17 @@ double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
 
 double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
 {
-  int hold;
-
   int sign=1;
-  if (x<0 && 2*(n/2)==n) sign=-1;
+  if (x<0 && 2*(n/2)!=n) sign=-1;
   x = fabs(x);
   
-  if (which)			// Convert from z to x
+  // Convert from z to x
+  //
+  if (which)
     x = mM->z_to_xi(x);
 
   if (ky > kx) {
-    hold = ky;
+    int hold = ky;
     ky = kx;
     kx = hold;
   }
@@ -2556,17 +2556,17 @@ double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
 
 double SLGridSlab::get_force(double x, int kx, int ky, int n, int which)
 {
-  int hold;
-
   int sign=1;
   if (x<0 && 2*(n/2)==n) sign = -1;
   x = fabs(x);
 
-  if (which)			// Convert from z to x
+  // Convert from z to x
+  //
+  if (which)
     x = mM->z_to_xi(x);
 
   if (ky > kx) {
-    hold = ky;
+    int hold = ky;
     ky = kx;
     kx = hold;
   }
@@ -2578,11 +2578,11 @@ double SLGridSlab::get_force(double x, int kx, int ky, int n, int which)
 
   double p = (x - xi[indx])/dxi;
   
-				// Use three point formula
+  // Use three point formula
 
-				// Point -1: indx-1
-				// Point  0: indx
-				// Point  1: indx+1
+  // Point -1: indx-1
+  // Point  0: indx
+  // Point  1: indx+1
 
   return mM->d_xi_to_z(x)/dxi * (
 				 (p - 0.5)*table[kx][ky].ef(n, indx-1)*p0[indx-1]
@@ -2979,7 +2979,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 		<< std::endl;
   
 
-  if (VERBOSE && iflag[i] != 0) {
+      if (tbdbg or (VERBOSE && iflag[i] != 0)) {
 
 
 	if (iflag[i] > -10) {
@@ -3105,7 +3105,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 		<< std::setw( 5) << iflag[i]
 		<< std::endl;
   
-      if (VERBOSE) {
+      if (tbdbg or (VERBOSE && iflag[i] != 0)) {
 
 	if (iflag[i] > -10) {
 	  cout << std::setw(14) << "x"
