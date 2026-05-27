@@ -38,6 +38,62 @@ public:
   virtual double distf(const double, const double V=0.0) = 0;
   virtual double dfde (const double, const double V=0.0) = 0;
   virtual double dfdv (const double, const double V=0.0) = 0;
+
+  //! Model types
+  enum class ModelType {table, lowiso, sech2, sech2u, sech2halo, sech2mu, uniform};
+
+
+  //! Model names for sysout display (avoid temporaries and dynamic
+  //! allocations on every class instantiation)
+  inline static const std::map<ModelType, std::string_view> model_names = {
+    {ModelType::table,     "file"},
+    {ModelType::lowiso,    "LowIso"},
+    {ModelType::sech2,     "Sech2"},
+    {ModelType::sech2u,    "Sech2u"},
+    {ModelType::sech2halo, "Sech2Halo"},
+    {ModelType::sech2mu,   "Sech2(mu)"},
+    {ModelType::uniform,   "Uniform"}
+  };
+
+  //! Model types for command line parsing
+  //! 'inline static const' allows initialization inside the class definition.
+  //! 'std::string_view' keys completely prevent temporary string creations.
+  inline static const std::map<std::string_view, ModelType> model_map = {
+    {"table",     ModelType::table},
+    {"lowiso",    ModelType::lowiso},
+    {"sech2",     ModelType::sech2},
+    {"sech2u",    ModelType::sech2u},
+    {"sech2halo", ModelType::sech2halo},
+    {"sech2mu",   ModelType::sech2mu},
+    {"uniform",   ModelType::uniform}
+  };
+  
+  //! Model type for sysout display
+  static std::string get_model_name(ModelType type) {
+    return std::string(model_names.at(type));
+  }
+
+  //! Command line parsing for model types
+  static ModelType parse_model_type(const std::string& str) {
+    std::string MODEL = str;
+    std::transform(MODEL.begin(), MODEL.end(), MODEL.begin(), 
+		   [](unsigned char c){ return std::tolower(c); });
+    
+    // A std::string implicitly and cheaply converts to a std::string_view, 
+    // so finding it in our map works cleanly and creates zero temporaries.
+    auto it = model_map.find(MODEL);
+    if (it != model_map.end()) {
+      return it->second;
+    } else {
+      std::ostringstream oss;
+      oss << "Invalid model type: " << str << ". Valid types are: ";
+      for (const auto& pair : model_map) {
+	oss << pair.first << " ";
+      }
+      throw std::invalid_argument(oss.str());
+    }
+  }
+
 };
 
 class OneDModelTable : public OneDModel
@@ -426,6 +482,166 @@ public:
   double dfdv(const double E, const double p=0.0) {
     if (!model_computed) reset();
     return -exp(-E/dispz - 0.5*p*p/dispx)*p/dispx * norm;
+  }
+};
+
+class Uniform : public OneDModel
+{
+private:
+  // Half-thickness of the uniform slab
+  double H;
+  // Velocity widths in x and y directions (for distribution function)
+  double Vx, Vy;
+  // Vertical frequency for the uniform slab potential
+  double Omega;
+  // Normalization constant for the distribution function
+  double norm;
+  
+public:
+  
+  Uniform(void)
+  {
+    Vx = 1.0;
+    Vy = 1.0;
+    //
+    // Units: G = Sigma_o = 1
+    //
+    H = 1.0;
+    Omega = std::sqrt(2.0*M_PI/H);
+    norm  = 1.0/(std::sqrt(2.0)*M_PI*H);
+    // ModelID = "Uniform";
+  }
+
+  Uniform(double h, double Vx)
+  {
+    this->H  = h;
+    this->Vx = Vx;
+    this->Vy = Vx;
+    //
+    // Units: G = Sigma_o = 1
+    //
+    Omega = std::sqrt(2.0*M_PI/H);
+    norm  = 1.0/(std::sqrt(2.0)*M_PI*H);
+    // ModelID = "Uniform";
+  }
+  
+  Uniform(double h, double Vx, double Vy)
+  {
+    this->H  = h;
+    this->Vx = Vx;
+    this->Vy = Vy;
+    //
+    // Units: G = Sigma_o = 1
+    //
+    Omega = std::sqrt(2.0*M_PI/H);
+    norm  = 1.0/(std::sqrt(2.0)*M_PI*H);
+    // ModelID = "Uniform";
+  }
+  
+  double get_mass(const double z)
+  {
+    if (z<-H)
+      return 0.0;
+    else if (z > H)
+      return 1.0;
+    else {
+      return (z + H)/(2.0*H);
+    }
+  }
+
+  double get_density(const double z)
+  {
+    if (fabs(z) > H)
+      return 0.0;
+    else
+      return 1.0/(2.0*H);
+  }
+
+  double get_pot(const double z)
+  {
+    // Offset defined so that potential is zero at |z|=H, and negative
+    // for |z|<H inside the slab.
+    double zz = fabs(z);
+    if (zz > H)
+      return 2.0*M_PI*zz - 2.0*M_PI*H;
+    else
+      return M_PI*zz*zz/H - M_PI*H;
+  }
+
+  double get_dpot(const double z)
+  {
+    double zz = fabs(z);
+    if (zz > H)
+      return 2.0*M_PI*z/zz;
+    else
+      return 2.0*M_PI*z/H;
+  }
+
+  double get_dpot2(const double z)
+  {
+    double zz = fabs(z);
+    if (zz > H)
+      return 0.0;
+    else
+      return 2.0*M_PI/H;
+  }
+
+  void get_pot_dpot(const double z, double& p, double& dp)
+  {
+    double zz = fabs(z);
+    if (zz > H) {
+      p  = 2.0*M_PI*zz - 2.0*M_PI*H;
+      dp = 2.0*M_PI*z/zz;
+    } else {
+      p  = M_PI*zz*zz/H - M_PI*H;
+      dp = 2.0*M_PI*z/H;
+    }
+  }
+
+  double get_mass(const double x, const double y, const double z)
+  {
+    return get_mass(z);
+  }
+
+  double get_density(const double x, const double y, const double z)
+  {
+    return get_density(z);
+  }
+
+  double get_pot(const double x, const double y, const double z)
+  {
+    return get_pot(z);
+  }
+
+  double get_min_radius(void)   { return 0.0; }
+  double get_max_radius(void)   { return H;   }
+  double get_scale_height(void) { return H;   }
+
+  double distf(const double E, const double p=0.0)
+  {
+    // Convert energy to potential, so that the distribution function
+    // is nonzero only.  That is, assume E = Omega*Ja, not zero at +/-
+    // H.
+    double OJ = fabs(E + M_PI*H);
+    return norm / std::sqrt(OJ);
+  }
+
+  double dfde(const double E, const double p=0.0)
+  {
+    // Convert energy to potential, so that the distribution function
+    // is nonzero only.  That is, assume E = Omega*Ja, not zero at +/-
+    // H.
+    double OJ = fabs(E + M_PI*H);
+    return -0.5*Omega*norm / std::pow(OJ, 1.5);
+  }
+
+  double dfdv(const double E, const double p=0.0)
+  {
+    // The distribution function is independent of velocity, so this
+    // derivative is zero. There are delta functions at v=-Vx and
+    // v=+Vx, but those are not captured by this simple functional
+    // form.
+    return 0.0;
   }
 
 };
