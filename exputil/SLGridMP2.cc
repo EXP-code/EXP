@@ -2871,7 +2871,6 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
     cons[4] = (df + KKZ*f)*f;
   }
   cons[5] = 1.0;
-  //  cons[5] = 1.0/(f*f);
 
   //
   //     Initialize the vector INVEC(*):

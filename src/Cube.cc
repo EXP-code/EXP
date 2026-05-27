@@ -29,7 +29,7 @@ static bool deepDebug = false;
 static bool coefDebug = false;
 //@}
 
-Cube::Cube(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
+Cube::Cube(Component* c0, const YAML::Node& conf) : Basis(c0, conf)
 {
   // ID parameters
   //
@@ -1059,3 +1059,64 @@ PotAccel::CovarData Cube::getSubsample()
   return elem;
 }
 
+
+// Return density, potential, and potential gradient at a point
+void Cube::determine_fields_at_point
+(double x, double y, double z,
+ double *tdens0, double *tpotl0, double *tdens, double *tpotl, 
+ double *tpotx, double *tpoty, double *tpotz)
+{
+  // Zero the fields
+  //
+  *tdens0 = *tpotl0 = 0.0;	// k==0 contribution
+  *tdens  = *tpotl  = 0.0;	// k!=0 contribution
+  *tpotx  = *tpoty  = *tpotz  = 0.0;
+
+  // Recursion multipliers
+  //
+  auto stepx = std::exp(kfac*x);
+  auto stepy = std::exp(kfac*y);
+  auto stepz = std::exp(kfac*z);
+    
+  // Initial values (note sign change from coefficient accumulation)
+  //
+  auto startx = std::exp(-kfac*(x*nmaxx));
+  auto starty = std::exp(-kfac*(y*nmaxy));
+  auto startz = std::exp(-kfac*(z*nmaxz));
+    
+  std::complex<double> facx, facy, facz;
+  int ix, iy, iz;
+  
+  for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
+    for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
+      for (facz=startz, iz=0; iz<imz; iz++, facz*=stepz) {
+	
+	std::complex<double> fac = facx*facy*facz*expcoef(ix, iy, iz);
+	  
+	// Compute wavenumber; recall that the coefficients are
+	// stored as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+	//
+	int ii = ix-nmaxx;
+	int jj = iy-nmaxy;
+	int kk = iz-nmaxz;
+	
+	// No contribution to acceleration and potential ("swindle")
+	// for zero wavenumber
+	if (ii==0 && jj==0 && kk==0) continue;
+	    
+	// Limit to minimum wave number
+	if (abs(ii)<nminx || abs(jj)<nminy || abs(kk)<nminz) continue;
+	  
+	// Normalization
+	double norm = 1.0/sqrt(M_PI*(ii*ii + jj*jj + kk*kk));
+
+	*tpotl += fac.real()*norm;
+	*tdens += fac.real()/norm;
+	
+	*tpotx += (std::complex<double>(0.0, dfac*ii)*fac*norm).real();
+	*tpoty += (std::complex<double>(0.0, dfac*jj)*fac*norm).real();
+	*tpotz += (std::complex<double>(0.0, dfac*kk)*fac*norm).real();
+      }
+    }
+  }	  
+}

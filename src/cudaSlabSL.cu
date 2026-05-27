@@ -657,7 +657,7 @@ void SlabSL::determine_coefficients_cuda()
   // must be done every time
   //
   if (initialize_cuda_slab) {
-    initialize_cuda();
+    slab_initialize_cuda();
     initialize_cuda_slab = false;
 
     // Copy coordinate mapping
@@ -1189,7 +1189,7 @@ void SlabSL::determine_acceleration_cuda()
   // must be done every time
   //
   if (initialize_cuda_slab) {
-    initialize_cuda();
+    slab_initialize_cuda();
     initialize_cuda_slab = false;
   }
 

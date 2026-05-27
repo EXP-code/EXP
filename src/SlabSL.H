@@ -9,7 +9,7 @@
 #include "Coefficients.H"
 #include "SLGridMP2.H"
 #include "biorth1d.H"
-#include "PotAccel.H"
+#include "Basis.H"
 
 #if HAVE_LIBCUDA==1
 #include <thrust/complex.h>
@@ -65,7 +65,7 @@
     @param cachename is the name of the basis cache file.  This is a
     required parameter.
 */
-class SlabSL : public PotAccel
+class SlabSL : public Basis
 {
 
   //! Pull in base-class overrides
@@ -106,7 +106,7 @@ private:
   std::complex<double> kfac;
   std::string cachename;
 
-  std::vector<Eigen::VectorXd> zfrc, zpot;
+  std::vector<Eigen::VectorXd> zfrc, zpot, zden;
 
   SlabSLCoefHeader coefheader;
 
@@ -164,7 +164,7 @@ private:
   void cuda_initialize();
 
   //! Initialize the cuda streams
-  void initialize_cuda()
+  void slab_initialize_cuda()
   {
     grid->initialize_cuda(cuInterpArray, tex);
   }
@@ -212,6 +212,7 @@ private:
   //@{
   //! Usual evaluation interface
   void determine_coefficients(void);
+  void determine_acceleration_and_potential(void);
   void get_acceleration_and_potential(Component*);
   //@}
 
@@ -304,6 +305,32 @@ public:
 
   //! Indicate whether or not subsampling is supported
   virtual bool hasSubsample() {	return true; }
+
+  //! Return density, potential, and potential gradient at a point in
+  //! Cartesian coordinates
+  void determine_fields_at_point(double x, double y, double z,
+				 double *tdens0, double *tpotl0, 
+				 double *tdens, double *tpotl, 
+				 double *tpotx, double *tpoty, 
+				 double *tpotz);
+
+  //! Returns the potential, its derivatives & density at a point in
+  //! spherical coordinates
+  void determine_fields_at_point_sph
+  (double r, double theta, double phi,
+   double *tdens0, double *dpotl0, double *tdens, double *tpotl, 
+   double *tpotr, double *tpott, double *tpotp) { 
+    throw std::runtime_error("SlabSL::determine_fields_at_point_sph: Not implemented for this basis");
+  }
+
+  //! Returns the potential, its derivatives & density at a point in
+  //! cylindrical coordinates
+  void determine_fields_at_point_cyl
+  (double r, double z, double phi,
+   double *tdens0, double *dpotl0, double *tdens, double *tpotl,
+   double *tpotr, double *tpotz, double *tpotp) {
+    throw std::runtime_error("SlabSL::determine_fields_at_point_cyl: Not implemented for this basis");
+  }
 };
 
 

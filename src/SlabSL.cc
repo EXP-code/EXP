@@ -34,7 +34,7 @@ static bool cudaAccumOverride = false;
 static bool cudaAccelOverride = false;
 //@}
 
-SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
+SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : Basis(c0, conf)
 {
   id = "Slab (Sturm-Liouville)";
 
@@ -133,9 +133,11 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : PotAccel(c0, conf)
   // Arrays for multithreading force evaluation
   zpot.resize(nthrds);
   zfrc.resize(nthrds);
+  zden.resize(nthrds);
 
   for (auto & v : zpot) v.resize(nmaxz);
   for (auto & v : zfrc) v.resize(nmaxz);
+  for (auto & v : zden) v.resize(nmaxz);
 
   // Allocate coefficient tensor (one for each multistep level) and
   // zero-out contents
@@ -554,8 +556,18 @@ void SlabSL::get_acceleration_and_potential(Component* C)
   cC = C;			// "Register" component
   nbodies = cC->Number();	// And compute number of bodies
 
+  // Call the parallel acceleration and potential
+  //
   MPL_start_timer();
+  determine_acceleration_and_potential();
+  MPL_stop_timer();
 
+  // Clear external potential flag
+  use_external = false;
+}
+
+void SlabSL::determine_acceleration_and_potential(void)
+{
   if (play_back) {
     swap_coefs(expccofP, expccof);
   }
@@ -945,3 +957,97 @@ PotAccel::CovarData SlabSL::getSubsample()
   return elem;
 }
 
+// Return density, potential, and potential gradient at a point
+void SlabSL::determine_fields_at_point
+(double x, double y, double z,
+ double *tdens0, double *tpotl0, double *tdens, double *tpotl, 
+ double *tpotx, double *tpoty, double *tpotz)
+{
+  // Zero the fields
+  //
+  *tdens0 = *tpotl0 = 0.0;	// k==0 contribution
+  *tdens  = *tpotl  = 0.0;	// k!=0 contribution
+  *tpotx  = *tpoty  = *tpotz  = 0.0;
+
+  // Recursion multipliers
+  //
+  std::complex<double> stepx = exp(kfac*x);
+  std::complex<double> stepy = exp(kfac*y);
+
+  // Initial values (note sign change)
+  //
+  std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x);
+  std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y);
+    
+  std::complex<double> facx, facy, facz, facf, facd, fac;
+  int ix, iy;
+
+  // Compute wavenumber; recall that the coefficients are stored
+  // as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
+  //
+  for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
+    
+    int ii = ix - nmaxx;
+    int iix = abs(ii);
+      
+    for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
+	
+      int jj = iy - nmaxy;
+      int iiy = abs(jj);
+      
+      if (iix > nmaxx) {
+	std::cerr << "Out of bounds: ii=" << ii << std::endl;
+      }
+      if (iiy > nmaxy) {
+	std::cerr << "Out of bounds: jj=" << jj << std::endl;
+      }
+      
+      if (iix>=iiy) {
+	grid->get_pot  (zpot[0], z, iix, iiy);
+	grid->get_dens (zden[0], z, iix, iiy);
+	grid->get_force(zfrc[0], z, iix, iiy);
+      }
+      else {
+	grid->get_pot  (zpot[0], z, iiy, iix);
+	grid->get_dens (zden[0], z, iiy, iix);
+	grid->get_force(zfrc[0], z, iiy, iix);
+      }
+	
+      for (int iz=0; iz<imz; iz++) {
+	  
+	// Only exclude even or odd for k!=0
+	if (ii!=0 or jj!=0) {
+	  if (no_even and iz%2==0) continue;
+	  if (no_odd  and iz%2==1) continue;
+	}
+	
+	// Live for frozen potential
+	if (self_consistent) {
+	  fac  = facx*facy*zpot[0][iz]*expccof[0](ix, iy, iz);
+	  facf = facx*facy*zfrc[0][iz]*expccof[0](ix, iy, iz);
+	  facd = facx*facy*zden[0][iz]*expccof[0](ix, iy, iz);
+	} else {
+	  fac  = facx*facy*zpot[0][iz]*expcofF(ix, iy, iz);
+	  facf = facx*facy*zfrc[0][iz]*expcofF(ix, iy, iz);
+	  facd = facx*facy*zden[0][iz]*expcofF(ix, iy, iz);
+	}
+	
+	// Limit to minimum wave number
+	//
+	if (abs(ii)<nminx || abs(jj)<nminy) continue;
+	  
+	if (ii==0 and jj==0) {
+	  *tdens0 += facd.real();
+	  *tpotl0 += fac.real();
+	} else {
+	  *tdens += facd.real();
+	  *tpotl += fac.real();
+	}
+
+	*tpotx += (kfac*static_cast<double>(ii)*fac).real();
+	*tpoty += (kfac*static_cast<double>(jj)*fac).real();
+	*tpotz += facf.real();
+      }
+    }
+  }
+}
