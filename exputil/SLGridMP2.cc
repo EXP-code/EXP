@@ -2709,7 +2709,6 @@ void SLGridSlab::get_force(Eigen::MatrixXd& mat, double x, int which)
       l++;
     }
   }
-  
 }
 
 
@@ -2732,13 +2731,20 @@ void SLGridSlab::get_pot(Eigen::VectorXd& vec, double x, int kx, int ky, int whi
 
   vec.resize(nmax);
 
-  int indx = (int)( (x-xmin)/dxi );
+  int indx = 0;
+  if (x < xmin) {
+    indx = 0;
+  } else if (x > xmax) {
+    indx = numz - 2;
+  } else {
+    indx = (int)( (x-xmin)/dxi );
+  }
+
   if (indx<0) indx = 0;
   if (indx>numz-2) indx = numz - 2;
 
   double x1 = (xi[indx+1] - x)/dxi;
   double x2 = (x - xi[indx])/dxi;
-  
 
   sign2 = 1;
   for (int n=0; n<nmax; n++) {
@@ -2766,7 +2772,15 @@ void SLGridSlab::get_dens(Eigen::VectorXd& vec, double x, int kx, int ky, int wh
 
   vec.resize(nmax);
 
-  int indx = (int)( (x-xmin)/dxi );
+  int indx = 0;
+  if (x < xmin) {
+    indx = 0;
+  } else if (x > xmax) {
+    indx = numz - 2;
+  } else {
+    indx = (int)( (x-xmin)/dxi );
+  }
+
   if (indx<0) indx = 0;
   if (indx>numz-2) indx = numz - 2;
 
@@ -2808,10 +2822,17 @@ void SLGridSlab::get_force(Eigen::VectorXd& vec, double x, int kx, int ky, int w
 
   vec.resize(nmax);
 
-  int indx = (int)( (x-xmin)/dxi );
+  int indx = 0;
+  if (x < xmin) {
+    indx = 0;
+  } else if (x > xmax) {
+    indx = numz - 2;
+  } else {
+    indx = (int)( (x-xmin)/dxi );
+  }
+
   if (indx<1) indx = 1;
   if (indx>numz-2) indx = numz - 2;
-
 
   double p = (x - xi[indx])/dxi;
   double fac = mM->d_xi_to_z(x)/dxi;
