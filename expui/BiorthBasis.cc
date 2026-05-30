@@ -3425,17 +3425,27 @@ namespace BasisClasses
     "no_even",
     "no_odd",
     "self_consistent",
+    "pcavar",
+    "samplesz",
     "cachename"
   };
 
   Slab::Slab(const YAML::Node& CONF) : BiorthBasis(CONF, "slab")
   {
     initialize();
+
+    // Initialize covariance
+    //
+    if (pcavar) enableCoefCovariance(true, sampT);
   }
 
   Slab::Slab(const std::string& confstr) : BiorthBasis(confstr, "slab")
   {
     initialize();
+
+    // Initialize covariance
+    //
+    if (pcavar) enableCoefCovariance(true, sampT);
   }
 
   void Slab::initialize()
@@ -3490,6 +3500,9 @@ namespace BasisClasses
       if (conf["knots"])      knots = conf["knots"].as<int>();
 
       if (conf["check"])      check = conf["check"].as<bool>();
+
+      if (conf["pcavar"])    pcavar = conf["pcavar"].as<bool>();
+      if (conf["subsamp"])    sampT = conf["samplesz"].as<int>();
 
       if (conf["cachename"])  cachename = conf["cachename"].as<std::string>();
     } 
