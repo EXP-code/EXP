@@ -229,15 +229,20 @@ namespace BasisClasses
   }
     
   std::vector<double> Basis::getFields(double x, double y, double z)
+  { return crt_eval(x, y, z); }
+
+  std::vector<double> Basis::getFieldsOrigin(double x, double y, double z)
   {
-    return crt_eval(x, y, z);
+    Eigen::Vector3d p(x, y, z);
+    p = coefrot * (p - coefctr);
+    return crt_eval(p(0), p(1), p(2));
   }
     
   std::tuple<std::map<std::string, Eigen::VectorXd>, Eigen::VectorXd>
   Basis::getFieldsCoefs
   (double x, double y, double z, std::shared_ptr<CoefClasses::Coefs> coefs)
   {
-    // Python dictonary for return
+    // Python dictionary for return
     std::map<std::string, Eigen::VectorXd> ret;
 
     // Times for the coefficients
@@ -249,9 +254,46 @@ namespace BasisClasses
 
     // Make the return dictionary of arrays
     for (int i=0; i<times.size(); i++) {
+      // Load the coefficients for the current time
       set_coefs(coefs->getCoefStruct(times[i]));
+
       // The field evaluation
       auto v = crt_eval(x, y, z); 
+
+      // Pack the fields into the dictionary
+      for (int j=0; j<fields.size(); j++) ret[fields[j]][i] = v[j];
+    }
+
+    // An attempt at an efficient return type for the time array
+    Eigen::VectorXd T =
+      Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(times.data(), times.size());
+
+    // Return the dictionary and the time array
+    return {ret, T};
+  }
+
+  std::tuple<std::map<std::string, Eigen::VectorXd>, Eigen::VectorXd>
+  Basis::getFieldsCoefsOrigin
+  (double x, double y, double z, std::shared_ptr<CoefClasses::Coefs> coefs)
+  {
+    // Python dictionary for return
+    std::map<std::string, Eigen::VectorXd> ret;
+
+    // Times for the coefficients
+    auto times  = coefs->Times();
+
+    // Initialize the dictionary/map
+    auto fields = getFieldLabels(coordinates);
+    for (auto s : fields) ret[s].resize(times.size());
+
+    // Make the return dictionary of arrays
+    for (int i=0; i<times.size(); i++) {
+      // Load the coefficients for the current time
+      set_coefs(coefs->getCoefStruct(times[i]));
+
+      // The field evaluation
+      auto v = getFieldsOrigin(x, y, z);
+
       // Pack the fields into the dictionary
       for (int j=0; j<fields.size(); j++) ret[fields[j]][i] = v[j];
     }

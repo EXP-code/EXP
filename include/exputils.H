@@ -12,4 +12,8 @@ orthoCompute(const std::vector<Eigen::MatrixXd>& tests);
 void orthoTest(const std::vector<Eigen::MatrixXd>& tests,
 	       const std::string& classname, const std::string& indexname);
 
+// Signature for md5sum function computation
+std::string get_md5sum(const std::string&);
+
+
 #endif

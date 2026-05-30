@@ -1,5 +1,3 @@
-// -*- C++ -*-
-
 #ifndef PARTICLE_CUH
 #define PARTICLE_CUH
 
@@ -16,11 +14,9 @@
 #include <thrust/host_vector.h>
 #include <thrust/sort.h>
 
-#include <config_exp.h>
-
-#include <cudaUtil.cuH>
-
-#include <Particle.H>
+#include "config_exp.h"
+#include "cudaUtil.cuH"
+#include "Particle.H"
 
 //! Simplified particle structure for use in CUDA kernel code
 struct cudaParticle
@@ -125,3 +121,5 @@ struct cuPartToChange
 };
 
 #endif
+
+// -*- C++ -*-

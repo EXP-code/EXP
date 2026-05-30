@@ -1,9 +1,7 @@
-// -*- C++ -*-
-
 #ifndef CUDA_MAPPING_CONSTANTS_H
 #define CUDA_MAPPING_CONSTANTS_H
 
-#include <cudaUtil.cuH>
+#include "cudaUtil.cuH"
 
 struct cudaMappingConstants
 {
@@ -23,3 +21,5 @@ struct cudaMappingConstants
 };
 
 #endif
+
+// -*- C++ -*-

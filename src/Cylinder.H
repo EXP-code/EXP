@@ -7,6 +7,7 @@
 #include "Basis.H"
 #include "CylEXP.H"
 #include "Coefficients.H"
+#include "DiskDensityFunc.H"
 
 #include "config_exp.h"
 
@@ -38,6 +39,24 @@ class MixtureBasis;
     @param bias is the O(1) bias correction for deprojected scale length
 
     @param hcyl is the scale height
+
+    @param aratio is the scale length ratio for disk basis construction (default: 1.0)
+
+    @param hratio is the scale height ratio for disk basis construction (default: 1.0)
+
+    @param dweight is the relative weight of the second component in the double-exponential disk basis construction (default: 1.0)
+
+    @param dmodel is the disk model type for deprojection and EOF conditioning.  See Cylinder::DiskType for options.
+
+    @param mtype is the spherical model type for conditioning the basis.  See EmpCylSL::EmpModel for options.
+
+    @param dtype is the density model type for conditioning the basis.  See Cylinder::DiskType for options.
+
+    @param rwidth is the radial width of the error function truncation for disk basis construction (default: 0.0, which implies no truncation)
+
+    @param rtrunc is the radial truncation radius for disk basis construction (default: 0.1)
+
+    @param rfactor is the radial scale factor for disk basis construction (default: 1.0, which implies no scaling)
 
     @param lmaxfid is the maximum spherical harmonic index for EOF construction
 
@@ -114,7 +133,7 @@ class MixtureBasis;
 
     @param cmapz is the vertical coordinate mapping type
 
-    @param mtype is the deprojected model type for conditioning the
+    @param mtype is the spherical model type for conditioning the
     basis. See ExpCylSL::mtype for options.
 
     @param ppower is the power-law index for the Power spherical model
@@ -159,8 +178,13 @@ private:
 
   void initialize(void);
 
-				// Parameters
+  // Parameters
+  //
   double rcylmin, rcylmax, zmax, acyl, bias;
+  double aratio, hratio, dweight; // Disk basis construction parameters for double-exponential disk
+  double rwidth, rtrunc, rfactor; // Disk basis construction parameters for numerical deprojection
+  double Mfac, HERNA;		  // Disk bulge parameters: mass fraction and Hernquist scale length
+
   int nmaxfid, lmaxfid, mmax, mlim, nint;
   int ncylnx, ncylny, ncylr;
   double hcyl, hexp, snr, rem;
@@ -284,7 +308,6 @@ protected:
 
   //@}
 
-
 #endif
 
   /** Test change level counts for deep debugging enabled by setting
@@ -345,11 +368,83 @@ protected:
   //! Power-law index for deprojected spherical model for basis conditioning
   double ppow = 2.0;
 
-  //! Deprojection model for basis conditioning
+  //! Spherical model for basis conditioning
   std::string mtype = "Exponential";
 
   //! Write basis-specific parameters to HDF5 covariance file
   void writeCovarH5Params(HighFive::File& file);
+
+  //! Disk density function types for basis conditioning
+  enum class DiskType
+    { constant, gaussian, mn, exponential, doubleexpon, diskbulge, python };
+
+  //! The string name of the deprojection model
+  std::string dmodel;
+
+  //! Map human strings to disk target typenums
+  const std::map<std::string, DiskType> dtlookup =
+    { {"constant",    DiskType::constant},
+      {"gaussian",    DiskType::gaussian},
+      {"mn",          DiskType::mn},
+      {"exponential", DiskType::exponential},
+      {"doubleexpon", DiskType::doubleexpon},
+      {"diskbulge",   DiskType::diskbulge},
+      {"python",      DiskType::python}
+    };
+
+  //! Disk target type strings for reporting
+  const std::map<DiskType, std::string> dtstring =
+    { {DiskType::constant,    "constant"},
+      {DiskType::gaussian,    "gaussian"},
+      {DiskType::mn,          "mn"},
+      {DiskType::exponential, "exponential"},
+      {DiskType::doubleexpon, "doubleexpon"},
+      {DiskType::diskbulge,   "diskbulge"},
+      {DiskType::python,      "python"}
+    };
+
+  //! The default disk density function type for basis conditioning
+  DiskType DTYPE = DiskType::exponential;
+
+  //! The string name of the disk density function type for basis conditioning
+  std::string dtype;
+
+  //@{
+  //! DeprojType support
+  
+  //! Disk models used for deprojection
+  enum class DeprojType
+    { mn, toomre, python, exponential};
+  
+  //! Current model
+  DeprojType PTYPE;
+  
+  //! Python module name for disk density function if using Python deprojection
+  std::string pyproj;
+
+  //! Look up by string
+  const std::map<std::string, DeprojType> dplookup =
+    { {"mn",          DeprojType::mn},
+      {"toomre",      DeprojType::toomre},
+      {"python",      DeprojType::python},
+      {"exponential", DeprojType::exponential}
+    };
+  //@}
+
+
+  //! Dtype cache check for consistency between cache and current parameters
+  bool checkMetaData();
+
+  //! Reopen and write the current Dtype into the cache metadata
+  void saveMetaData();
+
+  //! Disk density functions for basis conditioning
+  double DiskDens(double R, double z, double phi);
+
+  //! If using a Python disk density function, this is the instance of
+  //! the wrapper class that allows us to call the Python function
+  //! from C++
+  std::shared_ptr<DiskDensityFunc> pyDens;
 
 public:
 

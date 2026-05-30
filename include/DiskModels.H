@@ -3,6 +3,7 @@
 
 #include "EmpCylSL.H"
 #include "DiskDensityFunc.H"
+#include <stdexcept>
 
 //! A Ferrers Ellipsoid + Evacuated Exponential Disc (semi-realistic
 //! bar+disk model)
@@ -193,6 +194,34 @@ public:
     double Z  = sqrt(Z2);
     double Q2 = (a + Z)*(a + Z);
     return 0.25*h*h*M/M_PI*(a*R*R + (a + 3.0*Z)*Q2)/( pow(R*R + Q2, 2.5) * Z*Z2 );
+  }
+};
+
+//! Toomre disk
+class Toomre : public EmpCylSL::AxiDisk
+{
+private:
+  double a, h, n;
+  double norm;
+  
+public:
+
+  Toomre(double a, double h, double n=3, double M=1) :
+    a(a), h(h), n(n), EmpCylSL::AxiDisk(M, "Toomre")
+  {
+    params.push_back(a);
+    params.push_back(h);
+    params.push_back(n);
+    if (n <= 2) throw std::runtime_error("Toomre index must be > 2");
+    norm = M*(n - 2.0)/(2.0*M_PI*a*a*4.0*h);
+  }
+
+  double operator()(double R, double z, double phi=0.)
+  {
+    double sigma = norm * std::pow(1.0 + (R/a)*(R/a), -0.5*n);
+    double Q = std::exp(-0.5*std::fabs(z)/h);
+    double sech = 2.0*Q/(1.0 + Q*Q); // Prevent overflow
+    return sigma * sech*sech;
   }
 };
 

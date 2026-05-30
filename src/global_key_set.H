@@ -8,6 +8,7 @@ global_valid_keys = {
   "dbthresh",
   "time",
   "dtime",
+  "maxMindt",
   "PFbufsz",
   "NICE",
   "VERBOSE",

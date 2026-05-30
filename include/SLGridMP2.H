@@ -19,8 +19,8 @@
 using namespace __EXP__;
 
 #if HAVE_LIBCUDA==1
-#include <cudaUtil.cuH>
-#include <cudaMappingConstants.cuH>
+#include "cudaUtil.cuH"
+#include "cudaMappingConstants.cuH"
 #endif
 
 
