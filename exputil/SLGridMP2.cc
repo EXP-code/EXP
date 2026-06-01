@@ -1969,6 +1969,46 @@ public:
   }
 };
 
+//! Cosine bell model with G = M = 1
+class CosineSlab : public SlabModel
+{
+public:
+
+  CosineSlab() { id = "cosine"; }
+  
+  double pot(double z)
+  {
+    double h = SLGridSlab::H;
+    if (fabs(z) > h)
+      return 2.0*M_PI*(fabs(z) - h);
+    else
+      return 2.0*M_PI/h*(0.5*z*z + h*h/(M_PI*M_PI)*(1.0 - cos(M_PI*z/h))) - M_PI*h*(4.0/(M_PI*M_PI) + 1.0);
+  }
+  
+  double dpot(double z)
+  {
+    double h = SLGridSlab::H;
+    if (fabs(z) > h)
+      return 2.0*M_PI*z/fabs(z);
+    else
+      return 2.0*M_PI/h*(z + h/M_PI*sin(M_PI*z/h));
+  }
+
+  double dens(double z)
+  {
+    double h = SLGridSlab::H;
+    if (fabs(z) > h)
+      return 0.0;
+    else {
+      double cosfac = cos(0.5*M_PI*z/h);
+      return 4.0*M_PI/h * cosfac*cosfac;
+      //       ^
+      //       |
+      //       +--- The 4*pi factor simplifies the SL solution
+    }
+  }
+};
+
 
 std::shared_ptr<SlabModel> SlabModel::createModel(const std::string type)
 {
@@ -1986,6 +2026,10 @@ std::shared_ptr<SlabModel> SlabModel::createModel(const std::string type)
 
   if (data.find("unif") != std::string::npos) {
     return std::make_shared<UniformSlab>();
+  }
+
+  if (data.find("cos") != std::string::npos) {
+    return std::make_shared<CosineSlab>();
   }
 
   // Default
