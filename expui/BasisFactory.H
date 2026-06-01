@@ -196,15 +196,25 @@ namespace BasisClasses
     operator()(double x1, double x2, double x3,
 	       const Coord ctype=Coord::Spherical);
     
-    //! Evaluate fields at a point
+    //! Evaluate fields at a point in the expansion-origin frame
     virtual std::vector<double> getFields(double x, double y, double z);
+
+    //! Evaluate fields at a point in the coefficient-origin frame
+    virtual std::vector<double> getFieldsOrigin(double x, double y, double z);
     
-    //! Evaluate fields at a point for all coefficients sets
+    //! Evaluate fields at a point for all coefficients sets in the
+    //! expansion-origin frame
     virtual std::tuple<std::map<std::string, Eigen::VectorXd>,
 		       Eigen::VectorXd> getFieldsCoefs
     (double x, double y, double z, std::shared_ptr<CoefClasses::Coefs> coefs);
+
+    //! Evaluate fields at a point for all coefficients sets in the
+    //! coefficient-origin frame
+    virtual std::tuple<std::map<std::string, Eigen::VectorXd>,
+		       Eigen::VectorXd> getFieldsCoefsOrigin
+    (double x, double y, double z, std::shared_ptr<CoefClasses::Coefs> coefs);
     
-    //! Evaluate fields at a point, and provide field lables
+    //! Evaluate fields at a point, and provide field labels
     virtual std::tuple<std::vector<double>, std::vector<std::string>>
     evaluate(double x, double y, double z)
     { return {getFields(x, y, z), getFieldLabels(coordinates)}; }

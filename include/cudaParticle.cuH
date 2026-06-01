@@ -1,5 +1,3 @@
-// -*- C++ -*-
-
 #ifndef PARTICLE_CUH
 #define PARTICLE_CUH
 
@@ -123,3 +121,5 @@ struct cuPartToChange
 };
 
 #endif
+
+// -*- C++ -*-

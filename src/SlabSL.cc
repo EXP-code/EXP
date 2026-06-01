@@ -234,6 +234,11 @@ void SlabSL::initialize()
   //
   init_covariance();
 
+  // Convert cmap to lower case (needed by cuda)
+  //
+  std::transform(cmap.begin(), cmap.end(), cmap.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
 #if HAVE_LIBCUDA==1
   // Cuda initialization (if needed)
   //

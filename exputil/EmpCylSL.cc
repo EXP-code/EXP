@@ -70,17 +70,25 @@ double   EmpCylSL::PPOW            = 4.0;
 bool     EmpCylSL::NewCoefs        = true;
  
 
-EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
+EmpCylSL::EmpModel EmpCylSL::mtype = EmpCylSL::EmpModel::Exponential;
 
-std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs =
-  { {Exponential, "Exponential"},
-    {ExpSphere,   "ExpSphere"  },
-    {Gaussian,    "Gaussian"   },
-    {Plummer,     "Plummer"    },
-    {Power,       "Power"      },
-    {Deproject,   "Deproject"  }
-  };
+std::map<std::string, EmpCylSL::EmpModel> EmpCylSL::EmpModelMap = {
+  {"exponential", EmpModel::Exponential},
+  {"expsphere",   EmpModel::ExpSphere},
+  {"gaussian",    EmpModel::Gaussian},
+  {"plummer",     EmpModel::Plummer},
+  {"power",       EmpModel::Power},
+  {"deproject",   EmpModel::Deproject}
+};
 
+std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs = {
+  {EmpModel::Exponential, "Exponential"},
+  {EmpModel::ExpSphere,   "ExpSphere"},
+  {EmpModel::Gaussian,    "Gaussian"},
+  {EmpModel::Plummer,     "Plummer"},
+  {EmpModel::Power,       "Power"},
+  {EmpModel::Deproject,   "Deproject"}
+};
 
 EmpCylSL::EmpCylSL()
 {
@@ -487,31 +495,48 @@ void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
 
   Linear1d surf(rl, sigI);
   
-  // Now, compute Abel inverion integral
+  // Now, compute Abel inversion integral
   //
   for (int i=0; i<NUMR; i++) {
+
+    double surfS = abel_type==AbelType::Subtraction ? surf.eval(rl[i]) : 0.0;
     double r = rr[i];
 
     // Interval by Legendre
     //
     rhoI[i] = 0.0;
+
     for (int n=0; n<NINT; n++) {
+
       double x   = lq.knot(n);
       double x12 = 1.0 - x*x;
-      double z   = x/sqrt(x12);
-      double R   = sqrt(z*z + r*r);
+      double R   = r/sqrt(x12);
       double lR  = log(R);
 
-      rhoI[i]   += lq.weight(n)*2.0*pow(x12, -1.5)*surf.eval(lR);
+      switch (abel_type) {
+      case AbelType::Derivative:
+	rhoI[i]   += lq.weight(n)/x12 * surf.deriv(lR)/R;
+	break;
+      case AbelType::Subtraction:
+	rhoI[i]   += lq.weight(n)/(x*x*sqrt(x12)*r) * ( surf.eval(lR) - surfS );
+	break;
+      case AbelType::IBP:
+	rhoI[i]   += lq.weight(n)/x12 * surf.eval(lR);
+	break;
+      }
     }
   }
 
+  Linear1d intgr;
+  if (abel_type == AbelType::IBP) intgr = Linear1d(rl, rhoI);
+
   std::vector<double> rho(NUMR), mass(NUMR);
-
-  Linear1d intgr(rl, rhoI);
-
-  for (int i=0; i<NUMR; i++)
-    rho[i] = -intgr.deriv(rl[i])/(2.0*M_PI*rr[i]*rr[i]);
+  for (int i=0; i<NUMR; i++) {
+    if (abel_type == AbelType::IBP)
+      rho[i] = -intgr.deriv(rl[i])/rr[i]/M_PI;
+    else
+      rho[i] = -rhoI[i]/M_PI;
+  }
 
   mass[0] = 0.0;
   for (int i=1; i<NUMR; i++) {
@@ -538,7 +563,7 @@ void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
   //
   densRg = Linear1d(rl, rho);
   massRg = Linear1d(rl, mass);
-  mtype  = Deproject;
+  mtype  = EmpModel::Deproject;
 }
 
 
@@ -551,21 +576,21 @@ double EmpCylSL::massR(double R)
   double ans=0.0, fac, arg;
 
   switch (mtype) {
-  case Exponential:
+  case EmpModel::Exponential:
     ans = 1.0 - (1.0 + R)*exp(-R); 
     break;
-  case ExpSphere:
+  case EmpModel::ExpSphere:
     ans = expdeproj.mass(R);
     break;
-  case Gaussian:
+  case EmpModel::Gaussian:
     arg = 0.5*R*R;
     ans = 1.0 - exp(-arg);
     break;
-  case Plummer:
+  case EmpModel::Plummer:
     fac = R/(1.0+R);
     ans = pow(fac, 3.0);
     break;
-  case Power:
+  case EmpModel::Power:
     {
       double z  = R + 1.0;
       double a1 = PPOW - 1.0;
@@ -576,7 +601,7 @@ double EmpCylSL::massR(double R)
 			      (1.0 - pow(z, -a1))/a1 );
     }
     break;
-  case Deproject:
+  case EmpModel::Deproject:
     if (R < RMIN) ans = 0.0;
     else if (R>=RMAX) ans = massRg.eval(RMAX);
     else ans = massRg.eval(log(R));
@@ -591,21 +616,21 @@ double EmpCylSL::densR(double R)
   double ans=0.0, fac, arg;
 
   switch (mtype) {
-  case Exponential:
+  case EmpModel::Exponential:
     ans = exp(-R)/(4.0*M_PI*R);
     break;
-  case ExpSphere:
+  case EmpModel::ExpSphere:
     ans = expdeproj.density(R);
     break;
-  case Gaussian:
+  case EmpModel::Gaussian:
     arg = 0.5*R*R;
     ans = exp(-arg)/(4.0*M_PI*R);
     break;
-  case Plummer:
+  case EmpModel::Plummer:
     fac = 1.0/(1.0+R);
     ans = 3.0*pow(fac, 4.0)/(4.0*M_PI);
     break;
-  case Power:
+  case EmpModel::Power:
     {
       double z  = R + 1.0;
       double a1 = PPOW - 1.0;
@@ -614,7 +639,7 @@ double EmpCylSL::densR(double R)
       ans =  0.125*a1*a2*a3/M_PI * pow(z, -PPOW);
     }
     break;
-  case Deproject:
+  case EmpModel::Deproject:
     if (R < RMIN) ans = densRg.eval(RMIN);
     else if (R>=RMAX) ans = 0.0;
     else ans = densRg.eval(log(R));

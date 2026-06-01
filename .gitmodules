@@ -8,3 +8,6 @@
 [submodule "extern/HighFive"]
 	path = extern/HighFive
 	url = https://github.com/BlueBrain/HighFive.git
+[submodule "extern/QuickDigest5"]
+	path = extern/QuickDigest5
+	url = https://github.com/nthnn/QuickDigest5.git

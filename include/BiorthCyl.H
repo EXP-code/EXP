@@ -17,8 +17,9 @@
 #include <yaml-cpp/yaml.h>
 
 #if HAVE_LIBCUDA==1
-#include <cudaUtil.cuH>
-#include <cudaMappingConstants.cuH>
+#include "cudaUtil.cuH"
+#include "cudaParticle.cuH"
+#include "cudaMappingConstants.cuH"
 #endif
 
 // For reading and writing cache file
@@ -27,11 +28,6 @@
 #include <highfive/H5DataSet.hpp>
 #include <highfive/H5DataSpace.hpp>
 #include <highfive/H5Attribute.hpp>
-
-#if HAVE_LIBCUDA==1
-#include <cudaParticle.cuH>
-#include <cudaMappingConstants.cuH>
-#endif
 
 #include "EmpCyl2d.H"
 
