@@ -25,6 +25,7 @@ SlabSL::valid_keys = {
   "samplesz",
   "subsampleFloat",
   "self_consistent",
+  "orthochk",
   "cachename"
 };
 
@@ -98,7 +99,7 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : Basis(c0, conf)
   //  +--- Set to 'true' only for deep debugging; 'false' for production.
   //  |
   //  v
-  if (false) {
+  if (orthochk) {
     std::ofstream tmp("SlabSL.ortho");
     for (int kx=0, indx=0; kx<=nnmax; kx++) {
       for (int ky=0; ky<=kx; ky++, indx++) {
@@ -196,6 +197,7 @@ void SlabSL::initialize()
     if (conf["type" ])          type        = conf["type" ].as<std::string>();
     if (conf["no_even"])        no_even     = conf["no_even"].as<bool>();
     if (conf["no_odd"])         no_odd      = conf["no_odd"].as<bool>();
+    if (conf["orthochk"])       orthochk    = conf["orthochk"].as<bool>();
     if (conf["cachename"])      cachename   = conf["cachename"].as<std::string>();
 
     if (conf["self_consistent"]) {

@@ -82,6 +82,14 @@ main(int argc, char** argv)
     mdl = std::make_shared<Uniform>(H, sigma, sigma);
     zmax  = H*0.999;
     mname = "uniform";
+  }
+  else if (mtype == OneDModel::ModelType::cosine) {
+    
+    std::cout << "Cosine bell potential: setting scale height to "
+	      << H << " and Zmax to " << H*0.999 << std::endl;
+    mdl = std::make_shared<Cosine>(H, sigma, sigma);
+    zmax  = H*0.999;
+    mname = "uniform";
   } else if (mtype == OneDModel::ModelType::sech2mu) {
     
     std::cout << "Sech2 potential: using scale height " << H << std::endl;
@@ -108,6 +116,28 @@ main(int argc, char** argv)
   {
     if (mtype == OneDModel::ModelType::uniform) {
       return H*(2.0*dis(gen) - 1.0);
+    } else if (mtype == OneDModel::ModelType::cosine) {
+      double m = dis(gen);
+      double z = -H + 2.0*H*m;
+
+      auto M = [&m, &H](double z) {
+	return 0.5/H*(z + H + H/M_PI*sin(M_PI*z/H)) - m;
+      };
+
+      auto dMdz = [&H](double z) {
+	return 0.5/H*(1.0 + cos(M_PI*z/H));
+      };
+
+      // Invert M(z) using Newton's method
+      //
+      double z0 = z;
+      for (int i=0; i<40; i++) {
+	double f = M(z0);
+	double df = dMdz(z0);
+	if (fabs(f) < 1e-10) break;
+	z0 -= f/df;
+      }
+      return z0;
     } else if (mtype == OneDModel::ModelType::sech2mu) {
       double m = dis(gen);
       return 0.5*H*log(m/(1.0 - m));

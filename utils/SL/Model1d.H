@@ -5,8 +5,22 @@
 
 #include "interp.H"
 
-class OneDModel
+class OneDModel : public std::enable_shared_from_this<OneDModel>
 {
+
+protected:
+
+  int Nfgrid = 800;		// Number of points for tabulating
+				// distribution function for
+				// interpolation in getE(M)
+
+  Linear1d dfgrid;		// Interpolation object for
+				// distribution function grid (for
+				// getE(M))
+
+  std::vector<double> Egrid, Mgrid;
+
+  void compute_dfgrid(void);
 
 public:
   bool dist_defined;
@@ -40,7 +54,8 @@ public:
   virtual double dfdv (const double, const double V=0.0) = 0;
 
   //! Model types
-  enum class ModelType {table, lowiso, sech2, sech2u, sech2halo, sech2mu, uniform};
+  enum class ModelType {table, lowiso, sech2, sech2u, sech2halo, sech2mu,
+			uniform, cosine};
 
 
   //! Model names for sysout display (avoid temporaries and dynamic
@@ -52,7 +67,8 @@ public:
     {ModelType::sech2u,    "Sech2u"},
     {ModelType::sech2halo, "Sech2Halo"},
     {ModelType::sech2mu,   "Sech2(mu)"},
-    {ModelType::uniform,   "Uniform"}
+    {ModelType::uniform,   "Uniform"},
+    {ModelType::cosine,    "Cosine"}
   };
 
   //! Model types for command line parsing
@@ -65,7 +81,8 @@ public:
     {"sech2u",    ModelType::sech2u},
     {"sech2halo", ModelType::sech2halo},
     {"sech2mu",   ModelType::sech2mu},
-    {"uniform",   ModelType::uniform}
+    {"uniform",   ModelType::uniform},
+    {"cosine",    ModelType::cosine}
   };
   
   //! Model type for sysout display
@@ -633,6 +650,222 @@ public:
     // H.
     double OJ = fabs(E + M_PI*H);
     return -0.5*Omega*norm / std::pow(OJ, 1.5);
+  }
+
+  double dfdv(const double E, const double p=0.0)
+  {
+    // The distribution function is independent of velocity, so this
+    // derivative is zero. There are delta functions at v=-Vx and
+    // v=+Vx, but those are not captured by this simple functional
+    // form.
+    return 0.0;
+  }
+
+};
+
+//! A simple consine-bell slab model with finite thickness
+class Cosine : public OneDModel
+{
+private:
+  //! Half-thickness of the uniform slab
+  double H;
+
+  //! Central density of the cosine slab
+  double rho0;
+
+  //! Potential zero point is defined at |z|=H, so that potential is
+  //! negative inside the slab and zero at the edges
+  double Phi0;
+
+  //! Velocity widths in x and y directions (for distribution function)
+  double Vx, Vy;
+
+  //! Vertical frequency for the uniform slab potential
+  double Omega;
+
+  //! Normalization constant for the distribution function
+  double norm;
+
+  //! Regularization parameter for the distribution function (if needed)
+  double epsilon;
+
+  //! Number of points in the tabulated distribution function
+  int numdf;
+
+  //! Number of quadrature points for computing DF
+  int nint;
+
+  //! Tabulated action and distribution function for interpolation
+  std::vector<double> Etab, Ftab;
+
+  //! DF table interpolation object
+  Linear1d df_interp;
+
+  //! Precompute the distribution function table for interpolation
+  void compute_model();
+
+public:
+
+  //! Null constructor with default parameters
+  Cosine(void)
+  {
+    Vx = 1.0;
+    Vy = 1.0;
+    //
+    // Units: G = Sigma_o = 1
+    //
+    H = 1.0;
+    rho0 = 1.0/H;
+    Phi0 = M_PI*H*(4.0/(M_PI*M_PI) + 1.0);
+    // ModelID = "Cosine";
+    numdf = 800;
+    nint  = 800;
+    dist_defined = true;
+    compute_model();
+  }
+
+  //! Constructor with specified half-thickness and velocity width
+  //! (same for x and y)
+  Cosine(double h, double Vx, double epsilon)
+  {
+    this->H  = h;
+    this->Vx = Vx;
+    this->Vy = Vx;
+    this->epsilon = epsilon;
+    //
+    // Units: G = Sigma_o = 1
+    //
+    rho0 = 1.0/H;
+    Phi0 = M_PI*H*(4.0/(M_PI*M_PI) + 1.0);
+    // ModelID = "Cosine";
+    numdf = 800;
+    nint  = 800;
+    dist_defined = true;
+    compute_model();
+  }
+  
+  //! Constructor with specified half-thickness and velocity widths in
+  //! x and y
+  Cosine(double h, double Vx, double Vy, double epsilon)
+  {
+    this->H  = h;
+    this->Vx = Vx;
+    this->Vy = Vy;
+    this->epsilon = epsilon;
+    //
+    // Units: G = Sigma_o = 1
+    //
+    rho0 = 1.0/H;
+    Phi0 = M_PI*H*(4.0/(M_PI*M_PI) + 1.0);
+    // ModelID = "Cosine";
+    numdf = 800;
+    nint  = 800;
+    dist_defined = true;
+    compute_model();
+  }
+  
+  void setDF(int numdf, int nint=800)
+  {
+    this->numdf = numdf;
+    this->nint  = nint;
+    compute_model();
+  }
+
+  double get_mass(const double z)
+  {
+    if (z<-H)
+      return 0.0;
+    else if (z > H)
+      return 1.0;
+    else {
+      return 0.5*rho0*(z + H + H/M_PI*sin(M_PI*z/H));
+    }
+  }
+
+  double get_density(const double z)
+  {
+    if (fabs(z) > H)
+      return 0.0;
+    else {
+      double cosfac = cos(M_PI*z/(2.0*H));
+      return rho0*cosfac*cosfac;
+    }
+  }
+
+  double get_pot(const double z)
+  {
+    // Offset defined so that potential is zero at |z|=H, and negative
+    // for |z|<H inside the slab.
+    double zz = fabs(z);
+    if (zz > H)
+      return 2.0*M_PI*rho0*H*(zz - H);
+    else
+      return 2.0*M_PI*rho0*(0.5*z*z + H*H/(M_PI*M_PI)*(1 - cos(M_PI*z/H))) - Phi0;
+  }
+
+  double get_dpot(const double z)
+  {
+    double zz = fabs(z);
+    if (zz > H)
+      return 2.0*M_PI*rho0*H*z/zz;
+    else
+      return 2.0*M_PI*rho0*(z + H/M_PI*sin(M_PI*z/H));
+  }
+  
+  double get_dpot2(const double z)
+  {
+    double zz = fabs(z);
+    if (zz > H)
+      return 0.0;
+    else
+      return 2.0*M_PI*rho0*(1 + cos(M_PI*z/H));
+  }
+
+  void get_pot_dpot(const double z, double& p, double& dp)
+  {
+    double zz = fabs(z);
+    if (zz > H) {
+      p  = 2.0*M_PI*rho0*H*(zz - H);
+      dp = 2.0*M_PI*rho0*H*z/zz;
+    } else {
+      p  = 2.0*M_PI*rho0*(0.5*z*z + H*H/(M_PI*M_PI)*(1 - cos(M_PI*z/H))) - Phi0;
+      dp = 2.0*M_PI*rho0*(z + H/M_PI*sin(M_PI*z/H));
+    }
+  }
+
+  double get_mass(const double x, const double y, const double z)
+  {
+    return get_mass(z);
+  }
+
+  double get_density(const double x, const double y, const double z)
+  {
+    return get_density(z);
+  }
+
+  double get_pot(const double x, const double y, const double z)
+  {
+    return get_pot(z);
+  }
+
+  double get_min_radius(void)   { return 0.0; }
+  double get_max_radius(void)   { return H;   }
+  double get_scale_height(void) { return H;   }
+
+  double distf(const double E, const double p=0.0)
+  {
+    if (E>=0.0)
+      return 0.0;
+    else
+      return df_interp.eval(E);
+  }
+
+  double dfde(const double E, const double p=0.0)
+  {
+    if (E>=0.0)
+      return 0.0;
+    else
+      return df_interp.deriv(E);
   }
 
   double dfdv(const double E, const double p=0.0)

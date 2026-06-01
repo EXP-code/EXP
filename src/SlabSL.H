@@ -62,6 +62,9 @@
     @param samplesz integer number of subsample bins (default: 0,
     no subsampling). Must be greater than 0 when `nint>0`.
 
+    @param orthochk boolean flag to compute orthogonality matrix for the
+    basis (default false).  For debugging only; set to false for production.
+
     @param cachename is the name of the basis cache file.  This is a
     required parameter.
 */
@@ -282,6 +285,9 @@ protected:
 
   //! Valid keys for YAML configurations
   static const std::set<std::string> valid_keys;
+
+  //! Print orthogonality matrix for debugging
+  bool orthochk = false;
 
 public:
 
