@@ -3837,13 +3837,13 @@ namespace BasisClasses
     "type",
     "knots",
     "verbose",
-    "check",
     "method",
     "no_even",
     "no_odd",
     "self_consistent",
     "pcavar",
     "samplesz",
+    "orthochk",
     "cachename"
   };
 
@@ -3916,7 +3916,7 @@ namespace BasisClasses
 
       if (conf["knots"])      knots = conf["knots"].as<int>();
 
-      if (conf["check"])      check = conf["check"].as<bool>();
+      if (conf["orthochk"])   check = conf["orthochk"].as<bool>();
 
       if (conf["pcavar"])    pcavar = conf["pcavar"].as<bool>();
       if (conf["subsamp"])    sampT = conf["samplesz"].as<int>();
@@ -4552,7 +4552,7 @@ namespace BasisClasses
     "nmaxz",
     "knots",
     "verbose",
-    "check",
+    "orthochk",
     "method",
     "pcavar",
     "subsamp",
@@ -4625,7 +4625,7 @@ namespace BasisClasses
       
       if (conf["knots"])      knots  = conf["knots"   ].as<int>();
 
-      if (conf["check"])      check  = conf["check"   ].as<bool>();
+      if (conf["orthochk"])   check  = conf["orthochk"].as<bool>();
 
       if (conf["pcavar"])     pcavar = conf["pcavar"  ].as<bool>();
       if (conf["subsamp"])    sampT  = conf["subsamp" ].as<int>();

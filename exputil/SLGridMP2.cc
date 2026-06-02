@@ -2066,6 +2066,11 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 
   slab  = SlabModel::createModel(type);
 
+  if (myid==0) {
+    std::cout << "---- SLGridSlab::SLGridSlab: using slab model <"
+	      << slab->ID() << ">" << std::endl;
+  }
+
   poffset = slab->pot((1.0+ZEND)*zmax);
 
   tbdbg   = VERBOSE;

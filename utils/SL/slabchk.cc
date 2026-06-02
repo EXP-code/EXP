@@ -9,11 +9,12 @@
 #include "gaussQ.H"
 #include "SLGridMP2.H"
 #include "Model1d.H"
+#include "numerical.H"
 
 int 
 main(int argc, char** argv)
 {
-  double H, zmax, zend, sigma;
+  double H, zmax, zend, sigma, eps;
   int kx, nmax, knots, numz, nfid;
   std::string model, filename;
 
@@ -36,8 +37,10 @@ main(int argc, char** argv)
      cxxopts::value<double>(zmax)->default_value("10.0"))
     ("s,sigma","Velocity dispersion for model",
      cxxopts::value<double>(sigma)->default_value("1.0"))
-    ("d,zend",   "potential offset",
+    ("d,zend",  "potential offset",
      cxxopts::value<double>(zend)->default_value("0.0"))
+    ("e,eps",   "edge offset for basis and sampling",
+     cxxopts::value<double>(eps)->default_value("1.0e-3"))
     ("k,knots", "Number of Legendre integration knots",
      cxxopts::value<int>(knots)->default_value("40"))
     ("j,ncheck", "Order of coefficient to check for orthogonality",
@@ -78,9 +81,9 @@ main(int argc, char** argv)
   if (mtype == OneDModel::ModelType::uniform) {
     
     std::cout << "Harmonic potential: setting scale height to "
-	      << H << " and Zmax to " << H*0.999 << std::endl;
+	      << H << " and Zmax to " << H*(1.0 - eps) << std::endl;
     mdl = std::make_shared<Uniform>(H, sigma, sigma);
-    zmax  = H*0.999;
+    zmax  = H*(1.0 - eps);
     mname = "uniform";
   }
   else if (mtype == OneDModel::ModelType::cosine) {
@@ -89,7 +92,7 @@ main(int argc, char** argv)
 	      << H << " and Zmax to " << H*0.999 << std::endl;
     mdl = std::make_shared<Cosine>(H, sigma, sigma);
     zmax  = H*0.999;
-    mname = "uniform";
+    mname = "cosine";
   } else if (mtype == OneDModel::ModelType::sech2mu) {
     
     std::cout << "Sech2 potential: using scale height " << H << std::endl;
@@ -112,36 +115,35 @@ main(int argc, char** argv)
   std::mt19937 gen(rd());
   std::uniform_real_distribution<> dis(0.0, 1.0);
 
-  auto sample = [&dis, &gen, &H, &mtype]()
+  auto sample = [&dis, &gen, &H, &eps, &mtype]()
   {
     if (mtype == OneDModel::ModelType::uniform) {
       return H*(2.0*dis(gen) - 1.0);
-    } else if (mtype == OneDModel::ModelType::cosine) {
-      double m = dis(gen);
-      double z = -H + 2.0*H*m;
+    }
+    else if (mtype == OneDModel::ModelType::cosine) {
+      // The cumulative mass profile for the cosine bell model is:
+      //
+      auto M = [&H](double z) -> double {
+	return 0.5/H*(z + H + H/M_PI*sin(M_PI*z/H));
+      };
 
-      auto M = [&m, &H](double z) {
+      // Generate a random mass and invert M(z) using Brent's method to get z
+      //
+      double del  = 1.0 - eps;
+      double Mbot = M(-H*del), Mtop = M(H*del);
+      double m = Mbot + (Mtop - Mbot)*dis(gen);
+
+      auto R = [&m, &H](double z) -> double {
 	return 0.5/H*(z + H + H/M_PI*sin(M_PI*z/H)) - m;
       };
 
-      auto dMdz = [&H](double z) {
-	return 0.5/H*(1.0 + cos(M_PI*z/H));
-      };
-
-      // Invert M(z) using Newton's method
-      //
-      double z0 = z;
-      for (int i=0; i<40; i++) {
-	double f = M(z0);
-	double df = dMdz(z0);
-	if (fabs(f) < 1e-10) break;
-	z0 -= f/df;
-      }
-      return z0;
-    } else if (mtype == OneDModel::ModelType::sech2mu) {
+      return zbrent(R, -H*del, H*del, 1e-10);
+    }
+    else if (mtype == OneDModel::ModelType::sech2mu) {
       double m = dis(gen);
       return 0.5*H*log(m/(1.0 - m));
-    } else {
+    }
+    else {
       throw std::runtime_error("Invalid model type for sampling");
     }
   };
