@@ -450,8 +450,12 @@ void SlabSL::determine_coefficients(void)
   // Only used if self_consistent is false to ensure that coefficients
   // are only computed once (at the first time step)
   //
-  if (not self_consistent and firstime_coef) expcofF = expccof[0];
-  firstime_coef = false;
+  if (not self_consistent and firstime_coef) {
+    if (multistep==0 or mlevel==multistep) {
+      expcofF = expccof[0];
+      firstime_coef = false;
+    }
+  }
 }
 
 void * SlabSL::determine_coefficients_thread(void * arg)
