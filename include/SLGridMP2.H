@@ -106,6 +106,9 @@ private:
   static double Lalpha;
   //@}
 
+  //! Equilibrium model instance
+  std::shared_ptr<AxiSymModel> model;
+
 public:
 
   //! Flag for MPI enabled (default: 0=off)
@@ -247,6 +250,9 @@ protected:
   //! For cache identification
   std::string id;
 
+  //! Potential offset
+  double poffset = 0.0;
+
 public:
 
   //! Factory constructor
@@ -263,6 +269,10 @@ public:
 
   //! Get model ID
   std::string ID() const { return id; }
+
+  //! Update offset
+  void setOffset(double z0) { poffset = pot(z0); }
+
 };
 
 //! Slab (one-dimensional) SL grid class
@@ -407,6 +417,9 @@ private:
 
   //! Default cache file name
   static const std::string default_cache;
+
+  //! Equilibrium model instance
+  std::shared_ptr<SlabModel> slab;
 
 public:
 

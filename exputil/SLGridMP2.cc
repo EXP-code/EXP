@@ -44,7 +44,7 @@ typedef int	integer;
 MPI_Status status;
 
 //! Target model for slab SL
-std::shared_ptr<SlabModel> slab;
+std::shared_ptr<SlabModel> slab0;
 
 extern "C" {
   int sledge_(logical* job, doublereal* cons, logical* endfin, 
@@ -107,16 +107,16 @@ extern "C" {
 }
 
 
-static std::shared_ptr<AxiSymModel> model;
+static std::shared_ptr<AxiSymModel> model0;
 
 double sphpot(double r)
 {
-  return model->get_pot(r);
+  return model0->get_pot(r);
 }
 
 double sphdpot(double r)
 {
-  return model->get_dpot(r);
+  return model0->get_dpot(r);
 }
 
 double sphdens(double r)
@@ -126,7 +126,7 @@ double sphdens(double r)
   //        |       +--- This begins the true density profile
   //        |       |
   //        v       v
-  return 4.0*M_PI * model->get_density(r);
+  return 4.0*M_PI * model0->get_density(r);
 }
 
 // Use entire grid for l<Lswitch
@@ -160,6 +160,8 @@ SLGridSph::SLGridSph(std::string modelname,
   else throw std::runtime_error("SLGridSph: you must specify a cachename");
   
   model    = SphModTblPtr(new SphericalModelTable(model_file_name, DIVERGE, DFAC));
+  model0   = model;
+
   tbdbg    = VERBOSE;
   diverge  = DIVERGE;
   dfac     = DFAC;
@@ -1846,8 +1848,6 @@ double SLGridSlab::ZEND  = 0.0;	// Offset on potential zero
 
 static double KKZ;
 
-static double poffset=0.0;
-
 // Isothermal slab with G = M = 1
 //
 class IsothermalSlab : public SlabModel
@@ -2065,13 +2065,14 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
   zmax = ZMAX;
 
   slab  = SlabModel::createModel(type);
+  slab0 = slab;
 
   if (myid==0) {
     std::cout << "---- SLGridSlab::SLGridSlab: using slab model <"
 	      << slab->ID() << ">" << std::endl;
   }
 
-  poffset = slab->pot((1.0+ZEND)*zmax);
+  slab->setOffset((1.0+ZEND)*zmax);
 
   tbdbg   = VERBOSE;
 
@@ -3776,8 +3777,8 @@ extern "C" int coeff_(doublereal* x, doublereal* px, doublereal* qx,
 
   if (sl_dim==1) {		// 1-d slab
 
-    f   = slab->pot(*x);
-    rho = slab->dens(*x);
+    f   = slab0->pot(*x);
+    rho = slab0->dens(*x);
 
     *px = f*f;
     *qx = (KKZ*KKZ*f - rho)*f;
