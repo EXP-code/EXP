@@ -16,7 +16,7 @@
 // Global symbols for slab construction
 //
 __device__ __constant__
-int slabNumX, slabNumY, slabNumZ, slabNX, slabNY, slabNZ, slabNdim, slabNum;
+int slabNumX, slabNumY, slabNumZ, slabNX, slabNY, slabNZ, slabNum;
 
 __device__ __constant__
 bool slabNoEven, slabNoOdd;
@@ -70,7 +70,6 @@ void testConstantsSlab()
   printf("-------------------------\n");
   printf("---SlabBasis constants---\n");
   printf("-------------------------\n");
-  printf("   Ndim   = %d\n", slabNdim );
   printf("   Numx   = %d\n", slabNumX );
   printf("   Numy   = %d\n", slabNumY );
   printf("   Numz   = %d\n", slabNumZ );
@@ -213,10 +212,6 @@ void SlabSL::initialize_constants()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabNZ");
 
-  cuda_safe_call(cudaMemcpyToSymbol(slabNdim, &jmax, sizeof(int),
-				    size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying slabNdim");
-
   cuda_safe_call(cudaMemcpyToSymbol(slabNum, &f.numr, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabNum");
@@ -230,6 +225,7 @@ void SlabSL::initialize_constants()
 		 __FILE__, __LINE__, "Error copying slabNoOdd");
 
   // Coordinate map
+  //
   std::map<std::string, int> CoordMap =
     {
       {"tanh"  , 0},
