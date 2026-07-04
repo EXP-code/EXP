@@ -401,6 +401,29 @@ int main(int argc, char* argv[])
     vm = options.parse(argc, argv);
   } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
+
+    // Append custom examples
+    std::cout << R"(
+Examples:
+  Convert a standard EXP input body file nameed 'mybods.bods' to hdf5 format
+    $ hdf5bods --to_hdf5 -i mybods
+  The resulting HDF5 file using float32 internally will be called 'mybods.h5'
+
+  Do the same conversion but use full double precision
+    $ hdf5bods --to_hdf5 --double -i mybods
+  The resulting HDF5 file will use float64 internally
+
+  Convert the HDF5 file back to the standard EXP ascii format:
+    $ hdf5bods --to_ascii -i input
+
+  The suffix on input can be customized.  For example, the following converts
+  a standard EXP input body file nameed 'mybods.asc' to hdf5 format
+    $ hdf5bods --to_hdf5 --suffix=asc -i mybods
+  The resulting HDF5 file using float32 format will be called 'mybods.h5'
+
+)" << std::endl;
+
+
     exit(-1);
   }
 
