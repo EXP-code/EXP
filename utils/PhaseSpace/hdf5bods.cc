@@ -490,7 +490,7 @@ int main(int argc, char* argv[])
   
   options.add_options()
     ("i,input",   "Input prefix", cxxopts::value<std::string>(prefix)->default_value("particles"))
-    ("o,output",  "Output prefix (optional, otherwise input prefix is used)", cxxopts::value<std::string>(prefix))
+    ("o,output",  "Output prefix (optional, otherwise input prefix is used)", cxxopts::value<std::string>(output))
     ("a,suffix",  "Input suffix", cxxopts::value<std::string>(suffix)->default_value("bods"))
     ("t,threads", "Number of OpenMP threads (default: max available)", cxxopts::value<int>(num_threads)->default_value(std::to_string(num_threads)))
     ("roundtrip", "Perform round-trip conversion (ASCII -> HDF5 -> ASCII)")
