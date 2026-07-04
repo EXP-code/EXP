@@ -1,4 +1,4 @@
-﻿/*
+/*
 Draft EXP ascii particle phase-space data HDF5 converter
 
 This is a possible template for implementing HDF5 input files for
