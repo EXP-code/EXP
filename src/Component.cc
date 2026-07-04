@@ -1782,12 +1782,12 @@ void Component::read_bodies_and_distribute_hdf5(void)
       kmin = std::min<unsigned long>(kmin, p.second->indx);
       kmax = std::max<unsigned long>(kmax, p.second->indx);
     }
-    cout << "read_bodies_and_distribute_ascii: process " << myid 
+    cout << "read_bodies_and_distribute_hdf5: process " << myid 
 	 << " name=" << name << " bodies [" << kmin << ", "
 	 << kmax << "], [" << imin << ", " << imax << "]"
 	 << " #=" << particles.size() << endl;
   } else {
-    cout << "read_bodies_and_distribute_ascii: process " << myid 
+    cout << "read_bodies_and_distribute_hdf5: process " << myid 
 	 << " name=" << name
 	 << " #=" << particles.size() << endl;
   }
