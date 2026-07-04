@@ -14,9 +14,11 @@ To compile this code, you need to have HighFive and HDF5 development
 libraries installed.  It also uses the 'cxxopts.H' and 'ScopeTimer.H'
 which need to be local.
 
-Example compilation command for Ubuntu/Debian systems:
+Example standalone compilation command for Ubuntu/Debian systems:
 
-g++ -std=c++17 -I/usr/include/hdf5/serial exp2hdf5.cc -o exp2hdf5 -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5_hl -lhdf5 -Wl,-rpath,/usr/lib/x86_64-linux-gnu/hdf5/serial
+g++ -std=c++17 -I/usr/include/hdf5/serial hdf5bods.cc -o hdf5bods -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5_hl -lhdf5 -Wl,-rpath,/usr/lib/x86_64-linux-gnu/hdf5/serial
+
+It is currently build in the utils/PhaseSpace directory of the EXP source tree.
 
 Key features
 ------------
@@ -65,14 +67,20 @@ it.
 */
 
 // C++ std
+#include <filesystem>
 #include <iostream>
-#include <variant>
-#include <chrono>
-#include <vector>
+#include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <chrono>
+#include <vector>
 #include <stdexcept>
-#include <filesystem>
+#include <variant>
+#include <memory>
+#include <typeinfo>
+
+// For OpenMP parallelization
+#include <omp.h>
 
 // HighFive
 #include <highfive/H5File.hpp>
@@ -105,11 +113,47 @@ struct ParticleDataTemplate
   size_t num_aux_floats = 0;
 };
 
-// Read ASCII and write HDF5 with specified precision
+// Helper: Parse a single line of particle data
 template<typename T>
-void ascii_to_hdf5_impl(const std::string& ascii_file, 
-                        const std::string& hdf5_file,
-                        FloatPrecision precision)
+void parse_particle_line(const std::string& line,
+                         int particle_idx,
+                         int num_aux_ints,
+                         int num_aux_floats,
+                         ParticleDataTemplate<T>& data)
+{
+  std::istringstream iss(line);
+  T val;
+
+  // Parse core PSP fields
+  if (!(iss >> data.m[particle_idx] 
+            >> data.x[particle_idx] >> data.y[particle_idx] >> data.z[particle_idx]
+            >> data.u[particle_idx] >> data.v[particle_idx] >> data.w[particle_idx])) {
+    throw std::runtime_error("Failed to parse core fields at particle " + 
+                             std::to_string(particle_idx));
+  }
+
+  // Parse auxiliary integer fields
+  for (int j = 0; j < num_aux_ints; ++j) {
+    if (!(iss >> data.aux_ints[j][particle_idx])) {
+      throw std::runtime_error("Failed to parse aux int at particle " + 
+                               std::to_string(particle_idx));
+    }
+  }
+
+  // Parse auxiliary float fields
+  for (int j = 0; j < num_aux_floats; ++j) {
+    if (!(iss >> data.aux_floats[j][particle_idx])) {
+      throw std::runtime_error("Failed to parse aux float at particle " + 
+                               std::to_string(particle_idx));
+    }
+  }
+}
+
+// Read entire ASCII file into memory
+std::vector<std::string> read_ascii_lines(const std::string& ascii_file,
+                                          int& num_particles,
+                                          int& num_aux_ints,
+                                          int& num_aux_floats)
 {
   std::ifstream infile(ascii_file);
   if (!infile.is_open()) {
@@ -117,7 +161,6 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
   }
 
   // Read header
-  int num_particles, num_aux_ints, num_aux_floats;
   if (!(infile >> num_particles >> num_aux_ints >> num_aux_floats)) {
     throw std::runtime_error("Failed to read header from ASCII file");
   }
@@ -126,6 +169,39 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
   if (num_particles <= 0 || num_aux_ints < 0 || num_aux_floats < 0) {
     throw std::runtime_error("Invalid header values");
   }
+
+  // Read all lines
+  std::vector<std::string> lines;
+  lines.reserve(num_particles);
+  std::string line;
+  while (std::getline(infile, line)) {
+    if (!line.empty() && line[0] != '#') {  // Skip empty/comment lines
+      lines.push_back(line);
+    }
+  }
+  infile.close();
+
+  if ((int)lines.size() != num_particles) {
+    throw std::runtime_error("Mismatch between header count and actual particle count");
+  }
+
+  return lines;
+}
+
+// Read ASCII and write HDF5 with specified precision
+template<typename T>
+void ascii_to_hdf5_impl(const std::string& ascii_file, 
+                        const std::string& hdf5_file,
+                        FloatPrecision precision,
+			bool verbose)
+{
+  // Header values
+  int num_particles, num_aux_ints, num_aux_floats;
+
+  // Read all ASCII lines into memory
+  if (verbose) std::cout << "Reading ASCII file..." << std::endl;
+  std::vector<std::string> lines = read_ascii_lines(ascii_file, num_particles, 
+                                                     num_aux_ints, num_aux_floats);
 
   // Initialize particle data structure
   ParticleDataTemplate<T> data;
@@ -152,31 +228,24 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
     vec.resize(num_particles);
   }
 
-  // Read particle data
+  // Parse particle data in parallel
+  if (verbose) std::cout << "Parsing particles (parallel)..." << std::endl;
+  #pragma omp parallel for schedule(dynamic, 256) \
+      num_threads(omp_get_max_threads())
   for (int i = 0; i < num_particles; ++i) {
-    if (!(infile >> data.m[i] >> data.x[i] >> data.y[i] >> data.z[i]
-              >> data.u[i] >> data.v[i] >> data.w[i])) {
-      throw std::runtime_error("Failed to read particle data at row " + 
-                               std::to_string(i));
-    }
-
-    for (int j = 0; j < num_aux_ints; ++j) {
-      if (!(infile >> data.aux_ints[j][i])) {
-        throw std::runtime_error("Failed to read aux int field at row " + 
-                                 std::to_string(i));
-      }
-    }
-
-    for (int j = 0; j < num_aux_floats; ++j) {
-      if (!(infile >> data.aux_floats[j][i])) {
-        throw std::runtime_error("Failed to read aux float field at row " + 
-                                 std::to_string(i));
+    try {
+      parse_particle_line<T>(lines[i], i, num_aux_ints, num_aux_floats, data);
+    } catch (const std::exception& e) {
+      // Error handling in parallel region
+      #pragma omp critical
+      {
+        std::cerr << "Thread error at particle " << i << ": " << e.what() << std::endl;
       }
     }
   }
-  infile.close();
 
-  // Create HDF5 file with compression enabled
+  // Create HDF5 file with compression enabled (SEQUENTIAL - thread-safe)
+  if (verbose) std::cout << "Writing HDF5 file..." << std::endl;
   File file(hdf5_file, File::ReadWrite | File::Create | File::Truncate);
 
   // Store header information and precision metadata
@@ -202,7 +271,7 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
   props.add(Deflate(4));	// This is a good compromise between
 				// speed and compression ratio
 
-  // Write core phase-space fields
+  // Write datasets sequentially (HDF5 is not fully thread-safe for writing)
   particles_group.createDataSet("m", data.m, props);
   particles_group.createDataSet("x", data.x, props);
   particles_group.createDataSet("y", data.y, props);
@@ -223,20 +292,23 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
     particles_group.createDataSet(dset_name, data.aux_floats[j], props);
   }
 
-  std::string precision_str = (precision == FloatPrecision::FLOAT32) ? "float32" : "float64";
-  std::cout << "Successfully wrote " << num_particles << " particles to " 
-            << hdf5_file << " (" << precision_str << ")" << std::endl;
+  if (verbose) {
+    std::string precision_str = (precision == FloatPrecision::FLOAT32) ? "float32" : "float64";
+    std::cout << "Successfully wrote " << num_particles << " particles to " 
+	      << hdf5_file << " (" << precision_str << ")" << std::endl;
+  }
 }
 
 // Dispatcher function - user specifies precision
 void ascii_to_hdf5(const std::string& ascii_file, 
                    const std::string& hdf5_file,
-                   FloatPrecision precision = FloatPrecision::FLOAT64)
+                   FloatPrecision precision = FloatPrecision::FLOAT64,
+		   bool verbose = true)
 {
   if (precision == FloatPrecision::FLOAT32) {
-    ascii_to_hdf5_impl<float>(ascii_file, hdf5_file, precision);
+    ascii_to_hdf5_impl<float>(ascii_file, hdf5_file, precision, verbose);
   } else {
-    ascii_to_hdf5_impl<double>(ascii_file, hdf5_file, precision);
+    ascii_to_hdf5_impl<double>(ascii_file, hdf5_file, precision, verbose);
   }
 }
 
@@ -261,8 +333,8 @@ ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
   File file(hdf5_file, File::ReadOnly);
 
   // Read metadata
-  int num_particles = file.getAttribute("num_particles").read<int>();
-  int num_aux_ints = file.getAttribute("num_aux_ints").read<int>();
+  int num_particles  = file.getAttribute("num_particles").read<int>();
+  int num_aux_ints   = file.getAttribute("num_aux_ints").read<int>();
   int num_aux_floats = file.getAttribute("num_aux_floats").read<int>();
 
   // Auto-detect precision
@@ -272,8 +344,9 @@ ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
   } catch (...) {
     // If attribute doesn't exist, assume float64 (backward compatibility)
   }
+
   FloatPrecision precision = (precision_flag == 0) ? FloatPrecision::FLOAT32 
-                                                    : FloatPrecision::FLOAT64;
+    : FloatPrecision::FLOAT64;
 
   // Open particles group
   Group particles_group = file.getGroup("particles");
@@ -322,7 +395,8 @@ ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
 
 // Write ASCII from variant data using std::visit
 //
-void hdf5_to_ascii(const std::string& hdf5_file, const std::string& ascii_file)
+void hdf5_to_ascii(const std::string& hdf5_file, const std::string& ascii_file,
+		   bool verbose = true)
 {
   ParticleDataVariant data = read_hdf5_data(hdf5_file);
 
@@ -332,68 +406,92 @@ void hdf5_to_ascii(const std::string& hdf5_file, const std::string& ascii_file)
   }
 
   // Write header
+  //
   outfile << data.num_particles << " " << data.num_aux_ints 
           << " " << data.num_aux_floats << "\n";
+  outfile.close();  // Close header write
 
   outfile.precision(16);  // High precision for floats
 
   // Lambda visitor to handle both float and double
-  auto write_value = [](const FloatData& variant_data, size_t index) {
-    return std::visit([index](const auto& vec) { return static_cast<double>(vec[index]); },
-                      variant_data);
+  //
+  auto write_value = [](const FloatData& variant_data, size_t index)
+  {
+    return std::visit([index](const auto& vec)
+    { return static_cast<double>(vec[index]); }, variant_data);
   };
 
-  // Write particle data
-  int num_particles = data.num_particles;
-  for (int i = 0; i < num_particles; ++i) {
-    // Write core phase-space fields using visitor
-    outfile << write_value(data.m, i) << " "
-            << write_value(data.x, i) << " " 
-            << write_value(data.y, i) << " " 
-            << write_value(data.z, i) << " "
-            << write_value(data.u, i) << " " 
-            << write_value(data.v, i) << " " 
-            << write_value(data.w, i);
+  // Strategy: Pre-build all output lines in parallel, then write sequentially
+  std::vector<std::string> output_lines(data.num_particles);
+
+  #pragma omp parallel for schedule(static, 256) \
+      num_threads(omp_get_max_threads())
+  for (int i = 0; i < (int)data.num_particles; ++i) {
+    std::ostringstream oss;
+    oss.precision(16);
+
+    // Write core phase-space fields
+    oss << write_value(data.m, i) << " "
+        << write_value(data.x, i) << " " 
+        << write_value(data.y, i) << " " 
+        << write_value(data.z, i) << " "
+        << write_value(data.u, i) << " " 
+        << write_value(data.v, i) << " " 
+        << write_value(data.w, i);
 
     // Write auxiliary integer fields
     for (int j = 0; j < data.num_aux_ints; ++j) {
-      outfile << " " << data.aux_ints[j][i];
+      oss << " " << data.aux_ints[j][i];
     }
 
-    // Write auxiliary float fields using visitor
+    // Write auxiliary float fields
     for (int j = 0; j < data.num_aux_floats; ++j) {
-      outfile << " " << write_value(data.aux_floats[j], i);
+      oss << " " << write_value(data.aux_floats[j], i);
     }
-    outfile << "\n";
+
+    output_lines[i] = oss.str();
+  }
+
+  // Write all lines sequentially to avoid I/O contention
+  outfile.open(ascii_file, std::ios::app);
+  for (const auto& line : output_lines) {
+    outfile << line << "\n";
   }
   outfile.close();
 
   std::string precision_str = (data.precision == FloatPrecision::FLOAT32) 
                               ? "float32" : "float64";
-  std::cout << "Successfully wrote " << num_particles << " particles to " 
-            << ascii_file << " (" << precision_str << ")" << std::endl;
+  if (verbose)
+    std::cout << "Successfully wrote " << data.num_particles << " particles to " 
+	      << ascii_file << " (" << precision_str << ")" << std::endl;
 }
 
+// Main function with command-line parsing
+//
 int main(int argc, char* argv[])
 {
   std::string prefix = "particles", output;
   std::string suffix = "bods";
   std::string ascii_restored = "particles_restored.txt";
+  int num_threads = omp_get_max_threads();
+  bool quiet = false;
 
   // Parse command-line arguments for input/output files and mode
   //
-  cxxopts::Options options("exp2hdf5", "ASCII to HDF5 particle converter with round-trip support and precision handling");
+  cxxopts::Options options(argv[0], "ASCII to HDF5 particle converter with round-trip support and precision handling");
   
   options.add_options()
-    ("i,input", "Input prefix", cxxopts::value<std::string>(prefix)->default_value("particles"))
-    ("o,output", "Output prefix (optional, otherwise input prefix is used)", cxxopts::value<std::string>(prefix))
-    ("a,suffix", "Input suffix", cxxopts::value<std::string>(suffix)->default_value("bods"))
+    ("i,input",   "Input prefix", cxxopts::value<std::string>(prefix)->default_value("particles"))
+    ("o,output",  "Output prefix (optional, otherwise input prefix is used)", cxxopts::value<std::string>(prefix))
+    ("a,suffix",  "Input suffix", cxxopts::value<std::string>(suffix)->default_value("bods"))
+    ("t,threads", "Number of OpenMP threads (default: max available)", cxxopts::value<int>(num_threads)->default_value(std::to_string(num_threads)))
     ("roundtrip", "Perform round-trip conversion (ASCII -> HDF5 -> ASCII)")
-    ("verify", "Verify that the restored ASCII file matches the original in 'roundtrip' mode")
-    ("to_hdf5", "Convert ASCII to HDF5")
-    ("double", "Use double precision for HDF5 output (float is default)")
-    ("to_ascii", "Convert HDF5 to ASCII");
-    ("h,help", "Print usage");
+    ("verify",    "Verify that the restored ASCII file matches the original in 'roundtrip' mode")
+    ("to_hdf5",   "Convert ASCII to HDF5")
+    ("double",    "Use double precision for HDF5 output (float is default)")
+    ("to_ascii",  "Convert HDF5 to ASCII")
+    ("q,quiet",   "Suppress verbose output")
+    ("h,help",    "Print usage");
 
   cxxopts::ParseResult vm;
 
@@ -401,16 +499,22 @@ int main(int argc, char* argv[])
     vm = options.parse(argc, argv);
   } catch (cxxopts::OptionException& e) {
     std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
+  }
+
+  if (vm.count("help")) {
+    std::cout << options.help() << std::endl;
 
     // Append custom examples
     std::cout << R"(
 Examples:
+
   Convert a standard EXP input body file nameed 'mybods.bods' to hdf5 format
     $ hdf5bods --to_hdf5 -i mybods
   The resulting HDF5 file using float32 internally will be called 'mybods.h5'
 
-  Do the same conversion but use full double precision
-    $ hdf5bods --to_hdf5 --double -i mybods
+  Do the same conversion but use full double precision without being chatty
+    $ hdf5bods --quiet --to_hdf5 --double -i mybods
   The resulting HDF5 file will use float64 internally
 
   Convert the HDF5 file back to the standard EXP ascii format:
@@ -421,23 +525,34 @@ Examples:
     $ hdf5bods --to_hdf5 --suffix=asc -i mybods
   The resulting HDF5 file using float32 format will be called 'mybods.h5'
 
+  Test round-trip conversion and verify that the restored ASCII file matches the
+  original:
+    $ hdf5bods --roundtrip --verify -i mybods
+
 )" << std::endl;
 
-
-    exit(-1);
-  }
-
-  if (vm.count("help")) {
-    std::cout << options.help() << std::endl;
     return 0;
   }
+
+  if (vm.count("quiet")) {
+    quiet = true;
+  }
+
+  if (vm.count("threads")) {
+    omp_set_num_threads(num_threads);
+  }
+  
+  if (!quiet)
+    std::cout << "=== Using " << num_threads << " OpenMP threads ==="
+	      << std::endl;
 
   // This is for testing and timing
   //
   if (vm.count("roundtrip")) {
 
     // Time the whole test
-    ScopeTimer timer("full test");
+    std::unique_ptr<ScopeTimer> time_ptr;
+    if (!quiet) time_ptr = std::make_unique<ScopeTimer>("full test");
 
     // Filenames
     std::string ascii = prefix + "." + suffix;
@@ -449,22 +564,25 @@ Examples:
       // Convert to HDF5 with float32 precision
       std::cout << "=== Converting ASCII to HDF5 (float32) ===" << std::endl;
       {
-	ScopeTimer timer("float 32 conversion");
-	ascii_to_hdf5(ascii, h5_32, FloatPrecision::FLOAT32);
+	std::unique_ptr<ScopeTimer> time_ptr;
+	if (!quiet) time_ptr = std::make_unique<ScopeTimer>("float 32 conversion");
+	ascii_to_hdf5(ascii, h5_32, FloatPrecision::FLOAT32, !quiet);
       }
 
       // Convert to HDF5 with float64 precision
       std::cout << "\n=== Converting ASCII to HDF5 (float64) ===" << std::endl;
       {
-	ScopeTimer timer("float 64 conversion");
-	ascii_to_hdf5(ascii, h5_64, FloatPrecision::FLOAT64);
+	std::unique_ptr<ScopeTimer> time_ptr;
+	if (!quiet) time_ptr = std::make_unique<ScopeTimer>("float 64 conversion");
+	ascii_to_hdf5(ascii, h5_64, FloatPrecision::FLOAT64, !quiet);
       }
       
       // Round-trip with float64 version
       std::cout << "\n=== Converting HDF5 (float64) back to ASCII ===" << std::endl;
       {
-	ScopeTimer timer("hdf5 to ascii");
-	hdf5_to_ascii(h5_64, rest);
+	std::unique_ptr<ScopeTimer> time_ptr;
+	if (!quiet) time_ptr = std::make_unique<ScopeTimer>("hdf5 to ascii");
+	hdf5_to_ascii(h5_64, rest, !quiet);
       }
       
       std::cout << "\n=== Round-trip conversion complete! ===" << std::endl;
@@ -575,18 +693,20 @@ Examples:
 
   // Production mode: convert ASCII to HDF5 or vice versa based on
   // mode selection
-  
-if (vm.count("to_hdf5")) {
-    ScopeTimer timer("conversion to hdf5");
+  //
+  if (vm.count("to_hdf5")) {
+    std::unique_ptr<ScopeTimer> time_ptr;
+    if (!quiet) time_ptr = std::make_unique<ScopeTimer>("conversion to hdf5");
     std::string ascii = prefix + "." + suffix;
     std::string ofile = prefix + ".h5";
     if (vm.count("output")) ofile = output + ".h5";
     if (vm.count("double"))
-      ascii_to_hdf5(ascii, ofile, FloatPrecision::FLOAT64);
+      ascii_to_hdf5(ascii, ofile, FloatPrecision::FLOAT64, !quiet);
     else
-      ascii_to_hdf5(ascii, ofile, FloatPrecision::FLOAT32);
+      ascii_to_hdf5(ascii, ofile, FloatPrecision::FLOAT32, !quiet);
   } else if (vm.count("to_ascii")) {
-    ScopeTimer timer("conversion to ascii");
+    std::unique_ptr<ScopeTimer> time_ptr;
+    if (!quiet) time_ptr = std::make_unique<ScopeTimer>("conversion to ascii");
     std::string ifile = prefix + ".h5";
     std::string ofile = prefix + "." + suffix;
     hdf5_to_ascii(ifile, ofile);
