@@ -1566,9 +1566,12 @@ void Component::read_bodies_and_distribute_hdf5(void)
     // Fetch the dimensions (e.g., [rows, cols])
     size_t total = dataset.getSpace().getDimensions()[0];
 
+    if (offset >= total) {
+      throw std::runtime_error("Component ERROR: dataset <" + name + "> shorter than expected");
+    }
+
     // Sanity check to ensure we don't read beyond the dataset
     size_t current = std::min(batch, total - offset);
-
     // Wrap returned vector in FloatData
     if (precision_flag == 0) {
       return FloatData(dataset.select({offset}, {current}).read<std::vector<float>>());
