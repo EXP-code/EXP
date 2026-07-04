@@ -520,7 +520,7 @@ int main(int argc, char* argv[])
     std::cout << R"(
 Examples:
 
-  Convert a standard EXP input body file nameed 'mybods.bods' to hdf5 format
+  Convert a standard EXP input body file named 'mybods.bods' to HDF5 format
     $ hdf5bods --to_hdf5 -i mybods
   The resulting HDF5 file using float32 internally will be called 'mybods.h5'
 
