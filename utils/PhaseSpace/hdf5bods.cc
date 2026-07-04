@@ -272,7 +272,9 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
 
   // Define compression filters
   DataSetCreateProps props;
-  props.add(Chunking(std::vector<hsize_t>{(hsize_t)std::max(num_particles / 10, 1024)}));
+  hsize_t chunk = static_cast<hsize_t>(std::max(num_particles / 10, 1024));
+  if (chunk > static_cast<hsize_t>(num_particles)) chunk = static_cast<hsize_t>(num_particles);
+  props.add(Chunking(std::vector<hsize_t>{chunk}));
   props.add(Shuffle());
   props.add(Deflate(4));	// This is a good compromise between
 				// speed and compression ratio
