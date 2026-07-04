@@ -532,7 +532,7 @@ Examples:
     $ hdf5bods --to_ascii -i input
 
   The suffix on input can be customized.  For example, the following converts
-  a standard EXP input body file nameed 'mybods.asc' to hdf5 format
+  a standard EXP input body file named 'mybods.asc' to HDF5 format
     $ hdf5bods --to_hdf5 --suffix=asc -i mybods
   The resulting HDF5 file using float32 format will be called 'mybods.h5'
 
