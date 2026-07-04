@@ -334,20 +334,22 @@ struct ParticleDataVariant
 // Detect float precision by inspecting dataset type
 FloatPrecision detect_precision(const DataSet& dataset)
 {
-  auto datatype = dataset.getDataType();
-  auto class_type = datatype.getClass();
+  const auto datatype = dataset.getDataType();
+  if (datatype.getClass() != DataTypeClass::Float) {
+    throw std::runtime_error("Unexpected dataset type for precision detection (expected float)");
+  }
 
   // Get the size in bytes
-  size_t type_size = datatype.getSize();
+  const size_t type_size = datatype.getSize();
 
   // Float32 is 4 bytes, Float64 is 8 bytes
   if (type_size == 4) {
     return FloatPrecision::FLOAT32;
   } else if (type_size == 8) {
     return FloatPrecision::FLOAT64;
-  } else {
-    throw std::runtime_error("Unexpected float type size: " + std::to_string(type_size));
   }
+
+  throw std::runtime_error("Unexpected float type size: " + std::to_string(type_size));
 }
 
 
