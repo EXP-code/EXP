@@ -1614,15 +1614,15 @@ void Component::read_bodies_and_distribute_hdf5(void)
     w = read_dataset("w", offset, nbodies_table[0]);
 
     // Read auxiliary integer fields
-    aux_ints.resize(nbodies_table[0]);
+    aux_ints.resize(niattrib);
     for (int j = 0; j < niattrib; ++j) {
       std::string dset_name = "aux_int_" + std::to_string(j);
-      aux_ints[j] = particles_group.getDataSet(dset_name).
-	select({offset}, {nbodies_table[0]}).read<std::vector<int>>();
+      aux_ints[j] = particles_group.getDataSet(dset_name)
+        .select({offset}, {nbodies_table[0]}).read<std::vector<int>>();
     }
 
     // Read auxiliary float fields
-    aux_floats.resize(nbodies_table[0]);
+    aux_floats.resize(ndattrib);
     for (int j = 0; j < ndattrib; ++j) {
       std::string dset_name = "aux_float_" + std::to_string(j);
       aux_floats[j] = read_dataset(dset_name, offset, nbodies_table[0]);
