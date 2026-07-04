@@ -711,7 +711,7 @@ Examples:
     std::string ofile = prefix + "." + suffix;
     hdf5_to_ascii(ifile, ofile);
   } else {
-    std::cerr << "No conversion mode specified. Use --ascii_to_hdf5 or --hdf5_to_ascii." << std::endl;
+    std::cerr << "No conversion mode specified. Use --to_hdf5 to convert to HDF5, --to_ascii to convert from HDF5 to ascii, or the --roundtrip test." << std::endl;
     return 1;
   }
 
