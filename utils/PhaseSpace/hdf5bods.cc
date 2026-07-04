@@ -60,9 +60,9 @@ File structure in HDF5
 ├── aux_int_0, aux_int_1, ... (Datasets)
 └── aux_float_0, aux_float_1, ... (Datasets)
 
-This schemea could (should be?) changed to use the Gadget style.  On
-the other hand, this design is clean and specific to exp.  Also, users
-can easily wrie and read this with (e.g.) h5py.  I'm incliened to keep
+This schema could (should be?) changed to use the Gadget style.  On
+the other hand, this design is clean and specific to EXP.  Also, users
+can easily write and read this with (e.g.) h5py.  I'm inclined to keep
 it.
 */
 
