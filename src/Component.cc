@@ -1723,6 +1723,14 @@ void Component::read_bodies_and_distribute_hdf5(void)
 	part->vel[0] = u[icount];
 	part->vel[1] = v[icount];
 	part->vel[2] = w[icount];
+
+	for (int j=0; j<niattrib; ++j) { // Integer attributes
+	  part->iattrib[j] = aux_ints[j][icount];
+	}
+
+	for (int j=0; j<ndattrib; ++j) { // Float attributes
+	  part->dattrib[j] = aux_floats[j][icount];
+	}
 	
 	r2 = 0.0;
 	for (int k=0; k<3; k++) r2 += part->pos[k]*part->pos[k];
