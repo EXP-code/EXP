@@ -71,6 +71,7 @@ add_executable(pspmono pspmono.cc MakeModel.cc PSP.cc)
 add_executable(psp2hdf5 psp2hdf5.cc PSP.cc)
 add_executable(psporbv psporbv.cc PSP.cc)
 add_executable(hdf5bods hdf5bods.cc)
+target_include_directories(hdf5bods PUBLIC ${HighFive_SOURCE_DIR}/include)
 
 
 if(HAVE_VTK)

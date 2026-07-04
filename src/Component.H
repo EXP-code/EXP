@@ -369,6 +369,9 @@ protected:
   int  H5chunk = 4096;
   //@}
 
+  //! Detect float precision by inspecting dataset type
+  size_t detect_precision(const HighFive::DataSet& dataset);
+
 public:
 
   //! Describe the phase space coordinates

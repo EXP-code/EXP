@@ -1498,31 +1498,44 @@ void Component::read_bodies_and_distribute_init()
   }
 }
 
+// Detect float precision by inspecting dataset type
+size_t Component::detect_precision(const HighFive::DataSet& dataset)
+{
+  auto datatype = dataset.getDataType();
+  auto class_type = datatype.getClass();
+
+  // Get the size in bytes
+  size_t type_size = datatype.getSize();
+
+  // Float32 is 4 bytes, Float64 is 8 bytes
+  if (type_size == 4) {
+    return type_size;
+  } else if (type_size == 8) {
+    return type_size;
+  } else {
+    throw std::runtime_error("Unexpected float type size: " + std::to_string(type_size));
+  }
+}
+
 void Component::read_bodies_and_distribute_hdf5(void)
 {
   HighFive::File file(pfile, HighFive::File::ReadOnly);
 
-  // Read metadata (all ranks read the same metadata, but only rank 0 reads the datasets)
+  // Read metadata (all ranks read the same metadata, but only rank 0
+  // reads the datasets)
   //
   nbodies_tot  = file.getAttribute("num_particles") .read<int>();
   niattrib     = file.getAttribute("num_aux_ints")  .read<int>();
   ndattrib     = file.getAttribute("num_aux_floats").read<int>();
 
-  // Get precision flag for float datasets (0=float32, 1=float64)
-  //
-  int precision_flag = 1;  // Default to float64
-  try {
-    precision_flag = file.getAttribute("float_precision").read<int>();
-  } catch (...) {
-    std::ostringstream msg;
-    msg << "Component ERROR: 'float_precision' attribute not found in HDF5 file <"
-	<< pfile << ">. Please ensure the file has this attribute set to 0 (float32) or 1 (float64).";
-    throw std::runtime_error(msg.str());
-  }
-
   // Open particles group
   //
   HighFive::Group particles_group = file.getGroup("particles");
+
+  // Detect precision by inspecting first dataset "m"
+  //
+  HighFive::DataSet m_dataset = particles_group.getDataSet("m");
+  size_t precision  = detect_precision(m_dataset);
 
   // Variant for flexible reading and access of float or double datasets
   //
@@ -1558,7 +1571,7 @@ void Component::read_bodies_and_distribute_hdf5(void)
 
   // Lambda to read float or double based on precision flag
   //
-  auto read_dataset = [&particles_group, precision_flag]
+  auto read_dataset = [&particles_group, precision]
     (const std::string& name, size_t offset, size_t batch) -> FloatData {
     
     HighFive::DataSet dataset = particles_group.getDataSet(name);
@@ -1566,18 +1579,23 @@ void Component::read_bodies_and_distribute_hdf5(void)
     // Fetch the dimensions (e.g., [rows, cols])
     size_t total = dataset.getSpace().getDimensions()[0];
 
+    if (offset >= total) {
+      throw std::runtime_error("Component ERROR: dataset <" + name + "> shorter than expected");
+    }
+
     // Sanity check to ensure we don't read beyond the dataset
     size_t current = std::min(batch, total - offset);
-
     // Wrap returned vector in FloatData
-    if (precision_flag == 0) {
+    if (precision == 4) {
       return FloatData(dataset.select({offset}, {current}).read<std::vector<float>>());
     }
-    else {
+    else if (precision == 8) {
       return FloatData(dataset.select({offset}, {current}).read<std::vector<double>>());
     }
+    else {
+      throw std::runtime_error("Unsupported precision detected in dataset: " + name);
+    }
   };
-
 
   // Okay, now we can read the datasets and distribute particles
   // across MPI rank, following the previously established logic. The
@@ -1614,15 +1632,15 @@ void Component::read_bodies_and_distribute_hdf5(void)
     w = read_dataset("w", offset, nbodies_table[0]);
 
     // Read auxiliary integer fields
-    aux_ints.resize(nbodies_table[0]);
+    aux_ints.resize(niattrib);
     for (int j = 0; j < niattrib; ++j) {
       std::string dset_name = "aux_int_" + std::to_string(j);
-      aux_ints[j] = particles_group.getDataSet(dset_name).
-	select({offset}, {nbodies_table[0]}).read<std::vector<int>>();
+      aux_ints[j] = particles_group.getDataSet(dset_name)
+        .select({offset}, {nbodies_table[0]}).read<std::vector<int>>();
     }
 
     // Read auxiliary float fields
-    aux_floats.resize(nbodies_table[0]);
+    aux_floats.resize(ndattrib);
     for (int j = 0; j < ndattrib; ++j) {
       std::string dset_name = "aux_float_" + std::to_string(j);
       aux_floats[j] = read_dataset(dset_name, offset, nbodies_table[0]);
@@ -1686,15 +1704,15 @@ void Component::read_bodies_and_distribute_hdf5(void)
       w = read_dataset("w", offset, nbodies_table[n]);
 
       // Read auxiliary integer fields
-      aux_ints.resize(nbodies_table[n]);
+      aux_ints.resize(niattrib);
       for (int j = 0; j < niattrib; ++j) {
 	std::string dset_name = "aux_int_" + std::to_string(j);
-	aux_ints[j] = particles_group.getDataSet(dset_name).
-	  select({offset}, {nbodies_table[n]}).read<std::vector<int>>();
+	aux_ints[j] = particles_group.getDataSet(dset_name)
+	  .select({offset}, {nbodies_table[n]}).read<std::vector<int>>();
       }
 
       // Read auxiliary float fields
-      aux_floats.resize(nbodies_table[n]);
+      aux_floats.resize(ndattrib);
       for (int j = 0; j < ndattrib; ++j) {
 	std::string dset_name = "aux_float_" + std::to_string(j);
 	aux_floats[j] = read_dataset(dset_name, offset, nbodies_table[n]);
@@ -1720,6 +1738,14 @@ void Component::read_bodies_and_distribute_hdf5(void)
 	part->vel[0] = u[icount];
 	part->vel[1] = v[icount];
 	part->vel[2] = w[icount];
+
+	for (int j=0; j<niattrib; ++j) { // Integer attributes
+	  part->iattrib[j] = aux_ints[j][icount];
+	}
+
+	for (int j=0; j<ndattrib; ++j) { // Float attributes
+	  part->dattrib[j] = aux_floats[j][icount];
+	}
 	
 	r2 = 0.0;
 	for (int k=0; k<3; k++) r2 += part->pos[k]*part->pos[k];
@@ -1779,12 +1805,12 @@ void Component::read_bodies_and_distribute_hdf5(void)
       kmin = std::min<unsigned long>(kmin, p.second->indx);
       kmax = std::max<unsigned long>(kmax, p.second->indx);
     }
-    cout << "read_bodies_and_distribute_ascii: process " << myid 
+    cout << "read_bodies_and_distribute_hdf5: process " << myid 
 	 << " name=" << name << " bodies [" << kmin << ", "
 	 << kmax << "], [" << imin << ", " << imax << "]"
 	 << " #=" << particles.size() << endl;
   } else {
-    cout << "read_bodies_and_distribute_ascii: process " << myid 
+    cout << "read_bodies_and_distribute_hdf5: process " << myid 
 	 << " name=" << name
 	 << " #=" << particles.size() << endl;
   }

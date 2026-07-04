@@ -1,4 +1,4 @@
-﻿/*
+/*
 Draft EXP ascii particle phase-space data HDF5 converter
 
 This is a possible template for implementing HDF5 input files for
@@ -60,10 +60,11 @@ File structure in HDF5
 ├── aux_int_0, aux_int_1, ... (Datasets)
 └── aux_float_0, aux_float_1, ... (Datasets)
 
-This schemea could (should be?) changed to use the Gadget style.  On
-the other hand, this design is clean and specific to exp.  Also, users
-can easily wrie and read this with (e.g.) h5py.  I'm incliened to keep
-it.
+This schema is clean, to the point, and specific to EXP while vaguely
+echoing the Gadget-style.  Also, users can easily write and read this with
+h5py and we can easily update our EXP-specific IC generators to use this
+style by porting over the ascii_to_hdf5 routine().
+
 */
 
 // C++ std
@@ -230,13 +231,15 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
 
   // Parse particle data in parallel
   if (verbose) std::cout << "Parsing particles (parallel)..." << std::endl;
-  #pragma omp parallel for schedule(dynamic, 256) \
+
+  int parse_errors = 0;
+  #pragma omp parallel for schedule(dynamic, 256) reduction(+:parse_errors) \
       num_threads(omp_get_max_threads())
   for (int i = 0; i < num_particles; ++i) {
     try {
       parse_particle_line<T>(lines[i], i, num_aux_ints, num_aux_floats, data);
     } catch (const std::exception& e) {
-      // Error handling in parallel region
+      parse_errors += 1;
       #pragma omp critical
       {
         std::cerr << "Thread error at particle " << i << ": " << e.what() << std::endl;
@@ -244,6 +247,10 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
     }
   }
 
+  if (parse_errors > 0) {
+    throw std::runtime_error("Encountered " + std::to_string(parse_errors) +
+                             " particle parse errors; aborting conversion.");
+  }
   // Create HDF5 file with compression enabled (SEQUENTIAL - thread-safe)
   if (verbose) std::cout << "Writing HDF5 file..." << std::endl;
   File file(hdf5_file, File::ReadWrite | File::Create | File::Truncate);
@@ -256,17 +263,14 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
   file.createAttribute<int>("num_aux_floats", DataSpace::From(num_aux_floats))
     .write(num_aux_floats);
 
-  // Store precision type: 0 = float32, 1 = float64
-  int precision_flag = (precision == FloatPrecision::FLOAT32) ? 0 : 1;
-  file.createAttribute<int>("float_precision", DataSpace::From(precision_flag))
-    .write(precision_flag);
-
   // Create a group for particle data
   Group particles_group = file.createGroup("particles");
 
   // Define compression filters
   DataSetCreateProps props;
-  props.add(Chunking(std::vector<hsize_t>{(hsize_t)std::max(num_particles / 10, 1024)}));
+  hsize_t chunk = static_cast<hsize_t>(std::max(num_particles / 10, 1024));
+  if (chunk > static_cast<hsize_t>(num_particles)) chunk = static_cast<hsize_t>(num_particles);
+  props.add(Chunking(std::vector<hsize_t>{chunk}));
   props.add(Shuffle());
   props.add(Deflate(4));	// This is a good compromise between
 				// speed and compression ratio
@@ -327,6 +331,26 @@ struct ParticleDataVariant
   FloatPrecision precision;
 };
 
+// Detect float precision by inspecting dataset type
+FloatPrecision detect_precision(const DataSet& dataset)
+{
+  auto datatype = dataset.getDataType();
+  auto class_type = datatype.getClass();
+
+  // Get the size in bytes
+  size_t type_size = datatype.getSize();
+
+  // Float32 is 4 bytes, Float64 is 8 bytes
+  if (type_size == 4) {
+    return FloatPrecision::FLOAT32;
+  } else if (type_size == 8) {
+    return FloatPrecision::FLOAT64;
+  } else {
+    throw std::runtime_error("Unexpected float type size: " + std::to_string(type_size));
+  }
+}
+
+
 // Read HDF5 with automatic precision detection
 ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
 {
@@ -337,25 +361,21 @@ ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
   int num_aux_ints   = file.getAttribute("num_aux_ints").read<int>();
   int num_aux_floats = file.getAttribute("num_aux_floats").read<int>();
 
-  // Auto-detect precision
-  int precision_flag = 1;  // Default to float64
-  try {
-    precision_flag = file.getAttribute("float_precision").read<int>();
-  } catch (...) {
-    // If attribute doesn't exist, assume float64 (backward compatibility)
-  }
-
-  FloatPrecision precision = (precision_flag == 0) ? FloatPrecision::FLOAT32 
-    : FloatPrecision::FLOAT64;
-
   // Open particles group
   Group particles_group = file.getGroup("particles");
+
+  // Detect precision by inspecting first dataset "m"
+  DataSet m_dataset = particles_group.getDataSet("m");
+  FloatPrecision precision = detect_precision(m_dataset);
 
   ParticleDataVariant data;
   data.num_particles  = num_particles;
   data.num_aux_ints   = num_aux_ints;
   data.num_aux_floats = num_aux_floats;
   data.precision      = precision;
+
+  std::string precision_str = (precision == FloatPrecision::FLOAT32) ? "float32" : "float64";
+  std::cout << "Detected precision: " << precision_str << std::endl;
 
   // Lambda to read float or double based on precision
   auto read_dataset = [&particles_group, precision](const std::string& name) -> FloatData {
@@ -454,6 +474,9 @@ void hdf5_to_ascii(const std::string& hdf5_file, const std::string& ascii_file,
 
   // Write all lines sequentially to avoid I/O contention
   outfile.open(ascii_file, std::ios::app);
+  if (!outfile.is_open()) {
+    throw std::runtime_error("Could not open ASCII file for appending: " + ascii_file);
+  }
   for (const auto& line : output_lines) {
     outfile << line << "\n";
   }
@@ -478,11 +501,12 @@ int main(int argc, char* argv[])
 
   // Parse command-line arguments for input/output files and mode
   //
-  cxxopts::Options options(argv[0], "ASCII to HDF5 particle converter with round-trip support and precision handling");
+  cxxopts::Options options(argv[0], "ASCII \u2192 HDF5 and HDF5 \u2192 ASCII particle converter for EXP body files\n"
+			            "with built-in round-trip testing and float-size selection\n");
   
   options.add_options()
     ("i,input",   "Input prefix", cxxopts::value<std::string>(prefix)->default_value("particles"))
-    ("o,output",  "Output prefix (optional, otherwise input prefix is used)", cxxopts::value<std::string>(prefix))
+    ("o,output",  "Output prefix (optional, otherwise input prefix is used)", cxxopts::value<std::string>(output))
     ("a,suffix",  "Input suffix", cxxopts::value<std::string>(suffix)->default_value("bods"))
     ("t,threads", "Number of OpenMP threads (default: max available)", cxxopts::value<int>(num_threads)->default_value(std::to_string(num_threads)))
     ("roundtrip", "Perform round-trip conversion (ASCII -> HDF5 -> ASCII)")
@@ -505,11 +529,16 @@ int main(int argc, char* argv[])
   if (vm.count("help")) {
     std::cout << options.help() << std::endl;
 
-    // Append custom examples
+    // Append note and custom examples
     std::cout << R"(
+The best performance is achieved using the default 'float' rather than 'double'
+precision for the HDF5 file, and that should be sufficient for initial data in
+practice.  However, the round-trip conversion will be exact only if double
+precision is used.
+
 Examples:
 
-  Convert a standard EXP input body file nameed 'mybods.bods' to hdf5 format
+  Convert a standard EXP input body file named 'mybods.bods' to HDF5 format
     $ hdf5bods --to_hdf5 -i mybods
   The resulting HDF5 file using float32 internally will be called 'mybods.h5'
 
@@ -521,7 +550,7 @@ Examples:
     $ hdf5bods --to_ascii -i input
 
   The suffix on input can be customized.  For example, the following converts
-  a standard EXP input body file nameed 'mybods.asc' to hdf5 format
+  a standard EXP input body file named 'mybods.asc' to HDF5 format
     $ hdf5bods --to_hdf5 --suffix=asc -i mybods
   The resulting HDF5 file using float32 format will be called 'mybods.h5'
 
