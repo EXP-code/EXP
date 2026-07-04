@@ -230,13 +230,15 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
 
   // Parse particle data in parallel
   if (verbose) std::cout << "Parsing particles (parallel)..." << std::endl;
-  #pragma omp parallel for schedule(dynamic, 256) \
+
+  int parse_errors = 0;
+  #pragma omp parallel for schedule(dynamic, 256) reduction(+:parse_errors) \
       num_threads(omp_get_max_threads())
   for (int i = 0; i < num_particles; ++i) {
     try {
       parse_particle_line<T>(lines[i], i, num_aux_ints, num_aux_floats, data);
     } catch (const std::exception& e) {
-      // Error handling in parallel region
+      parse_errors += 1;
       #pragma omp critical
       {
         std::cerr << "Thread error at particle " << i << ": " << e.what() << std::endl;
@@ -244,6 +246,10 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
     }
   }
 
+  if (parse_errors > 0) {
+    throw std::runtime_error("Encountered " + std::to_string(parse_errors) +
+                             " particle parse errors; aborting conversion.");
+  }
   // Create HDF5 file with compression enabled (SEQUENTIAL - thread-safe)
   if (verbose) std::cout << "Writing HDF5 file..." << std::endl;
   File file(hdf5_file, File::ReadWrite | File::Create | File::Truncate);
