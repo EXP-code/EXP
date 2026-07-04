@@ -1479,11 +1479,17 @@ void Component::read_bodies_and_distribute_init()
   // Note: One might need to use H5Fis_hdf5(filename.c_str()) for
   // older HDF5 versions (< 1.12)
   
+  bool isHDF5 = false;
+
+  if (myid == 0) {
 #if H5_VERSION_GE(1, 12, 0)
-  bool isHDF5 = H5Fis_accessible(pfile.c_str(), H5P_DEFAULT) > 0;
+    isHDF5 = H5Fis_accessible(pfile.c_str(), H5P_DEFAULT) > 0;
 #else
-  bool isHDF5 = H5Fis_hdf5(pfile.c_str()) > 0;
+    isHDF5 = H5Fis_hdf5(pfile.c_str()) > 0;
 #endif
+  }
+
+  MPI_Bcast(&isHDF5, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
   
   if (isHDF5) {
     if (myid==0)
