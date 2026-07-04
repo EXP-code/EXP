@@ -60,10 +60,11 @@ File structure in HDF5
 ├── aux_int_0, aux_int_1, ... (Datasets)
 └── aux_float_0, aux_float_1, ... (Datasets)
 
-This schema could (should be?) changed to use the Gadget style.  On
-the other hand, this design is clean and specific to EXP.  Also, users
-can easily write and read this with (e.g.) h5py.  I'm inclined to keep
-it.
+This schema is clean, to the point, and specific to EXP while vaguely
+echoing the Gadget-style.  Also, users can easily write and read this with
+h5py and we can easily update our EXP-specific IC generators to use this
+style by porting over the ascii_to_hdf5 routine().
+
 */
 
 // C++ std
@@ -262,11 +263,6 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
   file.createAttribute<int>("num_aux_floats", DataSpace::From(num_aux_floats))
     .write(num_aux_floats);
 
-  // Store precision type: 0 = float32, 1 = float64
-  int precision_flag = (precision == FloatPrecision::FLOAT32) ? 0 : 1;
-  file.createAttribute<int>("float_precision", DataSpace::From(precision_flag))
-    .write(precision_flag);
-
   // Create a group for particle data
   Group particles_group = file.createGroup("particles");
 
@@ -335,6 +331,26 @@ struct ParticleDataVariant
   FloatPrecision precision;
 };
 
+// Detect float precision by inspecting dataset type
+FloatPrecision detect_precision(const DataSet& dataset)
+{
+  auto datatype = dataset.getDataType();
+  auto class_type = datatype.getClass();
+
+  // Get the size in bytes
+  size_t type_size = datatype.getSize();
+
+  // Float32 is 4 bytes, Float64 is 8 bytes
+  if (type_size == 4) {
+    return FloatPrecision::FLOAT32;
+  } else if (type_size == 8) {
+    return FloatPrecision::FLOAT64;
+  } else {
+    throw std::runtime_error("Unexpected float type size: " + std::to_string(type_size));
+  }
+}
+
+
 // Read HDF5 with automatic precision detection
 ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
 {
@@ -345,25 +361,21 @@ ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
   int num_aux_ints   = file.getAttribute("num_aux_ints").read<int>();
   int num_aux_floats = file.getAttribute("num_aux_floats").read<int>();
 
-  // Auto-detect precision
-  int precision_flag = 1;  // Default to float64
-  try {
-    precision_flag = file.getAttribute("float_precision").read<int>();
-  } catch (...) {
-    // If attribute doesn't exist, assume float64 (backward compatibility)
-  }
-
-  FloatPrecision precision = (precision_flag == 0) ? FloatPrecision::FLOAT32 
-    : FloatPrecision::FLOAT64;
-
   // Open particles group
   Group particles_group = file.getGroup("particles");
+
+  // Detect precision by inspecting first dataset "m"
+  DataSet m_dataset = particles_group.getDataSet("m");
+  FloatPrecision precision = detect_precision(m_dataset);
 
   ParticleDataVariant data;
   data.num_particles  = num_particles;
   data.num_aux_ints   = num_aux_ints;
   data.num_aux_floats = num_aux_floats;
   data.precision      = precision;
+
+  std::string precision_str = (precision == FloatPrecision::FLOAT32) ? "float32" : "float64";
+  std::cout << "Detected precision: " << precision_str << std::endl;
 
   // Lambda to read float or double based on precision
   auto read_dataset = [&particles_group, precision](const std::string& name) -> FloatData {
@@ -489,7 +501,8 @@ int main(int argc, char* argv[])
 
   // Parse command-line arguments for input/output files and mode
   //
-  cxxopts::Options options(argv[0], "ASCII to HDF5 particle converter with round-trip support and precision handling");
+  cxxopts::Options options(argv[0], "ASCII \u2192 HDF5 and HDF5 \u2192 ASCII particle converter for EXP body files\n"
+			            "with built-in round-trip testing and float-size selection\n");
   
   options.add_options()
     ("i,input",   "Input prefix", cxxopts::value<std::string>(prefix)->default_value("particles"))
@@ -516,8 +529,13 @@ int main(int argc, char* argv[])
   if (vm.count("help")) {
     std::cout << options.help() << std::endl;
 
-    // Append custom examples
+    // Append note and custom examples
     std::cout << R"(
+The best performance is achieved using the default 'float' rather than 'double'
+precision for the HDF5 file, and that should be sufficient for initial data in
+practice.  However, the round-trip conversion will be exact only if double
+precision is used.
+
 Examples:
 
   Convert a standard EXP input body file named 'mybods.bods' to HDF5 format
