@@ -376,8 +376,7 @@ ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
   data.num_aux_floats = num_aux_floats;
   data.precision      = precision;
 
-  std::string precision_str = (precision == FloatPrecision::FLOAT32) ? "float32" : "float64";
-  std::cout << "Detected precision: " << precision_str << std::endl;
+  // Precision is available in data.precision; caller decides whether to print it.
 
   // Lambda to read float or double based on precision
   auto read_dataset = [&particles_group, precision](const std::string& name) -> FloatData {
