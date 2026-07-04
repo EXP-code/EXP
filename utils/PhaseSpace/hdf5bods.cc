@@ -462,6 +462,9 @@ void hdf5_to_ascii(const std::string& hdf5_file, const std::string& ascii_file,
 
   // Write all lines sequentially to avoid I/O contention
   outfile.open(ascii_file, std::ios::app);
+  if (!outfile.is_open()) {
+    throw std::runtime_error("Could not open ASCII file for appending: " + ascii_file);
+  }
   for (const auto& line : output_lines) {
     outfile << line << "\n";
   }
