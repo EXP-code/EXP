@@ -628,8 +628,7 @@ Examples:
 
 	std::string line_orig, line_rest;
 	size_t line_num = 0;
-	bool mismatch_found = false;
-	
+
 	std::vector<double> max_diff(7, 0.0); // For m, x, y, z, u, v, w
 	std::vector<double> vec_orig(7), vec_rest(7);
 
@@ -651,7 +650,6 @@ Examples:
 	      std::cerr << "Header mismatch at line 1:\n"
 			<< "Original: " << line_orig << "\n"
 			<< "Restored: " << line_rest << "\n";
-	      mismatch_found = true;
 	      break;
 	    }
 	    
