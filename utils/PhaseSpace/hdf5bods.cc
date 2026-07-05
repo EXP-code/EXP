@@ -78,6 +78,7 @@ style by porting over the ascii_to_hdf5 routine().
 #include <chrono>
 #include <cmath>
 #include <vector>
+#include <map>
 #include <stdexcept>
 #include <variant>
 #include <memory>
