@@ -502,7 +502,6 @@ int main(int argc, char* argv[])
 {
   std::string prefix = "particles", output;
   std::string suffix = "bods";
-  std::string ascii_restored = "particles_restored.txt";
   int num_threads = omp_get_max_threads();
   bool quiet = false;
 
