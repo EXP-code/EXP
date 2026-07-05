@@ -90,6 +90,9 @@ style by porting over the ascii_to_hdf5 routine().
 #include <highfive/H5DataSet.hpp>
 #include <highfive/H5DataSpace.hpp>
 
+// Required for H5Zfilter_avail
+#include <H5Zpublic.h>
+
 // Command-line parsing
 #include "cxxopts.H"
 
@@ -97,6 +100,82 @@ style by porting over the ascii_to_hdf5 routine().
 #include "ScopeTimer.H"
 
 using namespace HighFive;
+
+
+// Factory designed to iterate across filter list available on Ubuntu
+// 26.04 LTS and other systems with HDF5 1.14.x and HighFive 2.6.x
+HighFive::DataSetCreateProps
+createFilterProps(const std::vector<hsize_t>& chunk_dims, 
+		  unsigned int filter_id,
+		  // Scale from 1 (fast) to 9 (max compression)
+		  int compression_level = 5)
+{
+  HighFive::DataSetCreateProps props;
+  props.add(HighFive::Chunking(chunk_dims));
+
+  // Best Practice: Always shuffle float/double streams BEFORE compressing 
+  // (Note: Blosc handles shuffling internally via parameters)
+  if (filter_id != 3 && filter_id != 32001) {
+    props.add(HighFive::Shuffle());
+  }
+  
+  hid_t plist_id = props.getId();
+  std::vector<unsigned int> cd_values;
+
+  switch (filter_id) {
+  case 1: // Deflate / GZIP (Built-in)
+    // Expects 1 parameter: compression level (0-9)
+    cd_values = { static_cast<unsigned int>(compression_level) };
+    break;
+    
+  case 2: // SZIP (Built-in)
+    // SZIP is complex and highly variant; HighFive includes native wrappers.
+    // For raw testing, standard pixels-per-block option is typically 16.
+    cd_values = { 141, 16 }; 
+    break;
+    
+  case 3: // Shuffle Filter alone (No trailing compression)
+    props.add(HighFive::Shuffle());
+    return props;
+    
+  case 4: // Fletcher32 Checksum alone (Data validation, not compression)
+    // Fletcher32 uses built-in ID 4 and accepts 0 configuration arguments.
+    // Call the native HDF5 library directly using HighFive's internal handle.
+    H5Pset_filter(plist_id, 4, H5Z_FLAG_OPTIONAL, 0, NULL);
+    return props;
+    
+  case 307: // BZip2
+            // Expects 1 parameter: Block size in 100KB steps (1-9)
+    cd_values = { static_cast<unsigned int>(compression_level) };
+    break;
+    
+  case 32004: // LZ4
+    // Expects 1 parameter: internal chunk/block size. 
+    // 0 falls back to the default (64KB), optimized for CPU caches.
+    cd_values = { 0 }; 
+    break;
+    
+  case 32001: // Blosc (v1 Meta-Compressor)
+    // Expects 7 parameters. Slots 0-3 are reserved.
+    // [4]=level(1-9), [5]=shuffle type(1=byte, 2=bit), [6]=codec code
+    // Codecs: 0=blosclz, 1=lz4, 2=lz4hc, 3=snappy, 4=zlib, 5=zstd
+    cd_values = { 0, 0, 0, 0, 
+		  static_cast<unsigned int>(compression_level), 
+		  1,  // 1 = Byte Shuffle (Highly recommended for float/double)
+		  1 }; // 1 = Redirect internal processing to LZ4
+    break;
+    
+  default:
+    throw std::invalid_argument("Unknown or unsupported testing filter ID requested.");
+    }
+  
+  // Pass the custom properties down to the HDF5 backend pipeline
+  if (!cd_values.empty()) {
+    H5Pset_filter(plist_id, filter_id, H5Z_FLAG_OPTIONAL, cd_values.size(), cd_values.data());
+  }
+  
+  return props;
+}
 
 // Specify floating point precision
 enum class FloatPrecision { FLOAT32, FLOAT64 };
@@ -197,6 +276,7 @@ template<typename T>
 void ascii_to_hdf5_impl(const std::string& ascii_file, 
                         const std::string& hdf5_file,
                         FloatPrecision precision,
+			unsigned filter_id,
 			bool verbose)
 {
   // Header values
@@ -267,17 +347,22 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
     .write(num_aux_floats);
 
   // Create a group for particle data
+  //
   Group particles_group = file.createGroup("particles");
 
-  // Define compression filters
-  DataSetCreateProps props;
-  hsize_t chunk = static_cast<hsize_t>(std::max(num_particles / 10, 1024));
-  if (chunk > static_cast<hsize_t>(num_particles))
-    chunk = static_cast<hsize_t>(num_particles);
-  props.add(Chunking(std::vector<hsize_t>{chunk}));
-  props.add(Shuffle());
-  props.add(Deflate(4));	// This is a good compromise between
-				// speed and compression ratio
+  // Calculate optimized, capped chunk size
+  //
+  hsize_t chunk_size = 262144; // Cachesafe cap (~2MB for double)
+  if (num_particles < chunk_size) {
+    chunk_size = std::max<hsize_t>(1024, num_particles);
+  }
+  if (chunk_size > num_particles) {
+    chunk_size = num_particles; // Absolute safety fallback
+  }
+
+  // Define compression filter
+  //
+  auto props = createFilterProps({chunk_size}, filter_id, 5);
 
   // Write datasets sequentially (HDF5 is not fully thread-safe for writing)
   particles_group.createDataSet("m", data.m, props);
@@ -311,12 +396,13 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
 void ascii_to_hdf5(const std::string& ascii_file, 
                    const std::string& hdf5_file,
                    FloatPrecision precision = FloatPrecision::FLOAT64,
+		   unsigned filter_id = 1,
 		   bool verbose = true)
 {
   if (precision == FloatPrecision::FLOAT32) {
-    ascii_to_hdf5_impl<float>(ascii_file, hdf5_file, precision, verbose);
+    ascii_to_hdf5_impl<float>(ascii_file, hdf5_file, precision, filter_id, verbose);
   } else {
-    ascii_to_hdf5_impl<double>(ascii_file, hdf5_file, precision, verbose);
+    ascii_to_hdf5_impl<double>(ascii_file, hdf5_file, precision, filter_id, verbose);
   }
 }
 
@@ -503,6 +589,7 @@ int main(int argc, char* argv[])
   std::string prefix = "particles", output;
   std::string suffix = "bods";
   int num_threads = omp_get_max_threads();
+  unsigned filter_id = 1;
   bool quiet = false;
 
   // Parse command-line arguments for input/output files and mode
@@ -511,17 +598,19 @@ int main(int argc, char* argv[])
 			            "with built-in round-trip testing and float-size selection\n");
   
   options.add_options()
-    ("i,input",   "Input prefix", cxxopts::value<std::string>(prefix)->default_value("particles"))
-    ("o,output",  "Output prefix (optional, otherwise input prefix is used)", cxxopts::value<std::string>(output))
-    ("a,suffix",  "Input suffix", cxxopts::value<std::string>(suffix)->default_value("bods"))
-    ("t,threads", "Number of OpenMP threads (default: max available)", cxxopts::value<int>(num_threads)->default_value(std::to_string(num_threads)))
-    ("roundtrip", "Perform round-trip conversion (ASCII -> HDF5 -> ASCII)")
-    ("verify",    "Verify that the restored ASCII file matches the original in 'roundtrip' mode")
-    ("to_hdf5",   "Convert ASCII to HDF5")
-    ("double",    "Use double precision for HDF5 output (float is default)")
-    ("to_ascii",  "Convert HDF5 to ASCII")
-    ("q,quiet",   "Suppress verbose output")
-    ("h,help",    "Print usage");
+    ("i,input",     "Input prefix", cxxopts::value<std::string>(prefix)->default_value("particles"))
+    ("o,output",    "Output prefix (optional, otherwise input prefix is used)", cxxopts::value<std::string>(output))
+    ("a,suffix",    "Input suffix", cxxopts::value<std::string>(suffix)->default_value("bods"))
+    ("t,threads",   "Number of OpenMP threads (default: max available)", cxxopts::value<int>(num_threads)->default_value(std::to_string(num_threads)))
+    ("f,filter",    "HDF5 filter ID to use (default: 1 = GZIP)", cxxopts::value<unsigned>(filter_id)->default_value("1"))
+    ("roundtrip",   "Perform round-trip conversion (ASCII -> HDF5 -> ASCII)")
+    ("verify",      "Verify that the restored ASCII file matches the original in 'roundtrip' mode")
+    ("to_hdf5",     "Convert ASCII to HDF5")
+    ("double",      "Use double precision for HDF5 output (float is default)")
+    ("filterlist",  "List available HDF5 filters and exit")
+    ("to_ascii",    "Convert HDF5 to ASCII")
+    ("q,quiet",     "Suppress verbose output")
+    ("h,help",      "Print usage");
 
   cxxopts::ParseResult vm;
 
@@ -569,6 +658,38 @@ Examples:
     return 0;
   }
 
+  if (vm.count("filterlist")) {
+
+    // Map of commonly registered official HDF5 Filter IDs
+    std::map<unsigned int, std::string> known_filters = {
+      {1, "Deflate / GZIP (Built-in)"},
+      {2, "SZIP (Built-in)"},
+      {3, "Shuffle (Built-in)"},
+      {4, "Fletcher32 Checksum (Built-in)"},
+      {32001, "Blosc"},
+      {32004, "LZ4"},
+      {32008, "Bitshuffle"},
+      {32013, "Zfp"},
+      {32015, "Zstd"},
+      {307, "BZip2"}
+    };
+    
+    std::cout << "Checking available HDF5 filters on your system:\n";
+    std::cout << "-----------------------------------------------\n";
+
+    for (const auto& [id, name] : known_filters) {
+      // H5Zfilter_avail returns a positive number if available, 0 if not
+      htri_t available = H5Zfilter_avail(id);
+        
+      if (available > 0) {
+	std::cout << "[AVAILABLE] ID: " << id << " -> " << name << "\n";
+      } else {
+	std::cout << "[NOT FOUND] ID: " << id << " -> " << name << "\n";
+      }
+    }
+    return 0;
+  }
+
   if (vm.count("quiet")) {
     quiet = true;
   }
@@ -601,7 +722,7 @@ Examples:
       {
 	std::unique_ptr<ScopeTimer> time_ptr;
 	if (!quiet) time_ptr = std::make_unique<ScopeTimer>("float 32 conversion");
-	ascii_to_hdf5(ascii, h5_32, FloatPrecision::FLOAT32, !quiet);
+	ascii_to_hdf5(ascii, h5_32, FloatPrecision::FLOAT32, filter_id, !quiet);
       }
 
       // Convert to HDF5 with float64 precision
@@ -609,7 +730,7 @@ Examples:
       {
 	std::unique_ptr<ScopeTimer> time_ptr;
 	if (!quiet) time_ptr = std::make_unique<ScopeTimer>("float 64 conversion");
-	ascii_to_hdf5(ascii, h5_64, FloatPrecision::FLOAT64, !quiet);
+	ascii_to_hdf5(ascii, h5_64, FloatPrecision::FLOAT64, filter_id, !quiet);
       }
       
       // Round-trip with float64 version
@@ -795,9 +916,9 @@ Examples:
     std::string ofile = prefix + ".h5";
     if (vm.count("output")) ofile = output + ".h5";
     if (vm.count("double"))
-      ascii_to_hdf5(ascii, ofile, FloatPrecision::FLOAT64, !quiet);
+      ascii_to_hdf5(ascii, ofile, FloatPrecision::FLOAT64, filter_id, !quiet);
     else
-      ascii_to_hdf5(ascii, ofile, FloatPrecision::FLOAT32, !quiet);
+      ascii_to_hdf5(ascii, ofile, FloatPrecision::FLOAT32, filter_id, !quiet);
   } else if (vm.count("to_ascii")) {
     std::unique_ptr<ScopeTimer> time_ptr;
     if (!quiet) time_ptr = std::make_unique<ScopeTimer>("conversion to ascii");
