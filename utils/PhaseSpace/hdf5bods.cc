@@ -74,6 +74,7 @@ style by porting over the ascii_to_hdf5 routine().
 #include <fstream>
 #include <sstream>
 #include <chrono>
+#include <cmath>
 #include <vector>
 #include <stdexcept>
 #include <variant>
@@ -631,6 +632,11 @@ Examples:
 
 	std::vector<double> max_diff(7, 0.0); // For m, x, y, z, u, v, w
 	std::vector<double> vec_orig(7), vec_rest(7);
+	std::vector<double> max_aux_int_diff;
+	std::vector<double> max_aux_float_diff;
+	std::vector<int> aux_int_orig, aux_int_rest;
+	std::vector<double> aux_float_orig, aux_float_rest;
+	int num_aux_ints = -1, num_aux_floats = -1;
 
 	while (std::getline(original, line_orig) && std::getline(restored, line_rest)) {
 	  ++line_num;
@@ -652,13 +658,23 @@ Examples:
 			<< "Restored: " << line_rest << "\n";
 	      break;
 	    }
+
+	    num_aux_ints = total_aux_ints_orig;
+	    num_aux_floats = total_aux_floats_orig;
+	    max_aux_int_diff.assign(num_aux_ints, 0.0);
+	    max_aux_float_diff.assign(num_aux_floats, 0.0);
+	    aux_int_orig.assign(num_aux_ints, 0);
+	    aux_int_rest.assign(num_aux_ints, 0);
+	    aux_float_orig.assign(num_aux_floats, 0.0);
+	    aux_float_rest.assign(num_aux_floats, 0.0);
 	    
 	    continue;
 	  }
 
 	  for (int i = 0; i < 7; ++i) {
-	    ss_orig >> vec_orig[i];
-	    ss_rest >> vec_rest[i];
+	    if (!(ss_orig >> vec_orig[i]) || !(ss_rest >> vec_rest[i])) {
+	      throw std::runtime_error("Failed to parse core field at line " + std::to_string(line_num));
+	    }
 	  }
 
 	  for (int i = 0; i < 7; ++i) {
@@ -666,6 +682,29 @@ Examples:
 	      max_diff[i] = std::abs(vec_orig[i] - vec_rest[i]);
 	    }
 	    
+	  }
+
+	  for (int i = 0; i < num_aux_ints; ++i) {
+	    if (!(ss_orig >> aux_int_orig[i]) || !(ss_rest >> aux_int_rest[i])) {
+	      throw std::runtime_error("Failed to parse auxiliary integer field at line " + std::to_string(line_num));
+	    }
+	  }
+
+	  for (int i = 0; i < num_aux_ints; ++i) {
+	    double diff = std::abs(static_cast<double>(aux_int_orig[i]) -
+				   static_cast<double>(aux_int_rest[i]));
+	    if (diff > max_aux_int_diff[i]) max_aux_int_diff[i] = diff;
+	  }
+
+	  for (int i = 0; i < num_aux_floats; ++i) {
+	    if (!(ss_orig >> aux_float_orig[i]) || !(ss_rest >> aux_float_rest[i])) {
+	      throw std::runtime_error("Failed to parse auxiliary float field at line " + std::to_string(line_num));
+	    }
+	  }
+
+	  for (int i = 0; i < num_aux_floats; ++i) {
+	    double diff = std::abs(aux_float_orig[i] - aux_float_rest[i]);
+	    if (diff > max_aux_float_diff[i]) max_aux_float_diff[i] = diff;
 	  }
 	}
 	
@@ -678,6 +717,28 @@ Examples:
 		  << max_diff[4] << ", "
 		  << max_diff[5] << ", "
 		  << max_diff[6] << std::endl;
+
+	std::cout << "Maximum absolute differences for auxiliary integer fields: ";
+	if (max_aux_int_diff.empty()) {
+	  std::cout << "(none)";
+	} else {
+	  for (size_t i = 0; i < max_aux_int_diff.size(); ++i) {
+	    if (i) std::cout << ", ";
+	    std::cout << max_aux_int_diff[i];
+	  }
+	}
+	std::cout << std::endl;
+
+	std::cout << "Maximum absolute differences for auxiliary float fields: ";
+	if (max_aux_float_diff.empty()) {
+	  std::cout << "(none)";
+	} else {
+	  for (size_t i = 0; i < max_aux_float_diff.size(); ++i) {
+	    if (i) std::cout << ", ";
+	    std::cout << max_aux_float_diff[i];
+	  }
+	}
+	std::cout << std::endl;
       }
 
     } catch (const std::exception& e) {
@@ -745,4 +806,3 @@ Examples:
 
   return 0;
 }
-
