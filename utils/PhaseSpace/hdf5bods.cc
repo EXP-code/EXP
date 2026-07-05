@@ -633,7 +633,7 @@ int main(int argc, char* argv[])
     ("to_hdf5",   "Convert ASCII to HDF5")
     ("double",    "Use double precision for HDF5 output (float is default)")
     ("filterlist","List available HDF5 filters and exit")
-    ("aindex",    "Input ASCII has leading particle index column; write optional HDF5 particles/index dataset")
+    ("aindex",    "Input ASCII has leading particle index column; write the particle index dataset to HDF5")
     ("to_ascii",  "Convert HDF5 to ASCII")
     ("q,quiet",   "Suppress verbose output")
     ("h,help",    "Print usage");
