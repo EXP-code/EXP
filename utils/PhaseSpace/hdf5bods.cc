@@ -78,6 +78,7 @@ style by porting over the ascii_to_hdf5 routine().
 #include <chrono>
 #include <cmath>
 #include <vector>
+#include <map>
 #include <stdexcept>
 #include <variant>
 #include <memory>
@@ -115,10 +116,7 @@ createFilterProps(const std::vector<hsize_t>& chunk_dims,
   HighFive::DataSetCreateProps props;
   props.add(HighFive::Chunking(chunk_dims));
 
-  // Best Practice: Always shuffle float/double streams BEFORE compressing 
-  // (Note: Blosc handles shuffling internally via parameters)
-  if (filter_id != 3 && filter_id != 32001) {
-    props.add(HighFive::Shuffle());
+  if (filter_id != 3 && filter_id != 4 && filter_id != 32001) {
   }
   
   hid_t plist_id = props.getId();
