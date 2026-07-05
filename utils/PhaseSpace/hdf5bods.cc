@@ -1,5 +1,5 @@
 /*
-Draft EXP ascii particle phase-space data HDF5 converter
+EXP ascii particle phase-space data HDF5 converter
 
 This is a possible template for implementing HDF5 input files for
 EXP. The code reads an ASCII file with particle data and writes it to
@@ -128,9 +128,10 @@ void parse_particle_line(const std::string& line,
   T val;
 
   // Parse core PSP fields
-  if (!(iss >> data.m[particle_idx] 
-            >> data.x[particle_idx] >> data.y[particle_idx] >> data.z[particle_idx]
-            >> data.u[particle_idx] >> data.v[particle_idx] >> data.w[particle_idx])) {
+  if (!(iss
+	>> data.m[particle_idx] 
+	>> data.x[particle_idx] >> data.y[particle_idx] >> data.z[particle_idx]
+	>> data.u[particle_idx] >> data.v[particle_idx] >> data.w[particle_idx])) {
     throw std::runtime_error("Failed to parse core fields at particle " + 
                              std::to_string(particle_idx));
   }
@@ -271,7 +272,8 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
   // Define compression filters
   DataSetCreateProps props;
   hsize_t chunk = static_cast<hsize_t>(std::max(num_particles / 10, 1024));
-  if (chunk > static_cast<hsize_t>(num_particles)) chunk = static_cast<hsize_t>(num_particles);
+  if (chunk > static_cast<hsize_t>(num_particles))
+    chunk = static_cast<hsize_t>(num_particles);
   props.add(Chunking(std::vector<hsize_t>{chunk}));
   props.add(Shuffle());
   props.add(Deflate(4));	// This is a good compromise between
@@ -391,9 +393,11 @@ ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
 
   // Read core PSP fields
   data.m = read_dataset("m");
+
   data.x = read_dataset("x");
   data.y = read_dataset("y");
   data.z = read_dataset("z");
+
   data.u = read_dataset("u");
   data.v = read_dataset("v");
   data.w = read_dataset("w");
