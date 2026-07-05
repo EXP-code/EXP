@@ -804,7 +804,7 @@ Examples:
     if (!quiet) time_ptr = std::make_unique<ScopeTimer>("conversion to ascii");
     std::string ifile = prefix + ".h5";
     std::string ofile = prefix + "." + suffix;
-    hdf5_to_ascii(ifile, ofile);
+    hdf5_to_ascii(ifile, ofile, !quiet);
   } else {
     std::cerr << "No conversion mode specified. Use --to_hdf5 to convert to HDF5, --to_ascii to convert from HDF5 to ascii, or the --roundtrip test." << std::endl;
     return 1;
