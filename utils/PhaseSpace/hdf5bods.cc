@@ -184,7 +184,7 @@ enum class FloatPrecision { FLOAT32, FLOAT64 };
 template<typename T>
 struct ParticleDataTemplate
 {
-  std::vector<T> m;             // mass/species index
+  std::vector<T> m;             // mass
   std::vector<T> x, y, z;       // position
   std::vector<T> u, v, w;       // velocity
   std::vector<std::vector<int>> aux_ints;      // auxiliary integer fields
