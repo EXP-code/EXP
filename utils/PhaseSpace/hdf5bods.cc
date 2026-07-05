@@ -1,5 +1,5 @@
 /*
-Draft EXP ascii particle phase-space data HDF5 converter
+EXP ascii particle phase-space data HDF5 converter
 
 This is a possible template for implementing HDF5 input files for
 EXP. The code reads an ASCII file with particle data and writes it to
@@ -71,9 +71,11 @@ style by porting over the ascii_to_hdf5 routine().
 #include <filesystem>
 #include <iostream>
 #include <iomanip>
+#include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <chrono>
+#include <cmath>
 #include <vector>
 #include <stdexcept>
 #include <variant>
@@ -126,9 +128,10 @@ void parse_particle_line(const std::string& line,
   T val;
 
   // Parse core PSP fields
-  if (!(iss >> data.m[particle_idx] 
-            >> data.x[particle_idx] >> data.y[particle_idx] >> data.z[particle_idx]
-            >> data.u[particle_idx] >> data.v[particle_idx] >> data.w[particle_idx])) {
+  if (!(iss
+	>> data.m[particle_idx] 
+	>> data.x[particle_idx] >> data.y[particle_idx] >> data.z[particle_idx]
+	>> data.u[particle_idx] >> data.v[particle_idx] >> data.w[particle_idx])) {
     throw std::runtime_error("Failed to parse core fields at particle " + 
                              std::to_string(particle_idx));
   }
@@ -269,7 +272,8 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
   // Define compression filters
   DataSetCreateProps props;
   hsize_t chunk = static_cast<hsize_t>(std::max(num_particles / 10, 1024));
-  if (chunk > static_cast<hsize_t>(num_particles)) chunk = static_cast<hsize_t>(num_particles);
+  if (chunk > static_cast<hsize_t>(num_particles))
+    chunk = static_cast<hsize_t>(num_particles);
   props.add(Chunking(std::vector<hsize_t>{chunk}));
   props.add(Shuffle());
   props.add(Deflate(4));	// This is a good compromise between
@@ -334,20 +338,22 @@ struct ParticleDataVariant
 // Detect float precision by inspecting dataset type
 FloatPrecision detect_precision(const DataSet& dataset)
 {
-  auto datatype = dataset.getDataType();
-  auto class_type = datatype.getClass();
+  const auto datatype = dataset.getDataType();
+  if (datatype.getClass() != DataTypeClass::Float) {
+    throw std::runtime_error("Unexpected dataset type for precision detection (expected float)");
+  }
 
   // Get the size in bytes
-  size_t type_size = datatype.getSize();
+  const size_t type_size = datatype.getSize();
 
   // Float32 is 4 bytes, Float64 is 8 bytes
   if (type_size == 4) {
     return FloatPrecision::FLOAT32;
   } else if (type_size == 8) {
     return FloatPrecision::FLOAT64;
-  } else {
-    throw std::runtime_error("Unexpected float type size: " + std::to_string(type_size));
   }
+
+  throw std::runtime_error("Unexpected float type size: " + std::to_string(type_size));
 }
 
 
@@ -374,8 +380,7 @@ ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
   data.num_aux_floats = num_aux_floats;
   data.precision      = precision;
 
-  std::string precision_str = (precision == FloatPrecision::FLOAT32) ? "float32" : "float64";
-  std::cout << "Detected precision: " << precision_str << std::endl;
+  // Precision is available in data.precision; caller decides whether to print it.
 
   // Lambda to read float or double based on precision
   auto read_dataset = [&particles_group, precision](const std::string& name) -> FloatData {
@@ -388,9 +393,11 @@ ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
 
   // Read core PSP fields
   data.m = read_dataset("m");
+
   data.x = read_dataset("x");
   data.y = read_dataset("y");
   data.z = read_dataset("z");
+
   data.u = read_dataset("u");
   data.v = read_dataset("v");
   data.w = read_dataset("w");
@@ -627,10 +634,14 @@ Examples:
 
 	std::string line_orig, line_rest;
 	size_t line_num = 0;
-	bool mismatch_found = false;
-	
+
 	std::vector<double> max_diff(7, 0.0); // For m, x, y, z, u, v, w
 	std::vector<double> vec_orig(7), vec_rest(7);
+	std::vector<double> max_aux_int_diff;
+	std::vector<double> max_aux_float_diff;
+	std::vector<int> aux_int_orig, aux_int_rest;
+	std::vector<double> aux_float_orig, aux_float_rest;
+	int num_aux_ints = -1, num_aux_floats = -1;
 
 	while (std::getline(original, line_orig) && std::getline(restored, line_rest)) {
 	  ++line_num;
@@ -650,16 +661,25 @@ Examples:
 	      std::cerr << "Header mismatch at line 1:\n"
 			<< "Original: " << line_orig << "\n"
 			<< "Restored: " << line_rest << "\n";
-	      mismatch_found = true;
 	      break;
 	    }
+
+	    num_aux_ints = total_aux_ints_orig;
+	    num_aux_floats = total_aux_floats_orig;
+	    max_aux_int_diff.assign(num_aux_ints, 0.0);
+	    max_aux_float_diff.assign(num_aux_floats, 0.0);
+	    aux_int_orig.assign(num_aux_ints, 0);
+	    aux_int_rest.assign(num_aux_ints, 0);
+	    aux_float_orig.assign(num_aux_floats, 0.0);
+	    aux_float_rest.assign(num_aux_floats, 0.0);
 	    
 	    continue;
 	  }
 
 	  for (int i = 0; i < 7; ++i) {
-	    ss_orig >> vec_orig[i];
-	    ss_rest >> vec_rest[i];
+	    if (!(ss_orig >> vec_orig[i]) || !(ss_rest >> vec_rest[i])) {
+	      throw std::runtime_error("Failed to parse core field at line " + std::to_string(line_num));
+	    }
 	  }
 
 	  for (int i = 0; i < 7; ++i) {
@@ -667,6 +687,30 @@ Examples:
 	      max_diff[i] = std::abs(vec_orig[i] - vec_rest[i]);
 	    }
 	    
+	  }
+
+	  for (int i = 0; i < num_aux_ints; ++i) {
+	    if (!(ss_orig >> aux_int_orig[i]) || !(ss_rest >> aux_int_rest[i])) {
+	      throw std::runtime_error("Failed to parse auxiliary integer field at line " + std::to_string(line_num));
+	    }
+	  }
+
+	  for (int i = 0; i < num_aux_ints; ++i) {
+	    auto diff_i = std::llabs(static_cast<long long>(aux_int_orig[i]) -
+				     static_cast<long long>(aux_int_rest[i]));
+	    double diff = static_cast<double>(diff_i);
+	    if (diff > max_aux_int_diff[i]) max_aux_int_diff[i] = diff;
+	  }
+
+	  for (int i = 0; i < num_aux_floats; ++i) {
+	    if (!(ss_orig >> aux_float_orig[i]) || !(ss_rest >> aux_float_rest[i])) {
+	      throw std::runtime_error("Failed to parse auxiliary float field at line " + std::to_string(line_num));
+	    }
+	  }
+
+	  for (int i = 0; i < num_aux_floats; ++i) {
+	    double diff = std::abs(aux_float_orig[i] - aux_float_rest[i]);
+	    if (diff > max_aux_float_diff[i]) max_aux_float_diff[i] = diff;
 	  }
 	}
 	
@@ -679,6 +723,28 @@ Examples:
 		  << max_diff[4] << ", "
 		  << max_diff[5] << ", "
 		  << max_diff[6] << std::endl;
+
+	std::cout << "Maximum absolute differences for auxiliary integer fields: ";
+	if (max_aux_int_diff.empty()) {
+	  std::cout << "(none)";
+	} else {
+	  for (size_t i = 0; i < max_aux_int_diff.size(); ++i) {
+	    if (i) std::cout << ", ";
+	    std::cout << max_aux_int_diff[i];
+	  }
+	}
+	std::cout << std::endl;
+
+	std::cout << "Maximum absolute differences for auxiliary float fields: ";
+	if (max_aux_float_diff.empty()) {
+	  std::cout << "(none)";
+	} else {
+	  for (size_t i = 0; i < max_aux_float_diff.size(); ++i) {
+	    if (i) std::cout << ", ";
+	    std::cout << max_aux_float_diff[i];
+	  }
+	}
+	std::cout << std::endl;
       }
 
     } catch (const std::exception& e) {
@@ -746,4 +812,3 @@ Examples:
 
   return 0;
 }
-

@@ -1479,11 +1479,17 @@ void Component::read_bodies_and_distribute_init()
   // Note: One might need to use H5Fis_hdf5(filename.c_str()) for
   // older HDF5 versions (< 1.12)
   
+  bool isHDF5 = false;
+
+  if (myid == 0) {
 #if H5_VERSION_GE(1, 12, 0)
-  bool isHDF5 = H5Fis_accessible(pfile.c_str(), H5P_DEFAULT) > 0;
+    isHDF5 = H5Fis_accessible(pfile.c_str(), H5P_DEFAULT) > 0;
 #else
-  bool isHDF5 = H5Fis_hdf5(pfile.c_str()) > 0;
+    isHDF5 = H5Fis_hdf5(pfile.c_str()) > 0;
 #endif
+  }
+
+  MPI_Bcast(&isHDF5, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
   
   if (isHDF5) {
     if (myid==0)
@@ -1501,20 +1507,20 @@ void Component::read_bodies_and_distribute_init()
 // Detect float precision by inspecting dataset type
 size_t Component::detect_precision(const HighFive::DataSet& dataset)
 {
-  auto datatype = dataset.getDataType();
-  auto class_type = datatype.getClass();
+  const auto datatype = dataset.getDataType();
+  if (datatype.getClass() != HighFive::DataTypeClass::Float) {
+    throw std::runtime_error("Unexpected dataset type: expected float for precision detection");
+  }
 
   // Get the size in bytes
-  size_t type_size = datatype.getSize();
+  const size_t type_size = datatype.getSize();
 
   // Float32 is 4 bytes, Float64 is 8 bytes
-  if (type_size == 4) {
+  if (type_size == 4 || type_size == 8) {
     return type_size;
-  } else if (type_size == 8) {
-    return type_size;
-  } else {
-    throw std::runtime_error("Unexpected float type size: " + std::to_string(type_size));
   }
+
+  throw std::runtime_error("Unexpected float type size: " + std::to_string(type_size));
 }
 
 void Component::read_bodies_and_distribute_hdf5(void)
