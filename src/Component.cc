@@ -1595,6 +1595,10 @@ void Component::read_bodies_and_distribute_hdf5(void)
     if (current != batch) {
       throw std::runtime_error("Component ERROR: dataset <" + name + "> shorter than expected");
     }
+
+    if (precision == 4) {
+      return FloatData(dataset.select({offset}, {current}).read<std::vector<float>>());
+    }
     else if (precision == 8) {
       return FloatData(dataset.select({offset}, {current}).read<std::vector<double>>());
     }
