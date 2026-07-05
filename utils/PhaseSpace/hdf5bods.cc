@@ -57,6 +57,7 @@ File structure in HDF5
 ├── m (Dataset)
 ├── x, y, z (Datasets)
 ├── u, v, w (Datasets)
+├── index (optional Dataset)
 ├── aux_int_0, aux_int_1, ... (Datasets)
 └── aux_float_0, aux_float_1, ... (Datasets)
 
@@ -80,6 +81,7 @@ style by porting over the ascii_to_hdf5 routine().
 #include <stdexcept>
 #include <variant>
 #include <memory>
+#include <optional>
 #include <typeinfo>
 
 // For OpenMP parallelization
@@ -184,6 +186,7 @@ enum class FloatPrecision { FLOAT32, FLOAT64 };
 template<typename T>
 struct ParticleDataTemplate
 {
+  std::optional<std::vector<unsigned long>> index; // optional particle index
   std::vector<T> m;             // mass
   std::vector<T> x, y, z;       // position
   std::vector<T> u, v, w;       // velocity
@@ -199,12 +202,23 @@ struct ParticleDataTemplate
 template<typename T>
 void parse_particle_line(const std::string& line,
                          int particle_idx,
+                         bool has_index,
                          int num_aux_ints,
                          int num_aux_floats,
                          ParticleDataTemplate<T>& data)
 {
   std::istringstream iss(line);
   T val;
+
+  // Parse optional index field
+  if (has_index) {
+    unsigned long idx = 0;
+    if (!(iss >> idx)) {
+      throw std::runtime_error("Failed to parse index at particle " +
+                               std::to_string(particle_idx));
+    }
+    (*data.index)[particle_idx] = idx;
+  }
 
   // Parse core PSP fields
   if (!(iss
@@ -276,6 +290,7 @@ template<typename T>
 void ascii_to_hdf5_impl(const std::string& ascii_file, 
                         const std::string& hdf5_file,
                         FloatPrecision precision,
+			bool has_index,
 			unsigned filter_id,
 			bool verbose)
 {
@@ -301,6 +316,7 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
   data.u.resize(num_particles);
   data.v.resize(num_particles);
   data.w.resize(num_particles);
+  if (has_index) data.index = std::vector<unsigned long>(num_particles);
 
   data.aux_ints.resize(num_aux_ints);
   for (auto& vec : data.aux_ints) {
@@ -320,7 +336,7 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
       num_threads(omp_get_max_threads())
   for (int i = 0; i < num_particles; ++i) {
     try {
-      parse_particle_line<T>(lines[i], i, num_aux_ints, num_aux_floats, data);
+      parse_particle_line<T>(lines[i], i, has_index, num_aux_ints, num_aux_floats, data);
     } catch (const std::exception& e) {
       parse_errors += 1;
       #pragma omp critical
@@ -372,6 +388,9 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
   particles_group.createDataSet("u", data.u, props);
   particles_group.createDataSet("v", data.v, props);
   particles_group.createDataSet("w", data.w, props);
+  if (data.index.has_value()) {
+    particles_group.createDataSet("index", *data.index, props);
+  }
 
   // Write auxiliary integer fields
   for (size_t j = 0; j < data.aux_ints.size(); ++j) {
@@ -396,13 +415,14 @@ void ascii_to_hdf5_impl(const std::string& ascii_file,
 void ascii_to_hdf5(const std::string& ascii_file, 
                    const std::string& hdf5_file,
                    FloatPrecision precision = FloatPrecision::FLOAT64,
+		   bool has_index = false,
 		   unsigned filter_id = 1,
 		   bool verbose = true)
 {
   if (precision == FloatPrecision::FLOAT32) {
-    ascii_to_hdf5_impl<float>(ascii_file, hdf5_file, precision, filter_id, verbose);
+    ascii_to_hdf5_impl<float>(ascii_file, hdf5_file, precision, has_index, filter_id, verbose);
   } else {
-    ascii_to_hdf5_impl<double>(ascii_file, hdf5_file, precision, filter_id, verbose);
+    ascii_to_hdf5_impl<double>(ascii_file, hdf5_file, precision, has_index, filter_id, verbose);
   }
 }
 
@@ -411,6 +431,7 @@ using FloatData = std::variant<std::vector<float>, std::vector<double>>;
 
 struct ParticleDataVariant
 {
+  std::optional<std::vector<unsigned long>> index;
   FloatData m, x, y, z, u, v, w;
   std::vector<std::vector<int>> aux_ints;
   std::vector<FloatData> aux_floats;
@@ -478,6 +499,9 @@ ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
   };
 
   // Read core PSP fields
+  if (particles_group.exist("index")) {
+    data.index = particles_group.getDataSet("index").read<std::vector<unsigned long>>();
+  }
   data.m = read_dataset("m");
 
   data.x = read_dataset("x");
@@ -543,7 +567,8 @@ void hdf5_to_ascii(const std::string& hdf5_file, const std::string& ascii_file,
     std::ostringstream oss;
     oss.precision(16);
 
-    // Write core phase-space fields
+    // Write optional index and core phase-space fields
+    if (data.index.has_value()) oss << (*data.index)[i] << " ";
     oss << write_value(data.m, i) << " "
         << write_value(data.x, i) << " " 
         << write_value(data.y, i) << " " 
@@ -598,19 +623,20 @@ int main(int argc, char* argv[])
 			            "with built-in round-trip testing and float-size selection\n");
   
   options.add_options()
-    ("i,input",     "Input prefix", cxxopts::value<std::string>(prefix)->default_value("particles"))
-    ("o,output",    "Output prefix (optional, otherwise input prefix is used)", cxxopts::value<std::string>(output))
-    ("a,suffix",    "Input suffix", cxxopts::value<std::string>(suffix)->default_value("bods"))
-    ("t,threads",   "Number of OpenMP threads (default: max available)", cxxopts::value<int>(num_threads)->default_value(std::to_string(num_threads)))
-    ("f,filter",    "HDF5 filter ID to use (default: 1 = GZIP)", cxxopts::value<unsigned>(filter_id)->default_value("1"))
-    ("roundtrip",   "Perform round-trip conversion (ASCII -> HDF5 -> ASCII)")
-    ("verify",      "Verify that the restored ASCII file matches the original in 'roundtrip' mode")
-    ("to_hdf5",     "Convert ASCII to HDF5")
-    ("double",      "Use double precision for HDF5 output (float is default)")
-    ("filterlist",  "List available HDF5 filters and exit")
-    ("to_ascii",    "Convert HDF5 to ASCII")
-    ("q,quiet",     "Suppress verbose output")
-    ("h,help",      "Print usage");
+    ("i,input",   "Input prefix", cxxopts::value<std::string>(prefix)->default_value("particles"))
+    ("o,output",  "Output prefix (optional, otherwise input prefix is used)", cxxopts::value<std::string>(output))
+    ("a,suffix",  "Input suffix", cxxopts::value<std::string>(suffix)->default_value("bods"))
+    ("t,threads", "Number of OpenMP threads (default: max available)", cxxopts::value<int>(num_threads)->default_value(std::to_string(num_threads)))
+    ("f,filter",  "HDF5 filter ID to use (default: 1 = GZIP)", cxxopts::value<unsigned>(filter_id)->default_value("1"))
+    ("roundtrip", "Perform round-trip conversion (ASCII -> HDF5 -> ASCII)")
+    ("verify",    "Verify that the restored ASCII file matches the original in 'roundtrip' mode")
+    ("to_hdf5",   "Convert ASCII to HDF5")
+    ("double",    "Use double precision for HDF5 output (float is default)")
+    ("filterlist","List available HDF5 filters and exit")
+    ("aindex",    "Input ASCII has leading particle index column; write optional HDF5 particles/index dataset")
+    ("to_ascii",  "Convert HDF5 to ASCII")
+    ("q,quiet",   "Suppress verbose output")
+    ("h,help",    "Print usage");
 
   cxxopts::ParseResult vm;
 
@@ -722,7 +748,7 @@ Examples:
       {
 	std::unique_ptr<ScopeTimer> time_ptr;
 	if (!quiet) time_ptr = std::make_unique<ScopeTimer>("float 32 conversion");
-	ascii_to_hdf5(ascii, h5_32, FloatPrecision::FLOAT32, filter_id, !quiet);
+	ascii_to_hdf5(ascii, h5_32, FloatPrecision::FLOAT32, vm.count("aindex"), filter_id, !quiet);
       }
 
       // Convert to HDF5 with float64 precision
@@ -730,7 +756,7 @@ Examples:
       {
 	std::unique_ptr<ScopeTimer> time_ptr;
 	if (!quiet) time_ptr = std::make_unique<ScopeTimer>("float 64 conversion");
-	ascii_to_hdf5(ascii, h5_64, FloatPrecision::FLOAT64, filter_id, !quiet);
+	ascii_to_hdf5(ascii, h5_64, FloatPrecision::FLOAT64, vm.count("aindex"), filter_id, !quiet);
       }
       
       // Round-trip with float64 version
@@ -794,6 +820,13 @@ Examples:
 	    aux_float_rest.assign(num_aux_floats, 0.0);
 	    
 	    continue;
+	  }
+
+	  if (vm.count("aindex")) {
+	    unsigned long idx_orig = 0, idx_rest = 0;
+	    if (!(ss_orig >> idx_orig) || !(ss_rest >> idx_rest)) {
+	      throw std::runtime_error("Failed to parse index field at line " + std::to_string(line_num));
+	    }
 	  }
 
 	  for (int i = 0; i < 7; ++i) {
@@ -916,9 +949,9 @@ Examples:
     std::string ofile = prefix + ".h5";
     if (vm.count("output")) ofile = output + ".h5";
     if (vm.count("double"))
-      ascii_to_hdf5(ascii, ofile, FloatPrecision::FLOAT64, filter_id, !quiet);
+      ascii_to_hdf5(ascii, ofile, FloatPrecision::FLOAT64, vm.count("aindex"), filter_id, !quiet);
     else
-      ascii_to_hdf5(ascii, ofile, FloatPrecision::FLOAT32, filter_id, !quiet);
+      ascii_to_hdf5(ascii, ofile, FloatPrecision::FLOAT32, vm.count("aindex"), filter_id, !quiet);
   } else if (vm.count("to_ascii")) {
     std::unique_ptr<ScopeTimer> time_ptr;
     if (!quiet) time_ptr = std::make_unique<ScopeTimer>("conversion to ascii");

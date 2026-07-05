@@ -1572,6 +1572,8 @@ void Component::read_bodies_and_distribute_hdf5(void)
   // Phase-space data
   //
   FloatData m, x, y, z, u, v, w;
+  std::vector<unsigned long> index;
+  bool has_index = particles_group.exist("index");
   std::vector<std::vector<int>> aux_ints;
   std::vector<FloatData> aux_floats;
 
@@ -1627,6 +1629,10 @@ void Component::read_bodies_and_distribute_hdf5(void)
     size_t offset = 0;
 
     // Read Node 0's PSP fields
+    if (has_index) {
+      index = particles_group.getDataSet("index")
+        .select({offset}, {nbodies_table[0]}).read<std::vector<unsigned long>>();
+    }
     m = read_dataset("m", offset, nbodies_table[0]);
 
     x = read_dataset("x", offset, nbodies_table[0]);
@@ -1675,8 +1681,8 @@ void Component::read_bodies_and_distribute_hdf5(void)
 	part->dattrib[j] = aux_floats[j][i];
       }
 
-      // Make a sequential index for the particle
-      part->indx = i + 1;
+      // Set particle index from optional dataset, otherwise sequential
+      part->indx = has_index ? index[i] : i + 1;
       
       // Get the radius
       r2 = 0.0;
@@ -1699,6 +1705,10 @@ void Component::read_bodies_and_distribute_hdf5(void)
     for (int n=1; n<numprocs; n++) {
 
       // Read core PSP fields
+      if (has_index) {
+        index = particles_group.getDataSet("index")
+          .select({offset}, {nbodies_table[n]}).read<std::vector<unsigned long>>();
+      }
       m = read_dataset("m", offset, nbodies_table[n]);
 
       x = read_dataset("x", offset, nbodies_table[n]);
@@ -1732,8 +1742,8 @@ void Component::read_bodies_and_distribute_hdf5(void)
 
 	PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
 	
-	// Make a sequential index for the particle
-	part->indx = nbodies_index[n-1] + 1 + icount;
+	// Set particle index from optional dataset, otherwise sequential
+	part->indx = has_index ? index[icount] : nbodies_index[n-1] + 1 + icount;
 
 	part->mass   = m[icount];
 
