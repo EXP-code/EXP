@@ -1507,20 +1507,20 @@ void Component::read_bodies_and_distribute_init()
 // Detect float precision by inspecting dataset type
 size_t Component::detect_precision(const HighFive::DataSet& dataset)
 {
-  auto datatype = dataset.getDataType();
-  auto class_type = datatype.getClass();
+  const auto datatype = dataset.getDataType();
+  if (datatype.getClass() != HighFive::DataTypeClass::Float) {
+    throw std::runtime_error("Unexpected dataset type: expected float for precision detection");
+  }
 
   // Get the size in bytes
-  size_t type_size = datatype.getSize();
+  const size_t type_size = datatype.getSize();
 
   // Float32 is 4 bytes, Float64 is 8 bytes
-  if (type_size == 4) {
+  if (type_size == 4 || type_size == 8) {
     return type_size;
-  } else if (type_size == 8) {
-    return type_size;
-  } else {
-    throw std::runtime_error("Unexpected float type size: " + std::to_string(type_size));
   }
+
+  throw std::runtime_error("Unexpected float type size: " + std::to_string(type_size));
 }
 
 void Component::read_bodies_and_distribute_hdf5(void)
