@@ -71,6 +71,7 @@ style by porting over the ascii_to_hdf5 routine().
 #include <filesystem>
 #include <iostream>
 #include <iomanip>
+#include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <chrono>
@@ -691,8 +692,9 @@ Examples:
 	  }
 
 	  for (int i = 0; i < num_aux_ints; ++i) {
-	    double diff = std::abs(static_cast<double>(aux_int_orig[i]) -
-				   static_cast<double>(aux_int_rest[i]));
+	    auto diff_i = std::llabs(static_cast<long long>(aux_int_orig[i]) -
+				     static_cast<long long>(aux_int_rest[i]));
+	    double diff = static_cast<double>(diff_i);
 	    if (diff > max_aux_int_diff[i]) max_aux_int_diff[i] = diff;
 	  }
 
