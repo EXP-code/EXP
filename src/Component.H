@@ -184,6 +184,43 @@ struct loadb_datum
   specifying alternative parameters, using an old-style PSP file, or
   starting a new job with a previous output from another simulation)
   </ol>
+
+  <br> <b>Input data format</b> Component now supports reading from
+  HDF5 files on input.  The scheme for HDF5 input files is:
+  @verbatim
+  /
+  ├── Attributes
+  │ ├── num_particles (int)
+  │ ├── num_aux_ints (int)
+  │ └── num_aux_floats (int)
+  └── particles/ (Group)
+  ├── m (Dataset)
+  ├── x, y, z (Datasets)
+  ├── u, v, w (Datasets)
+  ├── index (optional Dataset)
+  ├── aux_int_0, aux_int_1, ... (Datasets)
+  └── aux_float_0, aux_float_1, ... (Datasets)
+  @endverbatim
+
+  @note
+  <ol>
+
+  <li> The <code>index</code> dataset is optional.  If it is not
+  present, the particles are assigned indices in the order they are read.
+
+  <li> The <code>aux_int_*</code> and <code>aux_float_*</code>
+  datasets are optional.  If they are not present, the corresponding
+  vectors are empty.  The number of auxiliary integer and float
+  datasets is determined by the <code>num_aux_ints</code> and
+  <code>num_aux_floats</code> attributes, respectively.
+
+  <li> The datatype for the <code>m</code>, <code>x</code>,
+  <code>y</code>, <code>z</code>, <code>u</code>, <code>v</code>,
+  <code>w</code> and <code>aux_float_*</code> datasets maybe float or
+  double (i.e. float32 or float64) but they all must are assumed to
+  have the same datatype as <code>m</code>.
+
+  </ol>
 */
 class Component
 {
