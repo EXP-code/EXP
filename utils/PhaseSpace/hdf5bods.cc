@@ -69,10 +69,10 @@ style by porting over the ascii_to_hdf5 routine().
 */
 
 // C++ std
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <iomanip>
-#include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <chrono>
@@ -116,9 +116,11 @@ createFilterProps(const std::vector<hsize_t>& chunk_dims,
   HighFive::DataSetCreateProps props;
   props.add(HighFive::Chunking(chunk_dims));
 
+  // For most compressors, applying shuffle improves compression for floating-point data.
+  // (Blosc can do its own shuffling internally; shuffle-only/checksum-only are handled below.)
   if (filter_id != 3 && filter_id != 4 && filter_id != 32001) {
+    props.add(HighFive::Shuffle());
   }
-  
   hid_t plist_id = props.getId();
   std::vector<unsigned int> cd_values;
 
@@ -206,8 +208,6 @@ void parse_particle_line(const std::string& line,
                          ParticleDataTemplate<T>& data)
 {
   std::istringstream iss(line);
-  T val;
-
   // Parse optional index field
   if (has_index) {
     unsigned long idx = 0;
@@ -250,13 +250,21 @@ std::vector<std::string> read_ascii_lines(const std::string& ascii_file,
                                           int& num_aux_ints,
                                           int& num_aux_floats)
 {
+  // Open ASCII file
   std::ifstream infile(ascii_file);
   if (!infile.is_open()) {
     throw std::runtime_error("Could not open ASCII file: " + ascii_file);
   }
 
   // Read header
-  if (!(infile >> num_particles >> num_aux_ints >> num_aux_floats)) {
+  std::string header_line;
+  if (std::getline(infile, header_line)) {
+    std::istringstream header_stream(header_line);
+    if (!(header_stream >> num_particles >> num_aux_ints >> num_aux_floats)) {
+      throw std::runtime_error("Failed to parse header line: " + header_line);
+    }
+  }
+  else {
     throw std::runtime_error("Failed to read header from ASCII file");
   }
 
@@ -437,7 +445,6 @@ struct ParticleDataVariant
   size_t num_particles = 0;
   size_t num_aux_ints = 0;
   size_t num_aux_floats = 0;
-  FloatPrecision precision;
 };
 
 // Detect float precision by inspecting dataset type
@@ -475,20 +482,17 @@ ParticleDataVariant read_hdf5_data(const std::string& hdf5_file)
   // Open particles group
   Group particles_group = file.getGroup("particles");
 
-  // Detect precision by inspecting first dataset "m"
-  DataSet m_dataset = particles_group.getDataSet("m");
-  FloatPrecision precision = detect_precision(m_dataset);
-
   ParticleDataVariant data;
   data.num_particles  = num_particles;
   data.num_aux_ints   = num_aux_ints;
   data.num_aux_floats = num_aux_floats;
-  data.precision      = precision;
-
-  // Precision is available in data.precision; caller decides whether to print it.
 
   // Lambda to read float or double based on precision
-  auto read_dataset = [&particles_group, precision](const std::string& name) -> FloatData {
+  auto read_dataset = [&particles_group](const std::string& name) -> FloatData {
+    // Detect precision by inspecting dataset
+    DataSet dataset = particles_group.getDataSet(name);
+    FloatPrecision precision = detect_precision(dataset);
+
     if (precision == FloatPrecision::FLOAT32) {
       return particles_group.getDataSet(name).read<std::vector<float>>();
     } else {
@@ -598,11 +602,9 @@ void hdf5_to_ascii(const std::string& hdf5_file, const std::string& ascii_file,
   }
   outfile.close();
 
-  std::string precision_str = (data.precision == FloatPrecision::FLOAT32) 
-                              ? "float32" : "float64";
   if (verbose)
-    std::cout << "Successfully wrote " << data.num_particles << " particles to " 
-	      << ascii_file << " (" << precision_str << ")" << std::endl;
+    std::cout << "Successfully wrote " << data.num_particles
+	      << " particles to " << ascii_file << std::endl;
 }
 
 // Main function with command-line parsing

@@ -1538,11 +1538,6 @@ void Component::read_bodies_and_distribute_hdf5(void)
   //
   HighFive::Group particles_group = file.getGroup("particles");
 
-  // Detect precision by inspecting first dataset "m"
-  //
-  HighFive::DataSet m_dataset = particles_group.getDataSet("m");
-  size_t precision  = detect_precision(m_dataset);
-
   // Variant for flexible reading and access of float or double datasets
   //
   using FloatDataVariant = std::variant<std::vector<float>, std::vector<double>>;
@@ -1579,10 +1574,11 @@ void Component::read_bodies_and_distribute_hdf5(void)
 
   // Lambda to read float or double based on precision flag
   //
-  auto read_dataset = [&particles_group, precision]
+  auto read_dataset = [this, &particles_group]
     (const std::string& name, size_t offset, size_t batch) -> FloatData {
     
     HighFive::DataSet dataset = particles_group.getDataSet(name);
+    size_t precision  = detect_precision(dataset);
 
     // Fetch the dimensions (e.g., [rows, cols])
     size_t total = dataset.getSpace().getDimensions()[0];
@@ -1703,8 +1699,15 @@ void Component::read_bodies_and_distribute_hdf5(void)
     // Offset into the next node's data in the HDF5 datasets
     offset += nbodies_table[0];
 
-    unsigned icount, ibufcount;
     for (int n=1; n<numprocs; n++) {
+
+      // Some ranks may legitimately receive 0 particles (e.g., more ranks than particles).
+      // In that case, ship an empty batch and skip all dataset reads.
+      if (nbodies_table[n] == 0) {
+        unsigned zero = 0;
+        pf->ShipParticles(n, 0, zero);
+        continue;
+      }
 
       // Read core PSP fields
       if (has_index) {
@@ -1712,7 +1715,6 @@ void Component::read_bodies_and_distribute_hdf5(void)
           .select({offset}, {nbodies_table[n]}).read<std::vector<unsigned long>>();
       }
       m = read_dataset("m", offset, nbodies_table[n]);
-
       x = read_dataset("x", offset, nbodies_table[n]);
       y = read_dataset("y", offset, nbodies_table[n]);
       z = read_dataset("z", offset, nbodies_table[n]);
