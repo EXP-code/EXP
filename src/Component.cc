@@ -1538,11 +1538,6 @@ void Component::read_bodies_and_distribute_hdf5(void)
   //
   HighFive::Group particles_group = file.getGroup("particles");
 
-  // Detect precision by inspecting first dataset "m"
-  //
-  HighFive::DataSet m_dataset = particles_group.getDataSet("m");
-  size_t precision  = detect_precision(m_dataset);
-
   // Variant for flexible reading and access of float or double datasets
   //
   using FloatDataVariant = std::variant<std::vector<float>, std::vector<double>>;
@@ -1579,10 +1574,11 @@ void Component::read_bodies_and_distribute_hdf5(void)
 
   // Lambda to read float or double based on precision flag
   //
-  auto read_dataset = [&particles_group, precision]
+  auto read_dataset = [this, &particles_group]
     (const std::string& name, size_t offset, size_t batch) -> FloatData {
     
     HighFive::DataSet dataset = particles_group.getDataSet(name);
+    size_t precision  = detect_precision(dataset);
 
     // Fetch the dimensions (e.g., [rows, cols])
     size_t total = dataset.getSpace().getDimensions()[0];
