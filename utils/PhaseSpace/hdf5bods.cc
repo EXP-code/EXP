@@ -208,8 +208,6 @@ void parse_particle_line(const std::string& line,
                          ParticleDataTemplate<T>& data)
 {
   std::istringstream iss(line);
-  T val;
-
   // Parse optional index field
   if (has_index) {
     unsigned long idx = 0;
