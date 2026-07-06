@@ -250,13 +250,21 @@ std::vector<std::string> read_ascii_lines(const std::string& ascii_file,
                                           int& num_aux_ints,
                                           int& num_aux_floats)
 {
+  // Open ASCII file
   std::ifstream infile(ascii_file);
   if (!infile.is_open()) {
     throw std::runtime_error("Could not open ASCII file: " + ascii_file);
   }
 
   // Read header
-  if (!(infile >> num_particles >> num_aux_ints >> num_aux_floats)) {
+  std::string header_line;
+  if (std::getline(infile, header_line)) {
+    std::istringstream header_stream(header_line);
+    if (!(header_stream >> num_particles >> num_aux_ints >> num_aux_floats)) {
+      throw std::runtime_error("Failed to parse header line: " + header_line);
+    }
+  }
+  else {
     throw std::runtime_error("Failed to read header from ASCII file");
   }
 
