@@ -116,9 +116,11 @@ createFilterProps(const std::vector<hsize_t>& chunk_dims,
   HighFive::DataSetCreateProps props;
   props.add(HighFive::Chunking(chunk_dims));
 
+  // For most compressors, applying shuffle improves compression for floating-point data.
+  // (Blosc can do its own shuffling internally; shuffle-only/checksum-only are handled below.)
   if (filter_id != 3 && filter_id != 4 && filter_id != 32001) {
+    props.add(HighFive::Shuffle());
   }
-  
   hid_t plist_id = props.getId();
   std::vector<unsigned int> cd_values;
 
