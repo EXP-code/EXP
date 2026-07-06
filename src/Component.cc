@@ -1704,7 +1704,8 @@ void Component::read_bodies_and_distribute_hdf5(void)
       // Some ranks may legitimately receive 0 particles (e.g., more ranks than particles).
       // In that case, ship an empty batch and skip all dataset reads.
       if (nbodies_table[n] == 0) {
-        pf->ShipParticles(n, 0, 0);
+        unsigned zero = 0;
+        pf->ShipParticles(n, 0, zero);
         continue;
       }
 
