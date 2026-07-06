@@ -208,11 +208,10 @@ struct loadb_datum
   <li> The <code>index</code> dataset is optional.  If it is not
   present, the particles are assigned indices in the order they are read.
 
-  <li> The <code>aux_int_*</code> and <code>aux_float_*</code>
-  datasets are optional.  If they are not present, the corresponding
-  vectors are empty.  The number of auxiliary integer and float
-  datasets is determined by the <code>num_aux_ints</code> and
-  <code>num_aux_floats</code> attributes, respectively.
+  <li> The <code>aux_int_*</code> and <code>aux_float_*</code> datasets are optional.
+  If omitted, the corresponding attribute counts (<code>num_aux_ints</code>, <code>num_aux_floats</code>)
+  should be set to 0; if the counts are non-zero, datasets <code>aux_int_0..</code> and
+  <code>aux_float_0..</code> are expected to exist.
 
   <li> The datatype for the <code>m</code>, <code>x</code>,
   <code>y</code>, <code>z</code>, <code>u</code>, <code>v</code>,
