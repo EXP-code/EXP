@@ -69,10 +69,10 @@ style by porting over the ascii_to_hdf5 routine().
 */
 
 // C++ std
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <iomanip>
-#include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <chrono>
