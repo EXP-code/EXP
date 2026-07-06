@@ -1740,8 +1740,8 @@ void Component::read_bodies_and_distribute_hdf5(void)
 
       pf->ShipParticles(n, 0, nbodies_table[n]);
 
-      icount = 0;
-      ibufcount = 0;
+      unsigned icount = 0;
+      unsigned ibufcount = 0;
       while (icount < nbodies_table[n]) {
 
 	PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
