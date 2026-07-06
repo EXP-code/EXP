@@ -1699,8 +1699,14 @@ void Component::read_bodies_and_distribute_hdf5(void)
     // Offset into the next node's data in the HDF5 datasets
     offset += nbodies_table[0];
 
-    unsigned icount, ibufcount;
     for (int n=1; n<numprocs; n++) {
+
+      // Some ranks may legitimately receive 0 particles (e.g., more ranks than particles).
+      // In that case, ship an empty batch and skip all dataset reads.
+      if (nbodies_table[n] == 0) {
+        pf->ShipParticles(n, 0, 0);
+        continue;
+      }
 
       // Read core PSP fields
       if (has_index) {
@@ -1708,7 +1714,6 @@ void Component::read_bodies_and_distribute_hdf5(void)
           .select({offset}, {nbodies_table[n]}).read<std::vector<unsigned long>>();
       }
       m = read_dataset("m", offset, nbodies_table[n]);
-
       x = read_dataset("x", offset, nbodies_table[n]);
       y = read_dataset("y", offset, nbodies_table[n]);
       z = read_dataset("z", offset, nbodies_table[n]);
