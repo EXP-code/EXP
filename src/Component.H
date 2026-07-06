@@ -216,9 +216,10 @@ struct loadb_datum
 
   <li> The datatype for the <code>m</code>, <code>x</code>,
   <code>y</code>, <code>z</code>, <code>u</code>, <code>v</code>,
-  <code>w</code> and <code>aux_float_*</code> datasets maybe float or
-  double (i.e. float32 or float64) but they all must are assumed to
-  have the same datatype as <code>m</code>.
+  <code>w</code> and <code>aux_float_*</code> datasets may be float or
+  double (i.e. float32 or float64).  Each dataset's precision is
+  detected independently, so datasets may have mixed precision within
+  the same file.
 
   </ol>
 */
