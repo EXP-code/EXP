@@ -2412,6 +2412,11 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
     orthoTest(ortho->orthoCheck(std::max<int>(NMAX*50, 200)), "EmpCylSL[SLGridSph]", "l");
   }
 
+  // Save quadrature parameters for provenance
+  //
+  eof_vars.numr = numr;
+  eof_vars.nump = nump;
+  eof_vars.numt = numt;
 
   // Initialize fixed variables and storage
   //
@@ -7413,29 +7418,51 @@ void EmpCylSL::WriteH5Cache()
     std::string forceID("Cylinder"), geometry("cylinder");
     std::string model = EmpModelLabs[mtype];
 
-    file.createAttribute<std::string>("geometry", HighFive::DataSpace::From(geometry)).write(geometry);
-    file.createAttribute<std::string>("forceID",  HighFive::DataSpace::From(forceID)).write(forceID);
-    file.createAttribute<std::string>("Version",  HighFive::DataSpace::From(Version)).write(Version);
+    file.createAttribute<std::string>("geometry",  HighFive::DataSpace::From(geometry)).write(geometry);
+    file.createAttribute<std::string>("forceID",   HighFive::DataSpace::From(forceID)). write(forceID);
+    file.createAttribute<std::string>("Version",   HighFive::DataSpace::From(Version)). write(Version);
       
-    // Write the specific parameters
+    // Write the grid specific parameters
     //
-    file.createAttribute<std::string>("model",   HighFive::DataSpace::From(model)).   write(model);
-    file.createAttribute<int>        ("mmax",    HighFive::DataSpace::From(MMAX)).    write(MMAX);
-    file.createAttribute<int>        ("numx",    HighFive::DataSpace::From(NUMX)).    write(NUMX);
-    file.createAttribute<int>        ("numy",    HighFive::DataSpace::From(NUMY)).    write(NUMY);
-    file.createAttribute<int>        ("nmax",    HighFive::DataSpace::From(NORDER)).  write(NORDER);
-    file.createAttribute<int>        ("lmaxfid", HighFive::DataSpace::From(LMAX)).    write(LMAX);
-    file.createAttribute<int>        ("nmaxfid", HighFive::DataSpace::From(NMAX)).    write(NMAX);
-    file.createAttribute<int>        ("neven",   HighFive::DataSpace::From(Neven)).   write(Neven);
-    file.createAttribute<int>        ("nodd",    HighFive::DataSpace::From(Nodd)).    write(Nodd);
-    file.createAttribute<int>        ("cmapr",   HighFive::DataSpace::From(CMAPR)).   write(CMAPR);
-    file.createAttribute<int>        ("cmapz",   HighFive::DataSpace::From(CMAPZ)).   write(CMAPZ);
-    file.createAttribute<double>     ("rmin",    HighFive::DataSpace::From(RMIN)).    write(RMIN);
-    file.createAttribute<double>     ("rmax",    HighFive::DataSpace::From(RMAX)).    write(RMAX);
-    file.createAttribute<double>     ("ascl",    HighFive::DataSpace::From(ASCALE)).  write(ASCALE);
-    file.createAttribute<double>     ("hscl",    HighFive::DataSpace::From(HSCALE)).  write(HSCALE);
-    file.createAttribute<double>     ("cmass",   HighFive::DataSpace::From(cylmass)). write(cylmass);
+    file.createAttribute<std::string>("model",     HighFive::DataSpace::From(model)).   write(model);
+    file.createAttribute<int>        ("mmax",      HighFive::DataSpace::From(MMAX)).    write(MMAX);
+    file.createAttribute<int>        ("numx",      HighFive::DataSpace::From(NUMX)).    write(NUMX);
+    file.createAttribute<int>        ("numy",      HighFive::DataSpace::From(NUMY)).    write(NUMY);
+    file.createAttribute<int>        ("nmax",      HighFive::DataSpace::From(NORDER)).  write(NORDER);
+    file.createAttribute<int>        ("lmaxfid",   HighFive::DataSpace::From(LMAX)).    write(LMAX);
+    file.createAttribute<int>        ("nmaxfid",   HighFive::DataSpace::From(NMAX)).    write(NMAX);
+    file.createAttribute<int>        ("neven",     HighFive::DataSpace::From(Neven)).   write(Neven);
+    file.createAttribute<int>        ("nodd",      HighFive::DataSpace::From(Nodd)).    write(Nodd);
+    file.createAttribute<int>        ("cmapr",     HighFive::DataSpace::From(CMAPR)).   write(CMAPR);
+    file.createAttribute<int>        ("cmapz",     HighFive::DataSpace::From(CMAPZ)).   write(CMAPZ);
+    file.createAttribute<double>     ("rmin",      HighFive::DataSpace::From(RMIN)).    write(RMIN);
+    file.createAttribute<double>     ("rmax",      HighFive::DataSpace::From(RMAX)).    write(RMAX);
+    file.createAttribute<double>     ("ascl",      HighFive::DataSpace::From(ASCALE)).  write(ASCALE);
+    file.createAttribute<double>     ("hscl",      HighFive::DataSpace::From(HSCALE)).  write(HSCALE);
+    file.createAttribute<double>     ("cmass",     HighFive::DataSpace::From(cylmass)). write(cylmass);
       
+    // Additional unchecked variables
+    //
+    file.createAttribute<bool>       ("PCAVAR",    HighFive::DataSpace::From(PCAVAR)).  write(PCAVAR);
+    file.createAttribute<bool>       ("PCAVTK",    HighFive::DataSpace::From(PCAVTK)).  write(PCAVTK);
+    file.createAttribute<bool>       ("PCAEOF",    HighFive::DataSpace::From(PCAEOF)).  write(PCAEOF);
+    file.createAttribute<int>        ("numr",      HighFive::DataSpace::From(NUMR)).    write(NUMR);
+    file.createAttribute<double>     ("hexp",      HighFive::DataSpace::From(HEXP)).    write(HEXP);
+    file.createAttribute<double>     ("hfac",      HighFive::DataSpace::From(HFAC)).    write(HFAC);
+    file.createAttribute<double>     ("ppow",      HighFive::DataSpace::From(PPOW)).    write(PPOW);
+
+    // Options
+    //
+    file.createAttribute<bool>       ("logarithmic",    HighFive::DataSpace::From(logarithmic)).   write(logarithmic);
+    file.createAttribute<bool>       ("enforce_limits", HighFive::DataSpace::From(enforce_limits)).write(enforce_limits);
+
+    // EOF quadrature parameters
+    //
+    file.createAttribute<int>        ("eof_numr",  HighFive::DataSpace::From(eof_vars.numr)).write(eof_vars.numr);
+    file.createAttribute<int>        ("eof_nump",  HighFive::DataSpace::From(eof_vars.nump)).write(eof_vars.nump);
+    file.createAttribute<int>        ("eof_numt",  HighFive::DataSpace::From(eof_vars.numt)).write(eof_vars.numt);
+
+
     // Cosine functions
 
     auto cosine = file.createGroup("Cosine");
