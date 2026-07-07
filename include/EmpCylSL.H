@@ -79,9 +79,9 @@ protected:
   double pfac, dfac, ffac;
 
   // For provenance
-  struct eof_variables {
-    int numr, nump, numt;
-  } eof_vars;
+struct eof_variables {
+  int numr{-1}, nump{-1}, numt{-1};
+} eof_vars;
 
   std::vector<Eigen::MatrixXd> facC, facS;
 
