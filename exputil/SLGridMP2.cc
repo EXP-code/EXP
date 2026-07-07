@@ -175,6 +175,7 @@ SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 		     std::string cachename, bool VERBOSE)
 {
   model    = mod;
+  model0   = model;
   tbdbg    = VERBOSE;
   diverge  = 0;
   dfac     = 1;
