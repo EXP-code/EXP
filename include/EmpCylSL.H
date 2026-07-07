@@ -78,6 +78,11 @@ protected:
   double HSCALE;
   double pfac, dfac, ffac;
 
+  // For provenance
+  struct eof_variables {
+    int numr, nump, numt;
+  } eof_vars;
+
   std::vector<Eigen::MatrixXd> facC, facS;
 
   int rank2, rank3;
