@@ -23,7 +23,6 @@ SlabSL::valid_keys = {
   "no_even",
   "no_odd",
   "samplesz",
-  "subsampleFloat",
   "self_consistent",
   "orthochk",
   "cachename"
