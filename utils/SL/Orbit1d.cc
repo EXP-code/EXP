@@ -128,6 +128,7 @@ void OneDOrbit::new_orbit(double ENERGY, double VPARA)
   energy = ENERGY;
   vp = VPARA;
 
+  action_defined = false;
   freq_defined  = false;
   angle_defined = false;
   if (pot_cache) pot_eval.clear();
