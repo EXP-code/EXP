@@ -1028,7 +1028,7 @@ void CoefficientClasses(py::module &m) {
     (m, "CubeStruct")
     .def(py::init<>(), "Cube coefficient data structure object")
     .def("assign",
-         [](CoefClasses::SlabStruct& A, py::array_t<std::complex<double>> mat)
+         [](CoefClasses::CubeStruct& A, py::array_t<std::complex<double>> mat)
          {
            auto M = make_tensor3<std::complex<double>>(mat);
            A.assign(M);
