@@ -169,6 +169,7 @@ void OneDOrbit::compute_freq(void)
   action = 4.0*ansi*zmax*dt;
 
   freq_defined = true;
+  action_defined = true;
 }
   
 
