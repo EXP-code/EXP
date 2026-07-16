@@ -2,6 +2,9 @@
 #include <iomanip>
 #include <algorithm>
 #include <string>
+#include <vector>
+#include <map>
+#include <cctype>
 #include <cmath>
 
 #include "biorth1d.H"
