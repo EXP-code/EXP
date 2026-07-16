@@ -45,8 +45,8 @@ main(int argc, char** argv)
      cxxopts::value<int>(knots)->default_value("40"))
     ("j,ncheck", "Order of coefficient to check for orthogonality",
      cxxopts::value<int>(nfid)->default_value("2"))
-    ("m,model", "Model type (Sech2mu, Uniform)",
-     cxxopts::value<std::string>(model)->default_value("Sech2mu"))
+    ("m,model", "Model type (sech2mu, uniform, cosine)",
+     cxxopts::value<std::string>(model)->default_value("sech2mu"))
     ("p,prefix", "Output filename prefix",
      cxxopts::value<std::string>(filename)->default_value("slabchk_test"))
     ;
