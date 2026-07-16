@@ -138,11 +138,11 @@ void OneDOrbit::new_orbit(double ENERGY, double VPARA)
 
 void OneDOrbit::compute_freq(void)
 {
-  double E = energy;
-  fct_zmax fct(model, E);
+  const double E = energy;
+  auto fct = [mdl=model, E](double z) { return E - mdl->get_pot(z); };
 
-  double mmin = model->get_min_radius();
-  double mmax = model->get_max_radius();
+  const double mmin = model->get_min_radius();
+  const double mmax = model->get_max_radius();
 
   zmax = zbrent(fct, mmin, 4.0*mmax, TOL);
 
