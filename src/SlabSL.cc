@@ -206,11 +206,15 @@ void SlabSL::initialize()
 
     if (conf["nint"]) {
       nint = conf["nint"].as<int>();
-      if (nint>0) computeSubsample = true;
+      if (nint > 0) computeSubsample = true;
     }
 
     if (conf["samplesz"]) {
       sampT = conf["samplesz"].as<int>();
+    }
+
+    if (computeSubsample && sampT <= 0) {
+      throw std::runtime_error("SlabSL: samplesz must be > 0 when nint>0");
     }
   }
   catch (YAML::Exception & error) {
