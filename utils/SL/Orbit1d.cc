@@ -146,8 +146,11 @@ void OneDOrbit::compute_freq(void)
 
   zmax = zbrent(fct, mmin, 4.0*mmax, TOL);
 
-  if (energy-model->get_pot(mmin) < TOL || zmax < TOL) {
-    freq = sqrt(4.0*M_PI*model->get_density(mmin));
+  if (energy - model->get_pot(mmin) < TOL || zmax < TOL) {
+    freq = std::sqrt(4.0*M_PI*model->get_density(mmin));
+    action = 0.0;
+    freq_defined = true;
+    action_defined = true;
     return;
   }
 
