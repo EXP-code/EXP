@@ -2080,10 +2080,18 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
   std::transform(cmap.begin(), cmap.end(), cmap.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
-  cmtype =
-    std::find_if(CoordMapNames.begin(), CoordMapNames.end(),
-		 [&](const std::pair<CoordMapTypes, std::string>& pair)
-		 { return pair.second == cmap; })->first;
+  auto it = std::find_if(CoordMapNames.begin(), CoordMapNames.end(),
+                         [&](const std::pair<CoordMapTypes, std::string>& pair)
+                         { return pair.second == cmap; });
+
+  if (it == CoordMapNames.end()) {
+    std::ostringstream sout;
+    sout << "SLGridSlab: unknown coordinate map type '" << cmap
+         << "'. Valid values are: tanh, sech, linear";
+    throw std::runtime_error(sout.str());
+  }
+
+  cmtype = it->first;
 
   mM = CoordMap::factory(cmtype, H);
 
