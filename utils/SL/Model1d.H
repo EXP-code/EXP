@@ -1,7 +1,14 @@
 #ifndef _Model1d_H_
 #define _Model1d_H_
 
+#include <algorithm>
+#include <map>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include "interp.H"
 
