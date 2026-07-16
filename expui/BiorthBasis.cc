@@ -3919,7 +3919,7 @@ namespace BasisClasses
       if (conf["orthochk"])   check = conf["orthochk"].as<bool>();
 
       if (conf["pcavar"])    pcavar = conf["pcavar"].as<bool>();
-      if (conf["subsamp"])    sampT = conf["samplesz"].as<int>();
+      if (conf["samplesz"])   sampT = conf["samplesz"].as<int>();
 
       if (conf["cachename"])  cachename = conf["cachename"].as<std::string>();
     } 
