@@ -105,7 +105,7 @@ main(int argc, char** argv)
     SLGridSlab::ZEND = zend;
     mname = "sech2mu";
   } else {
-    std::cerr << "model must be 'Sech2mu' or 'Harmonic'\n";
+    std::cerr << "model must be one of: 'sech2mu', 'uniform', 'cosine'\n";
     return 1;
   }
 
