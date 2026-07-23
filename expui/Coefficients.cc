@@ -2715,7 +2715,7 @@ namespace CoefClasses
       coef->time  = times[n];
       coef->store.resize(cols);
       coef->initCoefMap();
-      for (int i=0; i<cols; i++) coef->getCoefs()(0, i) = data[n][i];
+      for (int i=0; i<cols; i++) coef->getCoefs()(i) = data[n][i];
 
       coefs[roundTime(times[n])] = coef;
     }
