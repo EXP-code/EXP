@@ -151,9 +151,10 @@ namespace CoefClasses
     const coefType& getCoefMap() const
     {
       if (!coefs) {
-	int rows = (lmax+1)*(lmax+2)/2;
-	int cols = nmax;
-	coefs->resize(rows, cols);
+        int rows = (lmax+1)*(lmax+2)/2;
+        int cols = nmax;
+        coefs = std::make_shared<coefType>
+          (const_cast<std::complex<double>*>(store.data()), rows, cols);
       }
       return *coefs;
     }
@@ -161,10 +162,11 @@ namespace CoefClasses
     //! Non-const version for assignment
     coefType& getCoefMapMutable()
     {
-      int rows = (lmax+1)*(lmax+2)/2;
-      int cols = nmax;
-      coefs.reset(); // Clear old map before creating new one
-      coefs = std::make_shared<coefType>(store.data(), rows, cols);
+      if (!coefs) {
+        int rows = (lmax+1)*(lmax+2)/2;
+        int cols = nmax;
+        coefs = std::make_shared<coefType>(store.data(), rows, cols);
+      }
       return *coefs;
     }
 
