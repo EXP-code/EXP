@@ -1840,7 +1840,7 @@ void PolarBasis::dump_coefs_h5(const std::string& file)
 
   cur->allocate();		// Assign storage and make the map
 
-  auto & cof = *cur->coefs;	// Reference for convenience
+  auto & cof = cur->getCoefs();	// Reference for convenience
 
   for (int ir=0; ir<nmax; ir++) {
     for (int m=0, offset=0; m<=Mmax; m++) {

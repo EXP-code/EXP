@@ -1922,7 +1922,7 @@ void SphericalBasis::dump_coefs_h5(const std::string& file)
 
   cur->allocate();
 
-  auto & cof = *cur->coefs;	// Reference for convenience
+  auto & cof = cur->getCoefs();	// Reference for convenience
 
   for (int ir=0; ir<nmax; ir++) {
     for (int l=0, L=0, offset=0; l<=Lmax; l++) {
