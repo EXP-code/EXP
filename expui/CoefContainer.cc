@@ -280,7 +280,7 @@ namespace MSSA
 	if (k[3]==0)
 	  data[k][t] = (cf->getCoefs())(k[0], k[1], k[2]).real();
 	else
-	  data[k][t] = (cf->getCoefs())(k[0], k[1], k[3]).imag();
+	  data[k][t] = (cf->getCoefs())(k[0], k[1], k[2]).imag();
       }
     }
   }
