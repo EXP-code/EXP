@@ -286,14 +286,15 @@ namespace BasisClasses
     if (dof==2) {
       auto p = dynamic_cast<CoefClasses::CylFldStruct*>(c.get());
 
+      auto& src = p->getCoefs();
+
       // Check that the size of the coefficient data matches the expected size
-      if (p->getCoefs().size() == store[0].size())
-	throw std::runtime_error
-	  ("FieldBasis::set_coefs: CylFldStruct data size mismatch with FieldBasis store");
+      if (src.size() != store[0].size())
+        throw std::runtime_error(
+          "FieldBasis::set_coefs: CylFldStruct data size mismatch with FieldBasis store");
 
       // Copy the data from the input structure to the internal store
-      std::copy(store[0].data(), store[0].data() + store[0].size(),
-		p->getCoefs().data());
+      std::copy(src.data(), src.data() + src.size(), store[0].data());
 
       // Sanity test dimensions
       if (nfld!=p->nfld || lmax!=p->mmax || nmax!=p->nmax) {
