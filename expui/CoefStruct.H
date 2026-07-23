@@ -579,11 +579,11 @@ namespace CoefClasses
     }
 
     //! Set the underlying coefficient data
-    void setCoefs(const Eigen::MatrixXcd& mat)
+    void setCoefs(const Eigen::VectorXcd& vec)
     {
-      if (mat.cols() != cols)
+      if (vec.size() != cols)
 	throw std::invalid_argument("setCoefs: size mismatch");
-      getCoefMapMutable() = mat;
+      getCoefMapMutable() = vec;
     }
 
     //@{
