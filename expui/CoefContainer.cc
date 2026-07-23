@@ -295,7 +295,7 @@ namespace MSSA
 	auto c = k, s = k;
 	c.push_back(0); s.push_back(1);
 
-	int f = k[1], m = k[1], n = k[2];
+	int f = k[0], m = k[1], n = k[2];
 
 	if (m==0) (cf->getCoefs())(f, m, n) = {data[c][i], 0.0};
 	else      (cf->getCoefs())(f, m, n) = {data[c][i], data[s][i]};
