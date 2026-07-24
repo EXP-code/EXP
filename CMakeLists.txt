@@ -66,6 +66,7 @@ option(ENABLE_TESTS "Enable build tests for EXP, pyEXP and helpers" ON)
 option(ENABLE_MINIMAL "Compile EXP support libraries only" OFF)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
+option(DISABLE_PYTHON "Disable the Python development environment" OFF)
 
 # Metaflag for minimal build
 
@@ -76,7 +77,7 @@ if(ENABLE_MINIMAL)
   set(ENABLE_UTILS OFF)
   set(ENABLE_TESTS OFF)
 endif()
-  
+
 # Metaflag for pyEXP only
 
 if(ENABLE_PYEXP_ONLY)
@@ -86,7 +87,7 @@ if(ENABLE_PYEXP_ONLY)
   set(ENABLE_UTILS OFF)
   set(ENABLE_TESTS OFF)
 endif()
-  
+
 # Set mpirun launcher for CTest
 
 set(EXP_MPI_LAUNCH "mpirun" CACHE STRING "Command to run an MPI application (for unit tests only)")
@@ -299,7 +300,9 @@ if(ENABLE_TESTS)
 endif()
 
 # try to find pybind11 and build wrapper python module
-find_package(Python3 COMPONENTS Interpreter Development)
+if (NOT DISABLE_PYTHON)
+  find_package(Python3 COMPONENTS Interpreter Development)
+endif()
 message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
 if(Python3_FOUND)
   set(HAVE_PYTHON3 TRUE)
@@ -405,4 +408,3 @@ set(CMAKE_CXX_FLAGS_UBSAN
 # from the same source.
 configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_BINARY_DIR}/config_exp.h)
 include_directories(${PROJECT_BINARY_DIR})
-
