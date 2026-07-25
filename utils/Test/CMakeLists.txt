@@ -1,6 +1,10 @@
 
 set(bin_PROGRAMS testBarrier expyaml orthoTest testDeproj
-		 testEmpDeproj testEmp testED testmd5)
+		 testEmpDeproj testED testmd5)
+
+if(NOT DISABLE_PYTHON)
+  list(APPEND bin_PROGRAMS testEmp)
+endif()
 
 set(common_LINKLIB OpenMP::OpenMP_CXX MPI::MPI_CXX expui exputil
   yaml-cpp ${VTK_LIBRARIES})
@@ -37,7 +41,9 @@ add_executable(orthoTest      orthoTest.cc Biorth2Ortho.cc)
 add_executable(testDeproj     testDeproject.cc CubicSpline.cc Deprojector.cc)
 add_executable(testEmpDeproj  testEmpDeproj.cc CubicSpline.cc
 			      Deprojector.cc EmpDeproj.cc)
-add_executable(testEmp        testEmp.cc EmpDeproj.cc)
+if(NOT DISABLE_PYTHON)
+  add_executable(testEmp        testEmp.cc EmpDeproj.cc)
+endif()
 add_executable(testmd5        testmd5.cc)
 add_executable(testED         testED.cc EmpDeproj.cc)
 
@@ -49,6 +55,8 @@ foreach(program ${bin_PROGRAMS})
 endforeach()
 
 # For Python interpreter...
-target_link_libraries(testEmp ${common_LINKLIB} pybind11::embed)
+if(NOT DISABLE_PYTHON)
+  target_link_libraries(testEmp ${common_LINKLIB} pybind11::embed)
+endif()
 
 install(TARGETS expyaml DESTINATION bin)
