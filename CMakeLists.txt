@@ -69,7 +69,10 @@ option(BUILD_DOCS "Build documentation" OFF)
 option(DISABLE_PYTHON "Disable the Python development environment" OFF)
 if(DISABLE_PYTHON)
   message(STATUS "Python development environment is disabled.  pyEXP will not be built.")
-  set(ENABLE_PYEXP OFF)
+  if(ENABLE_PYEXP_ONLY)
+    message(FATAL_ERROR "DISABLE_PYTHON=ON is incompatible with ENABLE_PYEXP_ONLY=ON.")
+  endif()
+  set(ENABLE_PYEXP OFF CACHE BOOL "Enable the Python bindings" FORCE)
 endif()
 
 # Metaflag for minimal build
