@@ -67,6 +67,13 @@ option(ENABLE_MINIMAL "Compile EXP support libraries only" OFF)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
 option(DISABLE_PYTHON "Disable the Python development environment" OFF)
+if(DISABLE_PYTHON)
+  message(STATUS "Python development environment is disabled.  pyEXP will not be built.")
+  if(ENABLE_PYEXP_ONLY)
+    message(FATAL_ERROR "DISABLE_PYTHON=ON is incompatible with ENABLE_PYEXP_ONLY=ON.")
+  endif()
+  set(ENABLE_PYEXP OFF CACHE BOOL "Enable the Python bindings" FORCE)
+endif()
 
 # Metaflag for minimal build
 
@@ -259,14 +266,18 @@ execute_process(
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
-include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+if (NOT DISABLE_PYTHON)
+  include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+endif()
 include_directories(${PROJECT_SOURCE_DIR}/extern/QuickDigest5/include)
 
 # Report to the user
 message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
 
 add_subdirectory(extern/yaml-cpp)
-add_subdirectory(extern/pybind11)
+if (NOT DISABLE_PYTHON)
+  add_subdirectory(extern/pybind11)
+endif()
 
 # Set options for the HighFive git submodule in extern
 set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "Do not build the examples")

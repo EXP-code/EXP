@@ -62,7 +62,11 @@ set(common_INCLUDE_DIRS $<INSTALL_INTERFACE:include>
 
 set(common_LINKLIB ${DEP_LIB} OpenMP::OpenMP_CXX MPI::MPI_CXX yaml-cpp
   ${VTK_LIBRARIES} ${HDF5_CXX_LIBRARIES} ${HDF5_LIBRARIES}
-  ${HDF5_HL_LIBRARIES} ${FFTW_DOUBLE_LIB} pybind11::embed)
+  ${HDF5_HL_LIBRARIES} ${FFTW_DOUBLE_LIB})
+if(NOT DISABLE_PYTHON)
+    list(APPEND common_LINKLIB pybind11::embed)
+endif()
+
 
 if(ENABLE_CUDA)
   list(APPEND common_LINKLIB CUDA::toolkit CUDA::cudart)
