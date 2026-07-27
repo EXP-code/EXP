@@ -64,7 +64,7 @@ namespace BasisClasses
     std::vector<Eigen::VectorXcd> store;
     using dataType = Eigen::Tensor<std::complex<double>, 3>;
     using coefType = Eigen::TensorMap<dataType>;
-    std::vector<std::shared_ptr<coefType>> coefs;
+    std::vector<std::unique_ptr<coefType>> coefs;
     void allocateStore();
     //@}
 

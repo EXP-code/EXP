@@ -33,6 +33,7 @@
 #include <random>
 #include <memory>
 #include <cmath>
+#include <cassert>
 
 #include "localmpi.H"
 #include "massmodel.H"

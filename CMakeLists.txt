@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.25) # Needed for CUDA, MPI, and CTest features
 
 project(
   EXP
-  VERSION "7.11.2"
+  VERSION "7.11.3"
   HOMEPAGE_URL https://github.com/EXP-code/EXP
   LANGUAGES C CXX Fortran)
 
@@ -66,6 +66,14 @@ option(ENABLE_TESTS "Enable build tests for EXP, pyEXP and helpers" ON)
 option(ENABLE_MINIMAL "Compile EXP support libraries only" OFF)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_DOCS "Build documentation" OFF)
+option(DISABLE_PYTHON "Disable the Python development environment" OFF)
+if(DISABLE_PYTHON)
+  message(STATUS "Python development environment is disabled.  pyEXP will not be built.")
+  if(ENABLE_PYEXP_ONLY)
+    message(FATAL_ERROR "DISABLE_PYTHON=ON is incompatible with ENABLE_PYEXP_ONLY=ON.")
+  endif()
+  set(ENABLE_PYEXP OFF CACHE BOOL "Enable the Python bindings" FORCE)
+endif()
 
 # Metaflag for minimal build
 
@@ -76,7 +84,7 @@ if(ENABLE_MINIMAL)
   set(ENABLE_UTILS OFF)
   set(ENABLE_TESTS OFF)
 endif()
-  
+
 # Metaflag for pyEXP only
 
 if(ENABLE_PYEXP_ONLY)
@@ -86,7 +94,7 @@ if(ENABLE_PYEXP_ONLY)
   set(ENABLE_UTILS OFF)
   set(ENABLE_TESTS OFF)
 endif()
-  
+
 # Set mpirun launcher for CTest
 
 set(EXP_MPI_LAUNCH "mpirun" CACHE STRING "Command to run an MPI application (for unit tests only)")
@@ -258,14 +266,18 @@ execute_process(
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/extern/yaml-cpp/include)
-include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+if (NOT DISABLE_PYTHON)
+  include_directories(${PROJECT_SOURCE_DIR}/extern/pybind11/include)
+endif()
 include_directories(${PROJECT_SOURCE_DIR}/extern/QuickDigest5/include)
 
 # Report to the user
 message("Configuring build for ${GIT_BRANCH}/${GIT_COMMIT} at ${COMPILE_TIME}")
 
 add_subdirectory(extern/yaml-cpp)
-add_subdirectory(extern/pybind11)
+if (NOT DISABLE_PYTHON)
+  add_subdirectory(extern/pybind11)
+endif()
 
 # Set options for the HighFive git submodule in extern
 set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "Do not build the examples")
@@ -299,7 +311,9 @@ if(ENABLE_TESTS)
 endif()
 
 # try to find pybind11 and build wrapper python module
-find_package(Python3 COMPONENTS Interpreter Development)
+if (NOT DISABLE_PYTHON)
+  find_package(Python3 COMPONENTS Interpreter Development)
+endif()
 message(STATUS "python3 include dirs: ${Python3_INCLUDE_DIRS}")
 if(Python3_FOUND)
   set(HAVE_PYTHON3 TRUE)
@@ -405,4 +419,3 @@ set(CMAKE_CXX_FLAGS_UBSAN
 # from the same source.
 configure_file(${CMAKE_SOURCE_DIR}/config_cmake.h_in ${CMAKE_BINARY_DIR}/config_exp.h)
 include_directories(${PROJECT_BINARY_DIR})
-

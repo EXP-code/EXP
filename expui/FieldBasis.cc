@@ -199,10 +199,10 @@ namespace BasisClasses
     for (int t=0; t<nt; t++) {
       if (dof==2) {
 	store[t].resize(nfld*(lmax+1)*nmax);
-	coefs[t] = std::make_shared<coefType>(store[t].data(), nfld, lmax+1, nmax);
+	coefs[t] = std::make_unique<coefType>(store[t].data(), nfld, lmax+1, nmax);
       } else {
 	store[t].resize(nfld*(lmax+1)*(lmax+2)/2*nmax);
-	coefs[t] = std::make_shared<coefType>(store[t].data(), nfld, (lmax+1)*(lmax+2)/2, nmax);
+	coefs[t] = std::make_unique<coefType>(store[t].data(), nfld, (lmax+1)*(lmax+2)/2, nmax);
       }
     }
   }
@@ -285,8 +285,16 @@ namespace BasisClasses
   {
     if (dof==2) {
       auto p = dynamic_cast<CoefClasses::CylFldStruct*>(c.get());
-      coefs[0] = p->coefs;
-      store[0] = p->store;
+
+      auto& src = p->getCoefs();
+
+      // Check that the size of the coefficient data matches the expected size
+      if (src.size() != store[0].size())
+        throw std::runtime_error(
+          "FieldBasis::set_coefs: CylFldStruct data size mismatch with FieldBasis store");
+
+      // Copy the data from the input structure to the internal store
+      std::copy(src.data(), src.data() + src.size(), store[0].data());
 
       // Sanity test dimensions
       if (nfld!=p->nfld || lmax!=p->mmax || nmax!=p->nmax) {
@@ -300,8 +308,15 @@ namespace BasisClasses
 
     } else {
       auto p = dynamic_cast<CoefClasses::SphFldStruct*>(c.get());
-      coefs[0] = p->coefs;
-      store[0] = p->store;
+
+      // Check that the size of the coefficient data matches the expected size
+      if (p->getCoefs().size() == store[0].size())
+	throw std::runtime_error
+	  ("FieldBasis::set_coefs: SphFldStruct data size mismatch with FieldBasis store");
+
+      // Copy the data from the input structure to the internal store
+      std::copy(store[0].data(), store[0].data() + store[0].size(),
+		p->getCoefs().data());
 
       // Sanity test dimensions
       if (nfld!=p->nfld || lmax!=p->lmax || nmax!=p->nmax) {

@@ -2,11 +2,15 @@
 #define _DiskDensityFunc_H_
 
 #include <functional>
+#include <stdexcept>
+#include <string>
 
 #include "config_exp.h"
 
+#ifdef HAVE_PYTHON3
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
+#endif
 
 /** Python disk-density function wrapper
 
@@ -26,9 +30,9 @@
         a = 1.0                            # Scale radius
         h = 0.2                            # Scale height
         f = math.exp(-0.5*math.fabs(z)/h)  # Prevent overflows
-        sech = 2.0*f / (1.0 + f*f)         # 
+        sech = 2.0*f / (1.0 + f*f)         #
         return math.exp(-R/a)*sech*sech/(8*math.pi*h*a*a)
-	
+
     --------------------------cut here--------------------------------
 
  */
