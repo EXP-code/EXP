@@ -119,9 +119,6 @@ namespace CoefClasses
     //! Coefficient map type
     using coefType = Eigen::Map<Eigen::MatrixXcd>;
 
-    //! Coefficient map
-    std::shared_ptr<coefType> coefs;
-
     //! Angular and radial dimension
     int lmax, nmax;
     
@@ -130,7 +127,12 @@ namespace CoefClasses
     
     //! Is basis unit normed?
     bool normed;
-    
+
+  private:
+    //! Cached coefficient map (mutable for lazy initialization)
+    mutable std::shared_ptr<coefType> coefs;
+
+  public:
     //! Constructor
     SphStruct(Coefs* C=nullptr) :
       lmax(0), nmax(0), scale(1.0), normed(true), CoefStruct(C)
@@ -145,13 +147,36 @@ namespace CoefClasses
     //! Copy all of data contents to a new instance
     std::shared_ptr<CoefStruct> deepcopy();
 
+    //! Lazy-create and cache the coefficient map
+    const coefType& getCoefMap() const
+    {
+      if (!coefs) {
+        int rows = (lmax+1)*(lmax+2)/2;
+        int cols = nmax;
+        coefs = std::make_shared<coefType>
+          (const_cast<std::complex<double>*>(store.data()), rows, cols);
+      }
+      return *coefs;
+    }
+
+    //! Non-const version for assignment
+    coefType& getCoefMapMutable()
+    {
+      if (!coefs) {
+        int rows = (lmax+1)*(lmax+2)/2;
+        int cols = nmax;
+        coefs = std::make_shared<coefType>(store.data(), rows, cols);
+      }
+      return *coefs;
+    }
+
     //! Allocate storage arrays
     void allocate()
     {
       int rows = (lmax+1)*(lmax+2)/2;
       int cols = nmax;
+      coefs.reset(); // Clear map BEFORE resize
       store.resize(rows*cols);
-      coefs = std::make_shared<coefType>(store.data(), rows, cols);
     }
 
     //! Assign matrix
@@ -160,11 +185,35 @@ namespace CoefClasses
       lmax = Lmax;
       nmax = Nmax;
       allocate();
-      *coefs = mat;
+      getCoefMapMutable() = mat;
     }
 
+    //! Initialize coefficient map with dimensions
+    void initCoefMap(int rows, int cols)
+    {
+      coefs.reset();
+      coefs = std::make_shared<coefType>(store.data(), rows, cols);
+    }
+
+    //! Set the underlying coefficient data
+    void setCoefs(const Eigen::MatrixXcd& mat)
+    {
+      int rows = (lmax+1)*(lmax+2)/2;
+      int cols = nmax;
+      if (mat.rows() != rows || mat.cols() != cols)
+	throw std::invalid_argument("setCoefs: size mismatch");
+
+      getCoefMapMutable() = mat;
+    }
+
+    //@{
+    //! Direct access to underlying Eigen Map (for client code)
+    const coefType& getCoefs() const { return getCoefMap(); }
+    coefType& getCoefs() { return getCoefMapMutable(); }
+    //@}
+
   };
-  
+
   //! Specialization of CoefStruct for cylinders
   class CylStruct : public CoefStruct
   {
@@ -172,12 +221,14 @@ namespace CoefClasses
     //! Coefficient map type
     using coefType = Eigen::Map<Eigen::MatrixXcd>;
 
-    //! Coefficient map
-    std::shared_ptr<coefType> coefs;
-
     //! Angular and radial dimension
     int mmax, nmax;
-    
+
+  private:
+    //! Cached coefficient map (mutable for lazy initialization)
+    mutable std::shared_ptr<coefType> coefs;
+
+  public:
     //! Constructor
     CylStruct(Coefs* C=nullptr) : mmax(0), nmax(0), CoefStruct(C)
     { geom = "cylinder"; }
@@ -191,13 +242,35 @@ namespace CoefClasses
     //! Copy all of data contents to a new instance
     std::shared_ptr<CoefStruct> deepcopy();
 
+    //! Lazy-create and cache the coefficient map
+    const coefType& getCoefMap() const
+    {
+      if (!coefs) {
+	int rows = mmax+1;
+	int cols = nmax;
+	coefs->resize(rows, cols);
+      }
+      return *coefs;
+    }
+
+    //! Non-const version for assignment
+    coefType& getCoefMapMutable()
+    {
+      int rows = mmax+1;
+      int cols = nmax;
+      coefs.reset(); // Clear old map before creating new one
+      coefs = std::make_shared<coefType>(store.data(), rows, cols);
+      return *coefs;
+    }
+
     //! Allocate storage arrays
     void allocate()
     {
       int rows = mmax+1;
       int cols = nmax;
+      
+      coefs.reset(); // Clear map BEFORE resize
       store.resize(rows*cols);
-      coefs = std::make_shared<coefType>(store.data(), rows, cols);
     }
 
     //! Assign matrix
@@ -206,8 +279,33 @@ namespace CoefClasses
       mmax = Mmax;
       nmax = Nmax;
       allocate();
-      *coefs = mat;
+      getCoefMapMutable() = mat;
     }
+
+    //! Initialize coefficient map with dimensions
+    void initCoefMap(int rows, int cols)
+    {
+      coefs.reset();
+      coefs = std::make_shared<coefType>(store.data(), rows, cols);
+    }
+
+    //! Set the underlying coefficient data
+    void setCoefs(const Eigen::MatrixXcd& mat)
+    {
+      int rows = mmax+1;
+      int cols = nmax;
+
+      if (mat.rows() != rows || mat.cols() != cols)
+	throw std::invalid_argument("setCoefs: size mismatch");
+      getCoefMapMutable() = mat;
+    }
+
+    //@{
+    //! Direct access to underlying Eigen Map (for client code)
+    const coefType& getCoefs() const { return getCoefMap(); }
+    coefType& getCoefs() { return getCoefMapMutable(); }
+    //@}
+
   };
   
   //! Specialization of CoefStruct for a slab
@@ -217,15 +315,17 @@ namespace CoefClasses
     //! Coefficient map type
     using coefType = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 3>>;
 
-    //! Coefficient map
-    std::shared_ptr<coefType> coefs;
-
     //! Angular and radial dimension
     int nmaxx, nmaxy, nmaxz;
     
     //! Basis dimensions
     int nx, ny, nz, dim;
 
+  private:
+    //! Cached coefficient map (mutable for lazy initialization)
+    mutable std::shared_ptr<coefType> coefs;
+
+  public:
     //! Constructor
     SlabStruct(Coefs* C=nullptr) : nmaxx(0), nmaxy(0), nmaxz(0), CoefStruct(C)
     { geom = "slab"; }
@@ -239,6 +339,30 @@ namespace CoefClasses
     //! Copy all of data contents to a new instance
     std::shared_ptr<CoefStruct> deepcopy();
 
+
+// For Map-based classes:
+/**/
+
+
+    //! Lazy-create and cache the coefficient tensor map
+    const coefType& getCoefTensorMap() const
+    {
+      if (!coefs) {
+	coefs = std::make_shared<coefType>
+	  (const_cast<std::complex<double>*>(store.data()), nx, ny, nz);
+      }
+      return *coefs;
+    }
+
+
+    //! Non-const version for assignment
+    coefType& getCoefTensorMapMutable()
+    {
+      coefs.reset(); // Clear old map before creating new one
+      coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
+      return *coefs;
+    }
+
     //! Allocate storage arrays
     void allocate()
     {
@@ -246,11 +370,9 @@ namespace CoefClasses
       ny = 2*nmaxy + 1;
       nz = nmaxz;
       dim = nx * ny * nz;
+      coefs.reset(); // Clear map BEFORE resize
       store.resize(dim);
-      coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
     }
-
-
     //! Assign matrix
     void assign(const Eigen::Tensor<std::complex<double>, 3>& dat)
     {
@@ -258,15 +380,32 @@ namespace CoefClasses
       nx = d[0];
       ny = d[1];
       nz = d[2];
-
       nmaxx = (nx - 1)/2;
       nmaxy = (ny - 1)/2;
       nmaxz = nz;
-
       allocate();
-      *coefs = dat;
+      getCoefTensorMapMutable() = dat;
     }
 
+    //! Initialize coefficient tensor map with dimensions
+    void initCoefMap(int nx, int ny, int nz)
+    {
+      coefs.reset();
+      coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
+    }
+
+    //! Set the underlying coefficient data
+    void setCoefs(const Eigen::Tensor<std::complex<double>, 3>& tensor)
+    {
+      const auto& d = tensor.dimensions();
+      if (d[0] != nx || d[1] != ny || d[2] != nz)
+	throw std::invalid_argument("setCoefs: dimension mismatch");
+      getCoefTensorMapMutable() = tensor;
+    }
+
+    //! Direct access to underlying Eigen TensorMap (for client code)
+    const coefType& getCoefs() const { return getCoefTensorMap(); }
+    coefType& getCoefs() { return getCoefTensorMapMutable(); }
   };
   
   //! Specialization of CoefStruct for a cube
@@ -276,16 +415,16 @@ namespace CoefClasses
     //! Array dimensions
     int nx, ny, nz, dim;
 
+    //! Cached coefficient map (mutable for lazy initialization)
+    mutable std::shared_ptr<Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 3>>> coefs;
+
   public:
     //! Coefficient map type
     using coefType = Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 3>>;
 
-    //! Coefficient map
-    std::shared_ptr<coefType> coefs;
-
     //! Angular and radial dimension
     int nmaxx, nmaxy, nmaxz;
-    
+
     //! Constructor
     CubeStruct(Coefs* C=nullptr) :
       nmaxx(0), nmaxy(0), nmaxz(0), nx(0), ny(0), nz(0), dim(0), CoefStruct(C)
@@ -300,6 +439,24 @@ namespace CoefClasses
     //! Copy all of data contents to a new instance
     std::shared_ptr<CoefStruct> deepcopy();
 
+    //! Lazy-create and cache the coefficient tensor map
+    const coefType& getCoefTensorMap() const
+    {
+      if (!coefs) {
+	coefs = std::make_shared<coefType>
+	  (const_cast<std::complex<double>*>(store.data()), nx, ny, nz);
+      }
+      return *coefs;
+    }
+
+    //! Non-const version for assignment
+    coefType& getCoefTensorMapMutable()
+    {
+      coefs.reset(); // Clear old map before creating new one
+      coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
+      return *coefs;
+    }
+    
     //! Allocate storage arrays
     void allocate()
     {
@@ -310,15 +467,14 @@ namespace CoefClasses
       dim = nx * ny * nz;
 
       // Allocate
+      coefs.reset(); // Clear map BEFORE resize
       store.resize(dim);
-      coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
     }
 
     //! Assign matrix
     void assign(const Eigen::Tensor<std::complex<double>, 3>& dat)
     {
       const auto& d = dat.dimensions();
-
       // Assign grid dimensions
       nx = d[0];
       ny = d[1];
@@ -329,13 +485,31 @@ namespace CoefClasses
       nmaxx = (d[0]-1)/2;
       nmaxy = (d[1]-1)/2;
       nmaxz = (d[2]-1)/2;
-
       // Allocate storage and assign
       allocate();
-      *coefs = dat;
+      getCoefTensorMapMutable() = dat;
     }
+
+    //! Initialize coefficient tensor map with dimensions
+    void initCoefMap(int nx, int ny, int nz)
+    {
+      coefs.reset();
+      coefs = std::make_shared<coefType>(store.data(), nx, ny, nz);
+    }
+
+    //! Set the underlying coefficient data
+    void setCoefs(const Eigen::Tensor<std::complex<double>, 3>& tensor)
+    {
+      const auto& d = tensor.dimensions();
+      if (d[0] != nx || d[1] != ny || d[2] != nz)
+	throw std::invalid_argument("setCoefs: dimension mismatch");
+      getCoefTensorMapMutable() = tensor;
+    }
+
+    //! Direct access to underlying Eigen TensorMap (for client code)
+    const coefType& getCoefs() const { return getCoefTensorMap(); }
+    coefType& getCoefs() { return getCoefTensorMapMutable(); }
   };
-  
 
   //! Specialization of CoefStruct for a data table
   class TblStruct : public CoefStruct
@@ -344,12 +518,14 @@ namespace CoefClasses
     //! Coefficient map type
     using coefType = Eigen::Map<Eigen::VectorXcd>;
 
-    //! Coefficient map
-    std::shared_ptr<coefType> coefs;
-
     //! Number of columns
     int cols;
-    
+
+  private:
+    //! Cached coefficient map (mutable for lazy initialization)
+    mutable std::shared_ptr<coefType> coefs;
+
+  public:
     //! Constructor
     TblStruct(Coefs* C=nullptr) : cols(0), CoefStruct(C) { geom = "table"; }
 
@@ -362,23 +538,62 @@ namespace CoefClasses
     //! Copy all of data contents to a new instance
     std::shared_ptr<CoefStruct> deepcopy();
 
+    //! Lazy-create and cache the coefficient map
+    const coefType& getCoefMap() const
+    {
+      if (!coefs) {
+	coefs = std::make_shared<coefType>
+	  (const_cast<std::complex<double>*>(store.data()), store.size());
+      }
+      return *coefs;
+    }
+
+    //! Non-const version for assignment
+    coefType& getCoefMapMutable()
+    {
+      coefs.reset(); // Clear old map before creating new one
+      coefs = std::make_shared<coefType>(store.data(), store.size());
+      return *coefs;
+    }
+
     //! Assign array
     void assign(const Eigen::VectorXcd& arr)
     {
-      cols  = arr.size();
+      cols = arr.size();
+      coefs.reset(); // Clear map BEFORE resize
       store = arr;
-      coefs = std::make_shared<coefType>(store.data(), store.size());
     }
 
     //! Allocate storage arrays
     void allocate()
     {
+      coefs.reset(); // Clear map BEFORE resize
       store.resize(cols);
-      coefs = std::make_shared<coefType>(store.data(), cols);
     }
 
+    //! Initialize coefficient map
+    void initCoefMap()
+    {
+      coefs.reset();
+      coefs = std::make_shared<coefType>(store.data(), store.size());
+    }
+
+    //! Set the underlying coefficient data
+    void setCoefs(const Eigen::VectorXcd& vec)
+    {
+      if (vec.size() != cols)
+	throw std::invalid_argument("setCoefs: size mismatch");
+      getCoefMapMutable() = vec;
+    }
+
+    //@{
+    //! Direct access to underlying Eigen Map (for client code)
+    const coefType& getCoefs() const { return getCoefMap(); }
+    coefType& getCoefs() { return getCoefMapMutable(); }
+    //@}
+
   };
-  
+
   //! Specialization of CoefStruct for collection of trajectories
   class TrajStruct : public CoefStruct
   {
@@ -386,15 +601,17 @@ namespace CoefClasses
     //! Coefficient map type
     using coefType = Eigen::Map<Eigen::MatrixXcd>;
 
-    //! Coefficient map
-    std::shared_ptr<coefType> coefs;
-
     //! Number of trajectories
     int traj;
     
     //! Phase-space rank
     int rank;
-    
+
+private:
+    //! Cached coefficient map (mutable for lazy initialization)
+    mutable std::shared_ptr<coefType> coefs;
+
+  public:
     //! Constructor
     TrajStruct(Coefs* C=nullptr) : traj(0), rank(0), CoefStruct(C)
     { geom = "trajectory"; }
@@ -408,22 +625,64 @@ namespace CoefClasses
     //! Copy all of data contents to a new instance
     std::shared_ptr<CoefStruct> deepcopy();
 
+    //! Lazy-create and cache the coefficient map
+    const coefType& getCoefMap() const
+    {
+      if (!coefs) {
+	coefs = std::make_shared<coefType>
+	  (const_cast<std::complex<double>*>(store.data()), traj, rank);
+      }
+      return *coefs;
+    }
+
+    //! Non-const version for assignment
+    coefType& getCoefMapMutable()
+    {
+      coefs.reset(); // Clear old map before creating new one
+      coefs = std::make_shared<coefType>(store.data(), traj, rank);
+      
+      return *coefs;
+    }
+
     //! Assign array
     void assign(const Eigen::MatrixXd& arr)
     {
       traj = arr.rows();
       rank = arr.cols();
-
+      
       allocate();
-      *coefs = arr;
+      getCoefMapMutable() = arr;
     }
 
     //! Allocate storage arrays
     void allocate()
     {
+      coefs.reset(); // Clear map BEFORE resize
       store.resize(traj*rank);
-      coefs = std::make_shared<coefType>(store.data(), traj, rank);
     }
+
+    //! Initialize coefficient map with dimensions
+    void initCoefMap(int rows, int cols)
+    {
+      coefs.reset();
+      coefs = std::make_shared<coefType>(store.data(), rows, cols);
+    }
+
+    //! Set the underlying coefficient data
+    void setCoefs(const Eigen::MatrixXcd& mat)
+    {
+      traj = mat.rows();
+      rank = mat.cols();
+      
+      allocate();
+      getCoefMapMutable() = mat;
+    }
+
+    //@{
+    //! Direct access to underlying Eigen Map (for client code)
+    const coefType& getCoefs() const { return getCoefMap(); }
+    coefType& getCoefs() { return getCoefMapMutable(); }
+    //@}
 
   };
   
@@ -437,18 +696,19 @@ namespace CoefClasses
     //! Coefficient map type
     using coefType = Eigen::TensorMap<dataType>;
 
-    //! Coefficient map
-    std::shared_ptr<coefType> coefs;
-
     //! Number of data fields
     int nfld;
-
     //! Angular and radial dimension
     int lmax, nmax;
     
     //! Radial scale factor
     double scale;
-    
+
+  private:
+    //! Cached coefficient map (mutable for lazy initialization)
+    mutable std::shared_ptr<coefType> coefs;
+
+  public:
     //! Constructor
     SphFldStruct(Coefs* C=nullptr) :
       nfld(0), lmax(0), nmax(0), scale(1.0), CoefStruct(C)
@@ -463,13 +723,35 @@ namespace CoefClasses
     //! Copy all of data contents to a new instance
     std::shared_ptr<CoefStruct> deepcopy();
 
+    //! Lazy-create and cache the coefficient tensor map
+    const coefType& getCoefTensorMap() const
+    {
+      if (!coefs) {
+	int rows = (lmax+1)*(lmax+2)/2;
+	int cols = nmax;
+	coefs = std::make_shared<coefType>
+	  (const_cast<std::complex<double>*>(store.data()), nfld, rows, cols);
+      }
+      return *coefs;
+    }
+
+    //! Non-const version for assignment
+    coefType& getCoefTensorMapMutable()
+    {
+      int rows = (lmax+1)*(lmax+2)/2;
+      int cols = nmax;
+      coefs.reset(); // Clear old map before creating new one
+      coefs = std::make_shared<coefType>(store.data(), nfld, rows, cols);
+      return *coefs;
+    }
+
     //! Allocate storage arrays
     void allocate()
     {
       int rows = (lmax+1)*(lmax+2)/2;
       int cols = nmax;
+      coefs.reset(); // Clear map BEFORE resize
       store.resize(nfld*rows*cols);
-      coefs = std::make_shared<coefType>(store.data(), nfld, rows, cols);
     }
 
     //! Assign data
@@ -482,8 +764,30 @@ namespace CoefClasses
       store = data;
     }
 
+    //! Initialize coefficient tensor map with dimensions
+    void initCoefMap(int nfld, int rows, int cols)
+    {
+      coefs.reset();
+      coefs = std::make_shared<coefType>(store.data(), nfld, rows, cols);
+    }
+
+    //! Set the underlying coefficient data
+    void setCoefs(const Eigen::Tensor<std::complex<double>, 3>& tensor)
+    {
+      int rows = (lmax+1)*(lmax+2)/2;
+      int cols = nmax;
+
+      const auto& d = tensor.dimensions();
+      if (d[0] != nfld || d[1] != rows || d[2] != cols)
+	throw std::invalid_argument("setCoefs: dimension mismatch");
+
+      getCoefTensorMapMutable() = tensor;
+    }
+
+    //! Direct access to underlying Eigen TensorMap (for client code)
+    const coefType& getCoefs() const { return getCoefTensorMap(); }
+    coefType& getCoefs() { return getCoefTensorMapMutable(); }
   };
-  
 
   //! Specialization of CoefStruct for disks for general fields
   class CylFldStruct : public CoefStruct
@@ -495,9 +799,6 @@ namespace CoefClasses
     //! Coefficient map type
     using coefType = Eigen::TensorMap<dataType>;
 
-    //! Coefficient map
-    std::shared_ptr<coefType> coefs;
-
     //! Number of data fields
     int nfld;
 
@@ -506,7 +807,12 @@ namespace CoefClasses
     
     //! Radial scale factor
     double scale;
-    
+
+  private:
+    //! Cached coefficient map (mutable for lazy initialization)
+    mutable std::shared_ptr<coefType> coefs;
+
+  public:
     //! Constructor
     CylFldStruct(Coefs* C=nullptr) :
       nfld(0), mmax(0), nmax(0), scale(1.0), CoefStruct(C)
@@ -521,15 +827,35 @@ namespace CoefClasses
     //! Copy all of data contents to a new instance
     std::shared_ptr<CoefStruct> deepcopy();
 
+    //! Lazy-create and cache the coefficient tensor map
+    const coefType& getCoefTensorMap() const
+    {
+      if (!coefs) {
+	coefs = std::make_shared<coefType>
+	  (const_cast<std::complex<double>*>(store.data()), nfld, mmax+1, nmax);
+      }
+      return *coefs;
+    }
+
+    //! Non-const version for assignment
+    coefType& getCoefTensorMapMutable()
+    {
+      int rows = mmax+1;
+      int cols = nmax;
+      coefs.reset(); // Clear old map before creating new one
+      coefs = std::make_shared<coefType>(store.data(), nfld, rows, cols);
+      return *coefs;
+    }
+
     //! Allocate storage arrays
     void allocate()
     {
       int rows = mmax+1;
       int cols = nmax;
+      coefs.reset(); // Clear map BEFORE resize
       store.resize(nfld*rows*cols);
-      coefs = std::make_shared<coefType>(store.data(), nfld, rows, cols);
     }
-
+    
     //! Assign matrix
     void assign(const Eigen::VectorXcd& data, int Nfld, int Mmax, int Nmax)
     {
@@ -540,6 +866,29 @@ namespace CoefClasses
       store = data;
     }
 
+    //! Initialize coefficient tensor map with dimensions
+    void initCoefMap(int nfld, int rows, int cols)
+    {
+      coefs.reset();
+      coefs = std::make_shared<coefType>(store.data(), nfld, rows, cols);
+    }    
+
+    //! Set the underlying coefficient data
+    void setCoefs(const Eigen::Tensor<std::complex<double>, 3>& tensor)
+    {
+      int rows = mmax+1;
+      int cols = nmax;
+
+      const auto& d = tensor.dimensions();
+      if (d[0] != nfld || d[1] != rows || d[2] != cols)
+	throw std::invalid_argument("setCoefs: dimension mismatch");
+
+      getCoefTensorMapMutable() = tensor;
+    }
+
+    //! Direct access to underlying Eigen TensorMap (for client code)
+    const coefType& getCoefs() const { return getCoefTensorMap(); }
+    coefType& getCoefs() { return getCoefTensorMapMutable(); }
   };
   
 
@@ -558,4 +907,3 @@ namespace CoefClasses
 
 
 #endif
-  

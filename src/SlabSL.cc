@@ -495,7 +495,7 @@ void SlabSL::dump_coefs_h5(const std::string& file)
 
   cur->allocate();		// Set the storage and copy the
 				// coefficients through the map
-  *cur->coefs   = expccof[0];
+  cur->setCoefs(expccof[0]);
 
   // Check if file exists
   //

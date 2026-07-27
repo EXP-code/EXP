@@ -184,6 +184,43 @@ struct loadb_datum
   specifying alternative parameters, using an old-style PSP file, or
   starting a new job with a previous output from another simulation)
   </ol>
+
+  <br> <b>Input data format</b> Component now supports reading from
+  HDF5 files on input.  The scheme for HDF5 input files is:
+  @verbatim
+  /
+  ├── Attributes
+  │ ├── num_particles (int)
+  │ ├── num_aux_ints (int)
+  │ └── num_aux_floats (int)
+  └── particles/ (Group)
+  ├── m (Dataset)
+  ├── x, y, z (Datasets)
+  ├── u, v, w (Datasets)
+  ├── index (optional Dataset)
+  ├── aux_int_0, aux_int_1, ... (Datasets)
+  └── aux_float_0, aux_float_1, ... (Datasets)
+  @endverbatim
+
+  @note
+  <ol>
+
+  <li> The <code>index</code> dataset is optional.  If it is not
+  present, the particles are assigned indices in the order they are read.
+
+  <li> The <code>aux_int_*</code> and <code>aux_float_*</code> datasets are optional.
+  If omitted, the corresponding attribute counts (<code>num_aux_ints</code>, <code>num_aux_floats</code>)
+  should be set to 0; if the counts are non-zero, datasets <code>aux_int_0..</code> and
+  <code>aux_float_0..</code> are expected to exist.
+
+  <li> The datatype for the <code>m</code>, <code>x</code>,
+  <code>y</code>, <code>z</code>, <code>u</code>, <code>v</code>,
+  <code>w</code> and <code>aux_float_*</code> datasets may be float or
+  double (i.e. float32 or float64).  Each dataset's precision is
+  detected independently, so datasets may have mixed precision within
+  the same file.
+
+  </ol>
 */
 class Component
 {
@@ -199,6 +236,8 @@ private:
   //! Parallel distribute and particle io
   void load_balance(void);
   void update_indices(void);
+  void read_bodies_and_distribute_init(void);
+  void read_bodies_and_distribute_hdf5(void);
   void read_bodies_and_distribute_ascii(void);
   void read_bodies_and_distribute_binary_out(istream *);
   void read_bodies_and_distribute_binary_spl(istream *);
@@ -366,6 +405,9 @@ protected:
   bool H5shuffle = true;
   int  H5chunk = 4096;
   //@}
+
+  //! Detect float precision by inspecting dataset type
+  size_t detect_precision(const HighFive::DataSet& dataset);
 
 public:
 

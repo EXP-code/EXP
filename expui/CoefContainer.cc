@@ -188,16 +188,16 @@ namespace MSSA
 
       for (auto k : keys) {
 	if (k[2]==0)
-	  data[k][t] = (*cf->coefs)(k[0], k[1]).real();
+	  data[k][t] = (cf->getCoefs())(k[0], k[1]).real();
 	else
-	  data[k][t] = (*cf->coefs)(k[0], k[1]).imag();
+	  data[k][t] = (cf->getCoefs())(k[0], k[1]).imag();
       }
 
       for (auto k : bkeys) {
 	if (k[2]==0)
-	  data[k][t] = (*cf->coefs)(k[0], k[1]).real();
+	  data[k][t] = (cf->getCoefs())(k[0], k[1]).real();
 	else
-	  data[k][t] = (*cf->coefs)(k[0], k[1]).imag();
+	  data[k][t] = (cf->getCoefs())(k[0], k[1]).imag();
       }
     }
   }
@@ -214,8 +214,8 @@ namespace MSSA
 
 	int m = k[0], n = k[1];
 
-	if (m==0) (*cf->coefs)(m, n) = {data[c][i], 0.0};
-	else      (*cf->coefs)(m, n) = {data[c][i], data[s][i]};
+	if (m==0) (cf->getCoefs())(m, n) = {data[c][i], 0.0};
+	else      (cf->getCoefs())(m, n) = {data[c][i], data[s][i]};
       }
       // END key loop
     }
@@ -278,9 +278,9 @@ namespace MSSA
 
       for (auto k : keys) {
 	if (k[3]==0)
-	  data[k][t] = (*cf->coefs)(k[0], k[1], k[2]).real();
+	  data[k][t] = (cf->getCoefs())(k[0], k[1], k[2]).real();
 	else
-	  data[k][t] = (*cf->coefs)(k[0], k[1], k[3]).imag();
+	  data[k][t] = (cf->getCoefs())(k[0], k[1], k[2]).imag();
       }
     }
   }
@@ -295,10 +295,10 @@ namespace MSSA
 	auto c = k, s = k;
 	c.push_back(0); s.push_back(1);
 
-	int f = k[1], m = k[1], n = k[2];
+	int f = k[0], m = k[1], n = k[2];
 
-	if (m==0) (*cf->coefs)(f, m, n) = {data[c][i], 0.0};
-	else      (*cf->coefs)(f, m, n) = {data[c][i], data[s][i]};
+	if (m==0) (cf->getCoefs())(f, m, n) = {data[c][i], 0.0};
+	else      (cf->getCoefs())(f, m, n) = {data[c][i], data[s][i]};
       }
       // END key loop
     }
@@ -381,13 +381,13 @@ namespace MSSA
 	( cur->getCoefStruct(times[t]).get() );
 
       for (auto k : keys)  {
-	auto c = (*cf->coefs)(I(k), k[2]);
+	auto c = (cf->getCoefs())(I(k), k[2]);
 	data[k][t] = c.real();
 	if (k[3]) data[k][t] = c.imag();
       }
 
       for (auto k : bkeys)  {
-	auto c = (*cf->coefs)(I(k), k[2]);
+	auto c = (cf->getCoefs())(I(k), k[2]);
 	data[k][t] = c.real();
 	if (k[3]) data[k][t] = c.imag();
       }
@@ -410,8 +410,8 @@ namespace MSSA
 
 	int m = k[1], n = k[2];
 
-	if (m==0) (*cf->coefs)(I(k), n) = {data[c][i], 0.0       };
-	else      (*cf->coefs)(I(k), n) = {data[c][i], data[s][i]};
+	if (m==0) (cf->getCoefs())(I(k), n) = {data[c][i], 0.0       };
+	else      (cf->getCoefs())(I(k), n) = {data[c][i], data[s][i]};
       }
       // END key loop
     }
@@ -478,7 +478,7 @@ namespace MSSA
 	( cur->getCoefStruct(times[t]).get() );
 
       for (auto k : keys)  {
-	auto c = (*cf->coefs)(k[0], I(k), k[3]);
+	auto c = (cf->getCoefs())(k[0], I(k), k[3]);
 	data[k][t] = c.real();
 	if (k[4]) data[k][t] = c.imag();
       }
@@ -503,8 +503,8 @@ namespace MSSA
 
 	int f = k[0], l = k[1], m = k[2], n = k[3];
 
-	if (m==0) (*cf->coefs)(f, I(k), n) = {data[c][i], 0.0       };
-	else      (*cf->coefs)(f, I(k), n) = {data[c][i], data[s][i]};
+	if (m==0) (cf->getCoefs())(f, I(k), n) = {data[c][i], 0.0       };
+	else      (cf->getCoefs())(f, I(k), n) = {data[c][i], data[s][i]};
       }
       // END key loop
     }
@@ -582,13 +582,13 @@ namespace MSSA
 	( cur->getCoefStruct(times[t]).get() );
 
       for (auto k : keys)  {
-	auto c = (*cf->coefs)(k[0], k[1], k[2]);
+	auto c = (cf->getCoefs())(k[0], k[1], k[2]);
 	if (k[3]) data[k][t] = c.imag();
 	else      data[k][t] = c.real();
       }
 
       for (auto k : bkeys)  {
-	auto c = (*cf->coefs)(k[0], k[1], k[2]);
+	auto c = (cf->getCoefs())(k[0], k[1], k[2]);
 	if (k[3]) data[k][t] = c.imag();
 	else      data[k][t] = c.real();
       }
@@ -666,13 +666,13 @@ namespace MSSA
 	( cur->getCoefStruct(times[t]).get() );
 
       for (auto k : keys)  {
-	auto c = (*cf->coefs)(k[0], k[1], k[2]);
+	auto c = (cf->getCoefs())(k[0], k[1], k[2]);
 	if (k[3]) data[k][t] = c.imag();
 	else      data[k][t] = c.real();
       }
 
       for (auto k : bkeys)  {
-	auto c = (*cf->coefs)(k[0], k[1], k[2]);
+	auto c = (cf->getCoefs())(k[0], k[1], k[2]);
 	if (k[3]) data[k][t] = c.imag();
 	else      data[k][t] = c.real();
       }
@@ -691,7 +691,7 @@ namespace MSSA
 	c.push_back(0);
 	s.push_back(1);
 
-	(*cf->coefs)(k[0], k[1], k[2]) = {data[c][i], data[s][i]};
+	(cf->getCoefs())(k[0], k[1], k[2]) = {data[c][i], data[s][i]};
       }
       // END key loop
     }
@@ -710,7 +710,7 @@ namespace MSSA
 	c.push_back(0);
 	s.push_back(1);
 
-	(*cf->coefs)(k[0], k[1], k[2]) = {data[c][i], data[s][i]};
+	(cf->getCoefs())(k[0], k[1], k[2]) = {data[c][i], data[s][i]};
       }
       // END key loop
     }
@@ -765,7 +765,7 @@ namespace MSSA
 	cf = dynamic_cast<CoefClasses::TblStruct*>
 	  ( cur->getCoefStruct(times[t]).get() );
 
-	data[key][t] = (*cf->coefs)(c).real();
+	data[key][t] = (cf->getCoefs())(c).real();
       }
     }
   }
@@ -781,7 +781,7 @@ namespace MSSA
 
       for (unsigned c=0; c<cols; c++) {
 	Key key = {c};
-	(*cf->coefs)(c) = data[key][i];
+	(cf->getCoefs())(c) = data[key][i];
       }
       // End field loop
     }
@@ -840,7 +840,7 @@ namespace MSSA
 	  ( cur->getCoefStruct(times[t]).get() );
 
 	for (int n=0; n<rank; n++) {
-	  data[key][t*rank+n] = (*cf->coefs)(m, n).real();
+	  data[key][t*rank+n] = (cf->getCoefs())(m, n).real();
 	}
 
       }
@@ -864,7 +864,7 @@ namespace MSSA
       for (unsigned m=0; m<traj; m++) {
 	Key key {m};
 	for (int n=0; n<rank; n++)
-	  (*cf->coefs)(m, n) = data[key][t*rank+n];
+	  (cf->getCoefs())(m, n) = data[key][t*rank+n];
       }
       // End field loop
     }
@@ -982,7 +982,7 @@ namespace MSSA
 	(cur->getCoefStruct(times[t]).get());
 
       // Get the coefficient map
-      auto & ar = *(cf->coefs);
+      auto & ar = cf->getCoefs();
 
       for (auto k : bkeys)  {
 	auto c = ar(I(k), k[2]);
@@ -1003,7 +1003,7 @@ namespace MSSA
 	(cur->getCoefStruct(times[t]).get());
       
       // Get the coefficient map
-      auto & ar = *(cf->coefs);
+      auto & ar = cf->getCoefs();
 
       for (auto k : bkeys) {
 	if (k[2]==0)

@@ -2,10 +2,19 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <variant>
 #include <vector>
 #include <string>
 #include <memory>
 #include <map>
+
+// HighFive
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+
+// HDF5 C API
+#include <H5Fpublic.h> 
 
 #include "Component.H"
 #include "Bessel.H"
@@ -277,7 +286,7 @@ Component::Component(YAML::Node& CONF)
 
   initialize_cuda();
 
-  read_bodies_and_distribute_ascii();
+  read_bodies_and_distribute_init();
 
   reset_level_lists();
 
@@ -1462,6 +1471,372 @@ Component::~Component(void)
   delete [] cov0;
   delete [] acc0;
 }
+
+void Component::read_bodies_and_distribute_init()
+{
+  // Check whether input file is HDF5
+
+  // Note: One might need to use H5Fis_hdf5(filename.c_str()) for
+  // older HDF5 versions (< 1.12)
+  
+  bool isHDF5 = false;
+
+  if (myid == 0) {
+#if H5_VERSION_GE(1, 12, 0)
+    isHDF5 = H5Fis_accessible(pfile.c_str(), H5P_DEFAULT) > 0;
+#else
+    isHDF5 = H5Fis_hdf5(pfile.c_str()) > 0;
+#endif
+  }
+
+  MPI_Bcast(&isHDF5, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
+  
+  if (isHDF5) {
+    if (myid==0)
+      std::cout << "---- Component <" << name << ">: "
+		<< "reading bodies from HDF5 file "<< pfile << std::endl;
+    read_bodies_and_distribute_hdf5();
+  } else {
+    if (myid==0)
+      std::cout << "---- Component <" << name << ">: "
+		<< "reading bodies from ASCII file "<< pfile << std::endl;
+    read_bodies_and_distribute_ascii();
+  }
+}
+
+// Detect float precision by inspecting dataset type
+size_t Component::detect_precision(const HighFive::DataSet& dataset)
+{
+  const auto datatype = dataset.getDataType();
+  if (datatype.getClass() != HighFive::DataTypeClass::Float) {
+    throw std::runtime_error("Unexpected dataset type: expected float for precision detection");
+  }
+
+  // Get the size in bytes
+  const size_t type_size = datatype.getSize();
+
+  // Float32 is 4 bytes, Float64 is 8 bytes
+  if (type_size == 4 || type_size == 8) {
+    return type_size;
+  }
+
+  throw std::runtime_error("Unexpected float type size: " + std::to_string(type_size));
+}
+
+void Component::read_bodies_and_distribute_hdf5(void)
+{
+  HighFive::File file(pfile, HighFive::File::ReadOnly);
+
+  // Read metadata (all ranks read the same metadata, but only rank 0
+  // reads the datasets)
+  //
+  nbodies_tot  = file.getAttribute("num_particles") .read<int>();
+  niattrib     = file.getAttribute("num_aux_ints")  .read<int>();
+  ndattrib     = file.getAttribute("num_aux_floats").read<int>();
+
+  // Open particles group
+  //
+  HighFive::Group particles_group = file.getGroup("particles");
+
+  // Variant for flexible reading and access of float or double datasets
+  //
+  using FloatDataVariant = std::variant<std::vector<float>, std::vector<double>>;
+
+  // Wrapper struct to provide uniform access to float or double std::vectors
+  //
+  struct FloatData
+  {
+    // The underlying data can be either a vector of floats or doubles
+    FloatDataVariant data;
+
+    // Default constructor
+    FloatData() = default;
+
+    // Implicit constructor so you can assign vectors directly to FloatData
+    FloatData(FloatDataVariant v) : data(std::move(v)) {}
+
+    // Provides a uniform interface to access elements regardless of
+    // underlying type. Forces a value copy, converting float to
+    // double if necessary.
+    double operator[](size_t i) const {
+      return std::visit([i](const auto& vec) -> double {
+	return vec[i]; }, data);
+    }
+  };
+
+  // Phase-space data
+  //
+  FloatData m, x, y, z, u, v, w;
+  std::vector<unsigned long> index;
+  bool has_index = particles_group.exist("index");
+  std::vector<std::vector<int>> aux_ints;
+  std::vector<FloatData> aux_floats;
+
+  // Lambda to read float or double based on precision flag
+  //
+  auto read_dataset = [this, &particles_group]
+    (const std::string& name, size_t offset, size_t batch) -> FloatData {
+    
+    HighFive::DataSet dataset = particles_group.getDataSet(name);
+    size_t precision  = detect_precision(dataset);
+
+    // Fetch the dimensions (e.g., [rows, cols])
+    size_t total = dataset.getSpace().getDimensions()[0];
+
+    if (offset >= total) {
+      throw std::runtime_error("Component ERROR: dataset <" + name + "> shorter than expected");
+    }
+
+    size_t current = std::min(batch, total - offset);
+    if (current != batch) {
+      throw std::runtime_error("Component ERROR: dataset <" + name + "> shorter than expected");
+    }
+
+    if (precision == 4) {
+      return FloatData(dataset.select({offset}, {current}).read<std::vector<float>>());
+    }
+    else if (precision == 8) {
+      return FloatData(dataset.select({offset}, {current}).read<std::vector<double>>());
+    }
+    else {
+      throw std::runtime_error("Unsupported precision detected in dataset: " + name);
+    }
+  };
+
+  // Okay, now we can read the datasets and distribute particles
+  // across MPI rank, following the previously established logic. The
+  // following code reads the datasets in batches and distributes them
+  // to the appropriate ranks.
+
+  // For radius exclusion check
+  double rmax1=0.0, r2;
+
+  is_init = 1;
+  setup_distribution();
+  is_init = 0;
+  
+  // Initialize the particle ferry instance with dynamic attribute
+  // sizes
+  if (not pf) pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
+
+
+  if (myid==0) {
+
+    // Offset into HDF5 datasets for each node, read in batchs for all
+    // datasets
+    size_t offset = 0;
+
+    // Read Node 0's PSP fields
+    if (has_index) {
+      index = particles_group.getDataSet("index")
+        .select({offset}, {nbodies_table[0]}).read<std::vector<unsigned long>>();
+    }
+    m = read_dataset("m", offset, nbodies_table[0]);
+
+    x = read_dataset("x", offset, nbodies_table[0]);
+    y = read_dataset("y", offset, nbodies_table[0]);
+    z = read_dataset("z", offset, nbodies_table[0]);
+
+    u = read_dataset("u", offset, nbodies_table[0]);
+    v = read_dataset("v", offset, nbodies_table[0]);
+    w = read_dataset("w", offset, nbodies_table[0]);
+
+    // Read auxiliary integer fields
+    aux_ints.resize(niattrib);
+    for (int j = 0; j < niattrib; ++j) {
+      std::string dset_name = "aux_int_" + std::to_string(j);
+      aux_ints[j] = particles_group.getDataSet(dset_name)
+        .select({offset}, {nbodies_table[0]}).read<std::vector<int>>();
+    }
+
+    // Read auxiliary float fields
+    aux_floats.resize(ndattrib);
+    for (int j = 0; j < ndattrib; ++j) {
+      std::string dset_name = "aux_float_" + std::to_string(j);
+      aux_floats[j] = read_dataset(dset_name, offset, nbodies_table[0]);
+    }
+
+    for (unsigned i=0; i<nbodies_table[0]; ++i) {
+
+      PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
+      
+      // Load the particle data for root
+      part->mass   = m[i];
+
+      part->pos[0] = x[i];
+      part->pos[1] = y[i];
+      part->pos[2] = z[i];
+
+      part->vel[0] = u[i];
+      part->vel[1] = v[i];
+      part->vel[2] = w[i];
+
+      for (int j=0; j<niattrib; ++j) { // Integer attributes
+	part->iattrib[j] = aux_ints[j][i];
+      }
+
+      for (int j=0; j<ndattrib; ++j) { // Float attributes
+	part->dattrib[j] = aux_floats[j][i];
+      }
+
+      // Set particle index from optional dataset, otherwise sequential
+      part->indx = has_index ? index[i] : i + 1;
+      
+      // Get the radius
+      r2 = 0.0;
+      for (int k=0; k<3; k++) r2 += part->pos[k]*part->pos[k];
+      rmax1 = max<double>(r2, rmax1);
+
+      // Load the particle
+      particles[part->indx] = part;
+
+				// Record top_seq
+      top_seq = std::max<unsigned long>(part->indx, top_seq);
+    }
+
+    nbodies = nbodies_table[0];
+
+    // Offset into the next node's data in the HDF5 datasets
+    offset += nbodies_table[0];
+
+    for (int n=1; n<numprocs; n++) {
+
+      // Some ranks may legitimately receive 0 particles (e.g., more ranks than particles).
+      // In that case, ship an empty batch and skip all dataset reads.
+      if (nbodies_table[n] == 0) {
+        unsigned zero = 0;
+        pf->ShipParticles(n, 0, zero);
+        continue;
+      }
+
+      // Read core PSP fields
+      if (has_index) {
+        index = particles_group.getDataSet("index")
+          .select({offset}, {nbodies_table[n]}).read<std::vector<unsigned long>>();
+      }
+      m = read_dataset("m", offset, nbodies_table[n]);
+      x = read_dataset("x", offset, nbodies_table[n]);
+      y = read_dataset("y", offset, nbodies_table[n]);
+      z = read_dataset("z", offset, nbodies_table[n]);
+
+      u = read_dataset("u", offset, nbodies_table[n]);
+      v = read_dataset("v", offset, nbodies_table[n]);
+      w = read_dataset("w", offset, nbodies_table[n]);
+
+      // Read auxiliary integer fields
+      aux_ints.resize(niattrib);
+      for (int j = 0; j < niattrib; ++j) {
+	std::string dset_name = "aux_int_" + std::to_string(j);
+	aux_ints[j] = particles_group.getDataSet(dset_name)
+	  .select({offset}, {nbodies_table[n]}).read<std::vector<int>>();
+      }
+
+      // Read auxiliary float fields
+      aux_floats.resize(ndattrib);
+      for (int j = 0; j < ndattrib; ++j) {
+	std::string dset_name = "aux_float_" + std::to_string(j);
+	aux_floats[j] = read_dataset(dset_name, offset, nbodies_table[n]);
+      }
+
+      pf->ShipParticles(n, 0, nbodies_table[n]);
+
+      unsigned icount = 0;
+      unsigned ibufcount = 0;
+      while (icount < nbodies_table[n]) {
+
+	PartPtr part = std::make_shared<Particle>(niattrib, ndattrib);
+	
+	// Set particle index from optional dataset, otherwise sequential
+	part->indx = has_index ? index[icount] : nbodies_index[n-1] + 1 + icount;
+
+	part->mass   = m[icount];
+
+	part->pos[0] = x[icount];
+	part->pos[1] = y[icount];
+	part->pos[2] = z[icount];
+
+	part->vel[0] = u[icount];
+	part->vel[1] = v[icount];
+	part->vel[2] = w[icount];
+
+	for (int j=0; j<niattrib; ++j) { // Integer attributes
+	  part->iattrib[j] = aux_ints[j][icount];
+	}
+
+	for (int j=0; j<ndattrib; ++j) { // Float attributes
+	  part->dattrib[j] = aux_floats[j][icount];
+	}
+	
+	r2 = 0.0;
+	for (int k=0; k<3; k++) r2 += part->pos[k]*part->pos[k];
+	rmax1 = max<double>(r2, rmax1);
+
+	pf->SendParticle(part);
+	icount++;
+
+	// Record top_seq
+	top_seq = std::max<unsigned long>(part->indx, top_seq);
+      }
+
+      // Update offset for next node
+      offset += nbodies_table[n];
+    }
+
+  } else {
+
+    pf->ShipParticles(myid, 0, nbodies);
+      
+#ifdef DEBUG
+    int icount = 0;
+#endif
+
+    while (PartPtr part=pf->RecvParticle()) {
+      particles[part->indx] = part;
+#ifdef DEBUG
+      if (icount<5) {
+	cout << "Process " << myid << ": received ";
+	cout << setw(14) << part->mass;
+	for (int k=0; k<3; k++) cout << setw(14) << part->pos[k];
+	cout << endl;
+      }
+      icount++;
+#endif
+    }
+  }
+
+  // Default: set to max radius
+  // can be overriden by parameter
+
+  rmax = sqrt(fabs(rmax1));
+  MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  // Send top_seq to all nodes
+  MPI_Bcast(&top_seq, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+
+  initialize();
+
+#ifdef DEBUG
+  if (particles.size()) {
+    unsigned long imin = std::numeric_limits<unsigned long>::max();
+    unsigned long imax = 0, kmin = imax, kmax = 0;
+    for (auto p : particles) {
+      imin = std::min<unsigned long>(imin, p.first);
+      imax = std::max<unsigned long>(imax, p.first);
+      kmin = std::min<unsigned long>(kmin, p.second->indx);
+      kmax = std::max<unsigned long>(kmax, p.second->indx);
+    }
+    cout << "read_bodies_and_distribute_hdf5: process " << myid 
+	 << " name=" << name << " bodies [" << kmin << ", "
+	 << kmax << "], [" << imin << ", " << imax << "]"
+	 << " #=" << particles.size() << endl;
+  } else {
+    cout << "read_bodies_and_distribute_hdf5: process " << myid 
+	 << " name=" << name
+	 << " #=" << particles.size() << endl;
+  }
+#endif
+}
+
 
 void Component::read_bodies_and_distribute_ascii(void)
 {

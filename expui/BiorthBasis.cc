@@ -513,16 +513,15 @@ namespace BasisClasses
     cf->store.resize(ldim*nmax);
 
     // Make the coefficient map
-    cf->coefs = std::make_shared<CoefClasses::SphStruct::coefType>
-      (cf->store.data(), ldim, nmax);
+    cf->initCoefMap(ldim, nmax);
 
     for (int l=0, L0=0, L1=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {
 	for (int n=0; n<nmax; n++) {
 	  if (m==0)
-	    (*cf->coefs)(L0, n) = {expcoef(L1, n), 0.0};
+	    cf->getCoefs()(L0, n) = {expcoef(L1, n), 0.0};
 	  else
-	    (*cf->coefs)(L0, n) = {expcoef(L1, n), expcoef(L1+1, n)};
+	    cf->getCoefs()(L0, n) = {expcoef(L1, n), expcoef(L1+1, n)};
 	}
 	L0 += 1;
 	if (m==0) L1 += 1;
@@ -543,8 +542,8 @@ namespace BasisClasses
     {
       auto & cf = *dynamic_cast<CoefClasses::SphStruct*>(coef.get());
 
-      int rows = (*cf.coefs).rows();
-      int cols = (*cf.coefs).cols();
+      int rows = cf.getCoefs().rows();
+      int cols = cf.getCoefs().cols();
       int rexp = (lmax+1)*(lmax+2)/2;
       if (rows != rexp or cols != nmax) {
 	std::ostringstream sout;
@@ -575,10 +574,10 @@ namespace BasisClasses
       for (int m=0; m<=l; m++) {
 	for (int n=0; n<nmax; n++) {
 	  if (m==0)
-	    expcoef(L1,   n) = (*cf->coefs)(L0, n).real();
+	    expcoef(L1,   n) = cf->getCoefs()(L0, n).real();
 	  else {
-	    expcoef(L1,   n) = (*cf->coefs)(L0, n).real();
-	    expcoef(L1+1, n) = (*cf->coefs)(L0, n).imag();
+	    expcoef(L1,   n) = cf->getCoefs()(L0, n).real();
+	    expcoef(L1+1, n) = cf->getCoefs()(L0, n).imag();
 	  }
 	}
 	L0 += 1;
@@ -2266,14 +2265,13 @@ namespace BasisClasses
     cf->store.resize((mmax+1)*nmax);
 
     // Create a new instance
-    cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
-      (cf->store.data(), mmax+1, nmax);
+    cf->initCoefMap(mmax+1, nmax);
 
     for (int m=0; m<=mmax; m++) {
       sl->get_coefs(m, cos1, sin1);
 
       for (int n=0; n<nmax; n++) {
-	(*cf->coefs)(m, n) = {cos1(n), sin1(n)};
+	cf->getCoefs()(m, n) = {cos1(n), sin1(n)};
       }
     }
   }
@@ -2294,7 +2292,7 @@ namespace BasisClasses
     coefret = coef;
 
     for (int m=0; m<=mmax; m++) { // Set to zero on m=0 call only--------+
-      sl->set_coefs(m, (*cf->coefs).row(m).real(), (*cf->coefs).row(m).imag(), m==0);
+      sl->set_coefs(m, cf->getCoefs().row(m).real(), cf->getCoefs().row(m).imag(), m==0);
     }
 
     // Assign center if need be
@@ -2612,15 +2610,14 @@ namespace BasisClasses
     cf->store.resize((mmax+1)*nmax);
 
     // Make the coefficient map
-    cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
-      (cf->store.data(), mmax+1, nmax);
+    cf->initCoefMap(mmax+1, nmax);
 
     for (int m=0, m0=0; m<=mmax; m++) {
       for (int n=0; n<nmax; n++) {
 	if (m==0)
-	  (*cf->coefs)(m, n) = {expcoef(m0, n), 0.0};
+	  cf->getCoefs()(m, n) = {expcoef(m0, n), 0.0};
 	else
-	  (*cf->coefs)(m, n) = {expcoef(m0, n), expcoef(m0+1, n)};
+	  cf->getCoefs()(m, n) = {expcoef(m0, n), expcoef(m0+1, n)};
       }
       if (m==0) m0 += 1;
       else      m0 += 2;
@@ -2638,9 +2635,9 @@ namespace BasisClasses
     //
     {
       auto cc = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
-      auto cf = cc->coefs;
-      int rows = cf->rows();
-      int cols = cf->cols();
+      auto cf = cc->getCoefs();
+      int rows = cf.rows();
+      int cols = cf.cols();
       if (rows != mmax+1 or cols != nmax) {
 	std::ostringstream sout;
 	sout << "FlatDisk::set_coefs: the basis has (mmax+1, nmax)=("
@@ -2653,7 +2650,7 @@ namespace BasisClasses
     }
     
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
-    auto & cc = *cf->coefs;
+    auto & cc = cf->getCoefs();
 
     // Set gravitational constant
     //
@@ -3458,15 +3455,14 @@ namespace BasisClasses
     cf->store.resize((mmax+1)*nmax);
 
     // Make the coefficient map
-    cf->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
-      (cf->store.data(), mmax+1, nmax);
+    cf->initCoefMap(mmax+1, nmax);
 
     for (int m=0, m0=0; m<=mmax; m++) {
       for (int n=0; n<nmax; n++) {
 	if (m==0)
-	  (*cf->coefs)(m, n) = {expcoef(m0, n), 0.0};
+	  cf->getCoefs()(m, n) = {expcoef(m0, n), 0.0};
 	else
-	  (*cf->coefs)(m, n) = {expcoef(m0, n), expcoef(m0+1, n)};
+	  cf->getCoefs()(m, n) = {expcoef(m0, n), expcoef(m0+1, n)};
       }
       if (m==0) m0 += 1;
       else      m0 += 2;
@@ -3484,9 +3480,9 @@ namespace BasisClasses
     //
     {
       auto cc = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
-      auto cf = cc->coefs;
-      int rows = cf->rows();
-      int cols = cf->cols();
+      auto cf = cc->getCoefs();
+      int rows = cf.rows();
+      int cols = cf.cols();
       if (rows != mmax+1 or cols != nmax) {
 	std::ostringstream sout;
 	sout << "CBDisk::set_coefs: the basis has (mmax+1, nmax)=("
@@ -3499,7 +3495,7 @@ namespace BasisClasses
     }
     
     CoefClasses::CylStruct* cf = dynamic_cast<CoefClasses::CylStruct*>(coef.get());
-    auto & cc = *cf->coefs;
+    auto & cc = cf->getCoefs();
 
     // Set gravitational constant
     //
@@ -3966,8 +3962,7 @@ namespace BasisClasses
     G = cf->getGravConstant();
 
     cf->allocate();
-
-    *cf->coefs = expcoef;
+    cf->setCoefs(expcoef);
   }
 
   void Slab::set_coefs(CoefClasses::CoefStrPtr coef)
@@ -3981,7 +3976,7 @@ namespace BasisClasses
     //
     {
       auto cc = dynamic_cast<CoefClasses::SlabStruct*>(coef.get());
-      auto d  = cc->coefs->dimensions();
+      auto d  = cc->getCoefs().dimensions();
       if (d[0] != 2*nmaxx+1 or d[1] != 2*nmaxy+1 or d[2] != nmaxz) {
 	std::ostringstream sout;
 	sout << "Slab::set_coefs: the basis has (2*nmaxx+1, 2*nmaxy+1, nmaxz)=("
@@ -3996,7 +3991,7 @@ namespace BasisClasses
     }
     
     auto cf = dynamic_cast<CoefClasses::SlabStruct*>(coef.get());
-    expcoef = *cf->coefs;
+    expcoef = cf->getCoefs();
 
     // Set gravitational constant
     //
@@ -4540,8 +4535,7 @@ namespace BasisClasses
     G = cf->getGravConstant();
 
     cf->allocate();
-
-    *cf->coefs = expcoef;
+    cf->setCoefs(expcoef);
   }
 
   void Cube::set_coefs(CoefClasses::CoefStrPtr coef)
@@ -4555,7 +4549,7 @@ namespace BasisClasses
     //
     {
       auto cc = dynamic_cast<CoefClasses::CubeStruct*>(coef.get());
-      auto d  = cc->coefs->dimensions();
+      auto d  = cc->getCoefs().dimensions();
       if (d[0] != 2*nmaxx+1 or d[1] != 2*nmaxy+1 or d[2] != 2*nmaxz+1) {
 	std::ostringstream sout;
 	sout << "Cube::set_coefs: the basis has (2*nmaxx+1, 2*nmaxy+1, 2*nmaxz+1)=("
@@ -4570,7 +4564,7 @@ namespace BasisClasses
     }
     
     auto cf = dynamic_cast<CoefClasses::CubeStruct*>(coef.get());
-    expcoef = *cf->coefs;
+    expcoef = cf->getCoefs();
 
     // Set gravitational constant
     //
