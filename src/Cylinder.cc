@@ -1865,7 +1865,7 @@ void Cylinder::dump_coefs_h5(const std::string& file)
 
   cur->allocate();
 
-  auto & cof = *cur->coefs;	// Reference to the coefficient map
+  auto & cof = cur->getCoefs();	// Reference to the coefficient map
 
   Eigen::VectorXd cos1(nmax), sin1(nmax);
   

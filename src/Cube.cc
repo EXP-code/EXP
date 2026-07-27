@@ -820,7 +820,7 @@ void Cube::dump_coefs_h5(const std::string& file)
 
   cur->allocate();		// Set the storage and copy the
 				// coefficients through the map
-  *cur->coefs   = expcoef;
+  cur->setCoefs(expcoef);
 
   // Check if file exists
   //

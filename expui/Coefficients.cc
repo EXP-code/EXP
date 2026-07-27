@@ -325,7 +325,7 @@ namespace CoefClasses
       coef->setGravConstant(G);
 
       coef->allocate();
-      *coef->coefs = in;
+      coef->setCoefs(in);
       
       coefs[roundTime(Time)] = coef;
     }
@@ -705,8 +705,7 @@ namespace CoefClasses
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
-      it->second->coefs = std::make_shared<CoefClasses::SphStruct::coefType>
-	(it->second->store.data(), (Lmax+1)*(Lmax+2)/2, Nmax);
+      it->second->initCoefMap((Lmax+1)*(Lmax+2)/2, Nmax);
     }
   }
   
@@ -720,7 +719,7 @@ namespace CoefClasses
       throw std::runtime_error(str.str());
     } else {
       it->second->allocate();
-      *it->second->coefs = dat;
+      it->second->setCoefs(dat);
     }
   }
   
@@ -735,7 +734,7 @@ namespace CoefClasses
     ret.resize((Lmax+1)*(Lmax+2)/2, Nmax, ntim);
 
     for (int t=0; t<ntim; t++) {
-      auto & cof = *(coefs[roundTime(times[t])]->coefs);
+      auto & cof = coefs[roundTime(times[t])]->getCoefs();
       for (int l=0; l<(Lmax+2)*(Lmax+1)/2; l++) {
 	for (int n=0; n<Nmax; n++) {
 	  ret(l, n, t) = cof(l, n);
@@ -936,7 +935,7 @@ namespace CoefClasses
       // Pack the data into an Eigen matrix
       //
       int lmax = C->lmax, nmax= C->nmax;
-      Eigen::MatrixXcd out(*C->coefs);
+      Eigen::MatrixXcd out = C->getCoefs();
       HighFive::DataSet dataset = stanza.createDataSet("coefficients", out);
     }
     
@@ -959,7 +958,7 @@ namespace CoefClasses
       unsigned I = 0;
       if (lmin>0) I += lmin*lmin;
       
-      auto & cof = *(c.second->coefs);
+      auto & cof = c.second->getCoefs();
 
       for (int ll=lmin; ll<=std::min<int>(lmax, Lmax); ll++) {
 	for (int mm=0; mm<=ll; mm++) {
@@ -1012,8 +1011,8 @@ namespace CoefClasses
 		<< std::endl;
       for (auto v : coefs) {
 	auto it = other->coefs.find(v.first);
-	auto & cv = *(v.second->coefs);
-	auto & ci = *(it->second->coefs);
+	auto & cv = v.second->getCoefs();
+	auto & ci = it->second->getCoefs();
 	for (int i=0; i<cv.rows(); i++) {
 	  for (int j=0; j<cv.cols(); j++) {
 	    if (cv(i, j) != ci(i, j)) {
@@ -1043,7 +1042,7 @@ namespace CoefClasses
       for (auto v : coefs) {
 	for (int l=0, L=0; l<=lmax; l++) {
 	  for (int m=0; m<=l; m++, L++) {
-	    auto rad = v.second->coefs->row(L);
+	    auto rad = v.second->getCoefs().row(L);
 	    for (int n=std::max<int>(0, min); n<std::min<int>(nmax, max); n++) {
 	      double val = std::abs(rad(n));
 	      power(T, l) += val * val;
@@ -1212,8 +1211,7 @@ namespace CoefClasses
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
-      it->second->coefs = std::make_shared<CoefClasses::CylStruct::coefType>
-	(it->second->store.data(), Mmax+1, Nmax);
+      it->second->initCoefMap(Mmax+1, Nmax);
     }
   }
 
@@ -1227,7 +1225,7 @@ namespace CoefClasses
       throw std::runtime_error(str.str());
     } else {
       it->second->allocate();
-      *it->second->coefs = dat;
+      it->second->setCoefs(dat);
     }
   }
 
@@ -1243,7 +1241,7 @@ namespace CoefClasses
     ret.resize(Mmax+1, Nmax, ntim);
     
     for (int t=0; t<ntim; t++) {
-      auto & cof = *coefs[roundTime(times[t])]->coefs;
+      auto & cof = coefs[roundTime(times[t])]->getCoefs();
       for (int m=0; m<Mmax+1; m++) {
 	for (int n=0; n<Nmax; n++) {
 	  ret(m, n, t) = cof(m, n);
@@ -1396,7 +1394,7 @@ namespace CoefClasses
 
       // Add coefficient data
       //
-      Eigen::MatrixXcd out(*C->coefs);
+      Eigen::MatrixXcd out = C->getCoefs();
       HighFive::DataSet dataset = stanza.createDataSet("coefficients", out);
     }
     
@@ -1419,7 +1417,7 @@ namespace CoefClasses
     for (auto c : coefs) {
 
       // The coefficient matrix
-      auto & cof = *c.second->coefs;
+      auto & cof = c.second->getCoefs();
 
       // Index loop
       for (int mm=mmin; mm<=std::min<int>(mmax, c.second->mmax); mm++) {
@@ -1453,7 +1451,7 @@ namespace CoefClasses
       int T=0;
       for (auto v : coefs) {
 	for (int m=0; m<=mmax; m++) {
-	  auto rad = (*v.second->coefs).row(m);
+	  auto rad = v.second->getCoefs().row(m);
 	  for (int n=std::max<int>(0, min); n<std::min<int>(nmax, max); n++) {
 	    double val = std::abs(rad(n));
 	    power(T, m) += val * val;
@@ -1515,7 +1513,7 @@ namespace CoefClasses
       int T=0;
       for (auto v : coefs) {
 	for (int m=0; m<=mmax; m++) {
-	  auto rad = (*v.second->coefs).row(m);
+	  auto rad = v.second->getCoefs().row(m);
 	  // Even
 	  for (int n=std::max<int>(0, min); n<std::min<int>(nmax-nodd, max); n++) {
 	    double val = std::abs(rad(n));
@@ -1621,8 +1619,7 @@ namespace CoefClasses
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
-      it->second->coefs = std::make_shared<CoefClasses::SlabStruct::coefType>
-	(it->second->store.data(), 2*NmaxX+1, 2*NmaxY+1, NmaxZ);
+      it->second->initCoefMap(2*NmaxX+1, 2*NmaxY+1, NmaxZ);
     }
   }
 
@@ -1635,8 +1632,8 @@ namespace CoefClasses
       str << "SlabCoefs::setTensor: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
-      it->second->allocate();	// Assign storage for the flattened tensor
-      *it->second->coefs = dat;	// Populate using the tensor map
+      it->second->allocate(); // Assign storage for the flattened tensor
+      it->second->setCoefs(dat); // Populate using the tensor map
     }
   }
 
@@ -1670,7 +1667,7 @@ namespace CoefClasses
       for (int ix=0; ix<=2*NmaxX; ix++) {
 	for (int iy=0; iy<=2*NmaxY; iy++) {
 	  for (int iz=0; iz<NmaxZ; iz++) {
-	    ret(ix, iy, iz, t) = (*cof->coefs)(ix, iy, iz);
+	    ret(ix, iy, iz, t) = (cof->getCoefs())(ix, iy, iz);
 	  }
 	}
       }
@@ -1798,8 +1795,8 @@ namespace CoefClasses
 		      << std::setw(5) << ix
 		      << std::setw(5) << iy
 		      << std::setw(5) << iz
-		      << std::setw(18) << (*c.second->coefs)(ix, iy, iz).real()
-		      << std::setw(18) << (*c.second->coefs)(ix, iy, iz).imag()
+		      << std::setw(18) << c.second->getCoefs()(ix, iy, iz).real()
+		      << std::setw(18) << c.second->getCoefs()(ix, iy, iz).imag()
 		      << std::endl;
 	  }
 	  // Z loop
@@ -1844,7 +1841,7 @@ namespace CoefClasses
 	      if (abs(iy - nmaxY) < min) continue;
 	      for (int iz=0; iz<NmaxZ; iz++) {
 		if (abs(iz - nmaxZ) < min) continue;
-		double val = std::abs((*v.second->coefs)(ix, iy, iz));
+		double val = std::abs(v.second->getCoefs()(ix, iy, iz));
 		power(T, ix) += val * val;
 	      }
 	    }
@@ -1856,7 +1853,7 @@ namespace CoefClasses
 	      if (abs(ix - nmaxX) < min) continue;
 	      for (int iz=0; iz<NmaxZ; iz++) {
 		if (abs(iz - nmaxZ) < min) continue;
-		double val = std::abs((*v.second->coefs)(ix, iy, iz));
+		double val = std::abs(v.second->getCoefs()(ix, iy, iz));
 		power(T, iy) += val * val;
 	      }
 	    }
@@ -1868,7 +1865,7 @@ namespace CoefClasses
 	      if (abs(ix - nmaxX) < min) continue;
 	      for (int iy=0; iy<=2*NmaxY; iy++) {
 		if (abs(iy - nmaxY) < min) continue;
-		double val = std::abs((*v.second->coefs)(ix, iy, iz));
+		double val = std::abs(v.second->getCoefs()(ix, iy, iz));
 		power(T, iz) += val * val;
 	      }
 	    }
@@ -1926,8 +1923,8 @@ namespace CoefClasses
 		<< std::endl;
       for (auto v : coefs) {
 	auto it = other->coefs.find(v.first);
-	auto & cv = *(v.second->coefs);
-	auto & ci = *(it->second->coefs);
+	auto & cv = v.second->getCoefs();
+	auto & ci = it->second->getCoefs();
 	auto  dim = cv.dimensions(); // This is an Eigen::Tensor map
 	for (int i=0; i<dim[0]; i++) {
 	  for (int j=0; j<dim[1]; j++) {
@@ -2031,8 +2028,7 @@ namespace CoefClasses
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
-      it->second->coefs = std::make_shared<CoefClasses::CubeStruct::coefType>
-	(it->second->store.data(), 2*NmaxX+1, 2*NmaxY+1, 2*NmaxZ+1);
+      it->second->initCoefMap(2*NmaxX+1, 2*NmaxY+1, 2*NmaxZ+1);
     }
   }
 
@@ -2045,8 +2041,8 @@ namespace CoefClasses
       str << "CubeCoefs::setTensor: requested time=" << time << " not found";
       throw std::runtime_error(str.str());
     } else {
-      it->second->allocate();	// Assign storage for the flattened tensor
-      *it->second->coefs = dat;	// Populate using the tensor map
+      it->second->allocate(); // Assign storage for the flattened tensor
+      it->second->setCoefs(dat); // Populate using the tensor map
     }
   }
 
@@ -2080,10 +2076,10 @@ namespace CoefClasses
       for (int ix=0; ix<=2*NmaxX; ix++) {
 	for (int iy=0; iy<=2*NmaxY; iy++) {
 	  for (int iz=0; iz<=2*NmaxZ; iz++) {
-	    if (std::isnan(std::abs((*cof->coefs)(ix, iy, iz))))
+	    if (std::isnan(std::abs(cof->getCoefs()(ix, iy, iz))))
 	      ret(ix, iy, iz, t) = 0.0;
 	    else
-	      ret(ix, iy, iz, t) = (*cof->coefs)(ix, iy, iz);
+	      ret(ix, iy, iz, t) = cof->getCoefs()(ix, iy, iz);
 	  }
 	}
       }
@@ -2211,8 +2207,8 @@ namespace CoefClasses
 		      << std::setw(5) << ix
 		      << std::setw(5) << iy
 		      << std::setw(5) << iz
-		      << std::setw(18) << (*c.second->coefs)(ix, iy, iz).real()
-		      << std::setw(18) << (*c.second->coefs)(ix, iy, iz).imag()
+		      << std::setw(18) << c.second->getCoefs()(ix, iy, iz).real()
+		      << std::setw(18) << c.second->getCoefs()(ix, iy, iz).imag()
 		      << std::endl;
 	  }
 	  // Z loop
@@ -2252,7 +2248,7 @@ namespace CoefClasses
 	      if (abs(iy - nmaxY) < min) continue;
 	      for (int iz=0; iz<=2*NmaxZ; iz++) {
 		if (abs(iz - nmaxZ) < min) continue;
-		double val = std::abs((*v.second->coefs)(ix, iy, iz));
+		double val = std::abs(v.second->getCoefs()(ix, iy, iz));
 		power(T, ix) += val * val;
 	      }
 	    }
@@ -2264,7 +2260,7 @@ namespace CoefClasses
 	      if (abs(ix - nmaxX) < min) continue;
 	      for (int iz=0; iz<=2*NmaxZ; iz++) {
 		if (abs(iz - nmaxZ) < min) continue;
-		double val = std::abs((*v.second->coefs)(ix, iy, iz));
+		double val = std::abs(v.second->getCoefs()(ix, iy, iz));
 		power(T, iy) += val * val;
 	      }
 	    }
@@ -2276,7 +2272,7 @@ namespace CoefClasses
 	      if (abs(ix - nmaxX) < min) continue;
 	      for (int iy=0; iy<=2*NmaxY; iy++) {
 		if (abs(iy - nmaxY) < min) continue;
-		double val = std::abs((*v.second->coefs)(ix, iy, iz));
+		double val = std::abs(v.second->getCoefs()(ix, iy, iz));
 		power(T, iz) += val * val;
 	      }
 	    }
@@ -2334,8 +2330,8 @@ namespace CoefClasses
 		<< std::endl;
       for (auto v : coefs) {
 	auto it = other->coefs.find(v.first);
-	auto & cv = *(v.second->coefs);
-	auto & ci = *(it->second->coefs);
+	auto & cv = v.second->getCoefs();
+	auto & ci = it->second->getCoefs();
 	auto  dim = cv.dimensions(); // This is an Eigen::Tensor map
 	for (int i=0; i<dim[0]; i++) {
 	  for (int j=0; j<dim[1]; j++) {
@@ -2355,7 +2351,6 @@ namespace CoefClasses
     return ret;
   }
   
-
   TrajectoryData::TrajectoryData(const std::vector<double>& Times,
 				 const std::vector<Eigen::MatrixXd>& data,
 				 bool verbose) :
@@ -2379,16 +2374,13 @@ namespace CoefClasses
       c->traj = traj;
       c->rank = rank;
       c->store.resize(c->traj*c->rank);
-      c->coefs = std::make_shared<TrajStruct::coefType>(c->store.data(), c->traj, c->rank);
-      for (int m=0; m<traj; m++) {
-	for (int n=0; n<rank; n++) {
-	  (*c->coefs)(m, n) = data[m](i, n);
-	}
-      }
-      coefs[roundTime(c->time)] = c;
+      c->initCoefMap(traj, rank);
+      c->setCoefs(data[i]);
+
+      coefs[roundTime(times[i])] = c;
     }
   }
-
+  
   TrajectoryData::TrajectoryData(std::string& file, bool verbose) :
     Coefs("trajectory", verbose)
   {
@@ -2440,14 +2432,13 @@ namespace CoefClasses
       coef->rank  = rank;
       coef->time  = times[n];
       coef->store.resize(traj*rank);
-      coef->coefs = std::make_shared<TrajStruct::coefType>
-	(coef->store.data(), traj, rank);
-      *coef->coefs = data[n];
+      coef->initCoefMap(traj, rank);
+      coef->setCoefs(data[n]);
 
       coefs[roundTime(times[n])] = coef;
     }
   }
-  
+
   Eigen::VectorXcd& TrajectoryData::getData(double time)
   {
     auto it = coefs.find(roundTime(time));
@@ -2475,8 +2466,7 @@ namespace CoefClasses
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
-      it->second->coefs = std::make_shared<CoefClasses::TrajStruct::coefType>
-	(it->second->store.data(), it->second->traj, it->second->rank);
+      it->second->initCoefMap(it->second->traj, it->second->rank);
 
     }
   }
@@ -2610,7 +2600,7 @@ namespace CoefClasses
 	auto it = other->coefs.find(v.first);
 	for (int m=0; m<v.second->traj; m++) {
 	  for (int n=0; n<v.second->rank; n++) {
-	    if ((*v.second->coefs)(m, n) != (*it->second->coefs)(m, n)) {
+	    if (v.second->getCoefs()(m, n) != it->second->getCoefs()(m, n)) {
 	      ret = false;
 	    }
 	  }
@@ -2640,7 +2630,7 @@ namespace CoefClasses
       auto cof = coefs[roundTime(times[t])];
       for (int m=0; m<traj; m++) {
 	for (int n=0; n<traj; n++) {
-	  ret(n, m, t) = (*cof->coefs)(m, n).real();
+	  ret(n, m, t) = cof->getCoefs()(m, n).real();
 	}
       }
     }
@@ -2670,8 +2660,8 @@ namespace CoefClasses
       c->time = times[i];
       c->cols = data[i].size();
       c->store.resize(c->cols);
-      c->coefs = std::make_shared<TblStruct::coefType>(c->store.data(), c->cols);
-      for (int j=0; j<c->cols; j++) (*c->coefs)(j) = data[i][j];
+      c->initCoefMap();
+      for (int j=0; j<c->cols; j++) c->getCoefs()(j) = data[i][j];
       coefs[roundTime(c->time)] = c;
     }
   }
@@ -2724,8 +2714,8 @@ namespace CoefClasses
       coef->cols  = cols;
       coef->time  = times[n];
       coef->store.resize(cols);
-      coef->coefs = std::make_shared<TblStruct::coefType>(coef->store.data(), cols);
-      for (int i=0; i<cols; i++) (*coef->coefs)(0, i) = data[n][i];
+      coef->initCoefMap();
+      for (int i=0; i<cols; i++) coef->getCoefs()(i) = data[n][i];
 
       coefs[roundTime(times[n])] = coef;
     }
@@ -2758,12 +2748,10 @@ namespace CoefClasses
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
-      it->second->coefs = std::make_shared<CoefClasses::TblStruct::coefType>
-	(it->second->store.data(), dat.size());
-
+      it->second->initCoefMap();
     }
   }
-
+  
   void TableData::readNativeCoefs(const std::string& file, int stride,
 				  double tmin, double tmax)
   {
@@ -2875,10 +2863,11 @@ namespace CoefClasses
       for (auto v : coefs) {
 	auto it = other->coefs.find(v.first);
 	for (int m=0; m<v.second->cols; m++) {
-	  if ((*v.second->coefs)(m) != (*it->second->coefs)(m)) {
+	  if (v.second->getCoefs()(m) != it->second->getCoefs()(m)) {
 	    ret = false;
 	  }
 	}
+	it->second->initCoefMap();
       }
     }
     
@@ -2900,7 +2889,7 @@ namespace CoefClasses
     for (int t=0; t<ntim; t++) {
       auto cof = coefs[roundTime(times[t])];
       for (int c=0; c<cols; c++) {
-	ret(c, t) = (*cof->coefs)(c).real();
+	ret(c, t) = cof->getCoefs()(c).real();
       }
     }
 
@@ -3086,7 +3075,7 @@ namespace CoefClasses
 	auto it = other->coefs.find(v.first);
 	for (int m=0; m<v.second->mmax; m++) {
 	  for (int n=0; n<v.second->nmax; n++) { 
-	    if ((*v.second->coefs)(m, n) != (*it->second->coefs)(m, n)) {
+	    if (v.second->getCoefs()(m, n) != it->second->getCoefs()(m, n)) {
 	      ret = false;
 	    }
 	  }
@@ -3320,8 +3309,8 @@ namespace CoefClasses
     }
     
     return *mat;
-  }
-  
+   }
+
   void SphFldCoefs::setData(double time, Eigen::VectorXcd& dat)
   {
     auto it = coefs.find(roundTime(time));
@@ -3332,8 +3321,7 @@ namespace CoefClasses
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
-      it->second->coefs = std::make_shared<SphFldStruct::coefType>
-	(it->second->store.data(), Nfld, (Lmax+1)*(Lmax+2)/2, Nmax);
+      it->second->initCoefMap(Nfld, (Lmax+1)*(Lmax+2)/2, Nmax);
     }
   }
   
@@ -3347,7 +3335,7 @@ namespace CoefClasses
       throw std::runtime_error(str.str());
     } else {
       it->second->allocate();
-      *it->second->coefs = dat;
+      it->second->setCoefs(dat);
     }
   }
   
@@ -3362,7 +3350,7 @@ namespace CoefClasses
     ret.resize(Nfld, (Lmax+1)*(Lmax+2)/2, Nmax, ntim);
 
     for (int t=0; t<ntim; t++) {
-      auto & cof = *(coefs[roundTime(times[t])]->coefs);
+      auto & cof = coefs[roundTime(times[t])]->getCoefs();
       for (int i=0; i<Nfld; i++) {
 	for (int l=0; l<(Lmax+2)*(Lmax+1)/2; l++) {
 	  for (int n=0; n<Nmax; n++) {
@@ -3548,7 +3536,7 @@ namespace CoefClasses
 
       // Coefficient size (allow Eigen::Tensor to be easily recontructed from metadata)
       //
-      const auto& d = C->coefs->dimensions();
+      const auto& d = C->getCoefs().dimensions();
       std::array<long int, 3> shape {d[0], d[1], d[2]};
       stanza.createAttribute<long int>("shape", HighFive::DataSpace::From(shape)).write(shape);
       
@@ -3597,8 +3585,8 @@ namespace CoefClasses
 		<< std::endl;
       for (auto v : coefs) {
 	auto it = other->coefs.find(v.first);
-	auto & cv = *(v.second->coefs);
-	auto & ci = *(it->second->coefs);
+	auto & cv = v.second->getCoefs();
+	auto & ci = it->second->getCoefs();
 	const auto & d = cv.dimensions();
 	for (int n=0; n<d[0]; n++) {
 	  for (int i=0; i<d[1]; i++) {
@@ -3730,7 +3718,7 @@ namespace CoefClasses
       
       // Coefficient size (allow Eigen::Tensor to be easily recontructed from metadata)
       //
-      const auto& d = C->coefs->dimensions();
+      const auto& d = C->getCoefs().dimensions();
       std::array<long int, 3> shape {d[0], d[1], d[2]};
       stanza.createAttribute<long int>("shape", HighFive::DataSpace::From(shape)).write(shape);
       
@@ -3780,8 +3768,8 @@ namespace CoefClasses
 		<< std::endl;
       for (auto v : coefs) {
 	auto it = other->coefs.find(v.first);
-	auto & cv = *(v.second->coefs);
-	auto & ci = *(it->second->coefs);
+	auto & cv = v.second->getCoefs();
+	auto & ci = it->second->getCoefs();
 	const auto & d = cv.dimensions();
 	for (int n=0; n<d[0]; n++) {
 	  for (int i=0; i<d[1]; i++) {
@@ -3818,7 +3806,7 @@ namespace CoefClasses
 	  for (int l=0, L=0; l<=lmax; l++) {
 	    for (int m=0; m<=l; m++, L++) {
 	      for (int n=std::max<int>(0, min); n<std::min<int>(nmax, max); n++) {
-		power(T, l) += std::norm((*v.second->coefs)(i, l, n));
+		power(T, l) += std::norm(v.second->getCoefs()(i, l, n));
 	      }
 	    }
 	  }
@@ -3847,7 +3835,7 @@ namespace CoefClasses
 	for (int i=1; i<nfld; i++) {
 	  for (int m=0; m<=mmax; m++) {
 	    for (int n=std::max<int>(0, min); n<std::min<int>(nmax, max); n++) {
-	      power(T, m) += std::norm((*v.second->coefs)(i, m, n));
+	      power(T, m) += std::norm(v.second->getCoefs()(i, m, n));
 	    }
 	  }
 	}
@@ -3899,8 +3887,7 @@ namespace CoefClasses
       throw std::runtime_error(str.str());
     } else {
       it->second->store = dat;
-      it->second->coefs = std::make_shared<SphFldStruct::coefType>
-	(it->second->store.data(), Nfld, Mmax+1, Nmax);
+      it->second->initCoefMap(Nfld, Mmax+1, Nmax);
     }
   }
   
@@ -3914,7 +3901,7 @@ namespace CoefClasses
       throw std::runtime_error(str.str());
     } else {
       it->second->allocate();
-      *it->second->coefs = dat;
+      it->second->setCoefs(dat);
     }
   }
   
@@ -3929,7 +3916,7 @@ namespace CoefClasses
     ret.resize(Nfld, Mmax+1, Nmax, ntim);
 
     for (int t=0; t<ntim; t++) {
-      auto & cof = *(coefs[roundTime(times[t])]->coefs);
+      auto & cof = coefs[roundTime(times[t])]->getCoefs();
       for (int i=0; i<Nfld; i++) {
 	for (int m=0; m<=Mmax; m++) {
 	  for (int n=0; n<Nmax; n++) {
