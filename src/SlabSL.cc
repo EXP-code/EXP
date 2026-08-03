@@ -466,13 +466,30 @@ void SlabSL::determine_coefficients(void)
       if (zero_coefs) {
 	expcofF =
 	  expccof[0].generate([this](const Eigen::array<Eigen::Index, 3>& coords) {
-	  // Keep the data at (nmaxx+1, nmaxy+1, z)
-	  if (coords[0] == this->nmaxx+1 && coords[1] == this->nmaxy+1) {
+	  // Keep the data at (nmaxx, nmaxy, z)
+	  if (coords[0] == this->nmaxx && coords[1] == this->nmaxy) {
             return this->expccof[0](coords);
 	  }
 	  // Zero out everything else
 	  return std::complex<double>(0.0, 0.0);
 	});
+
+	// TEST
+	if (myid==0) {
+	  std::ofstream tmp("SlabSL.coefs_zeroed."+runtag+".dat");
+	  for (int i=0; i<imx; i++) {
+	    for (int j=0; j<imy; j++) {
+	      for (int k=0; k<imz; k++) {
+		tmp << std::setw(8) << i-nmaxx
+		    << std::setw(8) << j-nmaxy
+		    << std::setw(8) << k
+		    << std::setw(20) << expcofF(i, j, k).real()
+		    << std::setw(20) << expcofF(i, j, k).imag()
+		    << std::endl;
+	      }
+	    }
+	  }
+	}
       } else {
 	expcofF = expccof[0];
       }
