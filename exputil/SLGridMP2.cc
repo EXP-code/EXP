@@ -79,7 +79,7 @@ std::string sledge_error(int flag)
   }
 }
 
-static double L2, M2, K2;
+static double L2;
 static int sl_dim;
 
 
@@ -194,8 +194,8 @@ SLGridSph::SLGridSph(std::string cachename)
 
   tbdbg = false;
 
-  int LMAX, NMAX, NUMR, CMAP, DIVERGE=0;
-  double RMIN, RMAX, RMAP, DFAC=1.0;
+  int LMAX, NMAX, NUMR, CMAP;
+  double RMIN, RMAX, RMAP;
 
   try {
     
