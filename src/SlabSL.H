@@ -56,6 +56,10 @@
     under the time-dependent basis expansion. For a basis fixed in time to
     the initial time: set to false.
 
+    @param zero_coefs set to true will zero the coefficients at the
+    start of the simulation for all k!=0 subspaces.  This is useful
+    for testing the basis expansion with a fixed potential.
+
     @param nint integer number of steps between subsample computations
     (default: 0, no subsampling)
 
@@ -102,7 +106,7 @@ private:
   int nmaxx, nmaxy, nmaxz;
   double zmax, hslab;
 
-  bool no_even = false, no_odd = false;
+  bool no_even = false, no_odd = false, zero_coefs = true;
 
   int imx, imy, imz, jmax, nnmax;
   double  dfac, last=-std::numeric_limits<double>::max();

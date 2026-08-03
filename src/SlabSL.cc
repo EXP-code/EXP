@@ -24,6 +24,7 @@ SlabSL::valid_keys = {
   "no_odd",
   "samplesz",
   "self_consistent",
+  "zero_coefs",
   "orthochk",
   "cachename"
 };
@@ -203,6 +204,11 @@ void SlabSL::initialize()
       self_consistent = conf["self_consistent"].as<bool>();
     } else
       self_consistent = true;
+
+    if (conf["zero_coefs"]) {
+      zero_coefs = conf["zero_coefs"].as<bool>();
+    } else
+      zero_coefs = true;
 
     if (conf["nint"]) {
       nint = conf["nint"].as<int>();
@@ -455,7 +461,19 @@ void SlabSL::determine_coefficients(void)
   //
   if (not self_consistent and firstime_coef) {
     if (multistep==0 or mlevel==multistep) {
-      expcofF = expccof[0];
+      if (zero_coefs) {
+	expcofF = expccof[0].generate([this](const Eigen::array<Eigen::Index, 3>& coords) {
+	  // Keep the data at (nmaxx+1, nmaxy+1, z)
+	  if (coords[0] == this->nmaxx+1 && coords[1] == this->nmaxy+1) {
+            return this->expccof[0](coords);
+	  }
+	  // Zero out everything else
+	  return std::complex<double>(0.0, 0.0);
+	});
+      } else {
+	expcofF = expccof[0];
+      }
+
       firstime_coef = false;
     }
   }
