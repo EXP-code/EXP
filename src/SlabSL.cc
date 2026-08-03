@@ -461,8 +461,11 @@ void SlabSL::determine_coefficients(void)
   //
   if (not self_consistent and firstime_coef) {
     if (multistep==0 or mlevel==multistep) {
+      // Zero out all coefficients except for the (nmaxx+1, nmaxy+1, z)
+      // plane (kx=0, ky=0) if requested.
       if (zero_coefs) {
-	expcofF = expccof[0].generate([this](const Eigen::array<Eigen::Index, 3>& coords) {
+	expcofF =
+	  expccof[0].generate([this](const Eigen::array<Eigen::Index, 3>& coords) {
 	  // Keep the data at (nmaxx+1, nmaxy+1, z)
 	  if (coords[0] == this->nmaxx+1 && coords[1] == this->nmaxy+1) {
             return this->expccof[0](coords);
