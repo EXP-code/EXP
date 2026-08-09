@@ -110,7 +110,7 @@ private:
 
   int nminx, nminy, sampT=0, nint=0;
   int nmaxx, nmaxy, nmaxz;
-  double zmax, hslab, value0=1.0;
+  double zmax, hslab, value0=8.23766340;
 
   bool no_even = false, no_odd = false, zero_coefs = true, fixed0 = false;
 

@@ -591,7 +591,7 @@ __global__ void
 fixedCoefSlab(dArray<CmplxT> coef, double value)
 {
   coef._v[slabIndex(slabNumX, slabNumY, 0)] = CmplxT(value, 0.0);
-  for (int i=1; i<SlabNumZ; ++i)
+  for (int i=1; i<slabNumZ; ++i)
     coef._v[slabIndex(slabNumX, slabNumY, 0)] = CmplxT(0.0, 0.0);
 }
 
