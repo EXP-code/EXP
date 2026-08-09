@@ -69,6 +69,12 @@
     @param orthochk boolean flag to compute orthogonality matrix for the
     basis (default false).  For debugging only; set to false for production.
 
+    @param fixed0 boolean flag to set the k=0, n=0 to a background
+    value with all other k=0 terms set to zero.
+
+    @param value0 is the coefficient of the k=0, n=0 background for
+    fixed0=true.
+
     @param cachename is the name of the basis cache file.  This is a
     required parameter.
 */
@@ -104,9 +110,9 @@ private:
 
   int nminx, nminy, sampT=0, nint=0;
   int nmaxx, nmaxy, nmaxz;
-  double zmax, hslab;
+  double zmax, hslab, value0=1.0;
 
-  bool no_even = false, no_odd = false, zero_coefs = true;
+  bool no_even = false, no_odd = false, zero_coefs = true, fixed0 = false;
 
   int imx, imy, imz, jmax, nnmax;
   double  dfac, last=-std::numeric_limits<double>::max();

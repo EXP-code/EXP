@@ -587,6 +587,14 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
   // END: stride loop
 }
 
+__global__ void
+fixedCoefSlab(dArray<CmplxT> coef, double value)
+{
+  coef._v[slabIndex(slabNumX, slabNumY, 0)] = CmplxT(value, 0.0);
+  for (int i=1; i<SlabNumZ; ++i)
+    coef._v[slabIndex(slabNumX, slabNumY, 0)] = CmplxT(0.0, 0.0);
+}
+
 template<typename T>
 class LessAbs : public std::binary_function<bool, T, T>
 {
@@ -1204,6 +1212,11 @@ void SlabSL::determine_acceleration_cuda()
   // Get particle index range for levels [mlevel, multistep]
   //
   PII lohi = cC->CudaGetLevelRange(mlevel, multistep);
+
+  // Fix k=0 coefs
+  //
+  if (fixed0)
+    fixedCoefSlab<<<1, 1, 0, cs->stream>>>(toKernel(dev_coefs), value0);
 
   // Compute grid
   //

@@ -20,6 +20,8 @@ SlabSL::valid_keys = {
   "cmap",
   "type",
   "nint",
+  "value0",
+  "fixed0",
   "no_even",
   "no_odd",
   "samplesz",
@@ -195,6 +197,8 @@ void SlabSL::initialize()
     if (conf["zmax" ])          zmax        = conf["zmax" ].as<double>();
     if (conf["cmap" ])          cmap        = conf["cmap" ].as<std::string>();
     if (conf["type" ])          type        = conf["type" ].as<std::string>();
+    if (conf["value0"])         value0      = conf["value0"].as<double>();
+    if (conf["fixed0"])         fixed0      = conf["fixed0"].as<bool>();
     if (conf["no_even"])        no_even     = conf["no_even"].as<bool>();
     if (conf["no_odd"])         no_odd      = conf["no_odd"].as<bool>();
     if (conf["orthochk"])       orthochk    = conf["orthochk"].as<bool>();
@@ -649,10 +653,20 @@ void SlabSL::determine_acceleration_and_potential(void)
     }
   } else {
 
+    if (fixed0) {
+      expccof[0](nmaxx, nmaxy, 0) = value0;
+      for (int i=1; i<nmaxz; ++i) expccof[0](nmaxx, nmaxy, i) = 0.0;
+    }
+
     exp_thread_fork(false);
 
   }
 #else
+
+  if (fixed0) {
+    expccof[0](nmaxx, nmaxy, 0) = value0;
+    for (int i=1; i<nmaxz; ++i) expccof[0](nmaxx, nmaxy, i) = 0.0;
+  }
 
   exp_thread_fork(false);
 
