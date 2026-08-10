@@ -19,13 +19,13 @@ __device__ __constant__
 int slabNumX, slabNumY, slabNumZ, slabNX, slabNY, slabNZ, slabNum;
 
 __device__ __constant__
-bool slabNoEven, slabNoOdd;
+bool slabNoEven, slabNoOdd, slabFixed0;
 
 __device__ __constant__
 int slabCmap;
 
 __device__ __constant__
-cuFP_t slabDfac, slabHscl, slabXmin, slabXmax, slabDxi;
+cuFP_t slabDfac, slabHscl, slabXmin, slabXmax, slabDxi, slabValue0;
 
 // Alias for Thrust complex type to make this code more readable
 //
@@ -86,6 +86,8 @@ void testConstantsSlab()
   else            printf("   NoOdd  = false\n");
   if (slabNoEven) printf("   NoEven = true\n" );
   else            printf("   NoEven = false\n");
+  if (slabFixed0) printf("   Fixed0 = true\n" );
+  else            printf("   Fixed0 = false\n");
   printf("-------------------------\n");
 }
 
@@ -224,6 +226,10 @@ void SlabSL::initialize_constants()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabNoOdd");
 
+  cuda_safe_call(cudaMemcpyToSymbol(slabFixed0, &fixed0, sizeof(bool),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabFixed0");
+
   // Coordinate map
   //
   std::map<std::string, int> CoordMap =
@@ -265,6 +271,10 @@ void SlabSL::initialize_constants()
   cuda_safe_call(cudaMemcpyToSymbol(slabDxi, &(z=f.dxi), sizeof(cuFP_t),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabDxi");
+
+  cuda_safe_call(cudaMemcpyToSymbol(slabValue0, &(z=value0), sizeof(cuFP_t),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabValue0");
 }
 
 
@@ -563,8 +573,18 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 #endif
 			  ) * signF * dx;
 
-	      fac  = X * Y * v * coef._v[slabIndex(ii, jj, n)];
-	      facf = X * Y * f * coef._v[slabIndex(ii, jj, n)];
+	      if (slabFixed0 and ii==0 and jj==0) {
+		if (n==0) {
+		  fac  = X * Y * v * slabValue0;
+		  facf = X * Y * f * slabValue0;
+		} else {
+		  fac  = 0.0;
+		  facf = 0.0;
+		}
+	      } else {
+		fac  = X * Y * v * coef._v[slabIndex(ii, jj, n)];
+		facf = X * Y * f * coef._v[slabIndex(ii, jj, n)];
+	      }
 
 	      pot    += fac;
 	      acc[0] += CmplxT(0.0, -slabDfac*ii) * fac;
@@ -585,14 +605,6 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
     // END: particle index limit
   }
   // END: stride loop
-}
-
-__global__ void
-fixedCoefSlab(dArray<CmplxT> coef, double value)
-{
-  coef._v[slabIndex(slabNumX, slabNumY, 0)] = CmplxT(value, 0.0);
-  for (int i=1; i<slabNumZ; ++i)
-    coef._v[slabIndex(slabNumX, slabNumY, 0)] = CmplxT(0.0, 0.0);
 }
 
 template<typename T>
@@ -1212,11 +1224,6 @@ void SlabSL::determine_acceleration_cuda()
   // Get particle index range for levels [mlevel, multistep]
   //
   PII lohi = cC->CudaGetLevelRange(mlevel, multistep);
-
-  // Fix k=0 coefs
-  //
-  if (fixed0)
-    fixedCoefSlab<<<1, 1, 0, cs->stream>>>(toKernel(dev_coefs), value0);
 
   // Compute grid
   //

@@ -653,20 +653,10 @@ void SlabSL::determine_acceleration_and_potential(void)
     }
   } else {
 
-    if (fixed0) {
-      expccof[0](nmaxx, nmaxy, 0) = value0;
-      for (int i=1; i<nmaxz; ++i) expccof[0](nmaxx, nmaxy, i) = 0.0;
-    }
-
     exp_thread_fork(false);
 
   }
 #else
-
-  if (fixed0) {
-    expccof[0](nmaxx, nmaxy, 0) = value0;
-    for (int i=1; i<nmaxz; ++i) expccof[0](nmaxx, nmaxy, i) = 0.0;
-  }
 
   exp_thread_fork(false);
 
@@ -759,8 +749,19 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 
 	    // Live for frozen potential
 	    if (self_consistent) {
-	      fac  = facx*facy*zpot[id][iz]*expccof[0](ix, iy, iz);
-	      facf = facx*facy*zfrc[id][iz]*expccof[0](ix, iy, iz);
+	      // Is potential is fixed at (kx=0, ky=0)?
+	      if (fixed0 and ii==0 and jj==0) {
+		if (iz==0) {
+		  fac  = facx*facy*zpot[id][iz]*value0;
+		  facf = facx*facy*zfrc[id][iz]*value0;
+		} else {
+		  fac  = 0.0;
+		  facf = 0.0;
+		}
+	      } else {
+		fac  = facx*facy*zpot[id][iz]*expccof[0](ix, iy, iz);
+		facf = facx*facy*zfrc[id][iz]*expccof[0](ix, iy, iz);
+	      }
 	    } else {
 	      fac  = facx*facy*zpot[id][iz]*expcofF(ix, iy, iz);
 	      facf = facx*facy*zfrc[id][iz]*expcofF(ix, iy, iz);
