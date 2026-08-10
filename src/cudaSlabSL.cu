@@ -25,7 +25,7 @@ __device__ __constant__
 int slabCmap;
 
 __device__ __constant__
-cuFP_t slabDfac, slabHscl, slabXmin, slabXmax, slabDxi, slabValue0;
+cuFP_t slabDfac, slabHscl, slabXmin, slabXmax, slabDxi, slabValue0, slabL[2];
 
 // Alias for Thrust complex type to make this code more readable
 //
@@ -76,6 +76,8 @@ void testConstantsSlab()
   printf("   Nx     = %d\n", slabNX   );
   printf("   Ny     = %d\n", slabNY   );
   printf("   Nz     = %d\n", slabNZ   );
+  printf("   Lx     = %e\n", slabL[0] );
+  printf("   Ly     = %e\n", slabL[1] );
   printf("   Dfac   = %e\n", slabDfac );
   printf("   Hscl   = %e\n", slabHscl );
   printf("   Cmap   = %d\n", slabCmap );
@@ -275,6 +277,14 @@ void SlabSL::initialize_constants()
   cuda_safe_call(cudaMemcpyToSymbol(slabValue0, &(z=value0), sizeof(cuFP_t),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabValue0");
+
+  cuda_safe_call(cudaMemcpyToSymbol(slabL[0], &(z=Lx), sizeof(cuFP_t),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabL[0]");
+
+  cuda_safe_call(cudaMemcpyToSymbol(slabL[1], &(z=Ly), sizeof(cuFP_t),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabL[1]");
 }
 
 
@@ -350,20 +360,24 @@ __global__ void coefKernelSlab
       //
       for (int k=0; k<2; k++) {
 	if (pos[k]<0.0)
-	  pos[k] += floor(-pos[k]) + 1.0;
+	  pos[k] += slabL[k]*(floor(-pos[k]/slabL[k]) + 1.0;
 	else
-	  pos[k] += -floor(pos[k]);
+	  pos[k] += -slabL[k]*floor(pos[k]/slabL[k]);
       }
     
       // Wave number loop
       //
-      const auto xx = CmplxT(0.0, slabDfac*pos[0]); // Phase values
-      const auto yy = CmplxT(0.0, slabDfac*pos[1]);
+      const auto xx = CmplxT(0.0, slabDfac*pos[0]/slabL[0]); // Phase values
+      const auto yy = CmplxT(0.0, slabDfac*pos[1]/slabL[1]);
 
       // Recursion increments and initial values
       //
       const auto sx = thrust::exp(-xx), cx = thrust::exp(xx*slabNumX);
       const auto sy = thrust::exp(-yy), cy = thrust::exp(yy*slabNumY);
+
+      // Horizontal normalization
+      //
+      const cuFP_t normXY = 1.0/sqrt(slabL[0]*slab[1]);
       
       // Vertical interpolation
       //
@@ -433,7 +447,7 @@ __global__ void coefKernelSlab
 #endif
 			) * p0 * sign;
 	  
-	    coef._v[slabIndex(ii, jj, n)*N+i] = X * Y * v * mm;
+	    coef._v[slabIndex(ii, jj, n)*N+i] = X * Y * v * mm * normXY;
 	  }
 	}
       }
@@ -471,8 +485,12 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 
       // Wave number loop
       //
-      const auto xx = CmplxT(0.0, slabDfac*pos[0]); // Phase values
-      const auto yy = CmplxT(0.0, slabDfac*pos[1]);
+      const auto xx = CmplxT(0.0, slabDfac*pos[0]/slabL[0]); // Phase values
+      const auto yy = CmplxT(0.0, slabDfac*pos[1]/slabL[1]);
+
+      // Horizonal normalization
+      //
+      const cuFP_t normXY = 1.0/sqrt(slabL[0]*slabL[1]);
 
       // Recursion increments and initial values
       //
@@ -577,8 +595,8 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 	      if (slabFixed0 and ii==0 and jj==0) {
 		// n=0 term is fixed to a constant value
 		if (n==0) {
-		  fac  = X * Y * v * slabValue0;
-		  facf = X * Y * f * slabValue0;
+		  fac  = X * Y * v * slabValue0 * normXY;
+		  facf = X * Y * f * slabValue0 * normXY;
 		}
 		// all other n terms are zero
 		else {
@@ -588,15 +606,15 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 	      }
 	      // Use the coefficients
 	      else {
-		fac  = X * Y * v * coef._v[slabIndex(ii, jj, n)];
-		facf = X * Y * f * coef._v[slabIndex(ii, jj, n)];
+		fac  = X * Y * v * coef._v[slabIndex(ii, jj, n)] * normXY;
+		facf = X * Y * f * coef._v[slabIndex(ii, jj, n)] * normXY;
 	      }
 
 	      // Accumulate the potential and force contributions
 	      //
 	      pot    += fac;
-	      acc[0] += CmplxT(0.0, -slabDfac*ii) * fac;
-	      acc[1] += CmplxT(0.0, -slabDfac*jj) * fac;
+	      acc[0] += CmplxT(0.0, -slabDfac*ii/slabL[0]) * fac;
+	      acc[1] += CmplxT(0.0, -slabDfac*jj/slabL[1]) * fac;
 	      acc[2] += -facf;
 	  }
 	  // END: z wavenumber loop

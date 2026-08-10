@@ -14,6 +14,8 @@ SlabSL::valid_keys = {
   "nmaxz",
   "nminx",
   "nminy",
+  "Lx",
+  "Ly",
   "hslab",
   "zmax",
   "ngrid",
@@ -130,8 +132,9 @@ SlabSL::SlabSL(Component* c0, const YAML::Node& conf) : Basis(c0, conf)
     
   // Lx and Ly are both 1.0, so the wavenumbers are 2*pi*n with n an
   // integer
-  dfac = 2.0*M_PI;
-  kfac = std::complex<double>(0.0, dfac);
+  dfac  = 2.0*M_PI;
+  kfacX = std::complex<double>(0.0, dfac/Lx);
+  kfacY = std::complex<double>(0.0, dfac/Ly);
     
   // Arrays for multithreading force evaluation
   zpot.resize(nthrds);
@@ -193,6 +196,8 @@ void SlabSL::initialize()
     if (conf["nminx"])          nminx       = conf["nminx"].as<int>();
     if (conf["nminy"])          nminy       = conf["nminy"].as<int>();
     if (conf["ngrid"])          ngrid       = conf["ngrid"].as<int>();
+    if (conf["Lx"   ])          Lx          = conf["Lx"   ].as<double>();
+    if (conf["Ly"   ])          Ly          = conf["Ly"   ].as<double>();
     if (conf["hslab"])          hslab       = conf["hslab"].as<double>();
     if (conf["zmax" ])          zmax        = conf["zmax" ].as<double>();
     if (conf["cmap" ])          cmap        = conf["cmap" ].as<std::string>();
@@ -237,6 +242,19 @@ void SlabSL::initialize()
 			   << std::string(60, '-') << std::endl;
     throw std::runtime_error("SlabSL::initialze: error parsing YAML");
   }
+
+  // Slab size sanity check
+  //
+  if (Lx <= 0.0 or Ly <= 0.0) {
+    std::ostringstream msg;
+    msg << "SlabSL: Lx=" << Lx << " << and Ly=" << Ly
+	<< " must be greater than zero!";
+    throw std::runtime_error(msg.str());
+  }
+
+  // Horizontal basis normalization
+  //
+  normXY = 1.0/sqrt(Lx*Ly);
 
   // Set dimensions of coefficient tensor and total storage in tensor
   //
@@ -526,23 +544,23 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 				// Truncate to box with sides in [0,1]
     
     if (cC->Pos(i, 0)<0.0)
-      cC->AddPos(i, 0, floor(-cC->Pos(i, 0)) + 1.0 );
+      cC->AddPos(i, 0,  Lx*floor(-cC->Pos(i, 0))/Lx + 1.0 );
     else
-      cC->AddPos(i, 0, -floor(cC->Pos(i, 0)) );
+      cC->AddPos(i, 0, -Lx*floor(cC->Pos(i, 0))/Lx );
     
     if (cC->Pos(i, 1)<0.0)
-      cC->AddPos(i, 1, floor(-cC->Pos(i, 1)) + 1.0 );
+      cC->AddPos(i, 1,  Ly*floor(-cC->Pos(i, 1))/Ly + 1.0 );
     else
-      cC->AddPos(i, 1, -floor(cC->Pos(i, 1)) );
+      cC->AddPos(i, 1, -Ly*floor(cC->Pos(i, 1))/Ly );
     
 
 				// Recursion multipliers
-    stepx = exp(-kfac*cC->Pos(i, 0));
-    stepy = exp(-kfac*cC->Pos(i, 1));
+    stepx = exp(-kfacX*cC->Pos(i, 0));
+    stepy = exp(-kfacY*cC->Pos(i, 1));
    
 				// Initial values
-    startx = exp(static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
-    starty = exp(static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
+    startx = exp(static_cast<double>(nmaxx)*kfacX*cC->Pos(i, 0));
+    starty = exp(static_cast<double>(nmaxy)*kfacY*cC->Pos(i, 1));
     
     double zz = cC->Pos(i, 2), ms = cC->Mass(i);
 
@@ -575,10 +593,10 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 	  grid->get_pot(zpot[id], zz, iiy, iix);
 
 	for (int iz=0; iz<imz; iz++) {
-	  expccof[id](ix, iy, iz) += mm*facx*facy*zpot[id][iz];
+	  expccof[id](ix, iy, iz) += mm*facx*facy*zpot[id][iz] * normXY;
 	  
 	  if (requestSubsample) {
-	    workV1[id][(ix*imy + iy)*imz + iz] = nrm*facx*facy*zpot[id][iz];
+	    workV1[id][(ix*imy + iy)*imz + iz] = nrm*facx*facy*zpot[id][iz] * normXY;
 	  }
 	}
       }
@@ -699,13 +717,13 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
     
       // Recursion multipliers
       //
-      std::complex<double> stepx = exp(kfac*cC->Pos(i, 0));
-      std::complex<double> stepy = exp(kfac*cC->Pos(i, 1));
+      std::complex<double> stepx = exp(kfacX*cC->Pos(i, 0));
+      std::complex<double> stepy = exp(kfacY*cC->Pos(i, 1));
 
       // Initial values (note sign change)
       //
-      std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
-      std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
+      std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfacX*cC->Pos(i, 0));
+      std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfacY*cC->Pos(i, 1));
     
       // Compute wavenumber; recall that the coefficients are stored
       // as follows: -nmax,-nmax+1,...,0,...,nmax-1,nmax
@@ -750,8 +768,8 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	    // Is potential is fixed at (kx=0, ky=0)?
 	    if (fixed0 and ii==0 and jj==0) {
 	      if (iz==0) {
-		fac  = facx*facy*zpot[id][iz]*value0;
-		facf = facx*facy*zfrc[id][iz]*value0;
+		fac  = facx*facy*zpot[id][iz]*value0 * normXY;
+		facf = facx*facy*zfrc[id][iz]*value0 * normXY;
 	      } else {
 		fac  = 0.0;
 		facf = 0.0;
@@ -759,13 +777,13 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	    }
 	    // Self consistent
 	    else if (self_consistent) {
-	      fac  = facx*facy*zpot[id][iz]*expccof[0](ix, iy, iz);
-	      facf = facx*facy*zfrc[id][iz]*expccof[0](ix, iy, iz);
+	      fac  = facx*facy*zpot[id][iz]*expccof[0](ix, iy, iz) * normXY;
+	      facf = facx*facy*zfrc[id][iz]*expccof[0](ix, iy, iz) * normXY;
 	    }
 	    // Fixed coefficients (not self-consistent)
 	    else {
-	      fac  = facx*facy*zpot[id][iz]*expcofF(ix, iy, iz);
-	      facf = facx*facy*zfrc[id][iz]*expcofF(ix, iy, iz);
+	      fac  = facx*facy*zpot[id][iz]*expcofF(ix, iy, iz) * normXY;
+	      facf = facx*facy*zfrc[id][iz]*expcofF(ix, iy, iz) * normXY;
 	    }
 	  
 	    // Limit to minimum wave number
@@ -774,8 +792,8 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	  
 	    potl += fac;
 	  
-	    accx += -kfac*static_cast<double>(ii)*fac;
-	    accy += -kfac*static_cast<double>(jj)*fac;
+	    accx += -kfacX*static_cast<double>(ii)*fac;
+	    accy += -kfacY*static_cast<double>(jj)*fac;
 	    accz += -facf;
 	  }
 	}
@@ -896,19 +914,19 @@ void SlabSL::multistep_update(int from, int to, Component *c, int i, int id)
   double y = c->Pos(i, 1);
   double z = c->Pos(i, 2);
   
-  if (x<0.0)  x += floor(x) + 1.0;
-  else        x -= floor(x);
+  if (x<0.0)  x += Lx*(floor(x/Lx) + 1.0);
+  else        x -= Lx*floor(x/Lx);
 
-  if (y<0.0)  y += floor(y) + 1.0;
-  else        y -= floor(y);
+  if (y<0.0)  y += Ly*(floor(y/Ly) + 1.0);
+  else        y -= Ly*floor(y/Ly);
     
   // Recursion multipliers
-  std::complex<double> stepx = std::exp(-kfac*x);
-  std::complex<double> stepy = std::exp(-kfac*y);
+  std::complex<double> stepx = std::exp(-kfacX*x);
+  std::complex<double> stepy = std::exp(-kfacY*y);
     
   // Initial values for recursion
-  std::complex<double> startx = std::exp(kfac*(x*nmaxx));
-  std::complex<double> starty = std::exp(kfac*(y*nmaxy));
+  std::complex<double> startx = std::exp(kfacX*(x*nmaxx));
+  std::complex<double> starty = std::exp(kfacY*(y*nmaxy));
   
   std::complex<double> facx, facy, facz;
   int ix, iy;
@@ -927,7 +945,7 @@ void SlabSL::multistep_update(int from, int to, Component *c, int i, int id)
       else          grid->get_pot(zpot[id], z, iiy, iix);
 
       for (int iz = 0; iz<imz; iz++) {
-	std::complex<double> val = mass*facx*facy*zpot[id][iz];
+	std::complex<double> val = mass*facx*facy*zpot[id][iz] * normXY;
 	
 	differ1[id][from](ix, iy, iz) -= val;
 	differ1[id][  to](ix, iy, iz) += val;
@@ -993,6 +1011,8 @@ void SlabSL::writeCovarH5Params(HighFive::File& file)
   file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(nmaxx)).write(nmaxx);
   file.createAttribute<int>("nmaxy", HighFive::DataSpace::From(nmaxy)).write(nmaxy);
   file.createAttribute<int>("nmaxz", HighFive::DataSpace::From(nmaxz)).write(nmaxz);
+  file.createAttribute<int>("Lx",    HighFive::DataSpace::From(Lx   )).write(Lx);
+  file.createAttribute<int>("Ly",    HighFive::DataSpace::From(Ly   )).write(Ly);
 }
 
 PotAccel::CovarData SlabSL::getSubsample()
@@ -1039,13 +1059,13 @@ void SlabSL::determine_fields_at_point
 
   // Recursion multipliers
   //
-  std::complex<double> stepx = exp(kfac*x);
-  std::complex<double> stepy = exp(kfac*y);
+  std::complex<double> stepx = exp(kfacX*x);
+  std::complex<double> stepy = exp(kfacX*y);
 
   // Initial values (note sign change)
   //
-  std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x);
-  std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y);
+  std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfacX*x);
+  std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfacX*y);
     
   std::complex<double> facx, facy, facz, facf, facd, fac;
   int ix, iy;
@@ -1091,13 +1111,13 @@ void SlabSL::determine_fields_at_point
 	
 	// Live for frozen potential
 	if (self_consistent) {
-	  fac  = facx*facy*zpot[0][iz]*expccof[0](ix, iy, iz);
-	  facf = facx*facy*zfrc[0][iz]*expccof[0](ix, iy, iz);
-	  facd = facx*facy*zden[0][iz]*expccof[0](ix, iy, iz);
+	  fac  = facx*facy*zpot[0][iz]*expccof[0](ix, iy, iz) * normXY;
+	  facf = facx*facy*zfrc[0][iz]*expccof[0](ix, iy, iz) * normXY;
+	  facd = facx*facy*zden[0][iz]*expccof[0](ix, iy, iz) * normXY;
 	} else {
-	  fac  = facx*facy*zpot[0][iz]*expcofF(ix, iy, iz);
-	  facf = facx*facy*zfrc[0][iz]*expcofF(ix, iy, iz);
-	  facd = facx*facy*zden[0][iz]*expcofF(ix, iy, iz);
+	  fac  = facx*facy*zpot[0][iz]*expcofF(ix, iy, iz) * normXY;
+	  facf = facx*facy*zfrc[0][iz]*expcofF(ix, iy, iz) * normXY;
+	  facd = facx*facy*zden[0][iz]*expcofF(ix, iy, iz) * normXY;
 	}
 	
 	// Limit to minimum wave number
@@ -1112,8 +1132,8 @@ void SlabSL::determine_fields_at_point
 	  *tpotl += fac.real();
 	}
 
-	*tpotx += (kfac*static_cast<double>(ii)*fac).real();
-	*tpoty += (kfac*static_cast<double>(jj)*fac).real();
+	*tpotx += (kfacX*static_cast<double>(ii)*fac).real();
+	*tpoty += (kfacY*static_cast<double>(jj)*fac).real();
 	*tpotz += facf.real();
       }
     }

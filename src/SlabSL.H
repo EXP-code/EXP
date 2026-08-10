@@ -34,6 +34,10 @@
 
     @param nminy is the minimum order of the expansion in y (default 0)
 
+    @param Lx is the size in x (default 1)
+
+    @param Ly is the size in y (default 1)
+
     @param hslab is the scale height of the slab (default 0.2)
 
     @param zmax is the maximum z for the slab (default 10.0)
@@ -108,15 +112,19 @@ private:
   //! Coefficient tensor for frozen potential (if self_consistent=false)
   coefType expcofF;
 
-  int nminx, nminy, sampT=0, nint=0;
+  //@{
+  //! Basis constants
+    int nminx, nminy, sampT=0, nint=0;
   int nmaxx, nmaxy, nmaxz;
-  double zmax, hslab, value0=8.23766340;
+  double zmax, hslab, value0=8.23766340, Lx=1.0, Ly=1.0, normXY=1.0;
 
+  //! Basis control flags
   bool no_even = false, no_odd = false, zero_coefs = true, fixed0 = false;
+  //@}
 
   int imx, imy, imz, jmax, nnmax;
   double  dfac, last=-std::numeric_limits<double>::max();
-  std::complex<double> kfac;
+  std::complex<double> kfacX, kfacY;
   std::string cachename;
 
   std::vector<Eigen::VectorXd> zfrc, zpot, zden;

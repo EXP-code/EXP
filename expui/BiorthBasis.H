@@ -1231,6 +1231,9 @@ namespace BasisClasses
 
     coefType expcoef;
     
+    //! Slab size
+    double Lx=1.0, Ly=1.0, normXY=1.0;
+
     //! Total mass on grid
     double totalMass;
 

@@ -3826,6 +3826,8 @@ namespace BasisClasses
     "nmaxz",
     "nminx",
     "nminy",
+    "Lx",
+    "Ly",
     "hslab",
     "zmax",
     "ngrid",
@@ -3901,6 +3903,9 @@ namespace BasisClasses
       if (conf["nmaxy"])      nmaxy = conf["nmaxy"].as<int>();
       if (conf["nmaxz"])      nmaxz = conf["nmaxz"].as<int>();
       
+      if (conf["Lx"   ])      Lx    = conf["Lx"   ].as<double>();
+      if (conf["Ly"   ])      Ly    = conf["Ly"   ].as<double>();
+
       if (conf["hslab"])      hslab = conf["hslab"].as<double>();
       if (conf["zmax" ])      zmax  = conf["zmax" ].as<double>();
       if (conf["ngrid"])      ngrid = conf["ngrid"].as<int>();
@@ -3942,6 +3947,14 @@ namespace BasisClasses
 	 "reading a previously generated basis cache\n");
     }
 
+    // Slab size sanity check
+    //
+    if (Lx <= 0.0 or Ly <= 0.0) {
+      std::ostringstream msg;
+      msg << "SlabSL: Lx=" << Lx << " and Ly=" << Ly
+	  << " must be greater than zero!";
+      throw std::runtime_error(msg.str());
+    }
 
     // Finally, make the basis
     //
@@ -3966,6 +3979,8 @@ namespace BasisClasses
     imx = 2*nmaxx + 1;		// x wave numbers
     imy = 2*nmaxy + 1;		// y wave numbers
     imz = nmaxz;		// z basis count
+
+    normXY = 1.0/sqrt(Lx*Ly);	// Horizontal normalization
 
     // Coefficient tensor
     //
@@ -4045,16 +4060,16 @@ namespace BasisClasses
   void Slab::accumulate(double x, double y, double z, double mass,
 			unsigned long int idx)
   {
-    // Truncate to slab with sides in [0,1]
+    // Truncate to slab with sides in [0,Lx] & [0, Ly]
     if (x<0.0)
-      x += std::floor(-x) + 1.0;
+      x += Lx*(std::floor(-x/Lx) + 1.0);
     else
-      x -= std::floor( x);
+      x -= Lx*std::floor(x/Lx);
     
     if (y<0.0)
-      y += std::floor(-y) + 1.0;
+      y += Ly*(std::floor(-y/Ly) + 1.0);
     else
-      y -= std::floor( y);
+      y -= Ly*std::floor(y/Ly);
     
     // Update counters
     used++;
@@ -4072,15 +4087,15 @@ namespace BasisClasses
     int ix, iy;
 
     // Leading constants for biorthogonality
-    const double norm = -4.0*M_PI;
+    const double norm = -4.0*M_PI * normXY;
 
     // Recursion multipliers
-    std::complex<double> stepx = exp(-kfac*x), facx;
-    std::complex<double> stepy = exp(-kfac*y), facy;
+    std::complex<double> stepx = exp(-kfac*x/Lx), facx;
+    std::complex<double> stepy = exp(-kfac*y/Ly), facy;
    
     // Initial values
-    std::complex<double> startx = exp(static_cast<double>(nmaxx)*kfac*x);
-    std::complex<double> starty = exp(static_cast<double>(nmaxy)*kfac*y);
+    std::complex<double> startx = exp(static_cast<double>(nmaxx)*kfac*x/Lx);
+    std::complex<double> starty = exp(static_cast<double>(nmaxy)*kfac*y/Ly);
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
@@ -4158,13 +4173,13 @@ namespace BasisClasses
     
     // Recursion multipliers
     //
-    std::complex<double> stepx = exp(kfac*x);
-    std::complex<double> stepy = exp(kfac*y);
+    std::complex<double> stepx = exp(kfac*x/Lx);
+    std::complex<double> stepy = exp(kfac*y/Ly);
 
     // Initial values (note sign change)
     //
-    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x);
-    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y);
+    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x/Lx);
+    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y/Ly);
     
     Eigen::VectorXd vpot(nmaxz), vfrc(nmaxz), vden(nmaxz);
 
@@ -4202,9 +4217,9 @@ namespace BasisClasses
 	
 	for (int iz=0; iz<imz; iz++) {
 	  
-	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz);
-	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz);
-	  facd = facx*facy*vden[iz]*expcoef(ix, iy, iz);
+	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz) * normXY;
+	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz) * normXY;
+	  facd = facx*facy*vden[iz]*expcoef(ix, iy, iz) * normXY;
 	  
 	  // Limit to minimum wave number
 	  //
@@ -4248,13 +4263,13 @@ namespace BasisClasses
     
     // Recursion multipliers
     //
-    std::complex<double> stepx = exp(kfac*x);
-    std::complex<double> stepy = exp(kfac*y);
+    std::complex<double> stepx = exp(kfac*x/Lx);
+    std::complex<double> stepy = exp(kfac*y/Ly);
 
     // Initial values (note sign change)
     //
-    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x);
-    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y);
+    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x/Lx);
+    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y/Ly);
     
     Eigen::VectorXd vpot(nmaxz), vfrc(nmaxz);
 
@@ -4295,15 +4310,15 @@ namespace BasisClasses
 	    if (no_odd  and iz%2==1) continue;
 	  }
 
-	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz);
-	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz);
+	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz) * normXY;
+	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz) * normXY;
 	  
 	  // Limit to minimum wave number
 	  //
 	  if (abs(ii)<nminx || abs(jj)<nminy) continue;
 	  
-	  accx += -kfac*static_cast<double>(ii)*fac;
-	  accy += -kfac*static_cast<double>(jj)*fac;
+	  accx += -kfac/Lx*static_cast<double>(ii)*fac;
+	  accy += -kfac/Ly*static_cast<double>(jj)*fac;
 	  accz += -facf;
 	  
 	}
