@@ -747,22 +747,23 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	      if (no_odd  and iz%2==1) continue;
 	    }
 
-	    // Live for frozen potential
-	    if (self_consistent) {
-	      // Is potential is fixed at (kx=0, ky=0)?
-	      if (fixed0 and ii==0 and jj==0) {
-		if (iz==0) {
-		  fac  = facx*facy*zpot[id][iz]*value0;
-		  facf = facx*facy*zfrc[id][iz]*value0;
-		} else {
-		  fac  = 0.0;
-		  facf = 0.0;
-		}
+	    // Is potential is fixed at (kx=0, ky=0)?
+	    if (fixed0 and ii==0 and jj==0) {
+	      if (iz==0) {
+		fac  = facx*facy*zpot[id][iz]*value0;
+		facf = facx*facy*zfrc[id][iz]*value0;
 	      } else {
-		fac  = facx*facy*zpot[id][iz]*expccof[0](ix, iy, iz);
-		facf = facx*facy*zfrc[id][iz]*expccof[0](ix, iy, iz);
+		fac  = 0.0;
+		facf = 0.0;
 	      }
-	    } else {
+	    }
+	    // Self consistent
+	    else if (self_consistent) {
+	      fac  = facx*facy*zpot[id][iz]*expccof[0](ix, iy, iz);
+	      facf = facx*facy*zfrc[id][iz]*expccof[0](ix, iy, iz);
+	    }
+	    // Fixed coefficients (not self-consistent)
+	    else {
 	      fac  = facx*facy*zpot[id][iz]*expcofF(ix, iy, iz);
 	      facf = facx*facy*zfrc[id][iz]*expcofF(ix, iy, iz);
 	    }

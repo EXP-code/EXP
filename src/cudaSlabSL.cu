@@ -573,19 +573,27 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 #endif
 			  ) * signF * dx;
 
+	      // Fix the (0,0) mode to a fixed value
 	      if (slabFixed0 and ii==0 and jj==0) {
+		// n=0 term is fixed to a constant value
 		if (n==0) {
 		  fac  = X * Y * v * slabValue0;
 		  facf = X * Y * f * slabValue0;
-		} else {
+		}
+		// all other n terms are zero
+		else {
 		  fac  = 0.0;
 		  facf = 0.0;
 		}
-	      } else {
+	      }
+	      // Use the coefficients
+	      else {
 		fac  = X * Y * v * coef._v[slabIndex(ii, jj, n)];
 		facf = X * Y * f * coef._v[slabIndex(ii, jj, n)];
 	      }
 
+	      // Accumulate the potential and force contributions
+	      //
 	      pot    += fac;
 	      acc[0] += CmplxT(0.0, -slabDfac*ii) * fac;
 	      acc[1] += CmplxT(0.0, -slabDfac*jj) * fac;
