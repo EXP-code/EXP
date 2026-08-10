@@ -46,7 +46,7 @@ main(int argc, char **argv)
 {
   unsigned int seed;
   int Ntable, Number;
-  double Dratio, Hratio, R, Hmax, DispX, DispZ, fJ;
+  double Dratio, Hratio, R, Hmax, DispX, DispZ, fJ, Lx, Ly;
   std::string outfile, config, modfile, modelType;
   bool Mu;
 
@@ -72,6 +72,10 @@ main(int argc, char **argv)
      cxxopts::value<double>(R)->default_value("1.0"))
     ("H,hmax",      "Maximum vertical size in scale heights",
      cxxopts::value<double>(Hmax)->default_value("10.0"))
+    ("x,Lx",        "Slab length in the x-direction",
+     cxxopts::value<double>(Lx)->default_value("1.0"))
+    ("y,Ly",        "Slab length in the y-direction",
+     cxxopts::value<double>(Ly)->default_value("1.0"))
     ("X,DispX",     "In-plane velocity variance",
      cxxopts::value<double>(DispX)->default_value("1.0"))
     ("F,fJ",        "Ratio of Jeans length to box scale",
@@ -90,6 +94,8 @@ main(int argc, char **argv)
   
   cxxopts::ParseResult vm;
 
+  // Parse the command line
+  //
   try {
     vm = options.parse(argc, argv);
   } catch (cxxopts::OptionException& e) {
@@ -112,7 +118,6 @@ main(int argc, char **argv)
   out.precision(6);
   out.setf(ios::scientific);
 
-  //
   // Define model
   //
   double h = 1.0;
@@ -143,10 +148,8 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  //
   // Jeans' length for selecting scale height
   // 
-
   double maxZ = model->get_max_radius();
   double mu   = model->get_mass(maxZ);
   double KJ   = 2.0*M_PI*mu/DispX;
@@ -163,10 +166,8 @@ main(int argc, char **argv)
   
   cout.fill(prev);
 
-  //
   // Make mass table
   //
-
   std::vector<double> Z(Ntable);
   std::vector<double> M(Ntable);
   double z, dz = 2.0*maxZ/(Ntable-1.0);
@@ -192,7 +193,7 @@ main(int argc, char **argv)
 
   for (int n=0; n<Number; n++) {
 
-    double pos[] = {Unit(gen), Unit(gen), odd2(Unit(gen)*M.back(), M, Z)};
+    double pos[] = {Lx*Unit(gen), Ly*Unit(gen), odd2(Unit(gen)*M.back(), M, Z)};
     double vel[] = {Vh(gen), Vh(gen), Vv(gen)};
 
     KE += vel[2]*vel[2];
