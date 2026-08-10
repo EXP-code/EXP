@@ -356,11 +356,11 @@ __global__ void coefKernelSlab
 
       used._v[i] = p.mass;	// Mark particle as used
 
-      // Restore particles to the unit slab
+      // Restore particles to the (Lx, Ly) slab
       //
       for (int k=0; k<2; k++) {
 	if (pos[k]<0.0)
-	  pos[k] += slabL[k]*(floor(-pos[k]/slabL[k]) + 1.0;
+	  pos[k] += slabL[k]*(floor(-pos[k]/slabL[k]) + 1.0);
 	else
 	  pos[k] += -slabL[k]*floor(pos[k]/slabL[k]);
       }
@@ -377,7 +377,7 @@ __global__ void coefKernelSlab
 
       // Horizontal normalization
       //
-      const cuFP_t normXY = 1.0/sqrt(slabL[0]*slab[1]);
+      const cuFP_t normXY = 1.0/sqrt(slabL[0]*slabL[1]);
       
       // Vertical interpolation
       //
