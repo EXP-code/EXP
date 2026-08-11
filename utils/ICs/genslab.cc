@@ -1,31 +1,4 @@
-/*****************************************************************************
- *  Description:
- *  -----------
- *
- *  Generate slab initial conditions in a unit sqaure
- *
- *
- *  Call sequence:
- *  -------------
- *
- *  Parameters:
- *  ----------
- *
- *
- *  Returns:
- *  -------
- *
- *
- *  Notes:
- *  -----
- *
- *
- *  By:
- *  --
- *
- *  MDW 11/20/91
- *
- ***************************************************************************/
+// Generate slab initial conditions
 
 #include <cstdlib>
 #include <iostream>
@@ -38,7 +11,6 @@
 
 #include "massmodel1d.H"
 #include "interp.H"
-
 #include "cxxopts.H"
 
 int
@@ -52,7 +24,7 @@ main(int argc, char **argv)
 
   // Parse command line
   //
-  std::string message = "Generate unit-box slab initial conditions\n";
+  std::string message = "Generate slab initial conditions\n";
 
   cxxopts::Options options(argv[0], message);
 
@@ -128,16 +100,12 @@ main(int argc, char **argv)
     model = std::make_shared<LowIso>(modfile);
   }
   else if (modelType.compare("Sech2mu") == 0) {
-    DispZ = 2.0/(M_PI*fJ*fJ);
-    DispX = DispZ/(R*R);
     auto tmp = std::make_shared<Sech2mu>(DispZ, DispX);
     h = tmp->get_scale_height();
     if (Hmax>0) tmp->set_hmax(Hmax);
     model = tmp;
   }
   else if (modelType.compare("Sech2") == 0) {
-    DispZ = 2.0/(M_PI*fJ*fJ);
-    DispX = DispZ/(R*R);
     auto tmp = std::make_shared<Sech2>(DispZ);
     h = tmp->get_scale_height();
     if (Hmax>0) tmp->set_hmax(Hmax);
@@ -192,7 +160,7 @@ main(int argc, char **argv)
   std::normal_distribution Vv{0.0, sqrt(DispZ)};
   std::normal_distribution Vh{0.0, sqrt(DispX)};
 
-				// Header line
+  // Header line
   out << std::setw(10) << Number << std::setw(15) << 0 << std::setw(15) << 0 << std::endl;
 
   double KE = 0.0;
@@ -217,10 +185,11 @@ main(int argc, char **argv)
 	<< std::endl;
   }
   
-      std::cout << std::endl
-		<< "Virial parameters: KE=" << 0.5*mass*KE
-		<< " VC=" << mass*VC
-		<< " 2T/VC=" << KE/VC << std::endl;
+  std::cout << std::endl
+	    << "Virial parameters: KE=" << 0.5*mass*KE
+	    << " VC=" << mass*VC
+	    << " 2T/VC=" << KE/VC << std::endl;
 
+  return 0;
 }
 
