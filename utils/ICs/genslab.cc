@@ -62,7 +62,7 @@ main(int argc, char **argv)
      cxxopts::value<int>(Number)->default_value("10000"))
     ("n,ntable",   "Number of points in model table",
      cxxopts::value<int>(Ntable)->default_value("400"))
-    ("t,model",    "Model type (LowIso, Sech2, Sech2Halo)",
+    ("m,model",    "Model type (LowIso, Sech2, Sech2mu, Sech2Halo)",
      cxxopts::value<std::string>(modelType)->default_value("Sech2"))
     ("d,dratio",    "Ratio of disk to halo density",
      cxxopts::value<double>(Dratio)->default_value("3.0"))
@@ -126,6 +126,14 @@ main(int argc, char **argv)
 
   if (modelType.compare("LowIso") == 0) {
     model = std::make_shared<LowIso>(modfile);
+  }
+  else if (modelType.compare("Sech2mu") == 0) {
+    DispZ = 2.0/(M_PI*fJ*fJ);
+    DispX = DispZ/(R*R);
+    auto tmp = std::make_shared<Sech2mu>(DispZ, DispX);
+    h = tmp->get_scale_height();
+    if (Hmax>0) tmp->set_hmax(Hmax);
+    model = tmp;
   }
   else if (modelType.compare("Sech2") == 0) {
     DispZ = 2.0/(M_PI*fJ*fJ);

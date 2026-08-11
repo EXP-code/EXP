@@ -121,9 +121,9 @@ double OneDModelTable::get_dpot(const double z)
   return ans*z/(zz+1.0e-18);
 }
 
-void OneDModelTable::get_pot_dpot(const double z, double& ur, double &dur)
+std::tuple<double, double> OneDModelTable::get_pot_dpot(const double z)
 {
-  double zz = fabs(z);
+  double zz = fabs(z), ur, dur;
 
   if (zz>pot.xhi()) {
     double z0 = pot.xlo(), z1 = pot.xhi();
@@ -137,6 +137,8 @@ void OneDModelTable::get_pot_dpot(const double z, double& ur, double &dur)
   }
 
   dur *= z/(zz+1.0e-18);
+
+  return {ur, dur};
 }
 
 double OneDModelTable::get_dpot2(const double z)
@@ -213,17 +215,18 @@ double LowIso::get_dpot2(const double z)
   return OneDModelTable::get_dpot2(z) + 2.0*Bfac;
 }
 
-void LowIso::get_pot_dpot(const double z, double& ur, double& dur)
+std::tuple<double, double> LowIso::get_pot_dpot(const double z)
 {
   double zmax = get_max_radius();
 
   if (fabs(z) > zmax) {
-    ur = OneDModelTable::get_pot(zmax) + 2.0*M_PI*get_mass(zmax)*(z-zmax)
+    double ur = OneDModelTable::get_pot(zmax) + 2.0*M_PI*get_mass(zmax)*(z-zmax)
       + Bfac*(z*z - zmax*zmax);
-    dur = 2.0*M_PI*get_mass(zmax)*z/(fabs(z)+1.0e-16) + 2.0*Bfac*z;
+    double dur = 2.0*M_PI*get_mass(zmax)*z/(fabs(z)+1.0e-16) + 2.0*Bfac*z;
+    return {ur, dur};
   }
   else
-    OneDModelTable::get_pot_dpot(z, ur, dur);
+    return OneDModelTable::get_pot_dpot(z);
 }
 
 static double halo_fac, halo_height;

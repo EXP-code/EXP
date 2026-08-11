@@ -2,6 +2,8 @@
 #define _massmodel1d_H
 
 #include <string>
+#include <tuple>
+
 #include "massmodel.H"
 #include "biorth1d.H"
 
@@ -33,12 +35,13 @@ public:
 
 //  AxiSymModel(void) {};
   
-  virtual double get_mass(const double) = 0;
+  virtual double get_mass   (const double) = 0;
   virtual double get_density(const double) = 0;
-  virtual double get_pot(const double) = 0;
-  virtual double get_dpot(const double) = 0;
-  virtual double get_dpot2(const double) = 0;
-  virtual void   get_pot_dpot(const double, double&, double&) = 0;
+  virtual double get_pot    (const double) = 0;
+  virtual double get_dpot   (const double) = 0;
+  virtual double get_dpot2  (const double) = 0;
+  virtual void   get_pot_dpot (const double, double&, double&) = 0;
+  virtual std::tuple<double, double> get_pot_dpot (const double z) = 0;
 
   // Required members of mass model
 
@@ -149,7 +152,7 @@ public:
   double get_pot    (const double);
   double get_dpot   (const double);
   double get_dpot2  (const double);
-  void   get_pot_dpot (const double, double&, double&);
+  std::tuple<double, double> get_pot_dpot (const double);
   
   // Additional member functions
 
@@ -184,7 +187,7 @@ public:
   double get_pot(const double);
   double get_dpot(const double);
   double get_dpot2(const double);
-  void   get_pot_dpot(const double, double&, double&);
+  std::tuple<double, double> get_pot_dpot(const double);
 
   double distf(const double E, const double V=0.0);
   double dfde(const double E, const double V=0.0);
@@ -259,12 +262,13 @@ public:
     return 4.0*M_PI*ret*ret;
   }
 
-  void get_pot_dpot(const double z, double& p, double& dp)
+  std::tuple<double, double> get_pot_dpot(const double z)
   {
     double zz = fabs(z);
-    p = 4.0*M_PI*h*(zz + h*log(1.0 + exp(-2.0*zz/h)) - h*M_LN2);
+    double p = 4.0*M_PI*h*(zz + h*log(1.0 + exp(-2.0*zz/h)) - h*M_LN2);
     double ret = (1.0 - exp(-2.0*zz/h))/(1.0 + exp(-2.0*zz/h));
-    dp = 4.0*M_PI*h* ret * z/(zz+1.0e-18);
+    double dp = 4.0*M_PI*h* ret * z/(zz+1.0e-18);
+    return {p, dp};
   }
 
   double get_mass(const double x, const double y, const double z)
@@ -393,12 +397,13 @@ public:
     return 4.0*M_PI*S0 * ret*ret/h;
   }
 
-  void get_pot_dpot(const double z, double& p, double& dp)
+  std::tuple<double, double> get_pot_dpot(const double z)
   {
     double zz = fabs(z);
-    p = 2.0*M_PI*S0 * (zz + 2.0*h*log(1.0 + exp(-zz/h)) - 2.0*h*M_LN2);
+    double p = 2.0*M_PI*S0 * (zz + 2.0*h*log(1.0 + exp(-zz/h)) - 2.0*h*M_LN2);
     double ret = (1.0 - exp(-zz/h))/(1.0 + exp(-zz/h));
-    dp = 2.0*M_PI*S0 * ret * std::copysign(1.0, z);
+    double dp = 2.0*M_PI*S0 * ret * std::copysign(1.0, z);
+    return {p, dp};
   }
 
   double get_mass(const double x, const double y, const double z)
@@ -531,11 +536,13 @@ public:
     return 0.5*dispz*ret*ret/h/h;
   }
 
-  void get_pot_dpot(const double z, double& p, double& dp) {
+  std::tuple<double, double> get_pot_dpot(const double z)
+  {
     double zz = fabs(z);
-    p = 2.0*dispz*(0.5*zz/h + log(1.0 + exp(-zz/h)) - M_LN2);
+    double p = 2.0*dispz*(0.5*zz/h + log(1.0 + exp(-zz/h)) - M_LN2);
     double ret = (1.0 - exp(-zz/h))/(1.0 + exp(-zz/h));
-    dp = dispz*ret/h * z/(zz+1.0e-18);
+    double dp = dispz*ret/h * z/(zz+1.0e-18);
+    return {p, dp};
   }
 
   double get_mass(const double x, const double y, const double z) {
@@ -621,11 +628,12 @@ public:
     return OneDModelTable::get_dpot2(z) + 4.0*M_PI*rho0h*sech*sech;
   }
 
-  void get_pot_dpot(const double z, double& p, double& dp) {
+  std::tuple<double, double> get_pot_dpot(const double z) {
     if (!model_computed) reset();
-    OneDModelTable::get_pot_dpot(z, p, dp);
+    auto [p, dp] = OneDModelTable::get_pot_dpot(z);
     p += 4.0*M_PI*hh*hh*rho0h*log(cosh(z/hh));
     dp += 4.0*M_PI*hh*rho0h*tanh(z/hh);
+    return {p, dp};
   }
 
 
@@ -778,9 +786,9 @@ public:
       return 2.0*M_PI/H;
   }
 
-  void get_pot_dpot(const double z, double& p, double& dp)
+  std::tuple<double, double> get_pot_dpot(const double z)
   {
-    double zz = fabs(z);
+    double zz = fabs(z), p, dp;
     if (zz > H) {
       p  = 2.0*M_PI*zz - 2.0*M_PI*H;
       dp = 2.0*M_PI*z/zz;
@@ -788,6 +796,7 @@ public:
       p  = M_PI*zz*zz/H - M_PI*H;
       dp = 2.0*M_PI*z/H;
     }
+    return {p, dp};
   }
 
   double get_mass(const double x, const double y, const double z)
@@ -995,9 +1004,9 @@ public:
       return 2.0*M_PI*rho0*(1 + cos(M_PI*z/H));
   }
 
-  void get_pot_dpot(const double z, double& p, double& dp)
+  std::tuple<double, double> get_pot_dpot(const double z)
   {
-    double zz = fabs(z);
+    double zz = fabs(z), p, dp;
     if (zz > H) {
       p  = 2.0*M_PI*rho0*H*(zz - H);
       dp = 2.0*M_PI*rho0*H*z/zz;
@@ -1005,6 +1014,7 @@ public:
       p  = 2.0*M_PI*rho0*(0.5*z*z + H*H/(M_PI*M_PI)*(1 - cos(M_PI*z/H))) - Phi0;
       dp = 2.0*M_PI*rho0*(z + H/M_PI*sin(M_PI*z/H));
     }
+    return {p, dp};
   }
 
   double get_mass(const double x, const double y, const double z)
