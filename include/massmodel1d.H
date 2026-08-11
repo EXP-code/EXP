@@ -33,36 +33,40 @@ public:
 
   bool dist_defined;
 
-//  AxiSymModel(void) {};
+  //! Null constructor
+  //  AxiSymModel(void) {};
   
-  virtual double get_mass   (const double) = 0;
-  virtual double get_density(const double) = 0;
-  virtual double get_pot    (const double) = 0;
-  virtual double get_dpot   (const double) = 0;
-  virtual double get_dpot2  (const double) = 0;
-  virtual void   get_pot_dpot (const double, double&, double&) = 0;
-  virtual std::tuple<double, double> get_pot_dpot (const double z) = 0;
+  //@{
+  //! Required members of mass model
 
-  // Required members of mass model
+  virtual double get_mass    (const double) = 0;
+  virtual double get_density (const double) = 0;
+  virtual double get_pot     (const double) = 0;
+  virtual double get_dpot    (const double) = 0;
+  virtual double get_dpot2   (const double) = 0;
+  virtual std::tuple<double, double>
+                 get_pot_dpot(const double) = 0;
 
-  double get_mass(const double x, const double y, const double z) {
-    return get_mass(z);}
+  double get_mass(const double x, const double y, const double z)
+  { return get_mass(z); }
 
-  double get_density(const double x, const double y, const double z) {
-    return get_density(z);}
+  double get_density(const double x, const double y, const double z)
+  { return get_density(z); }
 
-  double get_pot(const double x, const double y, const double z) {
-    return get_pot(z);}
+  double get_pot(const double x, const double y, const double z)
+  { return get_pot(z); }
+  //@}
 
 
-  // Addiional member functions
-
+  //@{
+  //! Additional member functions
   virtual double get_min_radius(void) = 0;
   virtual double get_max_radius(void) = 0;
   virtual double get_scale_height(void) = 0;
   virtual double distf(const double, const double V=0.0) = 0;
   virtual double dfde (const double, const double V=0.0) = 0;
   virtual double dfdv (const double, const double V=0.0) = 0;
+  //@}
 
 
   //! Model types
