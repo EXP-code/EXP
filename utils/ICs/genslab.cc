@@ -5,9 +5,12 @@
 #include <iomanip>
 #include <fstream>
 #include <cstring>
+#include <random>
 #include <string>
 #include <memory>
 #include <cmath>
+
+#include <Eigen/Dense>
 
 #include "massmodel1d.H"
 #include "interp.H"
@@ -167,24 +170,25 @@ main(int argc, char **argv)
   double VC = 0.0;
   double mass = mu/Number;
 
+  Eigen::MatrixXd posvel(Number, 6);
+
+#pragma omp parallel for reduction(+:KE,VC)
   for (int n=0; n<Number; n++) {
 
-    double pos[] = {Lx*Unit(gen), Ly*Unit(gen), odd2(Unit(gen)*M.back(), M, Z)};
-    double vel[] = {Vh(gen), Vh(gen), Vv(gen)};
+    posvel.row(n) <<
+      Lx*Unit(gen), Ly*Unit(gen), odd2(Unit(gen)*M.back(), M, Z),
+      Vh(gen), Vh(gen), Vv(gen);
 
-    KE += vel[2]*vel[2];
-    VC += pos[2]*model->get_dpot(pos[2]);
-    
-    out << std::setw(15) << mass
-	<< std::setw(15) << pos[0]
-	<< std::setw(15) << pos[1]
-	<< std::setw(15) << pos[2]
-	<< std::setw(15) << vel[0]
-	<< std::setw(15) << vel[1]
-	<< std::setw(15) << vel[2]
-	<< std::endl;
+    KE += posvel(n, 5)*posvel(n, 5);
+    VC += posvel(n, 2)*model->get_dpot(posvel(n, 2));
   }
   
+  for (int n=0; n<Number; n++) {
+    out << std::setw(15) << mass;
+    for (int j=0; j<6; j++) out << std::setw(15) << posvel(n, j);
+    out << std::endl;
+  }
+
   std::cout << std::endl
 	    << "Virial parameters: KE=" << 0.5*mass*KE
 	    << " VC=" << mass*VC
