@@ -5,7 +5,6 @@
 #include <iomanip>
 #include <fstream>
 #include <cstring>
-#include <variant>
 #include <random>
 #include <string>
 #include <memory>
@@ -105,24 +104,95 @@ createFilterProps(const std::vector<hsize_t>& chunk_dims,
 // Specify floating point precision
 enum class FloatPrecision { FLOAT32, FLOAT64 };
 
-// Type variant for flexible float handling
+// Template variant for flexible float handling
 template<typename T>
-struct ParticleDataTemplate
+struct ParticleData
 {
   std::optional<std::vector<unsigned long>> index; // optional particle index
   std::vector<T> m;             // mass
   std::vector<T> x, y, z;       // position
   std::vector<T> u, v, w;       // velocity
-  std::vector<std::vector<int>> aux_ints;      // auxiliary integer fields
-  std::vector<std::vector<T>> aux_floats;      // auxiliary float fields
+  std::vector<std::vector<int>> aux_ints;   // auxiliary integer fields
+  std::vector<std::vector<T>>   aux_floats; // auxiliary float fields
 
-  size_t num_particles = 0;
-  size_t num_aux_ints = 0;
+  size_t num_particles  = 0;
+  size_t num_aux_ints   = 0;
   size_t num_aux_floats = 0;
 };
 
-// Variant for flexible reading
-using FloatData = std::variant<std::vector<float>, std::vector<double>>;
+template<typename T>
+void write_hdf5_data(const std::string& outfile,
+		     const ParticleData<T>& data,
+		     unsigned filter_id,
+		     bool verbose)
+{
+  // Create HDF5 file with compression enabled (SEQUENTIAL - thread-safe)
+  //
+  if (verbose) std::cout << "Writing HDF5 file..." << std::endl;
+
+  std::string hdf5_file = outfile + ".h5";
+  File file(hdf5_file, File::ReadWrite | File::Create | File::Truncate);
+
+  // Store header information and precision metadata
+  //
+  file.createAttribute<int>("Number", DataSpace::From(data.num_particles))
+    .write(data.num_particles);
+  file.createAttribute<int>("num_aux_ints", DataSpace::From(data.num_aux_ints))
+    .write(data.num_aux_ints);
+  file.createAttribute<int>("num_aux_floats", DataSpace::From(data.num_aux_floats))
+    .write(data.num_aux_floats);
+  
+  // Create a group for particle data
+  //
+  Group particles_group = file.createGroup("particles");
+  
+  // Calculate optimized, capped chunk size
+  //
+  hsize_t chunk_size = 262144; // Cachesafe cap (~2MB for double)
+  if (data.num_particles < chunk_size) {
+    chunk_size = std::max<hsize_t>(1024, data.num_particles);
+  }
+  if (chunk_size > data.num_particles) {
+    chunk_size = data.num_particles; // Absolute safety fallback
+  }
+
+  // Define compression filter
+  //
+  auto props = createFilterProps({chunk_size}, filter_id, 5);
+  
+  // Write datasets sequentially (HDF5 is not fully thread-safe for writing)
+  particles_group.createDataSet("m", data.m, props);
+  particles_group.createDataSet("x", data.x, props);
+  particles_group.createDataSet("y", data.y, props);
+  particles_group.createDataSet("z", data.z, props);
+  particles_group.createDataSet("u", data.u, props);
+  particles_group.createDataSet("v", data.v, props);
+  particles_group.createDataSet("w", data.w, props);
+
+  // Write optional index dataset if present
+  if (data.index.has_value()) {
+    particles_group.createDataSet("index", *data.index, props);
+  }
+  
+  // Write auxiliary integer fields
+  for (size_t j = 0; j < data.aux_ints.size(); ++j) {
+    std::string dset_name = "aux_int_" + std::to_string(j);
+    particles_group.createDataSet(dset_name, data.aux_ints[j], props);
+  }
+  
+  // Write auxiliary float fields
+  for (size_t j = 0; j < data.aux_floats.size(); ++j) {
+    std::string dset_name = "aux_float_" + std::to_string(j);
+    particles_group.createDataSet(dset_name, data.aux_floats[j], props);
+  }
+  
+  if (verbose) {
+    std::string precision_str = "float32";
+    if (sizeof(T) == 8) precision_str = "float64";
+    std::cout << "Successfully wrote " << data.num_particles << " particles to " 
+	      << hdf5_file << " (" << precision_str << ")" << std::endl;
+  }
+}
 
 int
 main(int argc, char **argv)
@@ -144,7 +214,8 @@ main(int argc, char **argv)
     ("h,help",     "Print this help message")
     ("5,hdf5",     "Write HDF5 output (default is ASCII)")
     ("v,verbose",  "Verbose output")
-    ("f,filter",  "HDF5 filter ID to use (default: 1 = GZIP)", cxxopts::value<unsigned>(filter_id)->default_value("1"))
+    ("8,double",   "Use double precision for HDF5 output (default is float)")
+    ("f,filter",   "HDF5 filter ID to use (default: 1 = GZIP)", cxxopts::value<unsigned>(filter_id)->default_value("1"))
     ("N,number",   "Number of bodies",
      cxxopts::value<int>(Number)->default_value("10000"))
     ("nauxint",    "Number of auxiliary integer fields",
@@ -284,115 +355,63 @@ main(int argc, char **argv)
 
   if (vm.count("hdf5")) {
 
-    // Could be updated to allow user selection of precision, but for
-    // now we default to float32
-    //
-    FloatPrecision precision = FloatPrecision::FLOAT32;
-    ParticleDataTemplate<float> data;
+    auto create_and_write = [&](const auto& value) {
+      
+      using T = std::decay_t<decltype(value)>;
+        
+      ParticleData<T> data;
 
-    data.m.resize(Number);
-    data.x.resize(Number);
-    data.y.resize(Number);
-    data.z.resize(Number);
-    data.u.resize(Number);
-    data.v.resize(Number);
-    data.w.resize(Number);
+      data.m.resize(Number);
+      data.x.resize(Number);
+      data.y.resize(Number);
+      data.z.resize(Number);
+      data.u.resize(Number);
+      data.v.resize(Number);
+      data.w.resize(Number);
 
-    data.num_particles  = Number;
-    data.num_aux_ints   = Num_aux_ints;
-    data.num_aux_floats = Num_aux_floats;
-
-    data.aux_ints.resize(Num_aux_ints);
-    for (auto& vec : data.aux_ints) {
-      vec.resize(Number);
-      vec.assign(Number, 0); // Initialize auxiliary integer fields to zero
-    }
-    
-    data.aux_floats.resize(Num_aux_floats);
-    for (auto& vec : data.aux_floats) {
-      vec.resize(Number);
-      vec.assign(Number, 0.0f); // Initialize auxiliary float fields to zero
-    }
+      data.num_particles  = Number;
+      data.num_aux_ints   = Num_aux_ints;
+      data.num_aux_floats = Num_aux_floats;
+      
+      data.aux_ints.resize(Num_aux_ints);
+      for (auto& vec : data.aux_ints) {
+	vec.resize(Number);
+	vec.assign(Number, 0); // Initialize auxiliary integer fields to zero
+      }
+      
+      data.aux_floats.resize(Num_aux_floats);
+      for (auto& vec : data.aux_floats) {
+	vec.resize(Number);
+	vec.assign(Number, 0.0f); // Initialize auxiliary float fields to zero
+      }
     
 #pragma omp parallel for schedule(dynamic, 256) reduction(+:KE, VC) num_threads(omp_get_max_threads())
-    for (int n=0; n<Number; n++) {
+      for (int n=0; n<Number; n++) {
 
-      data.m[n] = static_cast<float>(mass);
-      data.x[n] = static_cast<float>(Lx*Unit(gen));
-      data.y[n] = static_cast<float>(Ly*Unit(gen));
-      data.z[n] = static_cast<float>(odd2(Unit(gen)*M.back(), M, Z));
-      data.u[n] = static_cast<float>(Vh(gen));
-      data.v[n] = static_cast<float>(Vh(gen));
-      data.w[n] = static_cast<float>(Vv(gen));
+	data.m[n] = mass;
+	data.x[n] = Lx*Unit(gen);
+	data.y[n] = Ly*Unit(gen);
+	data.z[n] = odd2(Unit(gen)*M.back(), M, Z);
+	data.u[n] = Vh(gen);
+	data.v[n] = Vh(gen);
+	data.w[n] = Vv(gen);
       
-      KE += data.w[n] * data.w[n];
-      VC += data.z[n] * model->get_dpot(data.z[n]);
+	KE += data.w[n] * data.w[n];
+	VC += data.z[n] * model->get_dpot(data.z[n]);
+      }
+
+      write_hdf5_data<T>(outfile, data, filter_id, vm.count("verbose") > 0);
+    };
+      
+    // Write HDF5 with float32 precision
+    if (vm.count("double")) {
+      double precision = 1.0; // Placeholder to indicate double precision
+      create_and_write(precision);
+    } else {
+      float precision = 1.0f; // Placeholder to indicate float precision
+      create_and_write(precision);
     }
 
-    // Create HDF5 file with compression enabled (SEQUENTIAL - thread-safe)
-    //
-    if (vm.count("verbose")) std::cout << "Writing HDF5 file..." << std::endl;
-
-    std::string hdf5_file = outfile + ".h5";
-    File file(hdf5_file, File::ReadWrite | File::Create | File::Truncate);
-
-    // Store header information and precision metadata
-    //
-    file.createAttribute<int>("Number", DataSpace::From(Number))
-      .write(Number);
-    file.createAttribute<int>("num_aux_ints", DataSpace::From(Num_aux_ints))
-      .write(Num_aux_ints);
-    file.createAttribute<int>("num_aux_floats", DataSpace::From(Num_aux_floats))
-      .write(Num_aux_floats);
-
-    // Create a group for particle data
-    //
-    Group particles_group = file.createGroup("particles");
-
-    // Calculate optimized, capped chunk size
-    //
-    hsize_t chunk_size = 262144; // Cachesafe cap (~2MB for double)
-    if (Number < chunk_size) {
-      chunk_size = std::max<hsize_t>(1024, Number);
-    }
-    if (chunk_size > Number) {
-      chunk_size = Number; // Absolute safety fallback
-    }
-
-    // Define compression filter
-    //
-    auto props = createFilterProps({chunk_size}, filter_id, 5);
-
-    // Write datasets sequentially (HDF5 is not fully thread-safe for writing)
-    particles_group.createDataSet("m", data.m, props);
-    particles_group.createDataSet("x", data.x, props);
-    particles_group.createDataSet("y", data.y, props);
-    particles_group.createDataSet("z", data.z, props);
-    particles_group.createDataSet("u", data.u, props);
-    particles_group.createDataSet("v", data.v, props);
-    particles_group.createDataSet("w", data.w, props);
-    if (data.index.has_value()) {
-      particles_group.createDataSet("index", *data.index, props);
-    }
-    
-    // Write auxiliary integer fields
-    for (size_t j = 0; j < data.aux_ints.size(); ++j) {
-      std::string dset_name = "aux_int_" + std::to_string(j);
-      particles_group.createDataSet(dset_name, data.aux_ints[j], props);
-    }
-
-    // Write auxiliary float fields
-    for (size_t j = 0; j < data.aux_floats.size(); ++j) {
-      std::string dset_name = "aux_float_" + std::to_string(j);
-      particles_group.createDataSet(dset_name, data.aux_floats[j], props);
-    }
-
-    if (vm.count("verbose")) {
-      std::string precision_str = (precision == FloatPrecision::FLOAT32) ? "float32" : "float64";
-      std::cout << "Successfully wrote " << Number << " particles to " 
-		<< hdf5_file << " (" << precision_str << ")" << std::endl;
-    }
-  
   } else {
     
     if (vm.count("verbose")) {
