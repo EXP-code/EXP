@@ -249,41 +249,46 @@ void SlabSL::initialize_constants()
     throw std::runtime_error(sout.str());
   }
   int Cmap = it->second;
+  size_t offset = 0;
 
   cuda_safe_call(cudaMemcpyToSymbol(slabCmap, &Cmap, sizeof(int),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabCmap");
 
   cuda_safe_call(cudaMemcpyToSymbol(slabDfac, &(z=2.0*M_PI), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabDfac");
 
   cuda_safe_call(cudaMemcpyToSymbol(slabHscl, &(z=SLGridSlab::H), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabHscl");
 
   cuda_safe_call(cudaMemcpyToSymbol(slabXmin, &(z=f.xmin), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabXmin");
 
   cuda_safe_call(cudaMemcpyToSymbol(slabXmax, &(z=f.xmax), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabXmax");
 
   cuda_safe_call(cudaMemcpyToSymbol(slabDxi, &(z=f.dxi), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabDxi");
 
   cuda_safe_call(cudaMemcpyToSymbol(slabValue0, &(z=value0), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabValue0");
 
-  cuda_safe_call(cudaMemcpyToSymbol(slabL[0], &(z=Lx), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+  // Offset for slabL[0]
+  offset = 0;		
+  cuda_safe_call(cudaMemcpyToSymbol(slabL, &(z=Lx), sizeof(cuFP_t),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabL[0]");
 
-  cuda_safe_call(cudaMemcpyToSymbol(slabL[1], &(z=Ly), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+  // Offset for slabL[1]
+  offset = sizeof(cuFP_t); 
+  cuda_safe_call(cudaMemcpyToSymbol(slabL, &(z=Ly), sizeof(cuFP_t),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabL[1]");
 }
 
