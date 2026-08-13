@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <fstream>
 #include <cstring>
+#include <variant>
 #include <random>
 #include <string>
 #include <memory>
@@ -12,17 +13,125 @@
 
 #include <Eigen/Dense>
 
+// HighFive
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+
+// Required for H5Zfilter_avail
+#include <H5Zpublic.h>
+
 #include "massmodel1d.H"
 #include "interp.H"
 #include "cxxopts.H"
+
+using namespace HighFive;
+
+
+// Factory designed to iterate across filter list available on Ubuntu
+// 26.04 LTS and other systems with HDF5 1.14.x and HighFive 2.6.x
+HighFive::DataSetCreateProps
+createFilterProps(const std::vector<hsize_t>& chunk_dims, 
+		  unsigned int filter_id,
+		  // Scale from 1 (fast) to 9 (max compression)
+		  int compression_level = 5)
+{
+  HighFive::DataSetCreateProps props;
+  props.add(HighFive::Chunking(chunk_dims));
+
+  // For most compressors, applying shuffle improves compression for floating-point data.
+  // (Blosc can do its own shuffling internally; shuffle-only/checksum-only are handled below.)
+  if (filter_id != 3 && filter_id != 4 && filter_id != 32001) {
+    props.add(HighFive::Shuffle());
+  }
+  hid_t plist_id = props.getId();
+  std::vector<unsigned int> cd_values;
+
+  switch (filter_id) {
+  case 1: // Deflate / GZIP (Built-in)
+    // Expects 1 parameter: compression level (0-9)
+    cd_values = { static_cast<unsigned int>(compression_level) };
+    break;
+    
+  case 2: // SZIP (Built-in)
+    // SZIP is complex and highly variant; HighFive includes native wrappers.
+    // For raw testing, standard pixels-per-block option is typically 16.
+    cd_values = { 141, 16 }; 
+    break;
+    
+  case 3: // Shuffle Filter alone (No trailing compression)
+    props.add(HighFive::Shuffle());
+    return props;
+    
+  case 4: // Fletcher32 Checksum alone (Data validation, not compression)
+    // Fletcher32 uses built-in ID 4 and accepts 0 configuration arguments.
+    // Call the native HDF5 library directly using HighFive's internal handle.
+    H5Pset_filter(plist_id, 4, H5Z_FLAG_OPTIONAL, 0, NULL);
+    return props;
+    
+  case 307: // BZip2
+            // Expects 1 parameter: Block size in 100KB steps (1-9)
+    cd_values = { static_cast<unsigned int>(compression_level) };
+    break;
+    
+  case 32004: // LZ4
+    // Expects 1 parameter: internal chunk/block size. 
+    // 0 falls back to the default (64KB), optimized for CPU caches.
+    cd_values = { 0 }; 
+    break;
+    
+  case 32001: // Blosc (v1 Meta-Compressor)
+    // Expects 7 parameters. Slots 0-3 are reserved.
+    // [4]=level(1-9), [5]=shuffle type(1=byte, 2=bit), [6]=codec code
+    // Codecs: 0=blosclz, 1=lz4, 2=lz4hc, 3=snappy, 4=zlib, 5=zstd
+    cd_values = { 0, 0, 0, 0, 
+		  static_cast<unsigned int>(compression_level), 
+		  1,  // 1 = Byte Shuffle (Highly recommended for float/double)
+		  1 }; // 1 = Redirect internal processing to LZ4
+    break;
+    
+  default:
+    throw std::invalid_argument("Unknown or unsupported testing filter ID requested.");
+    }
+  
+  // Pass the custom properties down to the HDF5 backend pipeline
+  if (!cd_values.empty()) {
+    H5Pset_filter(plist_id, filter_id, H5Z_FLAG_OPTIONAL, cd_values.size(), cd_values.data());
+  }
+  
+  return props;
+}
+
+// Specify floating point precision
+enum class FloatPrecision { FLOAT32, FLOAT64 };
+
+// Type variant for flexible float handling
+template<typename T>
+struct ParticleDataTemplate
+{
+  std::optional<std::vector<unsigned long>> index; // optional particle index
+  std::vector<T> m;             // mass
+  std::vector<T> x, y, z;       // position
+  std::vector<T> u, v, w;       // velocity
+  std::vector<std::vector<int>> aux_ints;      // auxiliary integer fields
+  std::vector<std::vector<T>> aux_floats;      // auxiliary float fields
+
+  size_t num_particles = 0;
+  size_t num_aux_ints = 0;
+  size_t num_aux_floats = 0;
+};
+
+// Variant for flexible reading
+using FloatData = std::variant<std::vector<float>, std::vector<double>>;
 
 int
 main(int argc, char **argv)
 {
   unsigned int seed;
-  int Ntable, Number;
+  int Ntable, Number, Num_aux_ints, Num_aux_floats;
   double Dratio, Hratio, R, Hmax, DispX, DispZ, fJ, Lx, Ly;
   std::string outfile, config, modfile, modelType;
+  unsigned filter_id = 1;
   bool Mu;
 
   // Parse command line
@@ -33,8 +142,15 @@ main(int argc, char **argv)
 
   options.add_options()
     ("h,help",     "Print this help message")
+    ("5,hdf5",     "Write HDF5 output (default is ASCII)")
+    ("v,verbose",  "Verbose output")
+    ("f,filter",  "HDF5 filter ID to use (default: 1 = GZIP)", cxxopts::value<unsigned>(filter_id)->default_value("1"))
     ("N,number",   "Number of bodies",
      cxxopts::value<int>(Number)->default_value("10000"))
+    ("nauxint",    "Number of auxiliary integer fields",
+     cxxopts::value<int>(Num_aux_ints)->default_value("0"))
+    ("nauxfloat",  "Number of auxiliary float fields",
+     cxxopts::value<int>(Num_aux_floats)->default_value("0"))
     ("n,ntable",   "Number of points in model table",
      cxxopts::value<int>(Ntable)->default_value("400"))
     ("m,model",    "Model type (LowIso, Sech2, Sech2mu, Sech2Halo)",
@@ -85,14 +201,6 @@ main(int argc, char **argv)
     return 0;
   }
 
-  std::ofstream out(outfile);
-  if (!out) {
-    std::cerr << "Can't open <" << outfile << ">" << std::endl;
-    exit(-1);
-  }
-  out.precision(6);
-  out.setf(ios::scientific);
-
   // Define model
   //
   double h = 1.0;
@@ -137,11 +245,14 @@ main(int argc, char **argv)
   std::cout.setf(ios::left);
   char prev = cout.fill('.');
 
-  std::cout << std::setw(40) << "Model type" << modelType << std::endl;
-  std::cout << std::setw(40) << "Surface mass density" << mu << std::endl;
-  std::cout << std::setw(40) << "Jeans' length" << LJ << std::endl;
-  std::cout << std::setw(40) << "Scale height" << h << std::endl;
-  std::cout << std::setw(40) << "Maximum thickness" << maxZ << std::endl;
+  if (vm.count("verbose")) {
+    std::cout << std::endl << "Slab model parameters:" << std::endl;
+    std::cout << std::setw(40) << "Model type" << modelType << std::endl;
+    std::cout << std::setw(40) << "Surface mass density" << mu << std::endl;
+    std::cout << std::setw(40) << "Jeans' length" << LJ << std::endl;
+    std::cout << std::setw(40) << "Scale height" << h << std::endl;
+    std::cout << std::setw(40) << "Maximum thickness" << maxZ << std::endl;
+  }
   
   cout.fill(prev);
 
@@ -163,30 +274,162 @@ main(int argc, char **argv)
   std::normal_distribution Vv{0.0, sqrt(DispZ)};
   std::normal_distribution Vh{0.0, sqrt(DispX)};
 
-  // Header line
-  out << std::setw(10) << Number << std::setw(15) << 0 << std::setw(15) << 0 << std::endl;
-
   double KE = 0.0;
   double VC = 0.0;
   double mass = mu/Number;
 
-  Eigen::MatrixXd posvel(Number, 6);
-
-#pragma omp parallel for reduction(+:KE,VC)
-  for (int n=0; n<Number; n++) {
-
-    posvel.row(n) <<
-      Lx*Unit(gen), Ly*Unit(gen), odd2(Unit(gen)*M.back(), M, Z),
-      Vh(gen), Vh(gen), Vv(gen);
-
-    KE += posvel(n, 5)*posvel(n, 5);
-    VC += posvel(n, 2)*model->get_dpot(posvel(n, 2));
+  if (vm.count("verbose")) {
+    std::cout << std::endl << "Generating " << Number << " particles..." << std::endl;
   }
+
+  if (vm.count("hdf5")) {
+
+    // Could be updated to allow user selection of precision, but for
+    // now we default to float32
+    //
+    FloatPrecision precision = FloatPrecision::FLOAT32;
+    ParticleDataTemplate<float> data;
+
+    data.m.resize(Number);
+    data.x.resize(Number);
+    data.y.resize(Number);
+    data.z.resize(Number);
+    data.u.resize(Number);
+    data.v.resize(Number);
+    data.w.resize(Number);
+
+    data.num_particles  = Number;
+    data.num_aux_ints   = Num_aux_ints;
+    data.num_aux_floats = Num_aux_floats;
+
+    data.aux_ints.resize(Num_aux_ints);
+    for (auto& vec : data.aux_ints) {
+      vec.resize(Number);
+      vec.assign(Number, 0); // Initialize auxiliary integer fields to zero
+    }
+    
+    data.aux_floats.resize(Num_aux_floats);
+    for (auto& vec : data.aux_floats) {
+      vec.resize(Number);
+      vec.assign(Number, 0.0f); // Initialize auxiliary float fields to zero
+    }
+    
+#pragma omp parallel for schedule(dynamic, 256) reduction(+:KE, VC) num_threads(omp_get_max_threads())
+    for (int n=0; n<Number; n++) {
+
+      data.m[n] = static_cast<float>(mass);
+      data.x[n] = static_cast<float>(Lx*Unit(gen));
+      data.y[n] = static_cast<float>(Ly*Unit(gen));
+      data.z[n] = static_cast<float>(odd2(Unit(gen)*M.back(), M, Z));
+      data.u[n] = static_cast<float>(Vh(gen));
+      data.v[n] = static_cast<float>(Vh(gen));
+      data.w[n] = static_cast<float>(Vv(gen));
+      
+      KE += data.w[n] * data.w[n];
+      VC += data.z[n] * model->get_dpot(data.z[n]);
+    }
+
+    // Create HDF5 file with compression enabled (SEQUENTIAL - thread-safe)
+    //
+    if (vm.count("verbose")) std::cout << "Writing HDF5 file..." << std::endl;
+
+    std::string hdf5_file = outfile + ".h5";
+    File file(hdf5_file, File::ReadWrite | File::Create | File::Truncate);
+
+    // Store header information and precision metadata
+    //
+    file.createAttribute<int>("Number", DataSpace::From(Number))
+      .write(Number);
+    file.createAttribute<int>("num_aux_ints", DataSpace::From(Num_aux_ints))
+      .write(Num_aux_ints);
+    file.createAttribute<int>("num_aux_floats", DataSpace::From(Num_aux_floats))
+      .write(Num_aux_floats);
+
+    // Create a group for particle data
+    //
+    Group particles_group = file.createGroup("particles");
+
+    // Calculate optimized, capped chunk size
+    //
+    hsize_t chunk_size = 262144; // Cachesafe cap (~2MB for double)
+    if (Number < chunk_size) {
+      chunk_size = std::max<hsize_t>(1024, Number);
+    }
+    if (chunk_size > Number) {
+      chunk_size = Number; // Absolute safety fallback
+    }
+
+    // Define compression filter
+    //
+    auto props = createFilterProps({chunk_size}, filter_id, 5);
+
+    // Write datasets sequentially (HDF5 is not fully thread-safe for writing)
+    particles_group.createDataSet("m", data.m, props);
+    particles_group.createDataSet("x", data.x, props);
+    particles_group.createDataSet("y", data.y, props);
+    particles_group.createDataSet("z", data.z, props);
+    particles_group.createDataSet("u", data.u, props);
+    particles_group.createDataSet("v", data.v, props);
+    particles_group.createDataSet("w", data.w, props);
+    if (data.index.has_value()) {
+      particles_group.createDataSet("index", *data.index, props);
+    }
+    
+    // Write auxiliary integer fields
+    for (size_t j = 0; j < data.aux_ints.size(); ++j) {
+      std::string dset_name = "aux_int_" + std::to_string(j);
+      particles_group.createDataSet(dset_name, data.aux_ints[j], props);
+    }
+
+    // Write auxiliary float fields
+    for (size_t j = 0; j < data.aux_floats.size(); ++j) {
+      std::string dset_name = "aux_float_" + std::to_string(j);
+      particles_group.createDataSet(dset_name, data.aux_floats[j], props);
+    }
+
+    if (vm.count("verbose")) {
+      std::string precision_str = (precision == FloatPrecision::FLOAT32) ? "float32" : "float64";
+      std::cout << "Successfully wrote " << Number << " particles to " 
+		<< hdf5_file << " (" << precision_str << ")" << std::endl;
+    }
   
-  for (int n=0; n<Number; n++) {
-    out << std::setw(15) << mass;
-    for (int j=0; j<6; j++) out << std::setw(15) << posvel(n, j);
-    out << std::endl;
+  } else {
+    
+    if (vm.count("verbose")) {
+      std::cout << "Writing ASCII output to " << outfile << std::endl;
+    }
+
+    std::ofstream out(outfile);
+    if (!out) {
+      std::cerr << "Can't open <" << outfile << ">" << std::endl;
+      exit(-1);
+    }
+    out.precision(6);
+    out.setf(ios::scientific);
+    
+    // Header line
+    out << std::setw(10) << Number << std::setw(15) << 0 << std::setw(15) << 0 << std::endl;
+
+    Eigen::MatrixXd posvel(Number, 6);
+
+    // Generate particles
+#pragma omp parallel for schedule(dynamic, 256) reduction(+:KE, VC) num_threads(omp_get_max_threads())
+    for (int n=0; n<Number; n++) {
+      posvel.row(n) <<
+	Lx*Unit(gen), Ly*Unit(gen), odd2(Unit(gen)*M.back(), M, Z),
+	Vh(gen), Vh(gen), Vv(gen);
+
+      KE += posvel(n, 5)*posvel(n, 5);
+      VC += posvel(n, 2)*model->get_dpot(posvel(n, 2));
+    }
+  
+    std::cout << "Done generating particles" << std::endl;
+
+    for (int n=0; n<Number; n++) {
+      out << std::setw(15) << mass;
+      for (int j=0; j<6; j++) out << std::setw(15) << posvel(n, j);
+      out << std::endl;
+    }
   }
 
   std::cout << std::endl
