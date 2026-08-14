@@ -244,6 +244,13 @@ if(ENABLE_NBODY)
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
       set_tests_properties(checkGendiskDiskHDF5ICTest PROPERTIES DEPENDS makeGendiskHDF5ICTest)
 
+      add_test(NAME checkGendiskHaloHDF5ICTest
+        COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py
+        hdf5-gendisk-halo.bods.h5 --count 8
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+      set_tests_properties(checkGendiskHaloHDF5ICTest PROPERTIES DEPENDS makeGendiskHDF5ICTest)
+
       add_test(NAME checkGendiskGasHDF5ICTest
         COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py
@@ -257,9 +264,9 @@ if(ENABLE_NBODY)
         hdf5-gendisk.cache hdf5-gendisk.ortho_check
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
       set_tests_properties(removeGendiskHDF5ICFiles PROPERTIES DEPENDS
-        "checkGendiskDiskHDF5ICTest;checkGendiskGasHDF5ICTest"
-        REQUIRED_FILES "hdf5-gendisk-disk.bods.h5;hdf5-gendisk-gas.bods.h5")
-      set_tests_properties(makeGendiskHDF5ICTest checkGendiskDiskHDF5ICTest
+        "checkGendiskDiskHDF5ICTest;checkGendiskHaloHDF5ICTest;checkGendiskGasHDF5ICTest"
+        REQUIRED_FILES "hdf5-gendisk-halo.bods.h5;hdf5-gendisk-disk.bods.h5;hdf5-gendisk-gas.bods.h5")
+      set_tests_properties(makeGendiskHDF5ICTest checkGendiskDiskHDF5ICTest checkGendiskHaloHDF5ICTest
         checkGendiskGasHDF5ICTest removeGendiskHDF5ICFiles
         PROPERTIES LABELS "quick")
 
