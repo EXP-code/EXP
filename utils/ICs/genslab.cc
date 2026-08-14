@@ -1,4 +1,6 @@
-// Generate slab initial conditions
+// Generate slab initial conditions for varous slab models. The
+// output can be in ASCII or HDF5 format, with optional compression
+// filters for HDF5.
 
 #include <cstdlib>
 #include <iostream>
@@ -26,7 +28,6 @@
 
 using namespace HighFive;
 
-
 // Factory designed to iterate across filter list available on Ubuntu
 // 26.04 LTS and other systems with HDF5 1.14.x and HighFive 2.6.x
 HighFive::DataSetCreateProps
@@ -38,8 +39,9 @@ createFilterProps(const std::vector<hsize_t>& chunk_dims,
   HighFive::DataSetCreateProps props;
   props.add(HighFive::Chunking(chunk_dims));
 
-  // For most compressors, applying shuffle improves compression for floating-point data.
-  // (Blosc can do its own shuffling internally; shuffle-only/checksum-only are handled below.)
+  // For most compressors, applying shuffle improves compression for
+  // floating-point data.  (Blosc can do its own shuffling internally;
+  // shuffle-only/checksum-only are handled below.)
   if (filter_id != 3 && filter_id != 4 && filter_id != 32001) {
     props.add(HighFive::Shuffle());
   }
@@ -53,8 +55,9 @@ createFilterProps(const std::vector<hsize_t>& chunk_dims,
     break;
     
   case 2: // SZIP (Built-in)
-    // SZIP is complex and highly variant; HighFive includes native wrappers.
-    // For raw testing, standard pixels-per-block option is typically 16.
+    // SZIP is complex and highly variant; HighFive includes native
+    // wrappers.  For raw testing, standard pixels-per-block option is
+    // typically 16.
     cd_values = { 141, 16 }; 
     break;
     
@@ -63,8 +66,9 @@ createFilterProps(const std::vector<hsize_t>& chunk_dims,
     return props;
     
   case 4: // Fletcher32 Checksum alone (Data validation, not compression)
-    // Fletcher32 uses built-in ID 4 and accepts 0 configuration arguments.
-    // Call the native HDF5 library directly using HighFive's internal handle.
+    // Fletcher32 uses built-in ID 4 and accepts 0 configuration
+    // arguments.  Call the native HDF5 library directly using
+    // HighFive's internal handle.
     H5Pset_filter(plist_id, 4, H5Z_FLAG_OPTIONAL, 0, NULL);
     return props;
     
@@ -104,7 +108,7 @@ createFilterProps(const std::vector<hsize_t>& chunk_dims,
 // Specify floating point precision
 enum class FloatPrecision { FLOAT32, FLOAT64 };
 
-// Template variant for flexible float handling
+// Template to handle float and double precision for particle data
 template<typename T>
 struct ParticleData
 {
@@ -120,6 +124,7 @@ struct ParticleData
   size_t num_aux_floats = 0;
 };
 
+// Write particle data to HDF5 file with specified filter and precision
 template<typename T>
 void write_hdf5_data(const std::string& outfile,
 		     const ParticleData<T>& data,
@@ -202,17 +207,20 @@ main(int argc, char **argv)
   double Dratio, Hratio, R, Hmax, DispX, DispZ, fJ, Lx, Ly;
   std::string outfile, config, modfile, modelType;
   unsigned filter_id = 1;
-  bool Mu;
+  bool Mu, HDF5 = true;
 
   // Parse command line
   //
-  std::string message = "Generate slab initial conditions\n";
+  std::string message = "Generate slab initial conditions for varous slab models. The\n"
+    "output can be in ASCII or HDF5 format, with optional compression\n"
+    "filters for HDF5.\n";
 
   cxxopts::Options options(argv[0], message);
 
   options.add_options()
     ("h,help",     "Print this help message")
-    ("5,hdf5",     "Write HDF5 output (default is ASCII)")
+    ("5,hdf5",     "Write HDF5 output (default)")
+    ("A,ascii",    "Write old-style ASCII output (default is HDF5)")
     ("v,verbose",  "Verbose output")
     ("8,double",   "Use double precision for HDF5 output (default is float)")
     ("f,filter",   "HDF5 filter ID to use (default: 1 = GZIP)", cxxopts::value<unsigned>(filter_id)->default_value("1"))
@@ -271,6 +279,11 @@ main(int argc, char **argv)
     std::cout << std::endl << options.help() << std::endl;
     return 0;
   }
+
+  // Select output format
+  //
+  if (vm.count("hdf5"))  HDF5 = true;
+  if (vm.count("ascii")) HDF5 = false;
 
   // Define model
   //
@@ -353,8 +366,15 @@ main(int argc, char **argv)
     std::cout << std::endl << "Generating " << Num_particles << " particles..." << std::endl;
   }
 
-  if (vm.count("hdf5")) {
+  if (HDF5) {
 
+    // A lambda function to handle both float and double precision for
+    // particle generation and HDF5 output.  The lambda captures the
+    // necessary variables from the surrounding scope and the type of
+    // the value passed to it determines the precision of the particle
+    // data.  This would be easier in C++20 with concepts, but we can
+    // use a simple lambda to avoid code duplication.
+    //
     auto create_and_write = [&](const auto& value) {
       
       using T = std::decay_t<decltype(value)>;
@@ -376,15 +396,21 @@ main(int argc, char **argv)
       data.aux_ints.resize(Num_aux_ints);
       for (auto& vec : data.aux_ints) {
 	vec.resize(Num_particles);
-	vec.assign(Num_particles, 0); // Initialize auxiliary integer fields to zero
+	vec.assign(Num_particles, 0); // Initialize auxiliary integer
+				      // fields to zero
       }
       
       data.aux_floats.resize(Num_aux_floats);
       for (auto& vec : data.aux_floats) {
 	vec.resize(Num_particles);
-	vec.assign(Num_particles, 0.0f); // Initialize auxiliary float fields to zero
+	vec.assign(Num_particles, 0.0f); // Initialize auxiliary float
+					 // fields to zero
       }
     
+      // This is fast enough that multithreading is not strictly
+      // necessary, but we can use OpenMP to parallelize the particle
+      // generation loop.  The reduction clause is used to accumulate
+      // KE and VC across threads.
 #pragma omp parallel for schedule(dynamic, 256) reduction(+:KE, VC) num_threads(omp_get_max_threads())
       for (int n=0; n<Num_particles; n++) {
 
@@ -403,7 +429,10 @@ main(int argc, char **argv)
       write_hdf5_data<T>(outfile, data, filter_id, vm.count("verbose") > 0);
     };
       
-    // Write HDF5 with float32 precision
+    // Write HDF5 with float32 precision.  This induces the compiler
+    // to build the template for float and double precision, allowing
+    // the user to specifies --double, we instantiate with double type
+    // instead.
     if (vm.count("double")) {
       double precision = 1.0; // Placeholder to indicate double precision
       create_and_write(precision);
@@ -412,7 +441,12 @@ main(int argc, char **argv)
       create_and_write(precision);
     }
 
-  } else {
+  }
+  // Old-style ascii output for backwards compatibility.  This is not
+  // recommended at this point (it storage inefficient and slower to
+  // read), but is retained for users who may have scripts that use
+  // original ascii format.
+  else {
     
     if (vm.count("verbose")) {
       std::cout << "Writing ASCII output to " << outfile << std::endl;
@@ -451,6 +485,7 @@ main(int argc, char **argv)
     }
   }
 
+  // Both ASCII and HDF5 output will print virial parameters to stdout
   std::cout << std::endl
 	    << "Virial parameters: KE=" << 0.5*mass*KE
 	    << " VC=" << mass*VC
