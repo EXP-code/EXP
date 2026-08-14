@@ -135,7 +135,7 @@ void write_hdf5_data(const std::string& outfile,
 
   // Store header information and precision metadata
   //
-  file.createAttribute<int>("Number", DataSpace::From(data.num_particles))
+  file.createAttribute<int>("num_particles", DataSpace::From(data.num_particles))
     .write(data.num_particles);
   file.createAttribute<int>("num_aux_ints", DataSpace::From(data.num_aux_ints))
     .write(data.num_aux_ints);
@@ -198,7 +198,7 @@ int
 main(int argc, char **argv)
 {
   unsigned int seed;
-  int Ntable, Number, Num_aux_ints, Num_aux_floats;
+  int Ntable, Num_particles, Num_aux_ints, Num_aux_floats;
   double Dratio, Hratio, R, Hmax, DispX, DispZ, fJ, Lx, Ly;
   std::string outfile, config, modfile, modelType;
   unsigned filter_id = 1;
@@ -217,7 +217,7 @@ main(int argc, char **argv)
     ("8,double",   "Use double precision for HDF5 output (default is float)")
     ("f,filter",   "HDF5 filter ID to use (default: 1 = GZIP)", cxxopts::value<unsigned>(filter_id)->default_value("1"))
     ("N,number",   "Number of bodies",
-     cxxopts::value<int>(Number)->default_value("10000"))
+     cxxopts::value<int>(Num_particles)->default_value("10000"))
     ("nauxint",    "Number of auxiliary integer fields",
      cxxopts::value<int>(Num_aux_ints)->default_value("0"))
     ("nauxfloat",  "Number of auxiliary float fields",
@@ -347,10 +347,10 @@ main(int argc, char **argv)
 
   double KE = 0.0;
   double VC = 0.0;
-  double mass = mu/Number;
+  double mass = mu/Num_particles;
 
   if (vm.count("verbose")) {
-    std::cout << std::endl << "Generating " << Number << " particles..." << std::endl;
+    std::cout << std::endl << "Generating " << Num_particles << " particles..." << std::endl;
   }
 
   if (vm.count("hdf5")) {
@@ -361,32 +361,32 @@ main(int argc, char **argv)
         
       ParticleData<T> data;
 
-      data.m.resize(Number);
-      data.x.resize(Number);
-      data.y.resize(Number);
-      data.z.resize(Number);
-      data.u.resize(Number);
-      data.v.resize(Number);
-      data.w.resize(Number);
+      data.m.resize(Num_particles);
+      data.x.resize(Num_particles);
+      data.y.resize(Num_particles);
+      data.z.resize(Num_particles);
+      data.u.resize(Num_particles);
+      data.v.resize(Num_particles);
+      data.w.resize(Num_particles);
 
-      data.num_particles  = Number;
+      data.num_particles  = Num_particles;
       data.num_aux_ints   = Num_aux_ints;
       data.num_aux_floats = Num_aux_floats;
       
       data.aux_ints.resize(Num_aux_ints);
       for (auto& vec : data.aux_ints) {
-	vec.resize(Number);
-	vec.assign(Number, 0); // Initialize auxiliary integer fields to zero
+	vec.resize(Num_particles);
+	vec.assign(Num_particles, 0); // Initialize auxiliary integer fields to zero
       }
       
       data.aux_floats.resize(Num_aux_floats);
       for (auto& vec : data.aux_floats) {
-	vec.resize(Number);
-	vec.assign(Number, 0.0f); // Initialize auxiliary float fields to zero
+	vec.resize(Num_particles);
+	vec.assign(Num_particles, 0.0f); // Initialize auxiliary float fields to zero
       }
     
 #pragma omp parallel for schedule(dynamic, 256) reduction(+:KE, VC) num_threads(omp_get_max_threads())
-      for (int n=0; n<Number; n++) {
+      for (int n=0; n<Num_particles; n++) {
 
 	data.m[n] = mass;
 	data.x[n] = Lx*Unit(gen);
@@ -427,13 +427,13 @@ main(int argc, char **argv)
     out.setf(ios::scientific);
     
     // Header line
-    out << std::setw(10) << Number << std::setw(15) << 0 << std::setw(15) << 0 << std::endl;
+    out << std::setw(10) << Num_particles << std::setw(15) << 0 << std::setw(15) << 0 << std::endl;
 
-    Eigen::MatrixXd posvel(Number, 6);
+    Eigen::MatrixXd posvel(Num_particles, 6);
 
     // Generate particles
 #pragma omp parallel for schedule(dynamic, 256) reduction(+:KE, VC) num_threads(omp_get_max_threads())
-    for (int n=0; n<Number; n++) {
+    for (int n=0; n<Num_particles; n++) {
       posvel.row(n) <<
 	Lx*Unit(gen), Ly*Unit(gen), odd2(Unit(gen)*M.back(), M, Z),
 	Vh(gen), Vh(gen), Vv(gen);
@@ -444,7 +444,7 @@ main(int argc, char **argv)
   
     std::cout << "Done generating particles" << std::endl;
 
-    for (int n=0; n<Number; n++) {
+    for (int n=0; n<Num_particles; n++) {
       out << std::setw(15) << mass;
       for (int j=0; j<6; j++) out << std::setw(15) << posvel(n, j);
       out << std::endl;
