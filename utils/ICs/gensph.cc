@@ -49,6 +49,7 @@
 #include "fpetrap.h"
 #include "cxxopts.H"
 #include "EXPini.H"
+#include "ParticleHDF5.H"
 
 // Reference to n-body globals
 //
@@ -76,6 +77,8 @@ main(int argc, char **argv)
   double Emin0, Emax0, Kmin0, Kmax0, RBAR, MBAR, BRATIO, CRATIO, SMOOTH;
   bool LOGR, ELIMIT, VERBOSE, GRIDPOT, MODELS, EBAR, zeropos, zerovel;
   bool VTEST;
+  bool hdf5_output = false, hdf5_double = false;
+  unsigned hdf5_filter = 1;
   std::string INFILE, MMFILE, OUTFILE, OUTPS, config;
 
   const double goldenRatio = 1.618033988749895;
@@ -108,6 +111,10 @@ main(int argc, char **argv)
      cxxopts::value<string>(MMFILE))
     ("o,PSFILE", "Phase-space output file",
      cxxopts::value<string>(OUTPS)->default_value("new.bods"))
+    ("5,hdf5", "Write HDF5 phase-space output instead of ASCII")
+    ("8,double", "Use float64 HDF5 output (default is float32)")
+    ("f,filter", "HDF5 filter ID (default: 1 = GZIP)",
+     cxxopts::value<unsigned>(hdf5_filter)->default_value("1"))
     ("p,prefix", "Diagnostic output file prefix",
      cxxopts::value<string>(OUTFILE)->default_value("gensph"))
     ("zeropos", "Set the origin at the center of mass",
@@ -259,6 +266,8 @@ main(int argc, char **argv)
       return 0;
     }
   }
+  hdf5_output = vm.count("hdf5") > 0;
+  hdf5_double = vm.count("double") > 0;
 
   if (vm.count("verbose")) VERBOSE = true;
   else                     VERBOSE = false;
@@ -272,9 +281,10 @@ main(int argc, char **argv)
   //
   std::ostringstream sout;
   sout << OUTPS << "." << myid;
-  std::ofstream out(sout.str());
+  std::ofstream out;
   int bad = 0;
-  if (!out) {
+  if (!hdf5_output) out.open(sout.str());
+  if (!hdf5_output && !out) {
     std::cerr << "[" << myid << "] Couldn't open <" << sout.str()
 	      << "> for output" << std::endl;
     bad = 1;
@@ -285,8 +295,10 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  out.precision(11);
-  out.setf(ios::scientific, ios::floatfield);
+  if (!hdf5_output) {
+    out.precision(11);
+    out.setf(ios::scientific, ios::floatfield);
+  }
 
   // Begin integration
   //
@@ -701,6 +713,7 @@ main(int argc, char **argv)
 
   int ierr;
   Eigen::VectorXd ps(7), ps0(7);
+  std::vector<std::array<double, 7>> hdf5_particles;
 
   ps0[0] = 0.0;
   ps0[1] = X0;
@@ -710,7 +723,7 @@ main(int argc, char **argv)
   ps0[5] = V0;
   ps0[6] = W0;
 
-  if (myid==0) {
+  if (!hdf5_output && myid==0) {
     out << std::setw(12) << N
 	<< std::setw( 6) << NI << std::setw( 6) << ND  << std::endl;
   }
@@ -852,7 +865,10 @@ main(int argc, char **argv)
 	if (zeropos) for (int i=1; i<3; i++) zz[i] -= ps[0]*ps[i];
 	if (zerovel) for (int i=4; i<7; i++) zz[i] -= ps[0]*ps[i];
       }
-      else {
+      else if (hdf5_output) {
+	hdf5_particles.push_back({mass * ps[0], ps[1] + ps0[1], ps[2] + ps0[2], ps[3] + ps0[3],
+				  ps[4] + ps0[4], ps[5] + ps0[5], ps[6] + ps0[6]});
+      } else {
 	out << std::setw(20) << mass * ps[0];
 	for (int i=1; i<=6; i++) out << std::setw(20) << ps[i]+ps0[i];
 	
@@ -919,6 +935,11 @@ main(int argc, char **argv)
     }
 
     for (auto ps : PS) {
+      if (hdf5_output) {
+	hdf5_particles.push_back({ps[0], ps[1] + ps0[1], ps[2] + ps0[2], ps[3] + ps0[3],
+				  ps[4] + ps0[4], ps[5] + ps0[5], ps[6] + ps0[6]});
+	continue;
+      }
       out << std::setw(20) << ps[0];
       for (int i=1; i<=6; i++) out << std::setw(20) << ps[i]+ps0[i];
 
@@ -966,11 +987,13 @@ main(int argc, char **argv)
   }
 
   out.close();
+  if (hdf5_output)
+    EXP::ParticleHDF5::gather_and_write(OUTPS + ".h5", hdf5_particles, NI, ND, hdf5_filter, hdf5_double);
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Make the final phase-space file and clean up
   //
-  if (myid==0) {
+  if (!hdf5_output && myid==0) {
     std::ostringstream sout;
     sout << "cat " << OUTPS << ".* > " << OUTPS;
     sout << "; rm " << OUTPS << ".*";

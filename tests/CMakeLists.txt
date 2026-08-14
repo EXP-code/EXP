@@ -2,6 +2,16 @@ include(CTest)
 
 set(CTEST_OUTPUT_ON_FAILURE ON)
 
+# HDF5 particle IC smoke checks use h5py for concise schema inspection.  Keep
+# them optional so a Python installation without h5py does not disable CTest.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+  execute_process(
+    COMMAND ${Python3_EXECUTABLE} -c "import h5py, numpy"
+    RESULT_VARIABLE EXP_H5PY_STATUS
+    OUTPUT_QUIET ERROR_QUIET)
+endif()
+
 # Is EXP configured for pyEXP? If yes, run pyEXP tests...
 #
 if(ENABLE_PYEXP)
@@ -149,6 +159,27 @@ if(ENABLE_NBODY)
     # Remove the temporary files
     set_tests_properties(removeCubeFiles PROPERTIES DEPENDS expCubeCheckPos
       REQUIRED_FILES "config.runS.yml;current.processor.rates.runS;cube.bods;OUTLOG.runS;runS.levels;")
+
+    if(Python3_Interpreter_FOUND AND EXP_H5PY_STATUS EQUAL 0)
+      add_test(NAME makeCubeHDF5ICTest
+        COMMAND ${CMAKE_BINARY_DIR}/utils/ICs/cubeics --hdf5 --number 16
+        --seed 17 --zerovel --file hdf5-cube.bods
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
+
+      add_test(NAME checkCubeHDF5ICTest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py
+        hdf5-cube.bods.h5 --count 16
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
+      set_tests_properties(checkCubeHDF5ICTest PROPERTIES DEPENDS makeCubeHDF5ICTest)
+
+      add_test(NAME removeCubeHDF5ICFiles
+        COMMAND ${CMAKE_COMMAND} -E remove hdf5-cube.bods.h5
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
+      set_tests_properties(removeCubeHDF5ICFiles PROPERTIES DEPENDS checkCubeHDF5ICTest
+        REQUIRED_FILES "hdf5-cube.bods.h5")
+      set_tests_properties(makeCubeHDF5ICTest checkCubeHDF5ICTest removeCubeHDF5ICFiles
+        PROPERTIES LABELS "quick")
+    endif()
 
     # Set labels for pyEXP tests
     set_tests_properties(expExecuteTest PROPERTIES LABELS "quick")

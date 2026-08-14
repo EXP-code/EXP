@@ -103,6 +103,7 @@
 #include "libvars.H"		// Library globals
 #include "cxxopts.H"		// Command-line parsing
 #include "EXPini.H"		// Ini-style config
+#include "ParticleHDF5.H"
 
 #include "norminv.H"
 
@@ -403,6 +404,8 @@ main(int ac, char **av)
   int          nhalo, ndisk, ngas, ngparam;
   std::string  hbods, dbods, gbods, outtag, runtag, centerfile, halofile1, halofile2;
   std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
+  unsigned hdf5_filter = 1;
+  bool hdf5_output = false, hdf5_double = false;
 
   const std::string mesg("Generates a Monte Carlo realization of a halo with an\n embedded disk using Jeans' equations\n");
 
@@ -427,6 +430,10 @@ main(int ac, char **av)
      cxxopts::value<string>(gbods)->default_value("gas.bods"))
     ("dbods", "The output bodyfile for the stellar disc",
      cxxopts::value<string>(dbods)->default_value("disk.bods"))
+    ("5,hdf5", "Write HDF5 phase-space output instead of ASCII")
+    ("8,double", "Use float64 HDF5 output (default is float32)")
+    ("f,filter", "HDF5 filter ID (default: 1 = GZIP)",
+     cxxopts::value<unsigned>(hdf5_filter)->default_value("1"))
     ("cachefile", "The cache file for the cylindrical basis",
      cxxopts::value<string>(cachefile)->default_value(".eof.cache.file"))
     ("ctype", "DiskHalo radial coordinate scaling type (one of: Linear, Log,Rat)",
@@ -670,6 +677,8 @@ main(int ac, char **av)
       return 0;
     }
   }
+  hdf5_output = vm.count("hdf5") > 0;
+  hdf5_double = vm.count("double") > 0;
 
   if (vm.count("spline")) {
     SphericalModelTable::linear = 0;
@@ -1067,7 +1076,7 @@ main(int ac, char **av)
                                 // before realizing a large phase space)
   std::ofstream out_halo, out_disk;
   if (myid==0) {
-    if (not evolved and n_particlesH) {
+    if (!hdf5_output && not evolved && n_particlesH) {
       out_halo.open(hbods);
       if (!out_halo) {
 	cout << "Could not open <" << hbods << "> for output\n";
@@ -1076,7 +1085,7 @@ main(int ac, char **av)
       }
     }
 
-    if (ndisk) {
+    if (!hdf5_output && ndisk) {
       out_disk.open(dbods);
       if (!out_disk) {
 	std::cout << "Could not open <" << dbods << "> for output" << std::endl;
@@ -1477,13 +1486,19 @@ main(int ac, char **av)
 
   if (not evolved) {
     if (myid==0) std::cout << "Writing phase space file for halo . . . " << std::flush;
-    diskhalo->write_file(out_halo, hparticles);
+    if (hdf5_output)
+      EXP::ParticleHDF5::gather_and_write(hbods + ".h5", EXP::ParticleHDF5::records(hparticles), 0, 0, hdf5_filter, hdf5_double);
+    else
+      diskhalo->write_file(out_halo, hparticles);
     if (myid==0) std::cout << "done" << std::endl;
     out_halo.close();
   }
 
   if (myid==0) std::cout << "Writing phase space file for disk . . . " << std::flush;
-  diskhalo->write_file(out_disk, dparticles);
+  if (hdf5_output)
+    EXP::ParticleHDF5::gather_and_write(dbods + ".h5", EXP::ParticleHDF5::records(dparticles), 0, 0, hdf5_filter, hdf5_double);
+  else
+    diskhalo->write_file(out_disk, dparticles);
   if (myid==0) std::cout << "done" << std::endl;
   out_disk.close();
                                 // Diagnostic . . .
@@ -1693,9 +1708,11 @@ main(int ac, char **av)
     //
     // Prepare output stream
     //
-    ofstream outps("gas.bods");
-    if (!outps) {
-      cerr << "Couldn't open <" << "gas.bods" << "> for output\n";
+    ofstream outps;
+    std::vector<std::array<double, 7>> gas_particles;
+    if (!hdf5_output) outps.open(gbods);
+    if (!hdf5_output && !outps) {
+      cerr << "Couldn't open <" << gbods << "> for output\n";
       exit (-1);
     }
 
@@ -1726,8 +1743,8 @@ main(int ac, char **av)
     gmass = gmass0;
     fr = fz = potr = 0.0;
 
-    outps << setw(8) << ngas
-	  << setw(6) << 0 << setw(6) << ngparam << endl;
+    if (!hdf5_output)
+      outps << setw(8) << ngas << setw(6) << 0 << setw(6) << ngparam << endl;
 
     for (int n=0; n<ngas; n++) {
 
@@ -1802,15 +1819,14 @@ main(int ac, char **av)
       gmass = gmass0*exp(-R*(1.0/Scale_Length - 1.0/gscal_length)) *
 	mmax*gscal_length*gscal_length/(mfac*Scale_Length*Scale_Length);
 
-      outps << setw(18) << gmass
-	    << setw(18) << R*cos(phi)
-	    << setw(18) << R*sin(phi)
-	    << setw(18) << z
-	    << setw(18) << u
-	    << setw(18) << v
-	    << setw(18) << w;
-      for (int k=0; k<ngparam; k++) outps << setw(18) << 0.0;
-      outps << endl;
+      if (hdf5_output) {
+	gas_particles.push_back({gmass, R*cos(phi), R*sin(phi), z, u, v, w});
+      } else {
+	outps << setw(18) << gmass << setw(18) << R*cos(phi) << setw(18) << R*sin(phi)
+	      << setw(18) << z << setw(18) << u << setw(18) << v << setw(18) << w;
+	for (int k=0; k<ngparam; k++) outps << setw(18) << 0.0;
+	outps << endl;
+      }
 
       if (expandd)
 	expandd->accumulated_eval(R, z, phi, p0, p, fr, fz, fp);
@@ -1827,6 +1843,13 @@ main(int ac, char **av)
     }
 
     std::cout << endl << "Done!" << std::endl;
+
+    if (hdf5_output) {
+      if (hdf5_double)
+	EXP::ParticleHDF5::write<double>(gbods + ".h5", gas_particles, 0, ngparam, hdf5_filter);
+      else
+	EXP::ParticleHDF5::write<float>(gbods + ".h5", gas_particles, 0, ngparam, hdf5_filter);
+    }
 
     std::cout << "****************************" << std::endl
 	      << "  Gas disk"                   << std::endl

@@ -36,10 +36,49 @@
 #include <memory>
 #include <cmath>
 
+#include <Eigen/Dense>
+
 #include "massmodel1d.H"
 #include "interp.H"
 
 #include "cxxopts.H"
+#include "ParticleHDF5.H"
+
+// Template to handle float and double precision for particle data
+template<typename T>
+struct ParticleData
+{
+  std::optional<std::vector<unsigned long>> index; // optional particle index
+  std::vector<T> m;             // mass
+  std::vector<T> x, y, z;       // position
+  std::vector<T> u, v, w;       // velocity
+  std::vector<std::vector<int>> aux_ints;   // auxiliary integer fields
+  std::vector<std::vector<T>>   aux_floats; // auxiliary float fields
+
+  size_t num_particles  = 0;
+  size_t num_aux_ints   = 0;
+  size_t num_aux_floats = 0;
+};
+
+// Write particle data to HDF5 file with specified filter and precision
+template<typename T>
+void write_hdf5_data(const std::string& outfile,
+		     const ParticleData<T>& data,
+		     unsigned filter_id,
+		     bool verbose)
+{
+  std::string hdf5_file = outfile + ".h5";
+  EXP::ParticleHDF5::write(hdf5_file, data.m, data.x, data.y, data.z,
+                            data.u, data.v, data.w, data.aux_ints,
+                            data.aux_floats, data.index, filter_id);
+  
+  if (verbose) {
+    std::string precision_str = "float32";
+    if (sizeof(T) == 8) precision_str = "float64";
+    std::cout << "Successfully wrote " << data.num_particles << " particles to " 
+	      << hdf5_file << " (" << precision_str << ")" << std::endl;
+  }
+}
 
 int
 main(int argc, char **argv)
@@ -214,4 +253,3 @@ main(int argc, char **argv)
 		<< " 2T/VC=" << KE/VC << std::endl;
 
 }
-
