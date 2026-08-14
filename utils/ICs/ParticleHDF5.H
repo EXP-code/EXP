@@ -138,35 +138,79 @@ namespace EXP
 				 unsigned filter, bool double_precision,
 				 MPI_Comm comm = MPI_COMM_WORLD)
     {
-      int rank, ranks, local_count = static_cast<int>(local.size());
-      MPI_Comm_rank(comm, &rank); MPI_Comm_size(comm, &ranks);
-      std::vector<int> counts(rank == 0 ? ranks : 0);
-      MPI_Gather(&local_count, 1, MPI_INT, rank == 0 ? counts.data() : nullptr, 1, MPI_INT, 0, comm);
+      // Check if MPI is initialized
+      //
+      int is_init = 0;
+      MPI_Initialized(&is_init);
 
-      std::vector<double> send(7 * local.size());
-      for (size_t i = 0; i < local.size(); ++i)
-	std::copy(local[i].begin(), local[i].end(), send.begin() + 7*i);
-      std::vector<int> counts7, offsets;
-      std::vector<double> received;
-      if (rank == 0) {
-	counts7.resize(ranks); offsets.resize(ranks);
-	int total = 0;
-	for (int i = 0; i < ranks; ++i) { offsets[i] = total; counts7[i] = 7 * counts[i]; total += counts7[i]; }
-	received.resize(total);
+      // Gather the local counts to rank 0 only if MPI is initialized, otherwise just use the local data
+      //
+      if (is_init) {
+	int myid=0, ranks=1, local_count = static_cast<int>(local.size());
+	// Get the rank and size of the communicator
+	MPI_Comm_rank(comm, &myid );
+	MPI_Comm_size(comm, &ranks);
+
+	// Gather the local counts to rank 0
+	std::vector<int> counts(myid == 0 ? ranks : 0);
+
+	MPI_Gather(&local_count, 1, MPI_INT,
+		   myid == 0 ? counts.data() : nullptr,
+		   1, MPI_INT, 0, comm);
+
+	// Gather the local data to rank 0
+	std::vector<double> send(7 * local.size());
+	for (size_t i = 0; i < local.size(); ++i)
+	  std::copy(local[i].begin(), local[i].end(), send.begin() + 7*i);
+
+	std::vector<int> counts7, offsets;
+	std::vector<double> received;
+
+	// Only Rank 0 needs to know the counts and offsets for the gather
+	//
+	if (myid == 0) {
+	  counts7.resize(ranks);
+	  offsets.resize(ranks);
+	  int total = 0;
+	  for (int i = 0; i < ranks; ++i) {
+	    offsets[i] = total;
+	    counts7[i] = 7 * counts[i];
+	    total += counts7[i];
+	  }
+	  received.resize(total);
+	}
+
+	// Do the gather of the 7-element arrays to Rank 0
+	//
+	MPI_Gatherv(send.data(), static_cast<int>(send.size()), MPI_DOUBLE,
+		    myid == 0 ? received.data() : nullptr,
+		    myid == 0 ? counts7. data() : nullptr,
+		    myid == 0 ? offsets. data() : nullptr,
+		    MPI_DOUBLE, 0, comm);
+
+	if (myid != 0) return;
+
+	// Rank 0 reconstructs the all vector from the received data
+	//
+	std::vector<std::array<double, 7>> all(received.size()/7);
+	for (size_t i = 0; i < all.size(); ++i)
+	  std::copy(received.begin() + 7*i, received.begin() + 7*(i+1), all[i].begin());
+
+	// Write the gathered data to the HDF5 file
+	//
+	if (double_precision) write<double>(filename, all, num_aux_ints, num_aux_floats, filter);
+	else                  write<float >(filename, all, num_aux_ints, num_aux_floats, filter);
+	
+      } else {
+	// Write the local/only data to the HDF5 file
+	//
+	if (double_precision) write<double>(filename, local, num_aux_ints, num_aux_floats, filter);
+	else                  write<float >(filename, local, num_aux_ints, num_aux_floats, filter);
       }
-      MPI_Gatherv(send.data(), static_cast<int>(send.size()), MPI_DOUBLE,
-		  rank == 0 ? received.data() : nullptr,
-		  rank == 0 ? counts7.data() : nullptr, rank == 0 ? offsets.data() : nullptr,
-		  MPI_DOUBLE, 0, comm);
-      if (rank != 0) return;
-      
-      std::vector<std::array<double, 7>> all(received.size()/7);
-      for (size_t i = 0; i < all.size(); ++i)
-	std::copy(received.begin() + 7*i, received.begin() + 7*(i+1), all[i].begin());
-      if (double_precision) write<double>(filename, all, num_aux_ints, num_aux_floats, filter);
-      else                  write<float >(filename, all, num_aux_ints, num_aux_floats, filter);
     }
+
   } // namespace ParticleHDF5
+
 } // namespace EXP
 
 #endif
