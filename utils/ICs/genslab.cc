@@ -217,6 +217,8 @@ main(int argc, char **argv)
 
   double KE = 0.0;
   double VC = 0.0;
+  if (Num_particles <= 0)
+    throw std::invalid_argument("number of particles must be positive");
   double mass = mu/Num_particles;
 
   if (vm.count("verbose")) {
