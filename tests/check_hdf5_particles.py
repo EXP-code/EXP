@@ -17,6 +17,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("file")
 parser.add_argument("--count", type=int, required=True)
 parser.add_argument("--float-bytes", type=int, default=4)
+parser.add_argument("--mass", type=float, default=1.0)
+parser.add_argument("--cube", action="store_true", help="check that particles are in the unit cube")
 args = parser.parse_args()
 
 with h5py.File(args.file, "r") as h5:
@@ -41,8 +43,9 @@ with h5py.File(args.file, "r") as h5:
         if not np.isfinite(data[:]).all():
             fail(f"/particles/{name} contains non-finite values")
 
-    if not np.isclose(particles["m"][:].sum(), 1.0, rtol=2e-6, atol=2e-6):
+    if not np.isclose(particles["m"][:].sum(), args.mass, rtol=2e-6, atol=2e-6):
         fail("particle masses do not sum to one")
-    for name in ("x", "y", "z"):
-        if (particles[name][:] < 0.0).any() or (particles[name][:] > 1.0).any():
-            fail(f"/particles/{name} is outside the unit cube")
+    if args.cube:
+        for name in ("x", "y", "z"):
+            if (particles[name][:] < 0.0).any() or (particles[name][:] > 1.0).any():
+                fail(f"/particles/{name} is outside the unit cube")

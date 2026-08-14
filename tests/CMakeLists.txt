@@ -66,7 +66,7 @@ if(ENABLE_NBODY)
   add_test(NAME expExecuteTest
     COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/src/exp -v)
 
-  if (ENABLE_UTILS)
+  if(ENABLE_UTILS)
     # Makes some spherical ICs using utils/ICs/gensph
     add_test(NAME makeICTest
       COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 10000 -i SLGridSph.model
@@ -160,10 +160,52 @@ if(ENABLE_NBODY)
     set_tests_properties(removeCubeFiles PROPERTIES DEPENDS expCubeCheckPos
       REQUIRED_FILES "config.runS.yml;current.processor.rates.runS;cube.bods;OUTLOG.runS;runS.levels;")
 
-    if(Python3_Interpreter_FOUND AND EXP_H5PY_STATUS EQUAL 0)
+    # These are basic sanity checks for writing and reading EXP HDF5 IC files
+    if(Python3_Interpreter_FOUND AND EXP_H5PY_STATUS EQUAL 0 AND ENABLE_UTILS)
+
+      # Create the banner / message test
+      add_test(NAME "--- Description ---" 
+        COMMAND ${CMAKE_COMMAND} -E echo "The following tests check for consistent HDF5 IC generation")
+
+      # Check spherical body file generation
+      add_test(NAME makeSphHDF5ICTest
+        COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph --hdf5 -N 16 -i SLGridSph.model --SEED 17 --zerovel -o hdf5-sph.bods
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+
+      add_test(NAME checkSphHDF5ICTest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py hdf5-sph.bods.h5 --count 16
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+      set_tests_properties(checkSphHDF5ICTest PROPERTIES DEPENDS makeSphHDF5ICTest)
+
+      add_test(NAME removeSphHDF5ICFiles
+        COMMAND ${CMAKE_COMMAND} -E remove hdf5-sph.bods.h5
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+      set_tests_properties(removeSphHDF5ICFiles PROPERTIES DEPENDS checkSphHDF5ICTest
+        REQUIRED_FILES "hdf5-sph.bods.h5")
+      set_tests_properties(makeSphHDF5ICTest checkSphHDF5ICTest removeSphHDF5ICFiles
+        PROPERTIES LABELS "quick")
+
+      # Check slab body file generation
+      add_test(NAME makeSlabHDF5ICTest
+        COMMAND ${CMAKE_BINARY_DIR}/utils/ICs/slabics --hdf5 --number 16 --seed 17 --cube --outfile hdf5-slab.bods
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Slab)
+
+      add_test(NAME checkSlabHDF5ICTest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py hdf5-slab.bods.h5 --count 16
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Slab)
+      set_tests_properties(checkSlabHDF5ICTest PROPERTIES DEPENDS makeSlabHDF5ICTest)
+
+      add_test(NAME removeSlabHDF5ICFiles
+        COMMAND ${CMAKE_COMMAND} -E remove hdf5-slab.bods.h5
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Slab)
+      set_tests_properties(removeSlabHDF5ICFiles PROPERTIES DEPENDS checkSlabHDF5ICTest
+        REQUIRED_FILES "hdf5-slab.bods.h5")
+      set_tests_properties(makeSlabHDF5ICTest checkSlabHDF5ICTest removeSlabHDF5ICFiles
+        PROPERTIES LABELS "quick")
+
+      # Check cube body file generation
       add_test(NAME makeCubeHDF5ICTest
-        COMMAND ${CMAKE_BINARY_DIR}/utils/ICs/cubeics --hdf5 --number 16
-        --seed 17 --zerovel --file hdf5-cube.bods
+        COMMAND ${CMAKE_BINARY_DIR}/utils/ICs/cubeics --hdf5 --number 16 --seed 17 --cube --zerovel --file hdf5-cube.bods
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
 
       add_test(NAME checkCubeHDF5ICTest
