@@ -21,6 +21,7 @@
 #include "SLGridMP2.H"
 #include "massmodel.H"
 #include "EXPmath.H"
+#include "libvars.H"		// For parsed version info
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -43,7 +44,7 @@ typedef int	integer;
 MPI_Status status;
 
 //! Target model for slab SL
-std::shared_ptr<SlabModel> slab;
+std::shared_ptr<SlabModel> slab0;
 
 extern "C" {
   int sledge_(logical* job, doublereal* cons, logical* endfin, 
@@ -78,13 +79,21 @@ std::string sledge_error(int flag)
   }
 }
 
-static double L2, M2, K2;
+static double L2;
 static int sl_dim;
 
 
 //======================================================================
 //======================================================================
 //======================================================================
+
+
+// Default model file names
+const std::string SLGridSph::default_model = "SLGridSph.model";
+
+// Default cache file names
+const std::string SLGridSph::default_cache = ".slgrid_sph_cache";
+const std::string SLGridSlab::default_cache = ".slgrid_slab_cache";
 
 
 int SLGridSph::mpi = 0;		// initially off
@@ -98,26 +107,26 @@ extern "C" {
 }
 
 
-static std::shared_ptr<AxiSymModel> model;
+static std::shared_ptr<AxiSymModel> model0;
 
 double sphpot(double r)
 {
-  return model->get_pot(r);
+  return model0->get_pot(r);
 }
 
 double sphdpot(double r)
 {
-  return model->get_dpot(r);
+  return model0->get_dpot(r);
 }
 
 double sphdens(double r)
 {
   // This 4pi from Poisson's eqn
   //        |
-  //        |       /-- This begins the true density profile
+  //        |       +--- This begins the true density profile
   //        |       |
   //        v       v
-  return 4.0*M_PI * model->get_density(r);
+  return 4.0*M_PI * model0->get_density(r);
 }
 
 // Use entire grid for l<Lswitch
@@ -135,8 +144,8 @@ void SLGridSph::bomb(string oops)
   throw std::runtime_error(sout.str());
 }
 
-				// Constructors
-
+// Constructors
+//
 SLGridSph::SLGridSph(std::string modelname,
 		     int LMAX, int NMAX, int NUMR,
 		     double RMIN, double RMAX, 
@@ -151,6 +160,8 @@ SLGridSph::SLGridSph(std::string modelname,
   else throw std::runtime_error("SLGridSph: you must specify a cachename");
   
   model    = SphModTblPtr(new SphericalModelTable(model_file_name, DIVERGE, DFAC));
+  model0   = model;
+
   tbdbg    = VERBOSE;
   diverge  = DIVERGE;
   dfac     = DFAC;
@@ -164,6 +175,7 @@ SLGridSph::SLGridSph(std::shared_ptr<SphericalModelTable> mod,
 		     std::string cachename, bool VERBOSE)
 {
   model    = mod;
+  model0   = model;
   tbdbg    = VERBOSE;
   diverge  = 0;
   dfac     = 1;
@@ -182,8 +194,8 @@ SLGridSph::SLGridSph(std::string cachename)
 
   tbdbg = false;
 
-  int LMAX, NMAX, NUMR, CMAP, DIVERGE=0;
-  double RMIN, RMAX, RMAP, DFAC=1.0;
+  int LMAX, NMAX, NUMR, CMAP;
+  double RMIN, RMAX, RMAP;
 
   try {
     
@@ -1837,56 +1849,89 @@ double SLGridSlab::ZEND  = 0.0;	// Offset on potential zero
 
 static double KKZ;
 
-static double poffset=0.0;
-
 // Isothermal slab with G = M = 1
 //
 class IsothermalSlab : public SlabModel
 {
 
+private:
+
+  std::string psa =
+    "----     IsothermalSlab NOW uses the traditional density profile proportional to sech^2(z/2H).\n"
+    "----     If you are using the old profile proportional to sech^2(z/H), please update your model\n"
+    "----     to use the new profile and set the scale height H to be half of the old value.  This\n"
+    "----     will ensure that your model has the same density profile and potential as before, but\n"
+    "----     with a more standard functional form.  If you have any questions or concerns about\n"
+    "----     this change, please contact the developers on GitHub.";
+
 public:
 
-  IsothermalSlab() { id = "iso"; }
+  IsothermalSlab() {
+    id = "iso";
+    if (myid==0 and (exp_build.major < 7 or
+                     (exp_build.major == 7 and exp_build.minor < 11)))
+      std::cout << "---- SLGridSlab: IMPORTANT UPDATE for EXP "
+		<< VERSION << '\n' << psa << std::endl;
+  }
 
   double pot(double z)
   {
-    return 2.0*M_PI*SLGridSlab::H*log(cosh(z/SLGridSlab::H)) - poffset;
+    return 4.0*M_PI*SLGridSlab::H*log(cosh(0.5*z/SLGridSlab::H)) - poffset;
   }
 
   double dpot(double z)
   {
-    return 2.0*M_PI*tanh(z/SLGridSlab::H);
+    return 2.0*M_PI*tanh(0.5*z/SLGridSlab::H);
   }
 
   double dens(double z)
   {
-    double tmp = 1.0/cosh(z/SLGridSlab::H);
-    return 4.0*M_PI * 0.5/SLGridSlab::H * tmp*tmp;
+    double tmp = 1.0/cosh(0.5*z/SLGridSlab::H);
+    return 4.0*M_PI * 0.25/SLGridSlab::H * tmp*tmp;
+    //       ^
+    //       |
+    //       +--- The 4*pi factor simplifies the SL solution
   }
 };
 
 
-//! Constant density slab with G = M = 1
-class ConstantSlab : public SlabModel
+//! Uniform density slab with G = M = 1
+class UniformSlab : public SlabModel
 {
 
 public:
 
-  ConstantSlab()  { id = "const"; }
+  UniformSlab()  { id = "uniform"; }
 
   double pot(double z)
   {
-    return z*z/(4.0*SLGridSlab::H) - poffset;
+    // Offset defined so that potential is zero at |z|=H, and negative
+    // for |z|<H inside the slab.
+    double zz = fabs(z);
+    if (zz > SLGridSlab::H)
+      return 2.0*M_PI*(zz - SLGridSlab::H);
+    else
+      return M_PI*(zz*zz/SLGridSlab::H - SLGridSlab::H);
   }
 
   double dpot(double z)
   {
-    return z/(2.0*SLGridSlab::H);
+    double zz = fabs(z);
+    if (zz > SLGridSlab::H)
+      return 2.0*M_PI*z/zz;
+    else
+      return 2.0*M_PI*z/SLGridSlab::H;
   }
 
   double dens(double z)
   {
-    return 4.0*M_PI / (2.0 * SLGridSlab::H);
+    if (fabs(z) > SLGridSlab::H)
+      return 0.0;
+    else
+      return 4.0*M_PI/(2.0 * SLGridSlab::H);
+    //       ^
+    //       |
+    //       +--- The 4*pi factor simplifies the SL solution
   }
 };
 
@@ -1919,6 +1964,49 @@ public:
     double h  = SLGridSlab::H;
     double h2 = h*h;
     return 4.0*M_PI * 3.0*(1.0 - z*z/h2)/(4.0*h);
+    //       ^
+    //       |
+    //       +--- The 4*pi factor simplifies the SL solution
+  }
+};
+
+//! Cosine bell model with G = M = 1
+class CosineSlab : public SlabModel
+{
+public:
+
+  CosineSlab() { id = "cosine"; }
+  
+  double pot(double z)
+  {
+    double h = SLGridSlab::H;
+    if (fabs(z) > h)
+      return 2.0*M_PI*(fabs(z) - h);
+    else
+      return 2.0*M_PI/h*(0.5*z*z + h*h/(M_PI*M_PI)*(1.0 - cos(M_PI*z/h))) - M_PI*h*(4.0/(M_PI*M_PI) + 1.0);
+  }
+  
+  double dpot(double z)
+  {
+    double h = SLGridSlab::H;
+    if (fabs(z) > h)
+      return 2.0*M_PI*z/fabs(z);
+    else
+      return 2.0*M_PI/h*(z + h/M_PI*sin(M_PI*z/h));
+  }
+
+  double dens(double z)
+  {
+    double h = SLGridSlab::H;
+    if (fabs(z) > h)
+      return 0.0;
+    else {
+      double cosfac = cos(0.5*M_PI*z/h);
+      return 4.0*M_PI/h * cosfac*cosfac;
+      //       ^
+      //       |
+      //       +--- The 4*pi factor simplifies the SL solution
+    }
   }
 };
 
@@ -1937,8 +2025,12 @@ std::shared_ptr<SlabModel> SlabModel::createModel(const std::string type)
     return std::make_shared<ParabolicSlab>();
   }
 
-  if (data.find("const") != std::string::npos) {
-    return std::make_shared<ConstantSlab>();
+  if (data.find("unif") != std::string::npos) {
+    return std::make_shared<UniformSlab>();
+  }
+
+  if (data.find("cos") != std::string::npos) {
+    return std::make_shared<CosineSlab>();
   }
 
   // Default
@@ -1956,26 +2048,52 @@ void SLGridSlab::bomb(string oops)
 				// Constructors
 
 SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
-		       const std::string TYPE, bool VERBOSE)
+		       const std::string cachename,
+		       const std::string CMAP,
+		       const std::string TYPE,
+		       bool VERBOSE)
 {
+  if (cachename.size()) slab_cache_name  = cachename;
+  else throw std::runtime_error("SLGridSlab: you must specify a cachename");
+  
   int kx, ky;
 
   numk = NUMK;
   nmax = NMAX;
   numz = NUMZ;
+  cmap = CMAP;
   type = TYPE;
-
   zmax = ZMAX;
 
   slab  = SlabModel::createModel(type);
+  slab0 = slab;
 
-  poffset = slab->pot((1.0+ZEND)*zmax);
+  if (myid==0) {
+    std::cout << "---- SLGridSlab::SLGridSlab: using slab model <"
+	      << slab->ID() << ">" << std::endl;
+  }
+
+  slab->setOffset((1.0+ZEND)*zmax);
 
   tbdbg   = VERBOSE;
 
-  // This could be controlled by a parameter...but at this point, this
-  // is a fixed tuning.
-  mM      = CoordMap::factory(CoordMapTypes::Sech, H);
+  std::transform(cmap.begin(), cmap.end(), cmap.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  auto it = std::find_if(CoordMapNames.begin(), CoordMapNames.end(),
+                         [&](const std::pair<CoordMapTypes, std::string>& pair)
+                         { return pair.second == cmap; });
+
+  if (it == CoordMapNames.end()) {
+    std::ostringstream sout;
+    sout << "SLGridSlab: unknown coordinate map type '" << cmap
+         << "'. Valid values are: tanh, sech, linear";
+    throw std::runtime_error(sout.str());
+  }
+
+  cmtype = it->first;
+
+  mM = CoordMap::factory(cmtype, H);
 
   init_table();
 
@@ -2193,9 +2311,6 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX,
 }
 
 
-const string slab_cache_name = ".slgrid_slab_cache";
-
-
 bool SLGridSlab::ReadH5Cache(void)
 {
   if (!cache) return false;
@@ -2255,8 +2370,21 @@ bool SLGridSlab::ReadH5Cache(void)
     if (not checkStr(geometry, "geometry"))  return false;
     if (not checkStr(forceID,  "forceID"))   return false;
 
+    // Version check
+    //
+    if (h5file.hasAttribute("Version")) {
+      if (not checkStr(Version, "Version"))  return false;
+    } else {
+      if (myid==0)
+	std::cout << "---- SLGridSlab::ReadH5Cache: "
+		  << "recomputing cache for HighFive API change"
+		  << std::endl;
+      return false;
+    }
+
     // Parameter check
     //
+    if (not checkStr(cmap,     "cmap"))      return false;
     if (not checkStr(type,     "type"))      return false;
     if (not checkInt(numk,     "numk"))      return false;
     if (not checkInt(nmax,     "nmax"))      return false;
@@ -2273,7 +2401,6 @@ bool SLGridSlab::ReadH5Cache(void)
 
     // Create table instances
     //
-
     table = table_ptr_2D(new table_ptr_1D [numk+1]);
     for (int kx=0; kx<=numk; kx++)
       table[kx] = table_ptr_1D(new TableSlab [kx+1]);
@@ -2348,9 +2475,11 @@ void SLGridSlab::WriteH5Cache(void)
 
     file.createAttribute<std::string>("geometry",  HighFive::DataSpace::From(geometry)).write(geometry);
     file.createAttribute<std::string>("forceID",   HighFive::DataSpace::From(forceID)).write(forceID);
+    file.createAttribute<std::string>("Version",   HighFive::DataSpace::From(Version)).write(Version);
       
     // Write parameters
     //
+    file.createAttribute<std::string> ("cmap",     HighFive::DataSpace::From(cmap)).write(cmap);
     file.createAttribute<std::string> ("type",     HighFive::DataSpace::From(type)).write(type);
     file.createAttribute<int>         ("numk",     HighFive::DataSpace::From(numk)).write(numk);
     file.createAttribute<int>         ("nmax",     HighFive::DataSpace::From(nmax)).write(nmax);
@@ -2413,18 +2542,19 @@ double SLGridSlab::LinearMap::d_xi_to_z(double xi) { return 1.0; }
 
 double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
 {
-  int hold;
-
-				// Flip sign for antisymmetric basis functions
+  // Flip sign for antisymmetric basis functions
+  //
   int sign=1;
   if (x<0 && 2*(n/2)!=n) sign=-1;
   x = fabs(x);
 
-  if (which)			// Convert from z to x
+  // Convert from z to x
+  //
+  if (which)
     x = mM->z_to_xi(x);
 
   if (ky > kx) {
-    hold = ky;
+    int hold = ky;
     ky = kx;
     kx = hold;
   }
@@ -2450,17 +2580,17 @@ double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
 
 double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
 {
-  int hold;
-
   int sign=1;
   if (x<0 && 2*(n/2)!=n) sign=-1;
   x = fabs(x);
   
-  if (which)			// Convert from z to x
+  // Convert from z to x
+  //
+  if (which)
     x = mM->z_to_xi(x);
 
   if (ky > kx) {
-    hold = ky;
+    int hold = ky;
     ky = kx;
     kx = hold;
   }
@@ -2485,17 +2615,17 @@ double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
 
 double SLGridSlab::get_force(double x, int kx, int ky, int n, int which)
 {
-  int hold;
-
   int sign=1;
   if (x<0 && 2*(n/2)==n) sign = -1;
   x = fabs(x);
 
-  if (which)			// Convert from z to x
+  // Convert from z to x
+  //
+  if (which)
     x = mM->z_to_xi(x);
 
   if (ky > kx) {
-    hold = ky;
+    int hold = ky;
     ky = kx;
     kx = hold;
   }
@@ -2507,17 +2637,17 @@ double SLGridSlab::get_force(double x, int kx, int ky, int n, int which)
 
   double p = (x - xi[indx])/dxi;
   
-				// Use three point formula
+  // Use three point formula
 
-				// Point -1: indx-1
-				// Point  0: indx
-				// Point  1: indx+1
+  // Point -1: indx-1
+  // Point  0: indx
+  // Point  1: indx+1
 
   return mM->d_xi_to_z(x)/dxi * (
-			     (p - 0.5)*table[kx][ky].ef(n, indx-1)*p0[indx-1]
-			     -2.0*p*table[kx][ky].ef(n, indx)*p0[indx]
-			     + (p + 0.5)*table[kx][ky].ef(n, indx+1)*p0[indx+1]
-			     ) / sqrt(table[kx][ky].ev[n]) * sign;
+				 (p - 0.5)*table[kx][ky].ef(n, indx-1)*p0[indx-1]
+				 -2.0*p*table[kx][ky].ef(n, indx)*p0[indx]
+				 + (p + 0.5)*table[kx][ky].ef(n, indx+1)*p0[indx+1]
+				 ) / sqrt(table[kx][ky].ev[n]) * sign;
 }
 
 
@@ -2638,7 +2768,6 @@ void SLGridSlab::get_force(Eigen::MatrixXd& mat, double x, int which)
       l++;
     }
   }
-  
 }
 
 
@@ -2661,13 +2790,20 @@ void SLGridSlab::get_pot(Eigen::VectorXd& vec, double x, int kx, int ky, int whi
 
   vec.resize(nmax);
 
-  int indx = (int)( (x-xmin)/dxi );
+  int indx = 0;
+  if (x < xmin) {
+    indx = 0;
+  } else if (x > xmax) {
+    indx = numz - 2;
+  } else {
+    indx = (int)( (x-xmin)/dxi );
+  }
+
   if (indx<0) indx = 0;
   if (indx>numz-2) indx = numz - 2;
 
   double x1 = (xi[indx+1] - x)/dxi;
   double x2 = (x - xi[indx])/dxi;
-  
 
   sign2 = 1;
   for (int n=0; n<nmax; n++) {
@@ -2695,7 +2831,15 @@ void SLGridSlab::get_dens(Eigen::VectorXd& vec, double x, int kx, int ky, int wh
 
   vec.resize(nmax);
 
-  int indx = (int)( (x-xmin)/dxi );
+  int indx = 0;
+  if (x < xmin) {
+    indx = 0;
+  } else if (x > xmax) {
+    indx = numz - 2;
+  } else {
+    indx = (int)( (x-xmin)/dxi );
+  }
+
   if (indx<0) indx = 0;
   if (indx>numz-2) indx = numz - 2;
 
@@ -2737,10 +2881,17 @@ void SLGridSlab::get_force(Eigen::VectorXd& vec, double x, int kx, int ky, int w
 
   vec.resize(nmax);
 
-  int indx = (int)( (x-xmin)/dxi );
+  int indx = 0;
+  if (x < xmin) {
+    indx = 0;
+  } else if (x > xmax) {
+    indx = numz - 2;
+  } else {
+    indx = (int)( (x-xmin)/dxi );
+  }
+
   if (indx<1) indx = 1;
   if (indx>numz-2) indx = numz - 2;
-
 
   double p = (x - xi[indx])/dxi;
   double fac = mM->d_xi_to_z(x)/dxi;
@@ -2800,7 +2951,6 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
     cons[4] = (df + KKZ*f)*f;
   }
   cons[5] = 1.0;
-  //  cons[5] = 1.0/(f*f);
 
   //
   //     Initialize the vector INVEC(*):
@@ -2908,7 +3058,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 		<< std::endl;
   
 
-  if (VERBOSE && iflag[i] != 0) {
+      if (tbdbg or (VERBOSE && iflag[i] != 0)) {
 
 
 	if (iflag[i] > -10) {
@@ -3034,7 +3184,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 		<< std::setw( 5) << iflag[i]
 		<< std::endl;
   
-      if (VERBOSE) {
+      if (tbdbg or (VERBOSE && iflag[i] != 0)) {
 
 	if (iflag[i] > -10) {
 	  cout << std::setw(14) << "x"
@@ -3636,8 +3786,8 @@ extern "C" int coeff_(doublereal* x, doublereal* px, doublereal* qx,
 
   if (sl_dim==1) {		// 1-d slab
 
-    f   = slab->pot(*x);
-    rho = slab->dens(*x);
+    f   = slab0->pot(*x);
+    rho = slab0->dens(*x);
 
     *px = f*f;
     *qx = (KKZ*KKZ*f - rho)*f;

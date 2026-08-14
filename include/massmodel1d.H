@@ -1,19 +1,19 @@
-#ifndef _Model1d_H_
-#define _Model1d_H_
+#ifndef _massmodel1d_H
+#define _massmodel1d_H
 
-#include <algorithm>
-#include <map>
-#include <memory>
-#include <sstream>
-#include <stdexcept>
 #include <string>
-#include <string_view>
-#include <vector>
+#include <tuple>
 
-#include "interp.H"
+#include "massmodel.H"
+#include "biorth1d.H"
 
-class OneDModel : public std::enable_shared_from_this<OneDModel>
+class OneDModel : public MassModel
 {
+  using Complex = std::complex<double>;
+  using  Vector = Eigen::VectorXd;
+  using CVector = Eigen::VectorXcd;
+  using  Matrix = Eigen::MatrixXd;
+  using CMatrix = Eigen::MatrixXcd;
 
 protected:
 
@@ -30,35 +30,44 @@ protected:
   void compute_dfgrid(void);
 
 public:
+
   bool dist_defined;
 
-  virtual double get_mass(const double) = 0;
-  virtual double get_density(const double) = 0;
-  virtual double get_pot(const double) = 0;
-  virtual double get_dpot(const double) = 0;
-  virtual double get_dpot2(const double) = 0;
-  virtual void   get_pot_dpot(const double, double&, double&) = 0;
+  //! Null constructor
+  //  AxiSymModel(void) {};
+  
+  //@{
+  //! Required members of mass model
 
-  // Required members of mass model
+  virtual double get_mass    (const double) = 0;
+  virtual double get_density (const double) = 0;
+  virtual double get_pot     (const double) = 0;
+  virtual double get_dpot    (const double) = 0;
+  virtual double get_dpot2   (const double) = 0;
+  virtual std::tuple<double, double>
+                 get_pot_dpot(const double) = 0;
 
-  double get_mass(const double x, const double y, const double z) {
-    return get_mass(z);}
+  double get_mass(const double x, const double y, const double z)
+  { return get_mass(z); }
 
-  double get_density(const double x, const double y, const double z) {
-    return get_density(z);}
+  double get_density(const double x, const double y, const double z)
+  { return get_density(z); }
 
-  double get_pot(const double x, const double y, const double z) {
-    return get_pot(z);}
+  double get_pot(const double x, const double y, const double z)
+  { return get_pot(z); }
+  //@}
 
 
-  // Addiional member functions
-
+  //@{
+  //! Additional member functions
   virtual double get_min_radius(void) = 0;
   virtual double get_max_radius(void) = 0;
   virtual double get_scale_height(void) = 0;
   virtual double distf(const double, const double V=0.0) = 0;
   virtual double dfde (const double, const double V=0.0) = 0;
   virtual double dfdv (const double, const double V=0.0) = 0;
+  //@}
+
 
   //! Model types
   enum class ModelType {table, lowiso, sech2, sech2u, sech2halo, sech2mu,
@@ -68,28 +77,28 @@ public:
   //! Model names for sysout display (avoid temporaries and dynamic
   //! allocations on every class instantiation)
   inline static const std::map<ModelType, std::string_view> model_names = {
-    {ModelType::table,     "file"},
-    {ModelType::lowiso,    "LowIso"},
-    {ModelType::sech2,     "Sech2"},
-    {ModelType::sech2u,    "Sech2u"},
+    {ModelType::table, "file"},
+    {ModelType::lowiso, "LowIso"},
+    {ModelType::sech2, "Sech2"},
+    {ModelType::sech2u, "Sech2u"},
     {ModelType::sech2halo, "Sech2Halo"},
-    {ModelType::sech2mu,   "Sech2(mu)"},
-    {ModelType::uniform,   "Uniform"},
-    {ModelType::cosine,    "Cosine"}
+    {ModelType::sech2mu, "Sech2(mu)"},
+    {ModelType::uniform, "Uniform"},
+    {ModelType::cosine, "Cosine"}
   };
 
   //! Model types for command line parsing
   //! 'inline static const' allows initialization inside the class definition.
   //! 'std::string_view' keys completely prevent temporary string creations.
   inline static const std::map<std::string_view, ModelType> model_map = {
-    {"table",     ModelType::table},
-    {"lowiso",    ModelType::lowiso},
-    {"sech2",     ModelType::sech2},
-    {"sech2u",    ModelType::sech2u},
+    {"table", ModelType::table},
+    {"lowiso", ModelType::lowiso},
+    {"sech2", ModelType::sech2},
+    {"sech2u", ModelType::sech2u},
     {"sech2halo", ModelType::sech2halo},
-    {"sech2mu",   ModelType::sech2mu},
-    {"uniform",   ModelType::uniform},
-    {"cosine",    ModelType::cosine}
+    {"sech2mu", ModelType::sech2mu},
+    {"uniform", ModelType::uniform},
+    {"cosine", ModelType::cosine}
   };
   
   //! Model type for sysout display
@@ -117,7 +126,6 @@ public:
       throw std::invalid_argument(oss.str());
     }
   }
-
 };
 
 class OneDModelTable : public OneDModel
@@ -136,10 +144,10 @@ public:
 
   OneDModelTable() {};
 
-  OneDModelTable(string filename, int PARM=0);
+  OneDModelTable(std::string filename, int PARM=0);
 
   OneDModelTable(int num, double *r, double *d, 
-		 double *m, double *p, string ID = "" );
+		 double *m, double *p, std::string ID = "" );
 
   // Required member functions
 
@@ -148,7 +156,7 @@ public:
   double get_pot    (const double);
   double get_dpot   (const double);
   double get_dpot2  (const double);
-  void   get_pot_dpot (const double, double&, double&);
+  std::tuple<double, double> get_pot_dpot (const double);
   
   // Additional member functions
 
@@ -174,7 +182,7 @@ private:
   void setup_model(void);
 
 public:
-  LowIso(string filename, double DISPX=0.159154943091895335768) :
+  LowIso(std::string filename, double DISPX=0.159154943091895335768) :
     OneDModelTable(filename, 1) { 
       dispx = DISPX;
       setup_model();
@@ -183,7 +191,7 @@ public:
   double get_pot(const double);
   double get_dpot(const double);
   double get_dpot2(const double);
-  void   get_pot_dpot(const double, double&, double&);
+  std::tuple<double, double> get_pot_dpot(const double);
 
   double distf(const double E, const double V=0.0);
   double dfde(const double E, const double V=0.0);
@@ -258,12 +266,13 @@ public:
     return 4.0*M_PI*ret*ret;
   }
 
-  void get_pot_dpot(const double z, double& p, double& dp)
+  std::tuple<double, double> get_pot_dpot(const double z)
   {
     double zz = fabs(z);
-    p = 4.0*M_PI*h*(zz + h*log(1.0 + exp(-2.0*zz/h)) - h*M_LN2);
+    double p = 4.0*M_PI*h*(zz + h*log(1.0 + exp(-2.0*zz/h)) - h*M_LN2);
     double ret = (1.0 - exp(-2.0*zz/h))/(1.0 + exp(-2.0*zz/h));
-    dp = 4.0*M_PI*h* ret * z/(zz+1.0e-18);
+    double dp = 4.0*M_PI*h* ret * z/(zz+1.0e-18);
+    return {p, dp};
   }
 
   double get_mass(const double x, const double y, const double z)
@@ -292,12 +301,156 @@ public:
     return exp(-E/dispz - 0.5*p*p/dispx) * norm;
   }
 
-  double dfde(const double E, const double p)
+  double dfde(const double E, const double p=0.0)
   {
     return -exp(-E/dispz - 0.5*p*p/dispx)/dispz * norm;
   }
 
-  double dfdv(const double E, const double p)
+  double dfdv(const double E, const double p=0.0)
+  {
+    return -exp(-E/dispz - 0.5*p*p/dispx)*p/dispx * norm;
+  }
+
+};
+
+
+class Sech2u : public OneDModel
+{
+private:
+  double h, rho0, S0;
+  double dispz, dispx;
+  double norm;
+
+  static double HMAX;
+
+public:
+
+  Sech2u(void)
+  {
+    S0    = 1.0;
+    dispz = 1.0;
+    dispx = 1.0;
+
+    // Units: G = Sigma_o = 1
+    //
+    rho0 = S0/(4.0*h);
+    h = dispz/(2.0*M_PI*S0);
+    norm = S0/( sqrt(2.0*M_PI*dispz) ) / (4.0*h);
+    dist_defined = true;
+  }
+
+  Sech2u(const double DISPZ, const double DISPX)
+  {
+    S0    = 1.0;
+    dispz = DISPZ;
+    dispx = DISPX;
+
+    // Units: G = Sigma_o = 1
+    //
+    h = dispz/(2.0*M_PI*S0);
+    norm = S0/( sqrt(2.0*M_PI*dispz) ) / (4.0*h);
+    dist_defined = true;
+  }
+  
+  Sech2u(const double S, const double DISPZ, const double DISPX)
+  {
+    S0    = S;
+    dispz = DISPZ;
+    dispx = DISPX;
+
+    // Units: G = Sigma_o = 1
+    //
+    h = dispz/(2.0*M_PI*S0);
+    norm = S0/( sqrt(2.0*M_PI*dispz) ) / (4.0*h);
+    dist_defined = true;
+  }
+  
+  double get_mass(const double z)
+  {
+    // To avoid overflow, split into two cases.
+    if (z<0.0)
+      return S0*exp(z/h)/(1.0 + exp(z/h));
+    else
+      return S0/(1.0 + exp(-z/h));
+  }
+
+  double get_density(const double z)
+  {
+    double zz = fabs(z);	// Even function
+    double ret = 1.0 + exp(-zz/h);
+    return S0*exp(-zz/h)/(ret*ret)/h;
+  }
+
+  double get_pot(const double z)
+  {
+    double zz = fabs(z);	// Even function
+    return 2.0*M_PI*S0*(zz + 2.0*h*log(1.0 + exp(-zz/h)) - 2.0*h*M_LN2);
+  }
+
+  double get_dpot(const double z)
+  {
+    double zz = fabs(z);	// Odd function
+    double ret = (1.0 - exp(-zz/h))/(1.0 + exp(-zz/h));
+    return 2.0*M_PI*S0 * ret * std::copysign(1.0, z);
+  }
+
+  double get_dpot2(const double z)
+  {
+    double zz = fabs(z);	// Even function
+    double ret = exp(-zz/(2.0*h))/(1.0 + exp(-zz/h));
+    return 4.0*M_PI*S0 * ret*ret/h;
+  }
+
+  std::tuple<double, double> get_pot_dpot(const double z)
+  {
+    double zz = fabs(z);
+    double p = 2.0*M_PI*S0 * (zz + 2.0*h*log(1.0 + exp(-zz/h)) - 2.0*h*M_LN2);
+    double ret = (1.0 - exp(-zz/h))/(1.0 + exp(-zz/h));
+    double dp = 2.0*M_PI*S0 * ret * std::copysign(1.0, z);
+    return {p, dp};
+  }
+
+  double get_mass(const double x, const double y, const double z)
+  {
+    return get_mass(z);
+  }
+
+  double get_density(const double x, const double y, const double z)
+  {
+    return get_density(z);
+  }
+
+  double get_pot(const double x, const double y, const double z)
+  {
+    return get_pot(z);
+  }
+
+  double get_min_radius(void)   { return 0.0;    }
+  double get_max_radius(void)   { return HMAX*h; }
+  double get_scale_height(void) { return h;      }
+
+  void set_vdisp(double DISPZ, double DISPX=1.0)
+  {
+    dispz = DISPZ;
+    dispx = DISPX;
+    h = dispz/(2.0*M_PI*S0);
+    norm = S0/( sqrt(2.0*M_PI*dispz) ) / (4.0*h);
+    dist_defined = true;
+  }
+
+  static void set_hmax(double hmax) { HMAX = hmax; }
+
+  double distf(const double E, const double p=0.0)
+  {
+    return exp(-E/dispz - 0.5*p*p/dispx) * norm;
+  }
+
+  double dfde(const double E, const double p=0.0)
+  {
+    return -exp(-E/dispz - 0.5*p*p/dispx)/dispz * norm;
+  }
+
+  double dfdv(const double E, const double p=0.0)
   {
     return -exp(-E/dispz - 0.5*p*p/dispx)*p/dispx * norm;
   }
@@ -311,7 +464,7 @@ class Sech2mu : public OneDModel
 private:
   double mu, h;
   double dispz, dispx;
-  double dnorm, knorm, fnorm;
+  double dnorm, fnorm;
 
   static double HMAX;
 
@@ -319,43 +472,43 @@ public:
 
   Sech2mu(void)
   {
+    // Units: G = 1
+    //
     mu    = 1.0;
     dispz = 1.0;
     dispx = 1.0;
-    h     = 1.0;
-    //
-    // Units: G = mu = 1
+    h     = dispz/(2.0*M_PI*mu);
+
+    // Normalizations
     //
     dnorm = 0.25*mu/h;
-    knorm = 2.0*M_PI*mu*h/dispz;
-    fnorm = mu/(4.0*h*knorm*sqrt(2.0*M_PI*dispz));
+    fnorm = dnorm/sqrt(2.0*M_PI*dispz);
     dist_defined = true;
   }
 
-  Sech2mu(const double DISPZ, const double H, const double DISPX=1.0)
+  Sech2mu(const double DISPZ, const double DISPX=1.0)
   {
     mu    = 1.0;
     dispz = DISPZ;
     dispx = DISPX;
-    h     = H;
+    h     = dispz/(2.0*M_PI*mu);
     //
-    // Units: G = mu = 1
+    // Units: G = 1
     //
     dnorm = 0.25*mu/h;
-    knorm = 2.0*M_PI*mu*h/dispz;
-    fnorm = mu/(4.0*h*knorm*sqrt(2.0*M_PI*dispz));
+    fnorm = dnorm/sqrt(2.0*M_PI*dispz);
     dist_defined = true;
   }
   
   void setMu(double Sigma0)
   {
     mu = Sigma0;
+    h  = dispz/(2.0*M_PI*mu);
     //
     // Units: G = 1, mu = Sigma0
     //
     dnorm = 0.25*mu/h;
-    knorm = 2.0*M_PI*mu*h/dispz;
-    fnorm = mu/(4.0*h*knorm*sqrt(2.0*M_PI*dispz));
+    fnorm = dnorm/sqrt(2.0*M_PI*dispz);
     dist_defined = true;
   }
 
@@ -371,13 +524,14 @@ public:
 
   double get_pot(const double z) {
     double zz = fabs(z);
-    return 2.0*dispz*(-M_LN2 + 0.5*zz/h + log(1.0 + exp(-zz/h)) ) - dispz*log(knorm);
+    // Define potential to be zero at z=0, so subtract off the constant term.
+    return 2.0*dispz*(0.5*zz/h + log(1.0 + exp(-zz/h)) - M_LN2);
   }
 
   double get_dpot(const double z) {
     double zz = fabs(z);
     double ret = (1.0 - exp(-zz/h))/(1.0 + exp(-zz/h));
-    return 0.5*dispz*ret/h * z/(zz+1.0e-18);
+    return dispz*ret/h * z/(zz+1.0e-18);
   }
 
   double get_dpot2(const double z) {
@@ -386,11 +540,13 @@ public:
     return 0.5*dispz*ret*ret/h/h;
   }
 
-  void get_pot_dpot(const double z, double& p, double& dp) {
+  std::tuple<double, double> get_pot_dpot(const double z)
+  {
     double zz = fabs(z);
-    p = 2.0*dispz*(-M_LN2 + 0.5*zz/h + log(1.0 + exp(-zz/h)) ) - dispz*log(knorm);
+    double p = 2.0*dispz*(0.5*zz/h + log(1.0 + exp(-zz/h)) - M_LN2);
     double ret = (1.0 - exp(-zz/h))/(1.0 + exp(-zz/h));
-    dp = 0.5*dispz*ret/h * z/(zz+1.0e-18);
+    double dp = dispz*ret/h * z/(zz+1.0e-18);
+    return {p, dp};
   }
 
   double get_mass(const double x, const double y, const double z) {
@@ -415,11 +571,11 @@ public:
     return exp(-E/dispz - 0.5*p*p/dispx) * fnorm;
   }
 
-  double dfde(const double E, const double p) {
+  double dfde(const double E, const double p=0.0) {
     return -exp(-E/dispz - 0.5*p*p/dispx)/dispz * fnorm;
   }
 
-  double dfdv(const double E, const double p) {
+  double dfdv(const double E, const double p=0.0) {
     return -exp(-E/dispz - 0.5*p*p/dispx)*p/dispx * fnorm;
   }
 
@@ -476,11 +632,12 @@ public:
     return OneDModelTable::get_dpot2(z) + 4.0*M_PI*rho0h*sech*sech;
   }
 
-  void get_pot_dpot(const double z, double& p, double& dp) {
+  std::tuple<double, double> get_pot_dpot(const double z) {
     if (!model_computed) reset();
-    OneDModelTable::get_pot_dpot(z, p, dp);
+    auto [p, dp] = OneDModelTable::get_pot_dpot(z);
     p += 4.0*M_PI*hh*hh*rho0h*log(cosh(z/hh));
     dp += 4.0*M_PI*hh*rho0h*tanh(z/hh);
+    return {p, dp};
   }
 
 
@@ -507,22 +664,34 @@ public:
     if (!model_computed) reset();
     return -exp(-E/dispz - 0.5*p*p/dispx)*p/dispx * norm;
   }
+
 };
 
+//! A simple uniform slab model with finite thickness and constant density
 class Uniform : public OneDModel
 {
 private:
-  // Half-thickness of the uniform slab
+  //! Half-thickness of the uniform slab
   double H;
-  // Velocity widths in x and y directions (for distribution function)
+
+  //! Velocity widths in x and y directions (for distribution function)
   double Vx, Vy;
-  // Vertical frequency for the uniform slab potential
+
+  //! Vertical frequency for the uniform slab potential
   double Omega;
-  // Normalization constant for the distribution function
+
+  //! Normalization constant for the distribution function
   double norm;
-  
+
+  //! Maximum action
+  double Jmax;
+
+  //! Regularization parameter for the distribution function (if needed)
+  double epsilon;
+
 public:
-  
+
+  //! Null constructor with default parameters
   Uniform(void)
   {
     Vx = 1.0;
@@ -532,34 +701,45 @@ public:
     //
     H = 1.0;
     Omega = std::sqrt(2.0*M_PI/H);
-    norm  = 1.0/(std::sqrt(2.0)*M_PI*H);
-    // ModelID = "Uniform";
+    norm  = std::sqrt(2/Omega)/(M_PI*2.0*H);
+    Jmax  = 0.5*Omega*H*H;
+    ModelID = "Uniform";
   }
 
-  Uniform(double h, double Vx)
+  //! Constructor with specified half-thickness and velocity width
+  //! (same for x and y)
+  Uniform(double h, double Vx, double epsilon)
   {
     this->H  = h;
     this->Vx = Vx;
     this->Vy = Vx;
+    this->epsilon = epsilon;
     //
     // Units: G = Sigma_o = 1
     //
     Omega = std::sqrt(2.0*M_PI/H);
-    norm  = 1.0/(std::sqrt(2.0)*M_PI*H);
-    // ModelID = "Uniform";
+    norm  = std::sqrt(2/Omega)/(M_PI*2.0*H);
+    Jmax  = 0.5*Omega*H*H;
+    ModelID = "Uniform";
+    dist_defined = true;
   }
   
-  Uniform(double h, double Vx, double Vy)
+  //! Constructor with specified half-thickness and velocity widths in
+  //! x and y
+  Uniform(double h, double Vx, double Vy, double epsilon)
   {
     this->H  = h;
     this->Vx = Vx;
     this->Vy = Vy;
+    this->epsilon = epsilon;
     //
     // Units: G = Sigma_o = 1
     //
     Omega = std::sqrt(2.0*M_PI/H);
-    norm  = 1.0/(std::sqrt(2.0)*M_PI*H);
-    // ModelID = "Uniform";
+    norm  = std::sqrt(2/Omega)/(M_PI*2.0*H);
+    Jmax  = 0.5*Omega*H*H;
+    ModelID = "Uniform";
+    dist_defined = true;
   }
   
   double get_mass(const double z)
@@ -610,9 +790,9 @@ public:
       return 2.0*M_PI/H;
   }
 
-  void get_pot_dpot(const double z, double& p, double& dp)
+  std::tuple<double, double> get_pot_dpot(const double z)
   {
-    double zz = fabs(z);
+    double zz = fabs(z), p, dp;
     if (zz > H) {
       p  = 2.0*M_PI*zz - 2.0*M_PI*H;
       dp = 2.0*M_PI*z/zz;
@@ -620,6 +800,7 @@ public:
       p  = M_PI*zz*zz/H - M_PI*H;
       dp = 2.0*M_PI*z/H;
     }
+    return {p, dp};
   }
 
   double get_mass(const double x, const double y, const double z)
@@ -646,8 +827,8 @@ public:
     // Convert energy to potential, so that the distribution function
     // is nonzero only.  That is, assume E = Omega*Ja, not zero at +/-
     // H.
-    double OJ = fabs(E + M_PI*H);
-    return norm / std::sqrt(OJ);
+    double J = fabs(E + M_PI*H)/Omega;
+    return norm / std::sqrt(Jmax - J + epsilon);
   }
 
   double dfde(const double E, const double p=0.0)
@@ -655,8 +836,8 @@ public:
     // Convert energy to potential, so that the distribution function
     // is nonzero only.  That is, assume E = Omega*Ja, not zero at +/-
     // H.
-    double OJ = fabs(E + M_PI*H);
-    return -0.5*Omega*norm / std::pow(OJ, 1.5);
+    double J = fabs(E + M_PI*H)/Omega;
+    return -0.5*Omega*norm / std::pow(Jmax - J + epsilon, 1.5);
   }
 
   double dfdv(const double E, const double p=0.0)
@@ -667,7 +848,6 @@ public:
     // form.
     return 0.0;
   }
-
 };
 
 //! A simple consine-bell slab model with finite thickness
@@ -724,7 +904,7 @@ public:
     H = 1.0;
     rho0 = 1.0/H;
     Phi0 = M_PI*H*(4.0/(M_PI*M_PI) + 1.0);
-    // ModelID = "Cosine";
+    ModelID = "Cosine";
     numdf = 800;
     nint  = 800;
     dist_defined = true;
@@ -744,7 +924,7 @@ public:
     //
     rho0 = 1.0/H;
     Phi0 = M_PI*H*(4.0/(M_PI*M_PI) + 1.0);
-    // ModelID = "Cosine";
+    ModelID = "Cosine";
     numdf = 800;
     nint  = 800;
     dist_defined = true;
@@ -764,7 +944,7 @@ public:
     //
     rho0 = 1.0/H;
     Phi0 = M_PI*H*(4.0/(M_PI*M_PI) + 1.0);
-    // ModelID = "Cosine";
+    ModelID = "Cosine";
     numdf = 800;
     nint  = 800;
     dist_defined = true;
@@ -828,9 +1008,9 @@ public:
       return 2.0*M_PI*rho0*(1 + cos(M_PI*z/H));
   }
 
-  void get_pot_dpot(const double z, double& p, double& dp)
+  std::tuple<double, double> get_pot_dpot(const double z)
   {
-    double zz = fabs(z);
+    double zz = fabs(z), p, dp;
     if (zz > H) {
       p  = 2.0*M_PI*rho0*H*(zz - H);
       dp = 2.0*M_PI*rho0*H*z/zz;
@@ -838,6 +1018,7 @@ public:
       p  = 2.0*M_PI*rho0*(0.5*z*z + H*H/(M_PI*M_PI)*(1 - cos(M_PI*z/H))) - Phi0;
       dp = 2.0*M_PI*rho0*(z + H/M_PI*sin(M_PI*z/H));
     }
+    return {p, dp};
   }
 
   double get_mass(const double x, const double y, const double z)
@@ -888,3 +1069,4 @@ public:
 
 #endif
 
+// -*- C++ -*-

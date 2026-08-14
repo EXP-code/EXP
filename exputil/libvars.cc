@@ -3,6 +3,7 @@
    standalone utilities
  */
 
+#include "config_exp.h"
 #include "libvars.H"
 
 namespace __EXP__
@@ -36,6 +37,7 @@ namespace __EXP__
 
   //! Sanity tolerance for orthogonality
   double           orthoTol         = 1.0e-2;
+
 };
 
 

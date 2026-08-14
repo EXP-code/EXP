@@ -74,10 +74,10 @@ private:
   bool tbdbg;
 
   //! Default model file name
-  const std::string default_model = "SLGridSph.model";
+  static const std::string default_model;
 
   //! Default cache file name
-  const std::string default_cache = ".slgrid_sph_cache";
+  static const std::string default_cache;
 
   //! Model file name
   std::string model_file_name;
@@ -105,6 +105,9 @@ private:
   //! rmin=rmap/rfac, rmax=rmap*rfac with rfac=pow(10, Lalpha/l)
   static double Lalpha;
   //@}
+
+  //! Equilibrium model instance
+  std::shared_ptr<AxiSymModel> model;
 
 public:
 
@@ -247,6 +250,9 @@ protected:
   //! For cache identification
   std::string id;
 
+  //! Potential offset
+  double poffset = 0.0;
+
 public:
 
   //! Factory constructor
@@ -263,6 +269,10 @@ public:
 
   //! Get model ID
   std::string ID() const { return id; }
+
+  //! Update offset
+  void setOffset(double z0) { poffset = pot(z0); }
+
 };
 
 //! Slab (one-dimensional) SL grid class
@@ -292,12 +302,24 @@ private:
   void compute_table_worker(void);
 
 
-				// Local MPI stuff
+  //@{
+  //! Local MPI stuff
   void mpi_setup(void);
   void mpi_unpack_table(void);
   int  mpi_pack_table(TableSlab* table, int kx, int ky);
+  //@}
+
+  //@{
+  //! Cache reading and writing
   bool ReadH5Cache(void);
   void WriteH5Cache(void);
+  //@}
+
+  //! Cache file name
+  std::string slab_cache_name;
+
+  //! Cache versioning
+  inline static const std::string Version = "1.0";
 
   int mpi_myid, mpi_numprocs;
   int mpi_bufsz;
@@ -314,6 +336,13 @@ private:
   //! This defines a class providing selectable maps from the infinite
   //! to finite interval
   enum CoordMapTypes {Tanh, Sech, Linear};
+
+  //! Coordinate map chooser
+  const std::map<CoordMapTypes, std::string> CoordMapNames = {
+    {Tanh,   "tanh"  },
+    {Sech,   "sech"  },
+    {Linear, "linear"}
+  };
 
   //! The base class for all coordinate maps
   class CoordMap
@@ -374,11 +403,23 @@ private:
     virtual double d_xi_to_z(double z);
   };
 
+  //! Coordinate map type (enum)
+  CoordMapTypes cmtype;
+
+  //! Coordinate map type (string)
+  std::string cmap = "linear";
+
   //! Model type
   std::string type;
 
   //! The current map created by the SLGridSlab constructor
   std::unique_ptr<CoordMap> mM;
+
+  //! Default cache file name
+  static const std::string default_cache;
+
+  //! Equilibrium model instance
+  std::shared_ptr<SlabModel> slab;
 
 public:
 
@@ -403,7 +444,17 @@ public:
 
   //! Constructor
   SLGridSlab(int kmax, int nmax, int numz, double zmax,
-	     const std::string type="isothermal", bool Verbose=false);
+	     const std::string cachename,
+	     const std::string coordmap="linear",
+	     const std::string type="isothermal",
+	     bool Verbose=false);
+
+  //! Backward-compatible constructor for legacy call sites
+  SLGridSlab(int kmax, int nmax, int numz, double zmax,
+	     const std::string type,
+	     bool Verbose=false)
+    : SLGridSlab(kmax, nmax, numz, zmax,
+		 default_cache, "linear", type, Verbose) {}
 
   //! Destructor
   ~SLGridSlab();
