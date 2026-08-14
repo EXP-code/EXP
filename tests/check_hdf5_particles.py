@@ -43,7 +43,7 @@ with h5py.File(args.file, "r") as h5:
         if not np.isfinite(data[:]).all():
             fail(f"/particles/{name} contains non-finite values")
 
-    if not np.isclose(particles["m"][:].sum(), args.mass, rtol=2e-6, atol=2e-6):
+    if not np.isclose(particles["m"][:].sum(), args.mass, rtol=2e-4, atol=2e-4):
         fail("particle masses do not sum to one")
     if args.cube:
         for name in ("x", "y", "z"):

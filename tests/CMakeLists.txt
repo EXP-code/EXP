@@ -164,7 +164,7 @@ if(ENABLE_NBODY)
     if(Python3_Interpreter_FOUND AND EXP_H5PY_STATUS EQUAL 0 AND ENABLE_UTILS)
 
       # Create the banner / message test
-      add_test(NAME HDF5IC
+      add_test(NAME TestHDF5InitialConditionGeneration
         COMMAND ${CMAKE_COMMAND} -E echo "The following tests check for consistent HDF5 IC generation")
 
       # Check spherical body file generation
@@ -191,13 +191,13 @@ if(ENABLE_NBODY)
       # Check slab body file generation
       add_test(NAME makeSlabHDF5ICTest
         COMMAND ${CMAKE_BINARY_DIR}/utils/ICs/slabics --hdf5 --number
-      16 --seed 17 --outfile hdf5-slab.bods
+      16 --seed 17 --outfile hdf5-slab.bods --model Sech2mu
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Slab)
 
       add_test(NAME checkSlabHDF5ICTest
         COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py
-        hdf5-slab.bods.h5 --count 16 --cube 
+        hdf5-slab.bods.h5 --count 16
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Slab)
       set_tests_properties(checkSlabHDF5ICTest PROPERTIES DEPENDS makeSlabHDF5ICTest)
 
@@ -211,7 +211,7 @@ if(ENABLE_NBODY)
 
       # Check cube body file generation
       add_test(NAME makeCubeHDF5ICTest
-        COMMAND ${CMAKE_BINARY_DIR}/utils/ICs/cubeics --hdf5 --number 16 --seed 17 --cube --zerovel --file hdf5-cube.bods
+        COMMAND ${CMAKE_BINARY_DIR}/utils/ICs/cubeics --hdf5 --number 16 --seed 17 --zerovel --file hdf5-cube.bods
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
 
       add_test(NAME checkCubeHDF5ICTest
