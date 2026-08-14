@@ -52,8 +52,8 @@ namespace EXP
       // 2: SZIP
       // 3: SHUFFLE
       // 4: FLETCHER32
-      // 307: LZ4
-      // 32004: ZSTD
+      // 307: BZIP2
+      // 32004: LZ4
       // 32001: BLOSC
       //
       // The filter options are specific to each filter type, see the HDF5 documentation for details.
