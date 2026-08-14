@@ -44,7 +44,7 @@ namespace EXP
       HighFive::DataSetCreateProps props;
       // chunk size is min(size, 256kB) but at least 1kB
       props.add(HighFive::Chunking({std::min<hsize_t>(size, std::min<hsize_t>(262144, std::max<hsize_t>(1024, size)))}));
-      if (filter != 3 && filter != 4 && filter != 32001) props.add(HighFive::Shuffle());
+      if (filter != 4 && filter != 32001) props.add(HighFive::Shuffle());
       
       // The filter IDs are from HDF5 1.12.0 and later, see https://support.hdfgroup.org/HDF5/doc/Advanced/Filters.html
       // Filter types:
