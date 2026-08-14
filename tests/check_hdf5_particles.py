@@ -18,12 +18,14 @@ parser.add_argument("file")
 parser.add_argument("--count", type=int, required=True)
 parser.add_argument("--float-bytes", type=int, default=4)
 parser.add_argument("--mass", type=float, default=1.0)
+parser.add_argument("--aux-ints", type=int, default=0)
+parser.add_argument("--aux-floats", type=int, default=0)
 parser.add_argument("--cube", action="store_true", help="check that particles are in the unit cube")
 args = parser.parse_args()
 
 with h5py.File(args.file, "r") as h5:
-    for name, expected in (("num_particles", args.count), ("num_aux_ints", 0),
-                           ("num_aux_floats", 0)):
+    for name, expected in (("num_particles", args.count), ("num_aux_ints", args.aux_ints),
+                           ("num_aux_floats", args.aux_floats)):
         if name not in h5.attrs or h5.attrs[name] != expected:
             fail(f"attribute {name!r} is not {expected}")
 
@@ -31,6 +33,8 @@ with h5py.File(args.file, "r") as h5:
         fail("missing /particles group")
     particles = h5["particles"]
     required = {"m", "x", "y", "z", "u", "v", "w"}
+    required.update({f"aux_int_{i}" for i in range(args.aux_ints)})
+    required.update({f"aux_float_{i}" for i in range(args.aux_floats)})
     if set(particles) != required:
         fail(f"unexpected datasets: {sorted(particles)}")
 
@@ -38,8 +42,12 @@ with h5py.File(args.file, "r") as h5:
         data = particles[name]
         if data.shape != (args.count,):
             fail(f"/particles/{name} has shape {data.shape}, expected ({args.count},)")
-        if data.dtype.kind != "f" or data.dtype.itemsize != args.float_bytes:
-            fail(f"/particles/{name} has dtype {data.dtype}, expected float{8 * args.float_bytes}")
+        if name.startswith("aux_int_"):
+            if data.dtype.kind != "i":
+                fail(f"/particles/{name} has dtype {data.dtype}, expected an integer type")
+        else:
+            if data.dtype.kind != "f" or data.dtype.itemsize != args.float_bytes:
+                fail(f"/particles/{name} has dtype {data.dtype}, expected float{8 * args.float_bytes}")
         if not np.isfinite(data[:]).all():
             fail(f"/particles/{name} contains non-finite values")
 
