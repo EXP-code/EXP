@@ -126,6 +126,8 @@ namespace EXP
 	m.push_back(p[0]); x.push_back(p[1]); y.push_back(p[2]); z.push_back(p[3]);
 	u.push_back(p[4]); v.push_back(p[5]); w.push_back(p[6]);
       }
+      if (num_aux_ints < 0 || num_aux_floats < 0)
+        throw std::invalid_argument("auxiliary field counts must be non-negative");
       std::vector<std::vector<int>> auxi(num_aux_ints, std::vector<int>(particles.size(), 0));
       std::vector<std::vector<T>> auxf(num_aux_floats, std::vector<T>(particles.size(), 0));
       write(filename, m, x, y, z, u, v, w, auxi, auxf, std::nullopt, filter);
