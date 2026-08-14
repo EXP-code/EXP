@@ -133,6 +133,46 @@ namespace EXP
       write(filename, m, x, y, z, u, v, w, auxi, auxf, std::nullopt, filter);
     }
 
+    //! Write a particle phase-space file from an interleaved [m,x,y,z,u,v,w] buffer.
+    template <typename T>
+    inline void write_interleaved(const std::string& filename,
+				  const std::vector<double>& particles,
+				  int num_aux_ints, int num_aux_floats,
+				  unsigned filter)
+    {
+      if (particles.empty()) return;
+      if (particles.size() % 7 != 0)
+	throw std::invalid_argument("interleaved phase-space buffer must have a multiple-of-7 length");
+      if (num_aux_ints < 0 || num_aux_floats < 0)
+	throw std::invalid_argument("auxiliary field counts must be non-negative");
+
+      const auto count = particles.size() / 7;
+      const int n = static_cast<int>(count);
+
+      HighFive::File file(filename, HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate);
+      file.createAttribute<int>("num_particles", HighFive::DataSpace::From(n)).write(n);
+      file.createAttribute<int>("num_aux_ints", HighFive::DataSpace::From(num_aux_ints)).write(num_aux_ints);
+      file.createAttribute<int>("num_aux_floats", HighFive::DataSpace::From(num_aux_floats)).write(num_aux_floats);
+
+      auto group = file.createGroup("particles");
+      auto props = properties(count, filter);
+
+      static constexpr std::array<const char*, 7> names = {"m", "x", "y", "z", "u", "v", "w"};
+      std::vector<T> field(count);
+      for (size_t col = 0; col < names.size(); ++col) {
+	for (size_t i = 0; i < count; ++i) field[i] = static_cast<T>(particles[7*i + col]);
+	group.createDataSet(names[col], field, props);
+      }
+
+      std::vector<int> auxi(count, 0);
+      for (int j = 0; j < num_aux_ints; ++j)
+	group.createDataSet("aux_int_" + std::to_string(j), auxi, props);
+
+      std::vector<T> auxf(count, 0);
+      for (int j = 0; j < num_aux_floats; ++j)
+	group.createDataSet("aux_float_" + std::to_string(j), auxf, props);
+    }
+
     //! Collect rank-local phase space records and have rank zero write one file.
     inline void gather_and_write(const std::string& filename,
 				 const std::vector<std::array<double, 7>>& local,
@@ -192,16 +232,10 @@ namespace EXP
 
 	if (myid != 0) return;
 
-	// Rank 0 reconstructs the all vector from the received data
-	//
-	std::vector<std::array<double, 7>> all(received.size()/7);
-	for (size_t i = 0; i < all.size(); ++i)
-	  std::copy(received.begin() + 7*i, received.begin() + 7*(i+1), all[i].begin());
-
 	// Write the gathered data to the HDF5 file
 	//
-	if (double_precision) write<double>(filename, all, num_aux_ints, num_aux_floats, filter);
-	else                  write<float >(filename, all, num_aux_ints, num_aux_floats, filter);
+	if (double_precision) write_interleaved<double>(filename, received, num_aux_ints, num_aux_floats, filter);
+	else                  write_interleaved<float >(filename, received, num_aux_ints, num_aux_floats, filter);
 	
       } else {
 	// Write the local/only data to the HDF5 file
