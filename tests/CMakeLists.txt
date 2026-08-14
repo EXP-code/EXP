@@ -262,6 +262,40 @@ if(ENABLE_NBODY)
       set_tests_properties(makeGendiskHDF5ICTest checkGendiskDiskHDF5ICTest
         checkGendiskGasHDF5ICTest removeGendiskHDF5ICFiles
         PROPERTIES LABELS "quick")
+
+      # Check gendisk2d body file generation
+      add_test(NAME makeGendisk2dHDF5ICTest
+        COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gendisk2d
+        --hdf5 --nhalo 8 --ndisk 8 --SEED 17
+        --hbods hdf5-gendisk2d-halo.bods --dbods hdf5-gendisk2d-disk.bods
+        --cachefile hdf5-gendisk2d.cache
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+
+      add_test(NAME checkGendisk2dHaloHDF5ICTest
+        COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py
+        hdf5-gendisk2d-halo.bods.h5 --count 8
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+      set_tests_properties(checkGendisk2dHaloHDF5ICTest PROPERTIES DEPENDS makeGendisk2dHDF5ICTest)
+
+      add_test(NAME checkGendisk2dDiskHDF5ICTest
+        COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py
+        hdf5-gendisk2d-disk.bods.h5 --count 8
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+      set_tests_properties(checkGendisk2dDiskHDF5ICTest PROPERTIES DEPENDS makeGendisk2dHDF5ICTest)
+
+      add_test(NAME removeGendisk2dHDF5ICFiles
+        COMMAND ${CMAKE_COMMAND} -E remove
+        hdf5-gendisk2d-halo.bods.h5 hdf5-gendisk2d-disk.bods.h5
+        hdf5-gendisk2d.cache hdf5-gendisk2d.ortho_check
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
+      set_tests_properties(removeGendisk2dHDF5ICFiles PROPERTIES DEPENDS
+        "checkGendisk2dHaloHDF5ICTest;checkGendisk2dDiskHDF5ICTest"
+        REQUIRED_FILES "hdf5-gendisk2d-halo.bods.h5;hdf5-gendisk2d-disk.bods.h5")
+      set_tests_properties(makeGendisk2dHDF5ICTest checkGendisk2dHaloHDF5ICTest
+        checkGendisk2dDiskHDF5ICTest removeGendisk2dHDF5ICFiles
+        PROPERTIES LABELS "quick")
     endif()
 
     # Set labels for pyEXP tests
