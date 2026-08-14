@@ -251,7 +251,9 @@ main(int argc, char **argv)
       data.num_particles  = Num_particles;
       data.num_aux_ints   = Num_aux_ints;
       data.num_aux_floats = Num_aux_floats;
-      
+
+      if (Num_aux_ints < 0 || Num_aux_floats < 0)
+        throw std::invalid_argument("auxiliary field counts must be non-negative");
       data.aux_ints.resize(Num_aux_ints);
       for (auto& vec : data.aux_ints) {
 	vec.resize(Num_particles);
