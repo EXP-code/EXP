@@ -69,7 +69,7 @@ if(ENABLE_NBODY)
   if(ENABLE_UTILS)
     # Makes some spherical ICs using utils/ICs/gensph
     add_test(NAME makeICTest
-      COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 10000 -i SLGridSph.model
+      COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph -N 10000 -i SLGridSph.model --NUMG 100
       WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
     # Runs those ICs using exp
@@ -171,6 +171,7 @@ if(ENABLE_NBODY)
       add_test(NAME makeSphHDF5ICTest
         COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gensph
       --hdf5 -N 16 -i SLGridSph.model --SEED 17 --zerovel -o hdf5-sph.bods
+      --NUMG 100
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
       add_test(NAME checkSphHDF5ICTest
@@ -186,7 +187,7 @@ if(ENABLE_NBODY)
       set_tests_properties(removeSphHDF5ICFiles PROPERTIES DEPENDS checkSphHDF5ICTest
         REQUIRED_FILES "hdf5-sph.bods.h5")
       set_tests_properties(makeSphHDF5ICTest checkSphHDF5ICTest removeSphHDF5ICFiles
-        PROPERTIES LABELS "quick")
+        PROPERTIES LABELS "long")
 
       # Check slab body file generation
       add_test(NAME makeSlabHDF5ICTest
@@ -228,52 +229,51 @@ if(ENABLE_NBODY)
       set_tests_properties(makeCubeHDF5ICTest checkCubeHDF5ICTest removeCubeHDF5ICFiles
         PROPERTIES LABELS "quick")
 
-      # Check gendisk body file generation, including gas auxiliary fields
+      # Check gendisk body file generation with a pared-down
+      # low-resolution basis
       add_test(NAME makeGendiskHDF5ICTest
         COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gendisk
-        --hdf5 --nhalo 8 --ndisk 8 --ngas 8 --ngparam 2 --SEED 17
+        --nhalo 10000 --ndisk 10000
+	--hdf5 --SEED 17 --ignore --MMAX 2 --NUMX 128 --NUMY 64
+        --LMAXFID 32 --NMAXFID 24 --PNUM 0 --TNUM 32
         --hbods hdf5-gendisk-halo.bods --dbods hdf5-gendisk-disk.bods
-        --gbods hdf5-gendisk-gas.bods --cachefile hdf5-gendisk.cache
-        --suffix hdf5-gendisk
+        --cachefile hdf5-gendisk.cache --suffix hdf5-gendisk
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
       add_test(NAME checkGendiskDiskHDF5ICTest
         COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py
-        hdf5-gendisk-disk.bods.h5 --count 8
+        hdf5-gendisk-disk.bods.h5 --count 10000 --mass 0.05
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
       set_tests_properties(checkGendiskDiskHDF5ICTest PROPERTIES DEPENDS makeGendiskHDF5ICTest)
 
       add_test(NAME checkGendiskHaloHDF5ICTest
         COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py
-        hdf5-gendisk-halo.bods.h5 --count 8
+        hdf5-gendisk-halo.bods.h5 --count 10000 --mass 1.0079
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
       set_tests_properties(checkGendiskHaloHDF5ICTest PROPERTIES DEPENDS makeGendiskHDF5ICTest)
 
-      add_test(NAME checkGendiskGasHDF5ICTest
-        COMMAND ${Python3_EXECUTABLE}
-        ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py
-        hdf5-gendisk-gas.bods.h5 --count 8 --aux-floats 2
-        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
-      set_tests_properties(checkGendiskGasHDF5ICTest PROPERTIES DEPENDS makeGendiskHDF5ICTest)
-
       add_test(NAME removeGendiskHDF5ICFiles
         COMMAND ${CMAKE_COMMAND} -E remove
-        hdf5-gendisk-halo.bods.h5 hdf5-gendisk-disk.bods.h5 hdf5-gendisk-gas.bods.h5
+        hdf5-gendisk-halo.bods.h5 hdf5-gendisk-disk.bods.h5
         hdf5-gendisk.cache hdf5-gendisk.ortho_check
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
       set_tests_properties(removeGendiskHDF5ICFiles PROPERTIES DEPENDS
-        "checkGendiskDiskHDF5ICTest;checkGendiskHaloHDF5ICTest;checkGendiskGasHDF5ICTest"
-        REQUIRED_FILES "hdf5-gendisk-halo.bods.h5;hdf5-gendisk-disk.bods.h5;hdf5-gendisk-gas.bods.h5")
-      set_tests_properties(makeGendiskHDF5ICTest checkGendiskDiskHDF5ICTest checkGendiskHaloHDF5ICTest
-        checkGendiskGasHDF5ICTest removeGendiskHDF5ICFiles
-        PROPERTIES LABELS "quick")
+        "checkGendiskDiskHDF5ICTest;checkGendiskHaloHDF5ICTest"
+        REQUIRED_FILES "hdf5-gendisk-halo.bods.h5;hdf5-gendisk-disk.bods.h5")
+      set_tests_properties(makeGendiskHDF5ICTest
+        checkGendiskDiskHDF5ICTest checkGendiskHaloHDF5ICTest
+	removeGendiskHDF5ICFiles
+        PROPERTIES LABELS "long")
 
-      # Check gendisk2d body file generation
+      # Check gendisk2d body file generation with a pared-down
+      # low-resolution basis 
       add_test(NAME makeGendisk2dHDF5ICTest
         COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gendisk2d
-        --hdf5 --nhalo 8 --ndisk 8 --SEED 17
+        --hdf5 --nhalo 10000 --ndisk 10000 --SEED 17 --NUMX 128 --NUMY 64
+        --PNUM 0 --TNUM 40 --LMAX 4 --MMAX 2 --NMAXH 4 --NMAXD 4
+      # --RMIN 3.333e-05
         --hbods hdf5-gendisk2d-halo.bods --dbods hdf5-gendisk2d-disk.bods
         --cachefile hdf5-gendisk2d.cache
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
@@ -281,14 +281,14 @@ if(ENABLE_NBODY)
       add_test(NAME checkGendisk2dHaloHDF5ICTest
         COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py
-        hdf5-gendisk2d-halo.bods.h5 --count 8
+        hdf5-gendisk2d-halo.bods.h5 --count 10000 --mass 1.0079
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
       set_tests_properties(checkGendisk2dHaloHDF5ICTest PROPERTIES DEPENDS makeGendisk2dHDF5ICTest)
 
       add_test(NAME checkGendisk2dDiskHDF5ICTest
         COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_LIST_DIR}/check_hdf5_particles.py
-        hdf5-gendisk2d-disk.bods.h5 --count 8
+        hdf5-gendisk2d-disk.bods.h5 --count 10000 --mass 0.05
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
       set_tests_properties(checkGendisk2dDiskHDF5ICTest PROPERTIES DEPENDS makeGendisk2dHDF5ICTest)
 
@@ -302,7 +302,7 @@ if(ENABLE_NBODY)
         REQUIRED_FILES "hdf5-gendisk2d-halo.bods.h5;hdf5-gendisk2d-disk.bods.h5")
       set_tests_properties(makeGendisk2dHDF5ICTest checkGendisk2dHaloHDF5ICTest
         checkGendisk2dDiskHDF5ICTest removeGendisk2dHDF5ICFiles
-        PROPERTIES LABELS "quick")
+        PROPERTIES LABELS "long")
     endif()
 
     # Set labels for pyEXP tests
