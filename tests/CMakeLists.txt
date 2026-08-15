@@ -273,7 +273,7 @@ if(ENABLE_NBODY)
         COMMAND ${EXP_MPI_LAUNCH} ${CMAKE_BINARY_DIR}/utils/ICs/gendisk2d
         --hdf5 --nhalo 10000 --ndisk 10000 --SEED 17 --NUMX 128 --NUMY 64
         --PNUM 0 --TNUM 40 --LMAX 4 --MMAX 2 --NMAXH 4 --NMAXD 4
-      # --RMIN 3.333e-05
+        --RMIN 3.333e-05
         --hbods hdf5-gendisk2d-halo.bods --dbods hdf5-gendisk2d-disk.bods
         --cachefile hdf5-gendisk2d.cache
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)

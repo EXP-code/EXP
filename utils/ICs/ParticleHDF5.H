@@ -1,21 +1,23 @@
 #ifndef EXP_PARTICLE_HDF5_H
 #define EXP_PARTICLE_HDF5_H
 
-// Shared writer for the simple EXP phase-space HDF5 schema.  The
-// schema unchanged from the Component update and is the same one tested 
-// by the hdf5bods and slabics implementations.
+// Help class for writing the EXP phase-space HDF5 schema from a
+// phase-space array.  The schema unchanged from the Component update
+// and is the same one tested by the hdf5bods and slabics
+// implementations.
 
 #include <algorithm>
-#include <array>
-#include <optional>
 #include <stdexcept>
+#include <optional>
 #include <string>
 #include <vector>
+#include <array>
 
 #include <highfive/H5DataSet.hpp>
 #include <highfive/H5DataSpace.hpp>
 #include <highfive/H5File.hpp>
 #include <H5Zpublic.h>
+
 #include <mpi.h>
 
 namespace EXP
@@ -24,7 +26,8 @@ namespace EXP
   namespace ParticleHDF5
   {
 
-    //! Collects the mass, position, and velocity of a particle container into a vector of 7-element arrays.
+    //! Collects the mass, position, and velocity of from an EXP
+    //! Particle container into a vector of 7-element arrays.
     template <typename Particles>
     inline std::vector<std::array<double, 7>> records(const Particles& particles)
     {
@@ -36,17 +39,24 @@ namespace EXP
       return result;
     }
 
-    //! Create a HighFive::DataSetCreateProps object with chunking and optional filter.
+    //! Create a HighFive::DataSetCreateProps object with chunking and
+    //! optional filter.
     inline HighFive::DataSetCreateProps properties(hsize_t size, unsigned filter)
     {
-      if (size == 0) throw std::invalid_argument("cannot write an empty particle file");
+      if (size == 0) throw std::invalid_argument("ParticleHDF5: cannot write an empty particle file");
 
       HighFive::DataSetCreateProps props;
       // chunk size is min(size, 256kB) but at least 1kB
       props.add(HighFive::Chunking({std::min<hsize_t>(size, std::min<hsize_t>(262144, std::max<hsize_t>(1024, size)))}));
       if (filter != 4 && filter != 32001) props.add(HighFive::Shuffle());
       
-      // The filter IDs are from HDF5 1.12.0 and later, see https://support.hdfgroup.org/HDF5/doc/Advanced/Filters.html
+      // We could use HighFive::Deflate(level) for GZIP, but we want
+      // to support other filters as well, so we use the HDF5 C API
+      // directly.
+
+      // The filter IDs are from HDF5 1.12.0 and later, see
+      // https://support.hdfgroup.org/HDF5/doc/Advanced/Filters.html
+      //
       // Filter types:
       // 1: GZIP (DEFLATE)
       // 2: SZIP
@@ -61,14 +71,37 @@ namespace EXP
       hid_t plist = props.getId();
       switch (filter) {
       case 1:
-      case 307: { const unsigned level = 5; H5Pset_filter(plist, filter, H5Z_FLAG_OPTIONAL, 1, &level); break; }
-      case 2: { const unsigned options[] = {141, 16}; H5Pset_filter(plist, filter, H5Z_FLAG_OPTIONAL, 2, options); break; }
-      case 3: return props;                 // shuffle only
-      case 4: H5Pset_filter(plist, filter, H5Z_FLAG_OPTIONAL, 0, nullptr); return props;
-      case 32004: { const unsigned options[] = {0}; H5Pset_filter(plist, filter, H5Z_FLAG_OPTIONAL, 1, options); break; }
-      case 32001: { const unsigned options[] = {0, 0, 0, 0, 5, 1, 1}; H5Pset_filter(plist, filter, H5Z_FLAG_OPTIONAL, 7, options); break; }
+      case 307:
+	{
+	  const unsigned level = 5;
+	  H5Pset_filter(plist, filter, H5Z_FLAG_OPTIONAL, 1, &level);
+	  break;
+	}
+      case 2:
+	{
+	  const unsigned options[] = {141, 16};
+	  H5Pset_filter(plist, filter, H5Z_FLAG_OPTIONAL, 2, options);
+	  break;
+	}
+      case 3:
+	return props;                 // shuffle only, no compression
+      case 4:
+	H5Pset_filter(plist, filter, H5Z_FLAG_OPTIONAL, 0, nullptr);
+	return props;
+      case 32004:
+	{
+	  const unsigned options[] = {0};
+	  H5Pset_filter(plist, filter, H5Z_FLAG_OPTIONAL, 1, options);
+	  break;
+	}
+      case 32001:
+	{
+	  const unsigned options[] = {0, 0, 0, 0, 5, 1, 1};
+	  H5Pset_filter(plist, filter, H5Z_FLAG_OPTIONAL, 7, options);
+	  break;
+	}
       default:
-	throw std::invalid_argument("unsupported HDF5 filter ID");
+	throw std::invalid_argument("ParticleHDF5: unsupported HDF5 filter ID");
       }
       return props;
     }
@@ -89,7 +122,7 @@ namespace EXP
       if (count == 0) return;
       if (x.size() != count || y.size() != count || z.size() != count ||
 	  u.size() != count || v.size() != count || w.size() != count)
-	throw std::invalid_argument("inconsistent phase-space vector sizes");
+	throw std::invalid_argument("ParticleHDF5: inconsistent phase-space vector sizes");
       
       HighFive::File file(filename, HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate);
 
@@ -127,7 +160,7 @@ namespace EXP
 	u.push_back(p[4]); v.push_back(p[5]); w.push_back(p[6]);
       }
       if (num_aux_ints < 0 || num_aux_floats < 0)
-        throw std::invalid_argument("auxiliary field counts must be non-negative");
+        throw std::invalid_argument("ParticleHDF5: auxiliary field counts must be non-negative");
       std::vector<std::vector<int>> auxi(num_aux_ints, std::vector<int>(particles.size(), 0));
       std::vector<std::vector<T>> auxf(num_aux_floats, std::vector<T>(particles.size(), 0));
       write(filename, m, x, y, z, u, v, w, auxi, auxf, std::nullopt, filter);
@@ -142,9 +175,9 @@ namespace EXP
     {
       if (particles.empty()) return;
       if (particles.size() % 7 != 0)
-	throw std::invalid_argument("interleaved phase-space buffer must have a multiple-of-7 length");
+	throw std::invalid_argument("ParticleHDF5: interleaved phase-space buffer must have a multiple-of-7 length");
       if (num_aux_ints < 0 || num_aux_floats < 0)
-	throw std::invalid_argument("auxiliary field counts must be non-negative");
+	throw std::invalid_argument("ParticleHDF5: auxiliary field counts must be non-negative");
 
       const auto count = particles.size() / 7;
       const int n = static_cast<int>(count);
