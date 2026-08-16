@@ -18,6 +18,7 @@
 
 #include "Progress.H"		// Progress bar
 #include "cxxopts.H"		// Option parsing
+#include "ParticleHDF5.H"	// Particle HDF5 output
 
 int 
 main(int ac, char **av)
@@ -28,12 +29,17 @@ main(int ac, char **av)
 
   int          N;		// Number of particles
   int          Nrepl;		// Number of particle replicates per orbit
+  int          NI, ND;		// Number of integer and double attributes
   double       mu, nu, Ri, Ro;	// Taper paramters
   double       Rmin, Rmax;      // Radial range
   double       sigma;		// Velocity dispersion
   std::string  bodyfile;	// Output file
   unsigned     seed;		// Will be inialized by /dev/random if
 				// not set on the command line
+  unsigned hdf5_filter = 1;	// HDF5 filter type (1 = GZIP, 2 = SZIP, 3 = LZF)
+  bool hdf5_output = true;	// Write HDF5 output by default
+  bool hdf5_double = false;	// Write HDF5 output in double precision
+
 
   cxxopts::Options options(av[0], "Ideal tapered Mestel IC generator");
 
@@ -42,6 +48,11 @@ main(int ac, char **av)
     ("V,nozerovel", "Do not zero the mean velocity")
     ("P,nozeropos", "Do not zero the center of mass")
     ("d,debug",   "Print debug grid")
+    ("5,hdf5",    "Write HDF5 phase-space output (default)")
+    ("A,ascii",   "Write old-style ASCII output (default is HDF5)")
+    ("8,double",  "Use float64 HDF5 output (default is float32)")
+    ("Z,filter", "HDF5 filter ID (default: 1 = GZIP)",
+     cxxopts::value<unsigned>(hdf5_filter)->default_value("1"))
     ("N,number",  "Number of particles to generate",
      cxxopts::value<int>(N)->default_value("100000"))
     ("n,nu",      "Inner taper exponent (0 for no taper)",
@@ -64,6 +75,10 @@ main(int ac, char **av)
      cxxopts::value<int>(Nrepl)->default_value("1"))
     ("f,file",    "Output body file",
      cxxopts::value<std::string>(bodyfile)->default_value("zang.bods"))
+    ("NI",        "Number of integer attributes for PSP file",
+     cxxopts::value<int>(NI)->default_value("0"))
+    ("ND",        "Number of double attributes for PSP file",
+     cxxopts::value<int>(ND)->default_value("0"))
     ;
 
   cxxopts::ParseResult vm;
@@ -82,6 +97,10 @@ main(int ac, char **av)
     return 1;
   }
 
+  if (vm.count("hdf5"))  hdf5_output = true;
+  if (vm.count("ascii")) hdf5_output = false;
+  hdf5_double = vm.count("double") > 0;
+
   // Set from /dev/random if not specified
   if (vm.count("seed")==0) {
     seed = std::random_device{}();
@@ -99,11 +118,14 @@ main(int ac, char **av)
 
   // Open the output file
   //
-  std::ofstream out(bodyfile);
-  if (not out) {
-    std::string msg(av[0]);
-    msg +=  ": output file <" + bodyfile + "> can not be opened";
-    throw std::runtime_error(msg);
+  std::ofstream out;
+  if (not hdf5_output) {
+    out.open(bodyfile);
+    if (not out) {
+      std::string msg(av[0]);
+      msg +=  ": output file <" + bodyfile + "> can not be opened";
+      throw std::runtime_error(msg);
+    }
   }
 
   SphericalOrbit::ZFRAC=0.3;	// TEST
@@ -294,16 +316,27 @@ main(int ac, char **av)
   std::cout << "** " << over << " particles failed acceptance" << std::endl
 	    << "** Particle mass=" << mass << std::endl;
 
-  out << std::setw(8) << N << std::setw(8) << 0 << std::setw(8) << 0
-      << std::endl;
+  if (not hdf5_output) {
+    out << std::setw(8) << N << std::setw(8) << 0 << std::setw(8) << 0
+	<< std::endl;
+  }
 
   double ektot = 0.0, clausius = 0.0;
-  for (int n=0; n<N; n++) {
-    out << std::setw(18) << mass;
-    for (int k=0; k<3; k++) out << std::setw(18) << pos[n][k] - zeropos[0][k];
-    for (int k=0; k<3; k++) out << std::setw(18) << vel[n][k] - zerovel[0][k];
-    out << std::endl;
+  std::vector<std::array<double, 7>> hdf5_particles;
 
+  for (int n=0; n<N; n++) {
+    if (hdf5_output) {
+      hdf5_particles.push_back({mass, pos[n][0] - zeropos[0][0],
+	    pos[n][1] - zeropos[0][1], pos[n][2] - zeropos[0][2],
+	    vel[n][0] - zerovel[0][0], vel[n][1] - zerovel[0][1],
+	    vel[n][2] - zerovel[0][2]});
+    } else {
+      out << std::setw(18) << mass;
+      for (int k=0; k<3; k++) out << std::setw(18) << pos[n][k] - zeropos[0][k];
+      for (int k=0; k<3; k++) out << std::setw(18) << vel[n][k] - zerovel[0][k];
+      out << std::endl;
+    }
+    
     double r2 = 0.0, v2 = 0.0;
     for (int k=0; k<3; k++) {
       r2 += pos[n][k]*pos[n][k];
@@ -316,6 +349,12 @@ main(int ac, char **av)
   }
 
   std::cout <<  "** 2T/VC=" << ektot/clausius << std::endl;
+
+  // Write HDF5 output if requested
+  //
+  if (hdf5_output) {
+    EXP::ParticleHDF5::gather_and_write(bodyfile + ".h5", hdf5_particles, NI, ND, hdf5_filter, hdf5_double);
+  }
 
   if (vm.count("debug")) {
     std::cout << std::endl << "Peak per energy" << std::endl;

@@ -15,6 +15,7 @@
 #include <array>
 
 #include "cxxopts.H"
+#include "ParticleHDF5.H"
 
 int 
 main(int ac, char **av)
@@ -28,6 +29,8 @@ main(int ac, char **av)
   std::string  bodyfile;	// Output file
   unsigned     seed;		// Will be inialized by /dev/random if
 				// not set on the command line
+  unsigned     hdf5_filter = 1;
+  bool         hdf5_output = true, hdf5_double = false;
 
   // Default values for the velocity dispersion and bulk velocity
   //
@@ -55,6 +58,11 @@ main(int ac, char **av)
      cxxopts::value<unsigned>(seed))
     ("o,file",    "Output body file",
      cxxopts::value<std::string>(bodyfile)->default_value("cube.bods"))
+    ("5,hdf5", "Write HDF5 phase-space output (default)")
+    ("A,ascii", "Write old-style ASCII output (default is HDF5)")
+    ("8,double", "Use float64 HDF5 output (default is float32)")
+    ("f,filter", "HDF5 filter ID (default: 1 = GZIP)",
+     cxxopts::value<unsigned>(hdf5_filter)->default_value("1"))
     ("w,wave",    "Perturbation wave vector",
      cxxopts::value<std::vector<int>>(pert))
     ("p,pamp",    "Perturbation amplitude",
@@ -76,6 +84,9 @@ main(int ac, char **av)
     std::cout << options.help() << std::endl << std::endl;
     return 1;
   }
+  if (vm.count("hdf5"))  hdf5_output = true;
+  if (vm.count("ascii")) hdf5_output = false;
+  hdf5_double = vm.count("double") > 0;
 
   // Set from /dev/random if not specified
   if (vm.count("seed")==0) {
@@ -122,13 +133,15 @@ main(int ac, char **av)
 
   // Open the output file
   //
-  std::ofstream out(bodyfile);
+  std::ofstream out;
+  if (!hdf5_output) out.open(bodyfile);
 
-  if (out) {
+  if (hdf5_output || out) {
     // Header
     //
-    out << std::setw(10) << N << std::setw(10) << 0 << std::setw(10) << 0
-	<< std::endl << std::setprecision(10);
+    if (!hdf5_output)
+      out << std::setw(10) << N << std::setw(10) << 0 << std::setw(10) << 0
+	  << std::endl << std::setprecision(10);
 
     std::mt19937 gen(seed);
     std::uniform_real_distribution<> uniform(0.0, 1.0);
@@ -184,19 +197,31 @@ main(int ac, char **av)
       
     double mass = M/N;
 
-    for (int i=0; i<N; i++)  {
-      out << std::setw(18) << mass;
-      for (int k=0; k<3; k++) out << std::setw(18) << pos[i][k];
-      for (int k=0; k<3; k++) out << std::setw(18) << vel[i][k];
-      out << std::endl;
+    if (hdf5_output) {
+      std::vector<std::array<double, 7>> particles;
+      particles.reserve(N);
+      for (int i=0; i<N; i++)
+	particles.push_back({mass, pos[i][0], pos[i][1], pos[i][2], vel[i][0], vel[i][1], vel[i][2]});
+      if (hdf5_double)
+	EXP::ParticleHDF5::write<double>(bodyfile + ".h5", particles, 0, 0, hdf5_filter);
+      else
+	EXP::ParticleHDF5::write<float>(bodyfile + ".h5", particles, 0, 0, hdf5_filter);
+    } else {
+      for (int i=0; i<N; i++)  {
+	out << std::setw(18) << mass;
+	for (int k=0; k<3; k++) out << std::setw(18) << pos[i][k];
+	for (int k=0; k<3; k++) out << std::setw(18) << vel[i][k];
+	out << std::endl;
+      }
     }
 
     // Print out some info
     //
-    out << "# Mass=" << mass << " zero-vel=" << vm.count("zerovel")
-	<< " disp=(" << disp[0] << ", " << disp[1] << ", " << disp[2]
-	<< ") bulk=(" << bulk[0] << ", " << bulk[1] << ", " << bulk[2]
-	<< ") seed=" << seed << std::endl;
+    if (!hdf5_output)
+      out << "# Mass=" << mass << " zero-vel=" << vm.count("zerovel")
+	  << " disp=(" << disp[0] << ", " << disp[1] << ", " << disp[2]
+	  << ") bulk=(" << bulk[0] << ", " << bulk[1] << ", " << bulk[2]
+	  << ") seed=" << seed << std::endl;
 
     // Close the output file
     //

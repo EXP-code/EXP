@@ -80,8 +80,14 @@
 #include <vector>
 #include <cmath>
 
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5Attribute.hpp>
+
 #include <fenv.h>
 
+#include "quickdigest5.hpp"
 #include "config_exp.h"
 #ifdef HAVE_OMP_H
 #include <omp.h>
@@ -103,6 +109,7 @@
 #include "libvars.H"		// Library globals
 #include "cxxopts.H"		// Command-line parsing
 #include "EXPini.H"		// Ini-style config
+#include "ParticleHDF5.H"
 
 #include "norminv.H"
 
@@ -400,9 +407,11 @@ main(int ac, char **av)
   double       disk_mass, gas_mass, gscal_length, ToomreQ, Temp, Tmin;
   bool         const_height, images, multi, basis, zeropos, zerovel;
   bool         report, ignore, evolved, diskmodel;
-  int          nhalo, ndisk, ngas, ngparam;
+  int          nhalo, ndisk, ngas, ngparam, H5compress;
   std::string  hbods, dbods, gbods, outtag, runtag, centerfile, halofile1, halofile2;
   std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
+  unsigned hdf5_filter = 1;
+  bool hdf5_output = true, hdf5_double = false, H5shuffle = false;
 
   const std::string mesg("Generates a Monte Carlo realization of a halo with an\n embedded disk using Jeans' equations\n");
 
@@ -427,6 +436,11 @@ main(int ac, char **av)
      cxxopts::value<string>(gbods)->default_value("gas.bods"))
     ("dbods", "The output bodyfile for the stellar disc",
      cxxopts::value<string>(dbods)->default_value("disk.bods"))
+    ("5,hdf5", "Write HDF5 phase-space output (default)")
+    ("A,ascii", "Write old-style ASCII output (default is HDF5)")
+    ("8,double", "Use float64 HDF5 output (default is float32)")
+    ("f,filter", "HDF5 filter ID (default: 1 = GZIP)",
+     cxxopts::value<unsigned>(hdf5_filter)->default_value("1"))
     ("cachefile", "The cache file for the cylindrical basis",
      cxxopts::value<string>(cachefile)->default_value(".eof.cache.file"))
     ("ctype", "DiskHalo radial coordinate scaling type (one of: Linear, Log,Rat)",
@@ -613,9 +627,15 @@ main(int ac, char **av)
      cxxopts::value<std::string>(runtag))
     ("threads", "Number of threads to run",
      cxxopts::value<int>(nthrds)->default_value("1"))
+    ("H5compress", "HDF5 compression level (0-9)",
+     cxxopts::value<int>(H5compress)->default_value("5"))
+    ("H5shuffle", "HDF5 shuffle filter (true/false)",
+     cxxopts::value<bool>(H5shuffle)->default_value("false"))
     ("allow", "Allow multimass algorithm to generature negative masses for testing")
     ("nomono", "Allow non-monotonic mass interpolation")
     ("diskmodel", "Table describing the model for the disk plane")
+    ("ortho",  "Check the orthogonality of the basis functions")
+    ("spline", "Use spline interpolation for the spherical model table")
     ("pyname", "Name of module with the user-specified target disk density",
      cxxopts::value<std::string>(pyname))
     ;
@@ -670,6 +690,9 @@ main(int ac, char **av)
       return 0;
     }
   }
+  if (vm.count("hdf5"))  hdf5_output = true;
+  if (vm.count("ascii")) hdf5_output = false;
+  hdf5_double = vm.count("double") > 0;
 
   if (vm.count("spline")) {
     SphericalModelTable::linear = 0;
@@ -908,6 +931,8 @@ main(int ac, char **av)
   EmpCylSL::CMAPZ       = CMAPZ;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
+  EmpCylSL::H5compress  = H5compress;
+  EmpCylSL::H5shuffle   = H5shuffle;
 
                                 // Create expansion only if needed . . .
   std::shared_ptr<EmpCylSL> expandd;
@@ -918,19 +943,19 @@ main(int ac, char **av)
     expandd = std::make_shared<EmpCylSL>(NMAXFID, LMAXFID, MMAX, NMAXD, ASCALE, HSCALE, NODD, cachefile);
 
 #ifdef DEBUG
-   std::cout << "Process "   << myid << ": "
-	     << " rmin="     << EmpCylSL::RMIN
-	     << " rmax="     << EmpCylSL::RMAX
-	     << " a="        << ASCALE
-	     << " h="        << HSCALE
-	     << " nmaxfid="  << NMAXFID
-	     << " lmaxfid="  << LMAXFID
-	     << " mmax="     << MMAX
-	     << " nmax="     << NMAXD
-	     << " nodd="     << NODD
-	     << std::endl  << std::flush;
+    std::cout << "Process "   << myid << ": "
+	      << " rmin="     << EmpCylSL::RMIN
+	      << " rmax="     << EmpCylSL::RMAX
+	      << " a="        << ASCALE
+	      << " h="        << HSCALE
+	      << " nmaxfid="  << NMAXFID
+	      << " lmaxfid="  << LMAXFID
+	      << " mmax="     << MMAX
+	      << " nmax="     << NMAXD
+	      << " nodd="     << NODD
+	      << std::endl  << std::flush;
 #endif
-
+    
     // Try to read existing cache to get EOF
     //
     if (not ignore) {
@@ -947,7 +972,7 @@ main(int ac, char **av)
 	return 0;
       }
     }
-
+    
     // Use these user models to deproject for the EOF spherical basis
     //
     if (vm.count("deproject")) {
@@ -955,7 +980,7 @@ main(int ac, char **av)
       // height relative to the length
       //
       double H = scale_height/scale_length;
-
+      
       // The model instance (you can add others in DiskModels.H).
       // It's MN or Exponential if not MN.
       //
@@ -983,6 +1008,67 @@ main(int ac, char **av)
     if (expcond and not save_eof) {
       expandd->generate_eof(RNUM, PNUM, TNUM, dcond);
       save_eof = true;
+
+      if (myid==0) {
+
+	// Orthogonalith check for the cylindrical basis functions
+	//
+	if (vm.count("ortho")) {
+	  auto oc = expandd->orthoCheck();
+	  for (int M=0; M<oc.size(); ++M) {
+	    std::cout << std::string(72, '-') << std::endl
+		      << "M=" << M << std::endl
+		      << std::string(72, '-') << std::endl
+		      << oc[M] << std::endl;
+	  }
+	}
+	
+	// Open the cache file for writing the Python metadata
+	//
+	try {
+	  HighFive::File file(cachefile, HighFive::File::ReadWrite);
+
+	  // mtype is already cached as "model" attribute in the HDF5
+	  // cache file, so we do not need to write it here.  We just
+	  // need to write the DiskType and Python metadata (if
+	  // applicable).
+	  //
+	  file.createAttribute("DiskType", dtype);
+
+	  std::cout << "---- Cylindrical: writing DiskType <" << dtype
+		    << "> to cache file <" << cachefile << ">" << std::endl;
+	  
+	  // Write the md5sum for the Python module
+	  if (DTYPE == DiskType::python) {
+	    try {
+	      std::vector<std::string> pyinfo =
+		{pyname, QuickDigest5::fileToHash(pyname + ".py")};
+
+	      file.createAttribute("pythonDiskType", pyinfo);
+
+	      std::cout << "---- Cylindrical: writing pythonDiskType <" << pyname + ".py"
+			<< "> to cache file <" << cachefile << ">" << std::endl;
+	  
+
+	    } catch (const std::runtime_error& e) {
+	      if (myid==0) {
+		std::cerr << "BiorthBasis::Cylindrical error: "
+			  << e.what()
+			  << ", can not write the pyname and md5 hash to HDF5"
+			  << std::endl;
+	      }
+	    }
+	  }
+	} catch (const HighFive::Exception& err) {
+	  if (myid==0) {
+	    std::cerr << err.what() << std::endl;
+	    std::cerr << "Error writing metadata to cache file <" << cachefile
+		      << std::endl;
+	  }
+	}
+	// Errors will prevent metadata from being written to the cache
+      }
+      // Only the root process should be updating the cache
     }
 
     // Basis orthgonality check
@@ -1067,7 +1153,7 @@ main(int ac, char **av)
                                 // before realizing a large phase space)
   std::ofstream out_halo, out_disk;
   if (myid==0) {
-    if (not evolved and n_particlesH) {
+    if (!hdf5_output && not evolved && n_particlesH) {
       out_halo.open(hbods);
       if (!out_halo) {
 	cout << "Could not open <" << hbods << "> for output\n";
@@ -1076,7 +1162,7 @@ main(int ac, char **av)
       }
     }
 
-    if (ndisk) {
+    if (!hdf5_output && ndisk) {
       out_disk.open(dbods);
       if (!out_disk) {
 	std::cout << "Could not open <" << dbods << "> for output" << std::endl;
@@ -1477,13 +1563,19 @@ main(int ac, char **av)
 
   if (not evolved) {
     if (myid==0) std::cout << "Writing phase space file for halo . . . " << std::flush;
-    diskhalo->write_file(out_halo, hparticles);
+    if (hdf5_output)
+      EXP::ParticleHDF5::gather_and_write(hbods + ".h5", EXP::ParticleHDF5::records(hparticles), 0, 0, hdf5_filter, hdf5_double);
+    else
+      diskhalo->write_file(out_halo, hparticles);
     if (myid==0) std::cout << "done" << std::endl;
     out_halo.close();
   }
 
   if (myid==0) std::cout << "Writing phase space file for disk . . . " << std::flush;
-  diskhalo->write_file(out_disk, dparticles);
+  if (hdf5_output)
+    EXP::ParticleHDF5::gather_and_write(dbods + ".h5", EXP::ParticleHDF5::records(dparticles), 0, 0, hdf5_filter, hdf5_double);
+  else
+    diskhalo->write_file(out_disk, dparticles);
   if (myid==0) std::cout << "done" << std::endl;
   out_disk.close();
                                 // Diagnostic . . .
@@ -1693,9 +1785,11 @@ main(int ac, char **av)
     //
     // Prepare output stream
     //
-    ofstream outps("gas.bods");
-    if (!outps) {
-      cerr << "Couldn't open <" << "gas.bods" << "> for output\n";
+    ofstream outps;
+    std::vector<std::array<double, 7>> gas_particles;
+    if (!hdf5_output) outps.open(gbods);
+    if (!hdf5_output && !outps) {
+      cerr << "Couldn't open <" << gbods << "> for output\n";
       exit (-1);
     }
 
@@ -1726,8 +1820,8 @@ main(int ac, char **av)
     gmass = gmass0;
     fr = fz = potr = 0.0;
 
-    outps << setw(8) << ngas
-	  << setw(6) << 0 << setw(6) << ngparam << endl;
+    if (!hdf5_output)
+      outps << setw(8) << ngas << setw(6) << 0 << setw(6) << ngparam << endl;
 
     for (int n=0; n<ngas; n++) {
 
@@ -1802,15 +1896,14 @@ main(int ac, char **av)
       gmass = gmass0*exp(-R*(1.0/Scale_Length - 1.0/gscal_length)) *
 	mmax*gscal_length*gscal_length/(mfac*Scale_Length*Scale_Length);
 
-      outps << setw(18) << gmass
-	    << setw(18) << R*cos(phi)
-	    << setw(18) << R*sin(phi)
-	    << setw(18) << z
-	    << setw(18) << u
-	    << setw(18) << v
-	    << setw(18) << w;
-      for (int k=0; k<ngparam; k++) outps << setw(18) << 0.0;
-      outps << endl;
+      if (hdf5_output) {
+	gas_particles.push_back({gmass, R*cos(phi), R*sin(phi), z, u, v, w});
+      } else {
+	outps << setw(18) << gmass << setw(18) << R*cos(phi) << setw(18) << R*sin(phi)
+	      << setw(18) << z << setw(18) << u << setw(18) << v << setw(18) << w;
+	for (int k=0; k<ngparam; k++) outps << setw(18) << 0.0;
+	outps << endl;
+      }
 
       if (expandd)
 	expandd->accumulated_eval(R, z, phi, p0, p, fr, fz, fp);
@@ -1827,6 +1920,13 @@ main(int ac, char **av)
     }
 
     std::cout << endl << "Done!" << std::endl;
+
+    if (hdf5_output) {
+      if (hdf5_double)
+	EXP::ParticleHDF5::write<double>(gbods + ".h5", gas_particles, 0, ngparam, hdf5_filter);
+      else
+	EXP::ParticleHDF5::write<float>(gbods + ".h5", gas_particles, 0, ngparam, hdf5_filter);
+    }
 
     std::cout << "****************************" << std::endl
 	      << "  Gas disk"                   << std::endl
