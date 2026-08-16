@@ -448,10 +448,12 @@ public:
   //! No extrapolating beyond grid (default: false)
   static bool enforce_limits;
 
-  //! H5compression level (default: 5)
+  //! H5compression level (default: 5; good compromise between speed
+  //! and compression factor)
   static int H5compress;
 
-  //! H5shuffle (default: true)
+  //! H5shuffle (default: false; tests suggests that shuffling makes
+  //! cache compression worse)
   static bool H5shuffle;
 
   /**

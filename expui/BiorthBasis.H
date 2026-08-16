@@ -985,6 +985,9 @@ namespace BasisClasses
     double rcylmin, rcylmax, acyl, hcyl, bias;
     bool expcond, logarithmic, density, EVEN_M, sech2 = true;
     
+    int  H5compress = 0;
+    bool H5shuffle  = false;
+
     std::vector<Eigen::MatrixXd> potd, dpot, dpt2, dend;
     std::vector<Eigen::MatrixXd> legs, dlegs, d2legs;
     

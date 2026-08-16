@@ -1279,7 +1279,9 @@ namespace BasisClasses
     "pyproj",
     "nint",
     "totalCovar",
-    "fullCovar"
+    "fullCovar",
+    "H5compress",
+    "H5shuffle"
   };
 
   Cylindrical::Cylindrical(const YAML::Node& CONF) :
@@ -1529,9 +1531,12 @@ namespace BasisClasses
       if (conf["vflag"     ])       vflag = conf["vflag"     ].as<int>();
       if (conf["pyname"    ])      pyname = conf["pyname"    ].as<std::string>();
       if (conf["pyproj"    ])      pyproj = conf["pyproj"    ].as<std::string>();
-      if (conf["pcavar"]    )      pcavar = conf["pcavar"    ].as<bool>();
-      if (conf["subsamp"]   )      sampT  = conf["subsamp"   ].as<int>();
+      if (conf["pcavar"    ])      pcavar = conf["pcavar"    ].as<bool>();
+      if (conf["subsamp"   ])      sampT  = conf["subsamp"   ].as<int>();
       if (conf["samplesz"  ])      sampT  = conf["samplesz"  ].as<int>();
+
+      if (conf["H5compress"])  H5compress = conf["H5compress"].as<int>();
+      if (conf["H5shuffle" ])  H5shuffle  = conf["H5shuffle" ].as<bool>();
 
       // Sanity
       sampT = std::max(1, sampT);
@@ -1604,6 +1609,8 @@ namespace BasisClasses
     EmpCylSL::CMAPZ       = cmapZ;
     EmpCylSL::logarithmic = logarithmic;
     EmpCylSL::VFLAG       = vflag;
+    EmpCylSL::H5compress  = H5compress;
+    EmpCylSL::H5shuffle   = H5shuffle;
 
     // Convert dmodel string to lower case (deprojection model for EOF
     // basis construction)
