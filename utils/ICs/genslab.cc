@@ -272,7 +272,7 @@ main(int argc, char **argv)
       // necessary, but we can use OpenMP to parallelize the particle
       // generation loop.  The reduction clause is used to accumulate
       // KE and VC across threads.
-#pragma omp parallel for schedule(dynamic, 256) reduction(+:KE, VC) num_threads(omp_get_max_threads())
+      // Generate serially so the seeded RNG state is not shared across threads.
       for (int n=0; n<Num_particles; n++) {
 
 	data.m[n] = mass;
@@ -327,7 +327,7 @@ main(int argc, char **argv)
     Eigen::MatrixXd posvel(Num_particles, 6);
 
     // Generate particles
-#pragma omp parallel for schedule(dynamic, 256) reduction(+:KE, VC) num_threads(omp_get_max_threads())
+    // Generate serially so the seeded RNG state is not shared across threads.
     for (int n=0; n<Num_particles; n++) {
       posvel.row(n) <<
 	Lx*Unit(gen), Ly*Unit(gen), odd2(Unit(gen)*M.back(), M, Z),
