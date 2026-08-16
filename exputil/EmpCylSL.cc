@@ -7489,15 +7489,15 @@ void EmpCylSL::WriteH5Cache()
     auto dcpl = HighFive::DataSetCreateProps{};
 
     // Define dimensions
-    std::vector<size_t> dims
-      {static_cast<size_t>(NUMX+1), static_cast<size_t>(NUMY+1)};
+    std::vector<size_t> dims {static_cast<size_t>(NUMX+1),
+			      static_cast<size_t>(NUMY+1)};
     
     // Dataspace size definition
     HighFive::DataSpace ds(dims);
 
     // Define chunk size (e.g., matching matrix size or split into blocks)
-    std::vector<size_t> chunk_dims =
-      {static_cast<size_t>(NUMX+1), static_cast<size_t>(NUMY+1)};
+    std::vector<hsize_t> chunk_dims {static_cast<hsize_t>(NUMX+1),
+				     static_cast<hsize_t>(NUMY+1)};
 
     if (H5compress>0) {
       dcpl.add(HighFive::Chunking(chunk_dims));
