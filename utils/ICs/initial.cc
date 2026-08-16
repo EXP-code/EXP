@@ -634,7 +634,7 @@ main(int ac, char **av)
     ("nomono", "Allow non-monotonic mass interpolation")
     ("diskmodel", "Table describing the model for the disk plane")
     ("ortho",  "Check the orthogonality of the basis functions")
-    ("spline", "Use spline interpolation for the spherical model table");
+    ("spline", "Use spline interpolation for the spherical model table")
     ("pyname", "Name of module with the user-specified target disk density",
      cxxopts::value<std::string>(pyname))
     ;
