@@ -28,7 +28,7 @@ Global:
 Components:
   - name       : halo
     parameters : {nlevel: 1, indexing: true}
-    bodyfile   : new.bods
+    bodyfile   : new.bods.h5
     force :
       id : sphereSL
       parameters :

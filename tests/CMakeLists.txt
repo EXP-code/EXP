@@ -118,14 +118,14 @@ if(ENABLE_NBODY)
     # perhaps there is a better way?
     add_test(NAME removeTempFiles
       COMMAND ${CMAKE_COMMAND} -E remove
-      config.run0.yml current.processor.rates.run0 new.bods
+      config.run0.yml current.processor.rates.run0 new.bods.h5
       OUTLOG.run0 run0.levels SLGridSph.cache.run0 test.grid
       outcoef.halo.run0 SLGridSph.cache.run0 coefcovar.halo.test_covar.h5
       WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Halo)
 
     # Remove the temporary files
     set_tests_properties(removeTempFiles PROPERTIES DEPENDS expNbodyCheck2TW
-      REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods;run0.levels;SLGridSph.cache.run0;test.grid;"
+      REQUIRED_FILES "config.run0.yml;current.processor.rates.run0;new.bods.h5;run0.levels;SLGridSph.cache.run0;test.grid;"
       )
 
     # Makes some cube ICs using utils/ICs/cubeics
@@ -152,13 +152,13 @@ if(ENABLE_NBODY)
     # A separate test to remove the generated files if they all exist
     add_test(NAME removeCubeFiles
       COMMAND ${CMAKE_COMMAND} -E remove
-      config.runS.yml current.processor.rates.runS cube.bods
+      config.runS.yml current.processor.rates.runS cube.bods.h5
       OUTLOG.runS runS.levels
       WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Cube)
 
     # Remove the temporary files
     set_tests_properties(removeCubeFiles PROPERTIES DEPENDS expCubeCheckPos
-      REQUIRED_FILES "config.runS.yml;current.processor.rates.runS;cube.bods;OUTLOG.runS;runS.levels;")
+      REQUIRED_FILES "config.runS.yml;current.processor.rates.runS;cube.bods.h5;OUTLOG.runS;runS.levels;")
 
     # These are basic sanity checks for writing and reading EXP HDF5 IC files
     if(Python3_Interpreter_FOUND AND EXP_H5PY_STATUS EQUAL 0 AND ENABLE_UTILS)

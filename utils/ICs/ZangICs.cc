@@ -37,7 +37,7 @@ main(int ac, char **av)
   unsigned     seed;		// Will be inialized by /dev/random if
 				// not set on the command line
   unsigned hdf5_filter = 1;	// HDF5 filter type (1 = GZIP, 2 = SZIP, 3 = LZF)
-  bool hdf5_output = false;	// Write HDF5 output instead of ASCII
+  bool hdf5_output = true;	// Write HDF5 output by default
   bool hdf5_double = false;	// Write HDF5 output in double precision
 
 
@@ -48,7 +48,8 @@ main(int ac, char **av)
     ("V,nozerovel", "Do not zero the mean velocity")
     ("P,nozeropos", "Do not zero the center of mass")
     ("d,debug",   "Print debug grid")
-    ("5,hdf5",    "Write HDF5 phase-space output instead of ASCII")
+    ("5,hdf5",    "Write HDF5 phase-space output (default)")
+    ("A,ascii",   "Write old-style ASCII output (default is HDF5)")
     ("8,double",  "Use float64 HDF5 output (default is float32)")
     ("Z,filter", "HDF5 filter ID (default: 1 = GZIP)",
      cxxopts::value<unsigned>(hdf5_filter)->default_value("1"))
@@ -96,7 +97,8 @@ main(int ac, char **av)
     return 1;
   }
 
-  hdf5_output = vm.count("hdf5") > 0;
+  if (vm.count("hdf5"))  hdf5_output = true;
+  if (vm.count("ascii")) hdf5_output = false;
   hdf5_double = vm.count("double") > 0;
 
   // Set from /dev/random if not specified

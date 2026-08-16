@@ -211,7 +211,7 @@ main(int ac, char **av)
   std::string  cachefile, config, gentype, dtype, dmodel, mtype, ctype;
   std::string  diskconf;
   unsigned hdf5_filter = 1;
-  bool hdf5_output = false, hdf5_double = false;
+  bool hdf5_output = true, hdf5_double = false;
 
   const std::string mesg("Generates a Monte Carlo realization of a halo with an\n embedded disk using Jeans' equations\n");
 
@@ -226,7 +226,8 @@ main(int ac, char **av)
      cxxopts::value<string>(hbods)->default_value("halo.bods"))
     ("dbods", "The output bodyfile for the stellar disc",
      cxxopts::value<string>(dbods)->default_value("disk.bods"))
-    ("5,hdf5", "Write HDF5 phase-space output instead of ASCII")
+    ("5,hdf5", "Write HDF5 phase-space output (default)")
+    ("A,ascii", "Write old-style ASCII output (default is HDF5)")
     ("8,double", "Use float64 HDF5 output (default is float32)")
     ("f,filter", "HDF5 filter ID (default: 1 = GZIP)",
      cxxopts::value<unsigned>(hdf5_filter)->default_value("1"))
@@ -436,7 +437,8 @@ main(int ac, char **av)
       return 0;
     }
   }
-  hdf5_output = vm.count("hdf5") > 0;
+  if (vm.count("hdf5"))  hdf5_output = true;
+  if (vm.count("ascii")) hdf5_output = false;
   hdf5_double = vm.count("double") > 0;
 
   if (vm.count("spline")) {

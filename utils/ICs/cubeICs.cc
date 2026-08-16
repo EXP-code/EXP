@@ -30,7 +30,7 @@ main(int ac, char **av)
   unsigned     seed;		// Will be inialized by /dev/random if
 				// not set on the command line
   unsigned     hdf5_filter = 1;
-  bool         hdf5_output = false, hdf5_double = false;
+  bool         hdf5_output = true, hdf5_double = false;
 
   // Default values for the velocity dispersion and bulk velocity
   //
@@ -58,7 +58,8 @@ main(int ac, char **av)
      cxxopts::value<unsigned>(seed))
     ("o,file",    "Output body file",
      cxxopts::value<std::string>(bodyfile)->default_value("cube.bods"))
-    ("5,hdf5", "Write HDF5 phase-space output instead of ASCII")
+    ("5,hdf5", "Write HDF5 phase-space output (default)")
+    ("A,ascii", "Write old-style ASCII output (default is HDF5)")
     ("8,double", "Use float64 HDF5 output (default is float32)")
     ("f,filter", "HDF5 filter ID (default: 1 = GZIP)",
      cxxopts::value<unsigned>(hdf5_filter)->default_value("1"))
@@ -83,7 +84,8 @@ main(int ac, char **av)
     std::cout << options.help() << std::endl << std::endl;
     return 1;
   }
-  hdf5_output = vm.count("hdf5") > 0;
+  if (vm.count("hdf5"))  hdf5_output = true;
+  if (vm.count("ascii")) hdf5_output = false;
   hdf5_double = vm.count("double") > 0;
 
   // Set from /dev/random if not specified

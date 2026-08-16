@@ -77,7 +77,7 @@ main(int argc, char **argv)
   double Emin0, Emax0, Kmin0, Kmax0, RBAR, MBAR, BRATIO, CRATIO, SMOOTH;
   bool LOGR, ELIMIT, VERBOSE, GRIDPOT, MODELS, EBAR, zeropos, zerovel;
   bool VTEST;
-  bool hdf5_output = false, hdf5_double = false;
+  bool hdf5_output = true, hdf5_double = false;
   unsigned hdf5_filter = 1;
   std::string INFILE, MMFILE, OUTFILE, OUTPS, config;
 
@@ -111,7 +111,8 @@ main(int argc, char **argv)
      cxxopts::value<string>(MMFILE))
     ("o,PSFILE", "Phase-space output file",
      cxxopts::value<string>(OUTPS)->default_value("new.bods"))
-    ("5,hdf5", "Write HDF5 phase-space output instead of ASCII")
+    ("5,hdf5", "Write HDF5 phase-space output (default)")
+    ("A,ascii", "Write old-style ASCII output (default is HDF5)")
     ("8,double", "Use float64 HDF5 output (default is float32)")
     ("f,filter", "HDF5 filter ID (default: 1 = GZIP)",
      cxxopts::value<unsigned>(hdf5_filter)->default_value("1"))
@@ -266,7 +267,8 @@ main(int argc, char **argv)
       return 0;
     }
   }
-  hdf5_output = vm.count("hdf5") > 0;
+  if (vm.count("hdf5"))  hdf5_output = true;
+  if (vm.count("ascii")) hdf5_output = false;
   hdf5_double = vm.count("double") > 0;
 
   if (vm.count("verbose")) VERBOSE = true;
