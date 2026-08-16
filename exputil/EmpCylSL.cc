@@ -68,6 +68,8 @@ double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
 double   EmpCylSL::PPOW            = 4.0;
 bool     EmpCylSL::NewCoefs        = true;
+int      EmpCylSL::H5compress      = 5;
+bool     EmpCylSL::H5shuffle       = false;
  
 
 EmpCylSL::EmpModel EmpCylSL::mtype = EmpCylSL::EmpModel::Exponential;
@@ -2403,6 +2405,22 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   Timer timer;
   if (VFLAG & 16) timer.start();
 
+  // Sanity check on quadrature parameters
+  //
+  numr = std::max<int>(1, numr);
+  nump = std::max<int>(1, nump);
+  numt = std::max<int>(1, numt);
+
+  if (myid==0 and numr < 10) {
+    std::cerr << "EmpCylSL: Warning, numr=" << numr 
+	      << " is very small for quadrature" << std::endl;
+  }
+
+  if (myid==0 and numt < 10) {
+    std::cerr << "EmpCylSL: Warning, numt=" << numt
+	      << " is very small for quadrature" << std::endl;
+  }
+
   // Create spherical orthogonal basis if necessary
   //
   if (not ortho) {
@@ -2667,7 +2685,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
   } // *** r quadrature loop
   
-  if (VFLAG & 8) {
+  if (VFLAG & 16) {
     auto t = timer.stop();
     if (myid==0) {
       std::cout << std::endl
@@ -2700,7 +2718,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   //
   make_eof();
 
-  if (VFLAG & 8) {
+  if (VFLAG & 16) {
     cout << "Process " << setw(4) << myid << ": completed basis in " 
 	 << timer.stop() << " seconds"
 	 << endl;
@@ -7463,6 +7481,30 @@ void EmpCylSL::WriteH5Cache()
     file.createAttribute<int>        ("eof_numt",  HighFive::DataSpace::From(eof_vars.numt)).write(eof_vars.numt);
 
 
+    // To write an Eigen::MatrixXd with compression in HighFive, we we
+    // create the dataset with explicit chunk sizes and a deflation
+    // (gzip) filter before writing, because shortcut functions do not
+    // pass compression parameters.
+
+    auto dcpl = HighFive::DataSetCreateProps{};
+
+    // Define dimensions
+    std::vector<hsize_t> dims
+      {static_cast<hsize_t>(NUMX+1), static_cast<hsize_t>(NUMY+1)};
+    
+    // Dataspace size definition
+    HighFive::DataSpace ds(dims);
+
+    // Define chunk size (e.g., matching matrix size or split into blocks)
+    std::vector<hsize_t> chunk_dims =
+      {static_cast<hsize_t>(NUMX+1), static_cast<hsize_t>(NUMY+1)};
+
+    if (H5compress>0) {
+      dcpl.add(HighFive::Chunking(chunk_dims));
+      if (H5shuffle) dcpl.add(HighFive::Shuffle());
+      dcpl.add(HighFive::Deflate(H5compress));
+    }
+
     // Cosine functions
 
     auto cosine = file.createGroup("Cosine");
@@ -7480,10 +7522,10 @@ void EmpCylSL::WriteH5Cache()
 	sout << n;
 	auto order = harmonic.createGroup(sout.str());
       
-	order.createDataSet("potC",    potC   [m][n]);
-	order.createDataSet("rforceC", rforceC[m][n]);
-	order.createDataSet("zforceC", zforceC[m][n]);
-	order.createDataSet("densC",   densC  [m][n]);
+	order.createDataSet<double>("potC",    ds, dcpl).write(potC   [m][n]);
+	order.createDataSet<double>("rforceC", ds, dcpl).write(rforceC[m][n]);
+	order.createDataSet<double>("zforceC", ds, dcpl).write(zforceC[m][n]);
+	order.createDataSet<double>("densC",   ds, dcpl).write(densC  [m][n]);
       }
     }
 
@@ -7504,10 +7546,10 @@ void EmpCylSL::WriteH5Cache()
 	sout << n;
 	auto order = harmonic.createGroup(sout.str());
       
-	order.createDataSet("potS",    potS   [m][n]);
-	order.createDataSet("rforceS", rforceS[m][n]);
-	order.createDataSet("zforceS", zforceS[m][n]);
-	order.createDataSet("densS",   densS  [m][n]);
+	order.createDataSet<double>("potS",    ds, dcpl).write(potS   [m][n]);
+	order.createDataSet<double>("rforceS", ds, dcpl).write(rforceS[m][n]);
+	order.createDataSet<double>("zforceS", ds, dcpl).write(zforceS[m][n]);
+	order.createDataSet<double>("densS",   ds, dcpl).write(densS  [m][n]);
       }
     }
 

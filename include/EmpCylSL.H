@@ -448,6 +448,12 @@ public:
   //! No extrapolating beyond grid (default: false)
   static bool enforce_limits;
 
+  //! H5compression level (default: 5)
+  static int H5compress;
+
+  //! H5shuffle (default: true)
+  static bool H5shuffle;
+
   /**
      @brief Density model type
      Available options:
