@@ -207,7 +207,7 @@ main(int argc, char **argv)
   double Dratio, Hratio, R, Hmax, DispX, DispZ, fJ, Lx, Ly;
   std::string outfile, config, modfile, modelType;
   unsigned filter_id = 1;
-  bool Mu, HDF5 = true;
+  bool Mu, HDF5 = true, paired = true;
 
   // Parse command line
   //
@@ -221,6 +221,8 @@ main(int argc, char **argv)
     ("h,help",     "Print this help message")
     ("5,hdf5",     "Write HDF5 output (default)")
     ("A,ascii",    "Write old-style ASCII output (default is HDF5)")
+    ("p,paired",   "Use paired sampling (default)")
+    ("P,no-paired","Do not use paired sampling")
     ("v,verbose",  "Verbose output")
     ("8,double",   "Use double precision for HDF5 output (default is float)")
     ("f,filter",   "HDF5 filter ID to use (default: 1 = GZIP)", cxxopts::value<unsigned>(filter_id)->default_value("1"))
@@ -284,6 +286,14 @@ main(int argc, char **argv)
   //
   if (vm.count("hdf5"))  HDF5 = true;
   if (vm.count("ascii")) HDF5 = false;
+
+  if (vm.count("paired"))    paired = true;
+  if (vm.count("no-paired")) paired = false;
+
+  if (paired and Num_particles % 2 != 0) {
+    std::cerr << "Error: Paired sampling requires an even number of particles, incrementing by 1." << std::endl;
+    Num_particles++;
+  }
 
   // Define model
   //
@@ -424,6 +434,20 @@ main(int argc, char **argv)
       
 	KE += data.w[n] * data.w[n];
 	VC += data.z[n] * model->get_dpot(data.z[n]);
+
+	if (paired) {
+	  n++;
+	  data.m[n] = mass;
+	  data.x[n] = Lx - data.x[n-1];
+	  data.y[n] = Ly - data.y[n-1];
+	  data.z[n] = -data.z[n-1];
+	  data.u[n] = -data.u[n-1];
+	  data.v[n] = -data.v[n-1];
+	  data.w[n] = -data.w[n-1];
+
+	  KE += data.w[n] * data.w[n];
+	  VC += data.z[n] * model->get_dpot(data.z[n]);
+	}
       }
 
       write_hdf5_data<T>(outfile, data, filter_id, vm.count("verbose") > 0);
