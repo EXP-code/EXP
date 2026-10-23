@@ -2,11 +2,12 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <memory>
 #include <cmath>
 
 #include "gaussQ.H"
 #include "interp.H"
-
+#include "Orbit1d.H"
 #include "Model1d.H"
 
 #include "RK4.H"
@@ -330,4 +331,234 @@ void Sech2Halo::reset()
   norm = d[0]/( sqrt(2.0*M_PI*dispz) );
   model_computed = true;
   dist_defined = true;
+}
+
+void Cosine::compute_model(void)
+{
+  double Emin = get_pot(0.0);
+  double Emax = get_pot(get_max_radius());
+
+  Etab.resize(numdf+1);
+  Ftab.resize(numdf+1);
+
+  const int numz = 10000;
+  std::vector<double> pot(numz+1), z(numz+1);
+  for (int i=0; i<=numz; i++) {
+    z[i]   = H * i/numz;
+    pot[i] = get_pot(z[i]);
+  }
+
+#ifdef DEBUG
+  {
+    std::ofstream out("cosine_pot.dat");
+    if (out) {
+      out << "#"
+	  << std::setw(15) << std::right << "Z"
+	  << std::setw(16) << std::right << "Potential"
+	  << std::endl;
+      for (int i=0; i<=numz; i++) {
+	out << std::setw(16) << std::right << z[i]
+	    << std::setw(16) << std::right << pot[i]
+	    << std::endl;
+      }
+    } else {
+      std::cerr << "Could not open cosine_pot.dat for writing" << std::endl;
+    }
+  }
+#endif
+  
+  Linear1d getZ(pot, z);
+
+  const int numL = 400;
+  double fac = rho0/(2.0*sqrt(2.0)*H);
+  LegeQuad lege(numL);
+
+  for (int i=0; i<=numdf; i++) {
+    Etab[i] = Emin + (Emax - Emin)*i/numdf;
+    Ftab[i] = 0.0;
+    double umax = sqrt(Emax - Etab[i]);
+    for (int j=0; j<numL; j++) {
+      double u = umax*lege.knot(j);
+      double E = u*u + Etab[i];
+      double z = getZ.eval(E);
+      Ftab[i] += 2.0 * fac * sin(M_PI*z/H) / get_dpot(z) * umax*lege.weight(j);
+    }
+  }
+
+  df_interp = Linear1d(Etab, Ftab);
+
+#ifdef DEBUG
+  // DEBUG: Output DF and interpolation to check
+  {
+    std::ofstream out("cosine_df.dat");
+    if (out) {
+      out << "#"
+	  << std::setw(15) << std::right << "E"
+	  << std::setw(16) << std::right << "F(E)"
+	  << std::setw(16) << std::right << "Interp(E)"
+	  << std::endl;
+      for (int i=0; i<=numdf; i++) {
+	out << std::setw(16) << std::right << Etab[i]
+	    << std::setw(16) << std::right << Ftab[i]
+	    << std::setw(16) << std::right << df_interp(Etab[i])
+	    << std::endl;
+      }
+    } else {
+      std::cerr << "Could not open cosine_df.dat for writing" << std::endl;
+    }
+  }
+
+  // Integrate DF and compare to density
+  {
+    const int numZ = 1000;
+    std::vector<double> Z(numZ+1), Rho(numZ+1, 0.0);
+    const int nint = 800;
+    LegeQuad lg(nint);
+
+    for (int i=0; i<=numZ; i++) {
+      Z[i] = get_max_radius() * i/numZ;
+      double P = get_pot(Z[i]);
+      double vmax = sqrt(2.0*(Emax - P)); 
+      for (int j=0; j<nint; j++) {
+	double v = vmax*lg.knot(j);
+	Rho[i] += df_interp(0.5*v*v + P) * 2.0*vmax*lg.weight(j);
+      }
+    }
+
+    double maxdif = 0.0, maxz = 0.0;
+    for (int i=0; i<=numZ; i++) {
+      double dif = fabs(Rho[i] - get_density(Z[i]));
+      if (dif > maxdif) {
+	maxdif = dif;
+	maxz   = Z[i];
+      }
+    }
+    std::cout << "Max density difference from DF integration: " << maxdif
+	      << " at z=" << maxz << std::endl;
+  
+    std::ofstream out("cosine_df_check_density.dat");
+    if (out) {
+      out << "#"
+	  << std::setw(15) << std::right << "Z"
+	  << std::setw(16) << std::right << "Density"
+	  << std::setw(16) << std::right << "DF Density"
+	  << std::setw(16) << std::right << "Difference"
+	  << std::endl;
+      for (int i=0; i<=numZ; i++) {
+	out << std::setw(16) << std::right << Z[i]
+	    << std::setw(16) << std::right << get_density(Z[i])
+	    << std::setw(16) << std::right << Rho[i]
+	    << std::setw(16) << std::right << Rho[i] - get_density(Z[i])
+	    << std::endl;
+      }
+
+    } else {
+      std::cerr << "Could not open cosine_df_check.dat for writing" << std::endl;
+    }
+
+    out.close();
+    out.open("cosine_df_check_harmonic.dat");
+    if (out) {
+      out << "#"
+	  << std::setw(15) << std::right << "Z"
+	  << std::setw(16) << std::right << "E"
+	  << std::setw(16) << std::right << "DF"
+	  << std::setw(16) << std::right << "Harmonic DF"
+	  << std::setw(16) << std::right << "Difference"
+	  << std::endl;
+
+      double Omega = sqrt(4.0*M_PI*rho0);
+      double Sigma2 = 8.0*rho0*H*H/M_PI;
+
+      for (int i=0; i<=numdf; i++) {
+	double Z   = getZ(Etab[i]);
+	double E   = get_pot(Z) + Phi0;
+	double DF  = df_interp(Etab[i]);
+	double DFh = rho0*Omega/(2.0*M_PI*Sigma2)*exp(-E/Sigma2);
+
+	out << std::setw(16) << std::right << getZ(Z)
+	    << std::setw(16) << std::right << Etab[i]
+	    << std::setw(16) << std::right << DF
+	    << std::setw(16) << std::right << DFh
+	    << std::setw(16) << std::right << DF - DFh
+	    << std::endl;
+      }
+    } else {
+      std::cerr << "Could not open cosine_df_check_harmonic.dat for writing" << std::endl;
+    }
+  }
+#endif
+  // END DEBUG
+}
+
+void OneDModel::compute_dfgrid(void)
+{
+  if (not dist_defined)
+    throw std::runtime_error("Model must have a DF defined in compute_dfgrid()");
+
+  double zmax = get_max_radius();
+  double Emin = get_pot(0.0), Emax = get_pot(zmax);
+  double E, dE = (Emax - Emin)/double(Nfgrid+1);
+
+  Egrid.resize(Nfgrid+1);
+  Mgrid.resize(Nfgrid+1);
+
+  for (int i=0; i<=Nfgrid; i++) Egrid[i] = Emin + dE*i;
+  Mgrid[0] = 0.0;
+
+  const int Nl = 32;
+  LegeQuad wkE(Nl);
+
+  auto safeSelf = std::static_pointer_cast<OneDModel>(shared_from_this());
+  OneDOrbit orb(safeSelf);
+
+  for (int i=1; i<=Nfgrid; i++) {
+    Mgrid[i] = Mgrid[i-1];
+    for (int j=1; j<Nl; j++) {
+      E = Egrid[i-1] + dE*wkE.knot(j);
+      orb.new_orbit(E);
+      Mgrid[i] += dE*wkE.weight(j) * distf(E) / orb.get_freq();
+    }
+  }
+    
+  // Normalize the grid
+  //
+  double Mtot = Mgrid[Nfgrid];
+
+#ifdef DEBUG
+    std::cout << "Total mass from dfgrid: Mtot=" << Mtot*2.0*M_PI << std::endl;
+#endif
+
+  if (Mtot <= 0.0) {
+    std::cerr << "Warning: total mass is non-positive in compute_dfgrid: Mtot=" << Mtot << std::endl;
+    Mtot = 1.0;
+  }
+
+  for (int i=0; i<=Nfgrid; i++) Mgrid[i] /= Mtot;
+
+  // Create the interpolation object for getE(M)
+  //
+  dfgrid = Linear1d(Mgrid, Egrid);
+
+#ifdef DEBUG
+  {
+    std::ofstream out("dfgrid.dat");
+    if (out) {
+      out << "#"
+	  << std::setw(15) << std::right << "M/Mtot"
+	  << std::setw(16) << std::right << "Energy"
+	  << std::setw(16) << std::right << "Freq"
+	  << std::endl;
+      for (int i=0; i<=Nfgrid; i++) {
+	orb.new_orbit(Egrid[i]);
+	out << std::setw(16) << std::right << Mgrid[i]
+	    << std::setw(16) << std::right << Egrid[i]
+	    << std::setw(16) << std::right << orb.get_freq()
+	    << std::endl;
+      }
+    } else {
+      std::cerr << "Could not open dfgrid.dat for writing" << std::endl;
+    }
+  }
+#endif
 }

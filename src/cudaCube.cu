@@ -1,5 +1,3 @@
-// -*- C++ -*-
-
 #include <thrust/tuple.h>
 
 #include <cudaReduce.cuH>
@@ -1462,4 +1460,5 @@ void Cube::destroy_cuda()
   // Nothing
 }
 
+// -*- C++ -*-
 

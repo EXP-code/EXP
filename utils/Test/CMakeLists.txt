@@ -1,6 +1,6 @@
 
 set(bin_PROGRAMS testBarrier expyaml orthoTest testDeproj
-		 testEmpDeproj testED testmd5)
+		 testEmpDeproj testED testmd5 vtest)
 
 if(NOT DISABLE_PYTHON)
   list(APPEND bin_PROGRAMS testEmp)
@@ -46,6 +46,7 @@ if(NOT DISABLE_PYTHON)
 endif()
 add_executable(testmd5        testmd5.cc)
 add_executable(testED         testED.cc EmpDeproj.cc)
+add_executable(vtest          version_test.cc)
 
 foreach(program ${bin_PROGRAMS})
   target_link_libraries(${program} ${common_LINKLIB})

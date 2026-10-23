@@ -1206,8 +1206,14 @@ namespace BasisClasses
     //! Number of integration knots for orthogonal check
     int knots;
 
+    //! Even/odd exclusion flags
+    bool no_even = false, no_odd = false;
+
     //! SLGridSlab mesh size
     int ngrid = 1000;
+
+    //! Coordinate map type for SLGridSlab
+    std::string cmap = "linear";
 
     //! Target model type for SLGridSlab
     std::string type = "isothermal";
@@ -1225,6 +1231,9 @@ namespace BasisClasses
 
     coefType expcoef;
     
+    //! Slab size
+    double Lx=1.0, Ly=1.0, normXY=1.0;
+
     //! Total mass on grid
     double totalMass;
 
@@ -1269,6 +1278,20 @@ namespace BasisClasses
     //! coordinate system
     void computeAccel(double x, double y, double z,
 		      Eigen::Ref<Eigen::Vector3d> vstore);
+
+    //@{
+    //! Covariance structures.  First index is T, second is the
+    //! flattened 3-d k vector
+    std::vector<Eigen::VectorXcd> meanV;
+    std::vector<Eigen::MatrixXcd> covrV;
+    std::vector<Eigen::VectorXcd> dvarV;
+
+    void init_covariance();
+    void zero_covariance();
+    void writeCovarH5Params(HighFive::File& file);
+    int  sampT = 100;
+    bool diagcov = true;
+    //@}
 
   public:
     
@@ -1325,6 +1348,64 @@ namespace BasisClasses
       if (worst > __EXP__::orthoTol) return false;
       return true;
     }
+
+    //! Write coefficient covariance data to an HDF5 file
+    virtual void writeCoefCovariance(const std::string& compname, const std::string& runtag, double time=0.0)
+    {
+      if (covarStore) {
+	SubsampleCovariance::CovarData elem;
+	std::get<0>(elem) = sampleCounts;
+	std::get<1>(elem) = sampleMasses;
+
+	int sampT = meanV.size();
+	int Nsize = meanV[0].size();
+
+	std::get<2>(elem) = SubsampleCovariance::CoefType(sampT, 1, Nsize);
+	std::get<3>(elem) = SubsampleCovariance::CovrType(sampT, 1, Nsize, Nsize);
+
+	for (int T=0; T<sampT; ++T) {
+	  for (int n1=0; n1<Nsize; n1++) {
+	    std::get<2>(elem)(T, 0, n1) = meanV[T](n1);
+	    for (int n2=0; n2<Nsize; n2++) {
+	      std::complex<double> cov = 0.0;
+	      if (diagcov) {
+		if (n1 == n2) cov = dvarV[T](n1);
+	      } else if (covar && T < covrV.size()) {
+		cov = covrV[T](n1, n2);
+	      }
+	      std::get<3>(elem)(T, 0, n1, n2) = cov;
+	    }
+	  }
+	}
+	covarStore->writeCoefCovariance(compname, runtag, elem, time);
+      } else {
+	throw std::runtime_error("Slab::writeCoefCovariance: covariance storage not initialized");
+      }
+    }
+
+
+    //! Enable coefficient covariance computation
+    virtual void enableCoefCovariance(bool pcavar_in, int sampT_in=100,
+				      bool ftype=false,
+				      bool covr_tot=false,
+				      bool covar_in=false)
+    {
+      pcavar = pcavar_in;
+      sampT  = sampT_in;
+      scovr  = covr_tot;
+      covar  = covar_in;
+      if (pcavar) {
+	init_covariance();
+	covarStore = std::make_shared<SubsampleCovariance>
+	  ([this](HighFive::File& file){this->writeCovarH5Params(file);}, BasisID, ftype, scovr, covar);
+      }
+    }
+
+    //! Return wave-number indices from flattened index
+    std::tuple<int, int, int> index3D(unsigned k);
+
+    //! Get flattened index from wave-number indicies
+    unsigned index1D(int kx, int ky, int kz);
 
   };
   

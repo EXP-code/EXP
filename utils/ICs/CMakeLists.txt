@@ -87,7 +87,7 @@ add_executable(cubeics cubeICs.cc)
 
 add_executable(zangics ZangICs.cc)
 
-add_executable(slabics genslab.cc massmodel1d.cc)
+add_executable(slabics genslab.cc)
 
 add_executable(addring addring.cc)
 

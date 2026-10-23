@@ -28,8 +28,6 @@
 
 */
 
-#define VERSION 0.1
-
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -366,8 +364,8 @@ decode_switches (int argc, char **argv)
 			   "R:"	/* runit   */
 			   "N:"	/* number  */
 			   "S:"	/* seed    */
-			   "h"	/* help    */
-			   "V",	/* version */
+			   "V"  /* version */
+			   "h", /* help    */
 			   long_options, (int *) 0)) != EOF)
     {
       switch (c)
@@ -399,12 +397,12 @@ decode_switches (int argc, char **argv)
 	case 'S':		/* --seed */
 	  S = atoi(optarg);
 	  break;
-	case 'V':
-	  cout << program_name << " " << VERSION << endl;
-	  exit (0);
-
 	case 'h':
 	  usage (0);
+
+	case 'V':
+	  cout << program_name << " version " << VERSION << endl;
+	  exit (0);
 
 	default:
 	  usage (-1);

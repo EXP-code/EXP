@@ -28,7 +28,7 @@ set(common_INCLUDE
   ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 add_executable(slcheck slcheck.cc)
-add_executable(slabchk slabchk.cc Model1d.cc)
+add_executable(slabchk slabchk.cc Model1d.cc Orbit1d.cc)
 add_executable(slshift slshift.cc SLSphere.cc)
 add_executable(orthochk orthochk.cc)
 add_executable(diskpot diskpot.cc CylindricalDisk.cc SLSphere.cc)

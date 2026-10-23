@@ -5,6 +5,8 @@
 #include <vector>
 #include <deque>
 
+double odd2(double x, const Eigen::VectorXd& xtab, const Eigen::VectorXd& ftab, int even=0);
+
 void Spline(const Eigen::VectorXd &x, const Eigen::VectorXd &y, double yp1, double ypn, Eigen::VectorXd &y2);
 
 void Splint1(const Eigen::VectorXd &xa, const Eigen::VectorXd &ya, const Eigen::VectorXd &y2a, double x, 

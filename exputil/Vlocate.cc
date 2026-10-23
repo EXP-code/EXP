@@ -92,6 +92,25 @@ int Vlocate_with_guard(double value, const V& vec)
 }
 
 
+int Vlocate(double x, const Eigen::VectorXd& xx)
+{
+  int min = 0;
+  int max = xx.size() - 1;
+  int jl = min-1;
+  int ju = max+1;
+  int ascnd = xx[max] > xx[min];
+
+  while (ju-jl > 1) {
+    int jm = (ju+jl) >> 1;
+    if ((x > xx[jm]) == ascnd)
+      jl = jm;
+    else
+      ju = jm;
+  }
+  return jl;
+}
+
+
 template int Vlocate(double x, const std::vector<double>& xtab);
 
 template int Vlocate(double x, const std::deque<double>& xtab);

@@ -3826,24 +3826,41 @@ namespace BasisClasses
     "nmaxz",
     "nminx",
     "nminy",
+    "Lx",
+    "Ly",
     "hslab",
     "zmax",
     "ngrid",
+    "cmap",
     "type",
     "knots",
     "verbose",
-    "check",
-    "method"
+    "method",
+    "no_even",
+    "no_odd",
+    "self_consistent",
+    "pcavar",
+    "samplesz",
+    "orthochk",
+    "cachename"
   };
 
   Slab::Slab(const YAML::Node& CONF) : BiorthBasis(CONF, "slab")
   {
     initialize();
+
+    // Initialize covariance
+    //
+    if (pcavar) enableCoefCovariance(true, sampT);
   }
 
   Slab::Slab(const std::string& confstr) : BiorthBasis(confstr, "slab")
   {
     initialize();
+
+    // Initialize covariance
+    //
+    if (pcavar) enableCoefCovariance(true, sampT);
   }
 
   void Slab::initialize()
@@ -3886,14 +3903,26 @@ namespace BasisClasses
       if (conf["nmaxy"])      nmaxy = conf["nmaxy"].as<int>();
       if (conf["nmaxz"])      nmaxz = conf["nmaxz"].as<int>();
       
+      if (conf["Lx"   ])      Lx    = conf["Lx"   ].as<double>();
+      if (conf["Ly"   ])      Ly    = conf["Ly"   ].as<double>();
+
       if (conf["hslab"])      hslab = conf["hslab"].as<double>();
       if (conf["zmax" ])      zmax  = conf["zmax" ].as<double>();
       if (conf["ngrid"])      ngrid = conf["ngrid"].as<int>();
+      if (conf["cmap" ])      cmap  = conf["cmap" ].as<std::string>();
       if (conf["type" ])      type  = conf["type" ].as<std::string>();
+
+      if (conf["no_even"])  no_even = conf["no_even"].as<bool>();
+      if (conf["no_odd"] )   no_odd = conf["no_odd" ].as<bool>();
 
       if (conf["knots"])      knots = conf["knots"].as<int>();
 
-      if (conf["check"])      check = conf["check"].as<bool>();
+      if (conf["orthochk"])   check = conf["orthochk"].as<bool>();
+
+      if (conf["pcavar"])    pcavar = conf["pcavar"].as<bool>();
+      if (conf["samplesz"])   sampT = conf["samplesz"].as<int>();
+
+      if (conf["cachename"])  cachename = conf["cachename"].as<std::string>();
     } 
     catch (YAML::Exception & error) {
       if (myid==0) std::cout << "Error parsing parameter stanza for <"
@@ -3906,6 +3935,27 @@ namespace BasisClasses
       throw std::runtime_error("Slab: error parsing YAML");
     }
     
+    // Check for non-null cache file name.  This must be specified
+    // to prevent recomputation and unexpected behavior.
+    //
+    if (cachename.size() == 0) {
+      throw std::runtime_error
+	("SlabSL requires a specified cachename in your YAML config\n"
+	 "for consistency with previous invocations and existing coefficient\n"
+	 "sets.  Please add explicitly add 'cachename: name' to your config\n"
+	 "with new 'name' for creating a basis or an existing 'name' for\n"
+	 "reading a previously generated basis cache\n");
+    }
+
+    // Slab size sanity check
+    //
+    if (Lx <= 0.0 or Ly <= 0.0) {
+      std::ostringstream msg;
+      msg << "SlabSL: Lx=" << Lx << " and Ly=" << Ly
+	  << " must be greater than zero!";
+      throw std::runtime_error(msg.str());
+    }
+
     // Finally, make the basis
     //
     SLGridSlab::mpi  = 0;
@@ -3915,7 +3965,8 @@ namespace BasisClasses
   
     int nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
 
-    ortho = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, type);
+    ortho = std::make_shared<SLGridSlab>(nnmax, nmaxz, ngrid, zmax, cachename,
+					 cmap, type);
 
     // Orthogonality sanity check
     //
@@ -3928,6 +3979,8 @@ namespace BasisClasses
     imx = 2*nmaxx + 1;		// x wave numbers
     imy = 2*nmaxy + 1;		// y wave numbers
     imz = nmaxz;		// z basis count
+
+    normXY = 1.0/sqrt(Lx*Ly);	// Horizontal normalization
 
     // Coefficient tensor
     //
@@ -4007,16 +4060,16 @@ namespace BasisClasses
   void Slab::accumulate(double x, double y, double z, double mass,
 			unsigned long int idx)
   {
-    // Truncate to slab with sides in [0,1]
+    // Truncate to slab with sides in [0,Lx] & [0, Ly]
     if (x<0.0)
-      x += std::floor(-x) + 1.0;
+      x += Lx*(std::floor(-x/Lx) + 1.0);
     else
-      x -= std::floor( x);
+      x -= Lx*std::floor(x/Lx);
     
     if (y<0.0)
-      y += std::floor(-y) + 1.0;
+      y += Ly*(std::floor(-y/Ly) + 1.0);
     else
-      y -= std::floor( y);
+      y -= Ly*std::floor(y/Ly);
     
     // Update counters
     used++;
@@ -4024,16 +4077,25 @@ namespace BasisClasses
     // Storage for basis evaluation
     Eigen::VectorXd zpot(nmaxz);
 
+    Eigen::VectorXcd g;
+    if (pcavar) {
+      g.resize(imx*imy*imz);
+      g.setZero();
+    }
+
     // Loop indices
     int ix, iy;
 
+    // Leading constants for biorthogonality
+    const double norm = -4.0*M_PI * normXY;
+
     // Recursion multipliers
-    std::complex<double> stepx = exp(-kfac*x), facx;
-    std::complex<double> stepy = exp(-kfac*y), facy;
+    std::complex<double> stepx = exp(-kfac*x/Lx), facx;
+    std::complex<double> stepy = exp(-kfac*y/Ly), facy;
    
     // Initial values
-    std::complex<double> startx = exp(static_cast<double>(nmaxx)*kfac*x);
-    std::complex<double> starty = exp(static_cast<double>(nmaxy)*kfac*y);
+    std::complex<double> startx = exp(static_cast<double>(nmaxx)*kfac*x/Lx);
+    std::complex<double> starty = exp(static_cast<double>(nmaxy)*kfac*y/Ly);
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
@@ -4061,11 +4123,23 @@ namespace BasisClasses
 	  ortho->get_pot(zpot, z, iiy, iix);
 
 	for (int iz=0; iz<imz; iz++) {
-	                       // +--- density in orthogonal series
-                               // |    is 4.0*M_PI rho
-                               // v
-	  expcoef(ix, iy, iz) += -4.0*M_PI*mass*facx*facy*zpot[iz];
+	  expcoef(ix, iy, iz) += norm*mass*facx*facy*zpot[iz];
+	  if (pcavar) g[index1D(ix, iy, iz)] = norm*facx*facy*zpot[iz];
 	}
+      }
+    }
+
+    if (pcavar) {
+      // Sample index for pcavar
+      int T = 0;
+      T = used % sampT;
+      sampleCounts(T) += 1;
+      sampleMasses(T) += mass;
+      //
+      meanV[T].noalias() += g * mass;
+      if (covar) {
+	if (diagcov) dvarV[T].noalias() += g.cwiseProduct(g.conjugate()) * mass;
+	else         covrV[T].noalias() += g * g.adjoint() * mass;
       }
     }
   }
@@ -4099,13 +4173,13 @@ namespace BasisClasses
     
     // Recursion multipliers
     //
-    std::complex<double> stepx = exp(kfac*x);
-    std::complex<double> stepy = exp(kfac*y);
+    std::complex<double> stepx = exp(kfac*x/Lx);
+    std::complex<double> stepy = exp(kfac*y/Ly);
 
     // Initial values (note sign change)
     //
-    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x);
-    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y);
+    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x/Lx);
+    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y/Ly);
     
     Eigen::VectorXd vpot(nmaxz), vfrc(nmaxz), vden(nmaxz);
 
@@ -4143,9 +4217,9 @@ namespace BasisClasses
 	
 	for (int iz=0; iz<imz; iz++) {
 	  
-	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz);
-	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz);
-	  facd = facx*facy*vden[iz]*expcoef(ix, iy, iz);
+	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz) * normXY;
+	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz) * normXY;
+	  facd = facx*facy*vden[iz]*expcoef(ix, iy, iz) * normXY;
 	  
 	  // Limit to minimum wave number
 	  //
@@ -4189,13 +4263,13 @@ namespace BasisClasses
     
     // Recursion multipliers
     //
-    std::complex<double> stepx = exp(kfac*x);
-    std::complex<double> stepy = exp(kfac*y);
+    std::complex<double> stepx = exp(kfac*x/Lx);
+    std::complex<double> stepy = exp(kfac*y/Ly);
 
     // Initial values (note sign change)
     //
-    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x);
-    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y);
+    std::complex<double> startx = exp(-static_cast<double>(nmaxx)*kfac*x/Lx);
+    std::complex<double> starty = exp(-static_cast<double>(nmaxy)*kfac*y/Ly);
     
     Eigen::VectorXd vpot(nmaxz), vfrc(nmaxz);
 
@@ -4231,15 +4305,20 @@ namespace BasisClasses
 	
 	for (int iz=0; iz<imz; iz++) {
 	  
-	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz);
-	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz);
+	  if (ii != 0 or jj != 0) {
+	    if (no_even and iz%2==0) continue;
+	    if (no_odd  and iz%2==1) continue;
+	  }
+
+	  fac  = facx*facy*vpot[iz]*expcoef(ix, iy, iz) * normXY;
+	  facf = facx*facy*vfrc[iz]*expcoef(ix, iy, iz) * normXY;
 	  
 	  // Limit to minimum wave number
 	  //
 	  if (abs(ii)<nminx || abs(jj)<nminy) continue;
 	  
-	  accx += -kfac*static_cast<double>(ii)*fac;
-	  accy += -kfac*static_cast<double>(jj)*fac;
+	  accx += -kfac/Lx*static_cast<double>(ii)*fac;
+	  accy += -kfac/Ly*static_cast<double>(jj)*fac;
 	  accz += -facf;
 	  
 	}
@@ -4375,6 +4454,104 @@ namespace BasisClasses
     return ortho->orthoCheck();
   }
   
+  void Slab::init_covariance()
+  {
+    if (pcavar) {
+
+      int jmax = imx * imy * imz;
+
+      meanV.resize(sampT);
+      for (auto& v : meanV) {
+	v.resize(jmax);
+      }
+
+      if (covar) {
+	if (diagcov) {
+	  dvarV.resize(sampT);
+	  for (auto& v : dvarV) {
+	    v.resize(jmax);
+	  }
+	} else {
+	  covrV.resize(sampT);
+	  for (auto& v : covrV) {
+	    v.resize(jmax, jmax);
+	  }
+	}
+      } else {
+	covrV.clear();
+	dvarV.clear();
+      }
+
+      sampleCounts.resize(sampT);
+      sampleMasses.resize(sampT);
+      
+      zero_covariance();
+    }
+  }
+
+
+  void Slab::zero_covariance()
+  {
+    for (int T=0; T<sampT; T++) {
+      meanV[T].setZero();
+      if (covar) {
+	if (diagcov) dvarV[T].setZero();
+	else         covrV[T].setZero();
+      }
+    }
+
+    sampleCounts.setZero();
+    sampleMasses.setZero();
+  }
+
+  unsigned Slab::index1D(int kx, int ky, int kz)
+  {
+    if (kx < 0 or kx > 2*nmaxx) {
+      std::ostringstream sout;
+      sout << "Slab::index1D: x index [" << kx << "] must be in [0, "
+	   << 2*nmaxx << "]";
+      throw std::runtime_error(sout.str());
+    }
+
+    if (ky < 0 or ky > 2*nmaxy) {
+      std::ostringstream sout;
+      sout << "Slab::index1D: y index [" << ky << "] must be in [0, "
+	   << 2*nmaxy << "]";
+      throw std::runtime_error(sout.str());
+    }
+
+    if (kz < 0 or kx >= nmaxz) {
+      std::ostringstream sout;
+      sout << "Slab::index1D: z index [" << kz << "] must be in [0, "
+	   << nmaxz-1 << "]";
+      throw std::runtime_error(sout.str());
+    }
+
+    return
+      kx*(2*nmaxy+1)*nmaxz +
+      ky*nmaxz +
+      kz;
+  }
+
+  std::tuple<int, int, int> Slab::index3D(unsigned indx)
+  {
+    // Sanity check
+    //
+    if (indx >= imx*imy*imz) {
+      std::ostringstream sout;
+      sout << "Slab::index3D: index [" << indx << "] must be in 0 <= indx < " << imx*imy*imz;
+      throw std::runtime_error(sout.str());
+    }
+
+    // Compute the 3d index
+    //
+    int ix = indx/(imy*imz);
+    int iy = (indx - ix*imy*imz)/imz;
+    int iz = indx - ix*imy*imz - iy*imz;
+  
+    return {ix, iy, iz};
+  }
+
   const std::set<std::string>
   Cube::valid_keys = {
     "nminx",
@@ -4385,7 +4562,7 @@ namespace BasisClasses
     "nmaxz",
     "knots",
     "verbose",
-    "check",
+    "orthochk",
     "method",
     "pcavar",
     "subsamp",
@@ -4458,7 +4635,7 @@ namespace BasisClasses
       
       if (conf["knots"])      knots  = conf["knots"   ].as<int>();
 
-      if (conf["check"])      check  = conf["check"   ].as<bool>();
+      if (conf["orthochk"])   check  = conf["orthochk"].as<bool>();
 
       if (conf["pcavar"])     pcavar = conf["pcavar"  ].as<bool>();
       if (conf["subsamp"])    sampT  = conf["subsamp" ].as<int>();
@@ -4942,7 +5119,7 @@ namespace BasisClasses
     //
     int ix = indx/((2*nmaxy+1)*(2*nmaxz+1));
     int iy = (indx - ix*(2*nmaxy+1)*(2*nmaxz+1))/(2*nmaxz+1);
-    int iz = indx - ix*(2*nmaxy+1)*(2*nmaxz+1)/(2*nmaxz+1) - iy*(2*nmaxz+1);
+    int iz = indx - ix*(2*nmaxy+1)*(2*nmaxz+1) - iy*(2*nmaxz+1);
   
     return {ix, iy, iz};
   }
@@ -4960,6 +5137,8 @@ namespace BasisClasses
       coef = std::make_shared<CoefClasses::CylStruct>();
     else if (name.compare("flatdisk") == 0)
       coef = std::make_shared<CoefClasses::CylStruct>();
+    else if (name.compare("slab") == 0)
+      coef = std::make_shared<CoefClasses::SlabStruct>();
     else if (name.compare("cube") == 0)
       coef = std::make_shared<CoefClasses::CubeStruct>();
     else {
@@ -5025,6 +5204,10 @@ namespace BasisClasses
       coefret = std::make_shared<CoefClasses::CylStruct>();
     else if (name.compare("flatdisk") == 0)
       coefret = std::make_shared<CoefClasses::CylStruct>();
+    else if (name.compare("slab") == 0)
+      coefret = std::make_shared<CoefClasses::SlabStruct>();
+    else if (name.compare("cube") == 0)
+      coefret = std::make_shared<CoefClasses::CubeStruct>();
     else {
       std::ostringstream sout;
       sout << "Basis::createCoefficients: basis <" << name << "> not recognized"
@@ -5650,6 +5833,16 @@ namespace BasisClasses
     file.createAttribute<int>("nmax", HighFive::DataSpace::From(nmax)).write(nmax);
     file.createAttribute<double>("rcylmin", HighFive::DataSpace::From(rcylmin)).write(rcylmin);
     file.createAttribute<double>("rcylmax", HighFive::DataSpace::From(rcylmax)).write(rcylmax);
+  }
+
+  void Slab::writeCovarH5Params(HighFive::File& file)
+  {
+    file.createAttribute<int>("nminx", HighFive::DataSpace::From(nminx)).write(nminx);
+    file.createAttribute<int>("nminy", HighFive::DataSpace::From(nminy)).write(nminy);
+    file.createAttribute<int>("nminz", HighFive::DataSpace::From(nminz)).write(nminz);
+    file.createAttribute<int>("nmaxx", HighFive::DataSpace::From(nmaxx)).write(nmaxx);
+    file.createAttribute<int>("nmaxy", HighFive::DataSpace::From(nmaxy)).write(nmaxy);
+    file.createAttribute<int>("nmaxz", HighFive::DataSpace::From(nmaxz)).write(nmaxz);
   }
 
   void Cube::writeCovarH5Params(HighFive::File& file)

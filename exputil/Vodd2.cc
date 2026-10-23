@@ -91,6 +91,30 @@ double drv2(double x, const V &xtab, const V &ftab, int even)
   return ans;
 }
 
+double odd2(double x, const Eigen::VectorXd &xtab,
+	    const Eigen::VectorXd &ftab, int even)
+{
+  // find position in grid
+  //
+  int min = 0;
+  int max = xtab.size() - 1;
+  int index;
+
+  if (even)
+    index = (int)((x-xtab[min])/(xtab[max]-xtab[min])*(double)(max-min)) + min;
+  else
+    index = Vlocate(x, xtab);
+
+  if (index < min) index=min;
+  if (index >= max) index=max-1;
+
+  double ans = ( ftab[index+1]*(x-xtab[index]  ) -
+		 ftab[index  ]*(x-xtab[index+1]) )
+    /( xtab[index+1]-xtab[index] ) ;
+
+  return ans;
+}
+
 template double odd2(double x, const std::vector<double>& xtab, 
 		     const std::vector<double>& ftab, int even=0);
 

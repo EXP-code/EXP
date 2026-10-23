@@ -21,14 +21,22 @@ if(HAVE_VTK)
 endif()
 
 set(OPTIMIZATION_SRC SimAnn.cc)
+
 set(POLY_SRC zroots.cc laguer.cc poly.cc cpoly.cc horner.cc syndiv.cc)
+
 set(PHASE_SRC phase.cc ensemble.cc io_ensemble.cc move_ensemble.cc
   diag_ensemble.cc map.cc pc.cc models.cc prolate.cc perfect.cc
   rotcurv.cc needle.cc hubble.cc quad.cc)
+
 set(SPECFUNC_SRC gammln.cc bessel.cc OrthoPoly.cc CauchyPV.cc) # modbessel.cc
-set(INTERP_SRC Spline.cc SplintE.cc Vodd2.cc Vlocate.cc levsurf.cc Interp1d.cc Cheby1d.cc MonotCubicInterpolator.cc)
-set(MASSMODEL_SRC massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc realize_model.cc GenPoly.cc mestel.cc
+
+set(INTERP_SRC Spline.cc SplintE.cc Vodd2.cc Vlocate.cc levsurf.cc
+  Interp1d.cc Cheby1d.cc MonotCubicInterpolator.cc)
+
+set(MASSMODEL_SRC massmodel.cc massmodel_dist.cc embedded.cc
+  isothermal.cc realize_model.cc GenPoly.cc mestel.cc massmodel1d.cc
   toomre.cc exponential.cc)
+
 set(ORBIT_SRC orbit.cc orbit_trans.cc FindOrb.cc)
 
 set(BIORTH_SRC biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc
@@ -37,11 +45,17 @@ set(BIORTH_SRC biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc
   EmpCyl2d.cc BiorthCyl.cc BiorthCube.cc)
 
 set(GAUSS_SRC gaussQ.cc GaussCore.c Hermite.c Jacobi.c Laguerre.c)
+
 set(QPDISTF_SRC QPDistF.cc qld.c)
+
 set(SLEDGE_SRC sledge.f)
+
 set(PARTICLE_SRC Particle.cc ParticleReader.cc header.cc)
+
 set(CUDA_SRC cudaParticle.cu cudaSLGridMP2.cu)
+
 set(PYWRAP_SRC DiskDensityFunc.cc)
+
 set(QD5_SRC ${PROJECT_SOURCE_DIR}/extern/QuickDigest5/src/quickdigest5.cpp)
 
 

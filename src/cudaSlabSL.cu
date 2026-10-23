@@ -1,5 +1,4 @@
-// -*- C++ -*-
-
+#include <map>
 #include <thrust/tuple.h>
 
 #include <cudaReduce.cuH>
@@ -17,13 +16,16 @@
 // Global symbols for slab construction
 //
 __device__ __constant__
-int slabNumX, slabNumY, slabNumZ, slabNX, slabNY, slabNZ, slabNdim, slabNum;
+int slabNumX, slabNumY, slabNumZ, slabNX, slabNY, slabNZ, slabNum;
+
+__device__ __constant__
+bool slabNoEven, slabNoOdd, slabFixed0;
 
 __device__ __constant__
 int slabCmap;
 
 __device__ __constant__
-cuFP_t slabDfac, slabHscl, slabXmin, slabXmax, slabDxi;
+cuFP_t slabDfac, slabHscl, slabXmin, slabXmax, slabDxi, slabValue0, slabL[2];
 
 // Alias for Thrust complex type to make this code more readable
 //
@@ -68,19 +70,26 @@ void testConstantsSlab()
   printf("-------------------------\n");
   printf("---SlabBasis constants---\n");
   printf("-------------------------\n");
-  printf("   Ndim   = %d\n", slabNdim );
   printf("   Numx   = %d\n", slabNumX );
   printf("   Numy   = %d\n", slabNumY );
   printf("   Numz   = %d\n", slabNumZ );
   printf("   Nx     = %d\n", slabNX   );
   printf("   Ny     = %d\n", slabNY   );
   printf("   Nz     = %d\n", slabNZ   );
+  printf("   Lx     = %e\n", slabL[0] );
+  printf("   Ly     = %e\n", slabL[1] );
   printf("   Dfac   = %e\n", slabDfac );
   printf("   Hscl   = %e\n", slabHscl );
   printf("   Cmap   = %d\n", slabCmap );
   printf("   Xmin   = %e\n", slabXmin );
   printf("   Xmax   = %e\n", slabXmax );
   printf("   Dxi    = %e\n", slabDxi  );
+  if (slabNoOdd)  printf("   NoOdd  = true\n" );
+  else            printf("   NoOdd  = false\n");
+  if (slabNoEven) printf("   NoEven = true\n" );
+  else            printf("   NoEven = false\n");
+  if (slabFixed0) printf("   Fixed0 = true\n" );
+  else            printf("   Fixed0 = false\n");
   printf("-------------------------\n");
 }
 
@@ -171,7 +180,9 @@ cuFP_t cu_d_xi_to_z(cuFP_t xi)
 //
 void SlabSL::cuda_initialize()
 {
-  // Nothing
+  // Turn off full covariance
+  //
+  fullCovar = false;
 }
 
 // Copy constants to device
@@ -205,46 +216,124 @@ void SlabSL::initialize_constants()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabNZ");
 
-  cuda_safe_call(cudaMemcpyToSymbol(slabNdim, &jmax, sizeof(int),
-				    size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying slabNdim");
-
   cuda_safe_call(cudaMemcpyToSymbol(slabNum, &f.numr, sizeof(int),
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabNum");
 
-  // Sech map
-  int Cmap = 1;
+  cuda_safe_call(cudaMemcpyToSymbol(slabNoEven, &no_even, sizeof(bool),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabNoEven");
+
+  cuda_safe_call(cudaMemcpyToSymbol(slabNoOdd, &no_odd, sizeof(bool),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabNoOdd");
+
+  cuda_safe_call(cudaMemcpyToSymbol(slabFixed0, &fixed0, sizeof(bool),
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabFixed0");
+
+  // Coordinate map
+  //
+  std::map<std::string, int> CoordMap =
+    {
+      {"tanh"  , 0},
+      {"sech"  , 1},
+      {"linear", 2}
+    };
+
+  auto it = CoordMap.find(cmap);
+  if (it == CoordMap.end()) {
+    std::ostringstream sout;
+    sout << "cudaSlabSL: unknown coordinate map type '" << cmap
+	 << "'. Valid values are: tanh, sech, linear";
+    throw std::runtime_error(sout.str());
+  }
+  int Cmap = it->second;
+  size_t offset = 0;
 
   cuda_safe_call(cudaMemcpyToSymbol(slabCmap, &Cmap, sizeof(int),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabCmap");
 
   cuda_safe_call(cudaMemcpyToSymbol(slabDfac, &(z=2.0*M_PI), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabDfac");
 
   cuda_safe_call(cudaMemcpyToSymbol(slabHscl, &(z=SLGridSlab::H), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabHscl");
 
   cuda_safe_call(cudaMemcpyToSymbol(slabXmin, &(z=f.xmin), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabXmin");
 
   cuda_safe_call(cudaMemcpyToSymbol(slabXmax, &(z=f.xmax), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabXmax");
 
   cuda_safe_call(cudaMemcpyToSymbol(slabDxi, &(z=f.dxi), sizeof(cuFP_t),
-				    size_t(0), cudaMemcpyHostToDevice),
+				    offset, cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying slabDxi");
+
+  cuda_safe_call(cudaMemcpyToSymbol(slabValue0, &(z=value0), sizeof(cuFP_t),
+				    offset, cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabValue0");
+
+  // Offset for slabL[0]
+  offset = 0;		
+  cuda_safe_call(cudaMemcpyToSymbol(slabL, &(z=Lx), sizeof(cuFP_t),
+				    offset, cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabL[0]");
+
+  // Offset for slabL[1]
+  offset = sizeof(cuFP_t); 
+  cuda_safe_call(cudaMemcpyToSymbol(slabL, &(z=Ly), sizeof(cuFP_t),
+				    offset, cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying slabL[1]");
+}
+
+
+__global__ void wrapKernelSlab
+(dArray<cudaParticle> P, dArray<int> I, int stride, PII lohi)
+{
+  // Thread ID
+  //
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+  const int N   = lohi.second - lohi.first;
+
+  for (int n=0; n<stride; n++) {
+
+    // Particle counter
+    //
+    int i     = tid*stride + n;
+    int npart = i + lohi.first;
+
+    if (npart < lohi.second) {	// Check that particle index is in
+				// range for consistency with other
+				// kernels
+#ifdef BOUNDS_CHECK
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+      cudaParticle & p = P._v[I._v[npart]];
+      
+      // Truncate to box with sides in [0,1]
+      //
+      for (int k=0; k<2; k++) {
+	if (p.pos[k]<0.0)
+	  p.pos[k] += floor(-p.pos[k]) + 1.0;
+	else
+	  p.pos[k] += -floor(p.pos[k]);
+      }
+    }
+    // END: particle index limit
+  }
+  // END: stride loop
 }
 
 
 __global__ void coefKernelSlab
 (dArray<cudaParticle> P, dArray<int> I, dArray<CmplxT> coef,
- dArray<cudaTextureObject_t> tex, int stride, PII lohi)
+ dArray<cudaTextureObject_t> tex, dArray<cuFP_t> used, int stride, PII lohi)
 {
   // Thread ID
   //
@@ -267,26 +356,33 @@ __global__ void coefKernelSlab
       cudaParticle & p = P._v[I._v[npart]];
       
       cuFP_t pos[3] = {p.pos[0], p.pos[1], p.pos[2]};
-      cuFP_t mm     = - p.mass * 2.0*slabDfac;
+				// Biorthogonality gives a minus here
+      cuFP_t mm  = - 2.0 * slabDfac * p.mass;
 
-      // Restore particles to the unit slab
+      used._v[i] = p.mass;	// Mark particle as used
+
+      // Restore particles to the (Lx, Ly) slab
       //
       for (int k=0; k<2; k++) {
 	if (pos[k]<0.0)
-	  pos[k] += floor(-pos[k]) + 1.0;
+	  pos[k] += slabL[k]*(floor(-pos[k]/slabL[k]) + 1.0);
 	else
-	  pos[k] += -floor(pos[k]);
+	  pos[k] += -slabL[k]*floor(pos[k]/slabL[k]);
       }
     
       // Wave number loop
       //
-      const auto xx = CmplxT(0.0, slabDfac*pos[0]); // Phase values
-      const auto yy = CmplxT(0.0, slabDfac*pos[1]);
+      const auto xx = CmplxT(0.0, slabDfac*pos[0]/slabL[0]); // Phase values
+      const auto yy = CmplxT(0.0, slabDfac*pos[1]/slabL[1]);
 
       // Recursion increments and initial values
       //
       const auto sx = thrust::exp(-xx), cx = thrust::exp(xx*slabNumX);
       const auto sy = thrust::exp(-yy), cy = thrust::exp(yy*slabNumY);
+
+      // Horizontal normalization
+      //
+      const cuFP_t normXY = 1.0/sqrt(slabL[0]*slabL[1]);
       
       // Vertical interpolation
       //
@@ -322,15 +418,18 @@ __global__ void coefKernelSlab
 
 	Y = cy;			// Assign the min Y wavenumber conjugate
 
-	int kx = abs(ii);	// X index into texture array
-
 	for (int jj=-slabNumY; jj<=slabNumY; jj++, Y*=sy) {
 
-	  int ky = abs(jj);	// Y index into texture array
-
+	  // Compute the offset into the texture array for the (kx,
+	  // ky) pair.  The storage is the upper triangular part of
+	  // the (kx, ky) plane.
+	  //
+	  int kx = max(abs(ii), abs(jj));
+	  int ky = min(abs(ii), abs(jj));
 	  int offset = 1 + (kx*(kx+1)/2 + ky)*slabNumZ;
 
-				// The vertical basis iteration
+	  // The vertical basis iteration
+	  //
 	  for (int n=0; n<slabNumZ; n++) {
 
 	    // Flip sign for antisymmetric basis functions
@@ -353,7 +452,7 @@ __global__ void coefKernelSlab
 #endif
 			) * p0 * sign;
 	  
-	    coef._v[slabIndex(ii, jj, n)*N+i] = X * Y * v * mm;
+	    coef._v[slabIndex(ii, jj, n)*N+i] = X * Y * v * mm * normXY;
 	  }
 	}
       }
@@ -391,8 +490,12 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 
       // Wave number loop
       //
-      const auto xx = CmplxT(0.0, slabDfac*pos[0]); // Phase values
-      const auto yy = CmplxT(0.0, slabDfac*pos[1]);
+      const auto xx = CmplxT(0.0, slabDfac*pos[0]/slabL[0]); // Phase values
+      const auto yy = CmplxT(0.0, slabDfac*pos[1]/slabL[1]);
+
+      // Horizonal normalization
+      //
+      const cuFP_t normXY = 1.0/sqrt(slabL[0]*slabL[1]);
 
       // Recursion increments and initial values
       //
@@ -450,10 +553,21 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 
 	  for (int n=0; n<slabNumZ; n++) {
 
+	    // Even-odd exclusion check
+	    if (ii!=0 or jj!=0) {
+	      if (slabNoEven and 2*(n/2)==n) continue;
+	      if (slabNoOdd  and 2*(n/2)!=n) continue;
+	    }
+
 	    // Flip sign for antisymmetric basis functions
 	    //
-	    int sign = 1;
-	    if (pos[2]<0 && 2*(n/2)==n) sign = -1;
+	    int signV = 1, signF = 1;
+
+	    // potential: flip odd modes
+	    if (pos[2]<0 && 2*(n/2)!=n) signV = -1;
+
+	    // z-force:   flip even modes
+	    if (pos[2]<0 && 2*(n/2)==n) signF = -1;
 
 	    int k = offset + n;
 
@@ -468,7 +582,7 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 			  a*int2_as_double(tex1D<int2>(tex._v[k], in0  )) +
 			  b*int2_as_double(tex1D<int2>(tex._v[k], in0+1))
 #endif
-			  ) * p0 * sign;
+			  ) * p0 * signV;
 	  
 	      cuFP_t f = (
 #if cuREAL == 4
@@ -480,14 +594,32 @@ forceKernelSlab(dArray<cudaParticle> P, dArray<int> I,
 			  -2.0*s*int2_as_double(tex1D<int2>(tex._v[k], jn0)) * int2_as_double(tex1D<int2>(tex._v[0], jn0)) + 
 			  (s + 0.5)*int2_as_double(tex1D<int2>(tex._v[k], jn0+1)) * int2_as_double(tex1D<int2>(tex._v[0], jn0+1))
 #endif
-			  ) * sign * dx;
+			  ) * signF * dx;
 
-	      fac  = X * Y * v * coef._v[slabIndex(ii, jj, n)];
-	      facf = X * Y * f * coef._v[slabIndex(ii, jj, n)];
+	      // Fix the (0,0) mode to a fixed value
+	      if (slabFixed0 and ii==0 and jj==0) {
+		// n=0 term is fixed to a constant value
+		if (n==0) {
+		  fac  = X * Y * v * slabValue0 * normXY;
+		  facf = X * Y * f * slabValue0 * normXY;
+		}
+		// all other n terms are zero
+		else {
+		  fac  = 0.0;
+		  facf = 0.0;
+		}
+	      }
+	      // Use the coefficients
+	      else {
+		fac  = X * Y * v * coef._v[slabIndex(ii, jj, n)] * normXY;
+		facf = X * Y * f * coef._v[slabIndex(ii, jj, n)] * normXY;
+	      }
 
+	      // Accumulate the potential and force contributions
+	      //
 	      pot    += fac;
-	      acc[0] += CmplxT(0.0, -slabDfac*ii) * fac;
-	      acc[1] += CmplxT(0.0, -slabDfac*jj) * fac;
+	      acc[0] += CmplxT(0.0, -slabDfac*ii/slabL[0]) * fac;
+	      acc[1] += CmplxT(0.0, -slabDfac*jj/slabL[1]) * fac;
 	      acc[2] += -facf;
 	  }
 	  // END: z wavenumber loop
@@ -516,7 +648,7 @@ public:
   }
 };
 
-void SlabSL::cudaStorage::resize_coefs(int N, int osize, int gridSize, int stride)
+void SlabSL::cudaStorage::resize_coefs(int N, int osize, int gridSize, int sampT)
 {
   // Reserve space for coefficient reduction
   //
@@ -531,6 +663,15 @@ void SlabSL::cudaStorage::resize_coefs(int N, int osize, int gridSize, int strid
   dN_coef.resize(osize*N);
   dc_coef.resize(osize*gridSize);
   dw_coef.resize(osize);	// This will stay fixed
+
+  u_d.resize(N);
+
+  // Resize covariance storage, if sampT>0
+  // Resize covariance storage, if sampT>0
+  if (sampT) {
+    T_samp.resize(sampT);
+    for (int T=0; T<sampT; T++) T_samp[T].resize(osize);
+  }
 }
 
 
@@ -544,6 +685,17 @@ void SlabSL::cuda_zero_coefs()
   //
   thrust::fill(thrust::cuda::par.on(cr->stream),
 	       cuS.df_coef.begin(), cuS.df_coef.end(), 0.0);
+
+  if (requestSubsample) {
+
+    cuS.T_samp.resize(sampT);
+
+    for (int T=0; T<sampT; T++) {
+
+      thrust::fill(thrust::cuda::par.on(cr->stream),
+		   cuS.T_samp[T].begin(), cuS.T_samp[T].end(), 0.0);
+    }
+  }
 }
 
 void SlabSL::determine_coefficients_cuda()
@@ -552,7 +704,7 @@ void SlabSL::determine_coefficients_cuda()
   // must be done every time
   //
   if (initialize_cuda_slab) {
-    initialize_cuda();
+    slab_initialize_cuda();
     initialize_cuda_slab = false;
 
     // Copy coordinate mapping
@@ -621,6 +773,11 @@ void SlabSL::determine_coefficients_cuda()
   //
   cuda_zero_coefs();
 
+  // Zero mass accumulation array
+  //
+  thrust::fill(cuS.u_d.begin(), cuS.u_d.end(), 0.0);
+
+  // Get sorted particle range for mlevel
   // Get sorted particle range for mlevel
   //
   PII lohi = component->CudaGetLevelRange(mlevel, mlevel), cur;
@@ -684,17 +841,30 @@ void SlabSL::determine_coefficients_cuda()
     //
     int sMemSize = BLOCK_SIZE * sizeof(CmplxT);
     
+    std::vector<thrust::device_vector<CmplxT>::iterator> bm;
+    if (requestSubsample) {
+      for (int T=0; T<sampT; T++) {
+	bm.push_back(cuS.T_samp[T].begin());
+      }
+    }
+
     // Adjust cached storage, if necessary
     //
-    cuS.resize_coefs(N, jmax, gridSize, stride);
+    cuS.resize_coefs(N, jmax, gridSize, sampT);
     
+    // Wrap the coordinates to the unit slab
+    //
+    wrapKernelSlab<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+      (toKernel(cs->cuda_particles), toKernel(cs->indx1), stride, cur);
+
     // Compute the coefficient contribution for each order
     //
     auto beg  = cuS.df_coef.begin();
     
     coefKernelSlab<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
       (toKernel(cs->cuda_particles), toKernel(cs->indx1),
-       toKernel(cuS.dN_coef), toKernel(t_d), stride, cur);
+       toKernel(cuS.dN_coef), toKernel(t_d), toKernel(cuS.u_d),
+       stride, cur);
       
     // Begin the reduction by blocks [perhaps this should use a
     // stride?]
@@ -726,6 +896,78 @@ void SlabSL::determine_coefficients_cuda()
 		      beg, beg, thrust::plus<CmplxT>());
 
     thrust::advance(beg, jmax);
+
+    if (requestSubsample) {
+
+      int sN = N/sampT;
+      int nT = sampT;
+	    
+      if (sN==0) {	// Fail-safe underrun
+	sN = 1;
+	nT = N;
+      }
+	    
+      for (int T=0; T<nT; T++) {
+	int k = sN*T;	// Starting position
+	int s = sN;
+	if (T==sampT-1) s = N - k;
+      
+	// Mass accumulation
+	//
+	auto mbeg = cuS.u_d.begin();
+	auto mend = mbeg;
+	thrust::advance(mbeg, sN*T);
+	if (T<sampT-1) thrust::advance(mend, sN*(T+1));
+	else mend = cuS.u_d.end();
+		
+	countV1[0][T] += static_cast<int>(mend - mbeg);
+	massV1 [0][T] += static_cast<double>(thrust::reduce(mbeg, mend));
+
+	// Begin the reduction per grid block
+	//
+	/* A reminder to consider implementing strides in reduceSum */
+	/*
+	  unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+	  unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
+	  
+	  if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
+	*/
+		
+	unsigned int gridSize1 = s/BLOCK_SIZE;
+	if (s > gridSize1*BLOCK_SIZE) gridSize1++;
+
+	// Sum reduce into gridsize1 blocks taking advantage of
+	// GPU warp structure
+	//
+	
+	// Mean computation only
+	//
+	reduceSumS<CmplxT, BLOCK_SIZE>
+	  <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+	  (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), jmax, N, k, k+s);
+	
+	// Finish the reduction for this order in parallel
+	//
+	thrust::counting_iterator<int> index_begin(0);
+	thrust::counting_iterator<int> index_end(gridSize1*jmax);
+
+	thrust::reduce_by_key
+	  (
+	   thrust::cuda::par.on(cs->stream),
+	   thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	   thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+	   cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
+	   );
+	
+	
+	thrust::transform(thrust::cuda::par.on(cs->stream),
+			  cuS.dw_coef.begin(), cuS.dw_coef.end(),
+			  bm[T], bm[T], thrust::plus<CmplxT>());
+	
+	thrust::advance(bm[T], imz);
+      }
+      // END: subsample loop
+    }
   }
 
   // use1 += N;			// Increment particle count
@@ -734,6 +976,18 @@ void SlabSL::determine_coefficients_cuda()
   // Accumulate the coefficients from the device to the host
   //
   host_coefs = cuS.df_coef;
+
+  if (requestSubsample) {
+    // T loop
+    //
+    for (int T=0; T<sampT; T++) {
+      thrust::host_vector<CmplxT> retV = cuS.T_samp[T];
+	  
+      for (int n=0; n<jmax; n++) {
+	meanV1[0][T][n] += std::complex<cuFP_t>(retV[n]);
+      }
+    }
+  }
 
   // Create a wavenumber tuple from a flattened index
   //
@@ -982,7 +1236,7 @@ void SlabSL::determine_acceleration_cuda()
   // must be done every time
   //
   if (initialize_cuda_slab) {
-    initialize_cuda();
+    slab_initialize_cuda();
     initialize_cuda_slab = false;
   }
 
@@ -1047,8 +1301,10 @@ void SlabSL::HtoD_coefs()
   host_coefs.resize(jmax);
 
   // Copy from Slab
-  for (int i=0; i<host_coefs.size(); i++)
-    host_coefs[i] = expccof[0].data()[i];
+  for (int i=0; i<host_coefs.size(); i++) {
+    if (self_consistent) host_coefs[i] = expccof[0].data()[i];
+    else                 host_coefs[i] = expcofF.data()[i];
+  }
 
   // Copy to device
   dev_coefs = host_coefs;
@@ -1130,7 +1386,7 @@ void SlabSL::multistep_update_cuda()
 
 	// Adjust cached storage, if necessary
 	//
-	cuS.resize_coefs(N, jmax, gridSize, stride);
+	cuS.resize_coefs(N, jmax, gridSize, sampT);
 	
 	// Compute the coefficient contribution for each order
 	//
@@ -1140,7 +1396,8 @@ void SlabSL::multistep_update_cuda()
 	//
 	coefKernelSlab<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	  (toKernel(cs->cuda_particles), toKernel(cs->indx1),
-	   toKernel(cuS.dN_coef), toKernel(t_d), stride, cur);
+	   toKernel(cuS.dN_coef), toKernel(t_d), toKernel(cuS.u_d),
+	   stride, cur);
 	
 	unsigned int gridSize1 = N/BLOCK_SIZE;
 	if (N > gridSize1*BLOCK_SIZE) gridSize1++;
@@ -1196,4 +1453,4 @@ void SlabSL::destroy_cuda()
   // Nothing
 }
 
-
+// -*- C++ -*-

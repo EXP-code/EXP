@@ -10,7 +10,7 @@
 #include <unsupported/Eigen/CXX11/Tensor>
 
 #include "Coefficients.H"
-#include "PotAccel.H"
+#include "Basis.H"
 
 #if HAVE_LIBCUDA==1
 #include <thrust/complex.h>
@@ -66,7 +66,7 @@
     subsampling is statistical assessment, this should not be a
     limitation.
 */
-class Cube : public PotAccel
+class Cube : public Basis
 {
 
 private:
@@ -323,6 +323,33 @@ public:
 
   //! Indicate whether or not subsampling is supported
   virtual bool hasSubsample() {	return true; }
+
+  //! Return density, potential, and potential gradient at a point in
+  //! Cartesian coordinates
+  void determine_fields_at_point(double x, double y, double z,
+				 double *tdens0, double *tpotl0, 
+				 double *tdens, double *tpotl, 
+				 double *tpotx, double *tpoty, 
+				 double *tpotz);
+
+  //! Returns the potential, its derivatives & density at a point in
+  //! spherical coordinates
+  void determine_fields_at_point_sph
+  (double r, double theta, double phi,
+   double *tdens0, double *dpotl0, double *tdens, double *tpotl, 
+   double *tpotr, double *tpott, double *tpotp) { 
+    throw std::runtime_error("Cube::determine_fields_at_point_sph: Not implemented for this basis");
+  }
+
+  //! Returns the potential, its derivatives & density at a point in
+  //! cylindrical coordinates
+  void determine_fields_at_point_cyl
+  (double r, double z, double phi,
+   double *tdens0, double *dpotl0, double *tdens, double *tpotl,
+   double *tpotr, double *tpotz, double *tpotp) {
+    throw std::runtime_error("Cube::determine_fields_at_point_cyl: Not implemented for this basis");
+  }
+
 };
 
 

@@ -1402,7 +1402,7 @@ void Component::initialize(void)
 
     cout << "---- Component <" << name << ">: ";
 
-    if (nlevel<0)
+    if (nlevel<=0)
       std::cout << "no multistep level reporting";
     else
       std::cout << "multistep level reporting every " << nlevel << " steps";

@@ -2,171 +2,95 @@
 #include <iomanip>
 #include <algorithm>
 #include <string>
+#include <vector>
+#include <map>
+#include <cctype>
 #include <cmath>
-
-#include <getopt.h>
 
 #include "biorth1d.H"
 #include "SLGridMP2.H"
 #include "gaussQ.H"
 #include "localmpi.H"
+#include "cxxopts.H"
 
-//===========================================================================
-
-void usage(char *prog)
-{
-  cout << "Usage:\n\n"
-       << prog << " [options]\n\n"
-       << setw(15) << "Option" << setw(10) << "Argument" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Description" << endl << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Turn on MPI for SL computation" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-t or --Trig" << setw(10) << "No" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Use trigonometric basis" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-s or --SL" << setw(10) << "No" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Use Sturm-Liouville basis" << endl
-       << setw(15) << "-T or --type" << setw(10) << "string" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Density target (isothermal, constant, parabolic)" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-n " << setw(10) << "int" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Number of basis functions" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-H " << setw(10) << "double" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Slab scale height" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-k " << setw(10) << "double" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Wave number for Trig basis" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-x " << setw(10) << "double" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Wave number in X for SL basis" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-y " << setw(10) << "double" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Wave number in Y for SL basis" << endl
-       << resetiosflags(ios::left)
-       << "" << endl;
-
-  exit(0);
-}
 
 enum BioType1d {Trig, SL};
+
+std::map<std::string, BioType1d> bioTypeMap = {
+  {"trig", Trig},
+  {"sl",   SL}
+};
+
+std::map<BioType1d, std::string>  bioStrMap = {
+  {Trig, "trig"},
+  {SL,   "sl"}
+};
 
 int 
 main(int argc, char** argv)
 {
-  bool use_mpi = false;
   double KX = 0.5;
   double H = 0.1;
   double ZMAX = 1.0;
   int NMAX = 10;
   int IKX = 1;
   int IKY = 3;
-  BioType1d Type = Trig;
+  int numz = 2000;
+  std::string bioTypeStr = "trig";
+  std::string cachename = ".slab_sl_cache";
+  std::string cmap = "linear";
   std::string slabID = "iso";
+  bool use_mpi = false;
 
-  int c;
-  while (1) {
-    int this_option_optind = optind ? optind : 1;
-    int option_index = 0;
-    static struct option long_options[] = {
-      {"mpi", 0, 0, 0},
-      {"Trig", 0, 0, 0},
-      {"SL", 0, 0, 0},
-      {0, 0, 0, 0}
-    };
+  cxxopts::Options options("orthochk", "Check orthogonality of 1D basis functions");
 
-    c = getopt_long (argc, argv, "msT:tx:y:k:n:z:H:h",
-		     long_options, &option_index);
+  options.add_options()
+    ("m,mpi",       "Use MPI")
+    ("T,type",      "Slab type (trig or SL)", cxxopts::value<std::string>(bioTypeStr)->default_value("trig"))
+    ("M,matrix",    "Print orthogonality matrix for a particular kx, ky choice")
+    ("x,ikx",       "IKX for SLGridSlab (default: 1)", cxxopts::value<int>(IKX))
+    ("y,iky",       "IKY for SLGridSlab (default: 3)", cxxopts::value<int>(IKY))
+    ("k,kx",        "KX for OneDTrig (default: 0.5)", cxxopts::value<double>(KX))
+    ("z,zmax",      "ZMAX for OneDTrig and SLGridSlab (default: 1.0)", cxxopts::value<double>(ZMAX))
+    ("H,height",    "Scale height H for SLGridSlab (default: 0.1)", cxxopts::value<double>(H))
+    ("n,nmax",      "NMAX for SLGridSlab (default: 10)", cxxopts::value<int>(NMAX))
+    ("N,numz",      "Number of z points for SLGridSlab (default: 2000)", cxxopts::value<int>(numz)->default_value("2000"))
+    ("C,cmap",       "Coordinate map for SLGridSlab (linear, tanh, or sech; default: linear)", cxxopts::value<std::string>(cmap)->default_value("linear"))
+    ("s,slabid",    "Slab model ID for SLGridSlab (iso, parabolic, or constant; default: iso)", cxxopts::value<std::string>(slabID)->default_value("iso"))
+    ("c,cachename", "Cache file name for SLGridSlab (default: .slab_sl_cache)", cxxopts::value<std::string>(cachename)->default_value(".slab_sl_cache"))
+    ("h,help",      "Print usage");
 
-    if (c == -1) break;
+  auto result = options.parse(argc, argv);
 
-    switch (c) {
-    case 0:
-      {
-	string optname(long_options[option_index].name);
-
-	if (!optname.compare("mpi")) {
-	  use_mpi = true;
-	} else if (!optname.compare("Trig")) {
-	  Type = Trig;
-	} else if (!optname.compare("SL")) {
-	  Type = SL;
-	} else if (!optname.compare("type")) {
-	  slabID = optarg;
-	} else {
-	  cout << "Option " << long_options[option_index].name;
-	  if (optarg) cout << " with arg " << optarg;
-	  cout << " is not defined " << endl;
-	  exit(0);
-	}
-      }
-      break;
-
-    case 'm':
-      use_mpi = true;
-      break;
-
-    case 's':
-      Type = SL;
-      break;
-
-    case 'T':
-      slabID = optarg;
-      break;
-
-    case 't':
-      Type = Trig;
-      break;
-
-    case 'x':
-      IKX = atoi(optarg);
-      break;
-
-    case 'y':
-      IKY = atoi(optarg);
-      break;
-
-    case 'k':
-      KX = atof(optarg);
-      break;
-
-    case 'z':
-      ZMAX = atof(optarg);
-      break;
-
-    case 'H':
-      H = atof(optarg);
-      break;
-
-    case 'n':
-      NMAX = atoi(optarg);
-      break;
-
-    case 'h':
-    default:
-      usage(argv[0]);
-    }
-
+  if (result.count("mpi")) {
+    local_init_mpi(argc, argv);
+    use_mpi = true;
   }
 
-  //===================
-  // MPI preliminaries 
-  //===================
+  if (result.count("help")) {
+    if (myid==0)
+      std::cout << options.help() << std::endl;
+    return 0;
+  }
 
-  if (use_mpi) {
-    local_init_mpi(argc, argv);
+
+  // Determine biorthogonal function type
+  std::transform(bioTypeStr.begin(), bioTypeStr.end(), bioTypeStr.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  BioType1d Type = std::find_if(bioTypeMap.begin(), bioTypeMap.end(),
+				[bioTypeStr](const std::pair<std::string, BioType1d>& pair) { return pair.first == bioTypeStr; }) != bioTypeMap.end() ? bioTypeMap[bioTypeStr] : Trig;
+
+  // Check for valid coordinate map choice
+  std::transform(cmap.begin(), cmap.end(), cmap.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  std::vector<std::string> valid_cmaps = { "tanh", "sech", "linear" };
+  if (valid_cmaps.end() ==
+      std::find_if(valid_cmaps.begin(), valid_cmaps.end(),
+		   [cmap](const std::string& vmap) { return vmap == cmap; })) {
+    std::cerr << "Invalid coordinate map choice: " << cmap << std::endl;
+    return 1;
   }
 
   //===================
@@ -183,14 +107,14 @@ main(int argc, char** argv)
 
   case SL:
     {
-      const int NUMZ=800;
       int KMAX = max<int>(IKX+1, IKY+1);
       SLGridSlab::ZBEG = 0.0;
       SLGridSlab::ZEND = 0.1;
       SLGridSlab::H = H;
       if (use_mpi) SLGridSlab::mpi = 1;
 
-      orthoSL = std::make_shared<SLGridSlab>(KMAX, NMAX, NUMZ, ZMAX, slabID, true);
+      orthoSL = std::make_shared<SLGridSlab>(KMAX, NMAX, numz, ZMAX, cachename,
+					     cmap, slabID, true);
     }
     break;
 
@@ -200,6 +124,8 @@ main(int argc, char** argv)
     exit(0);
   }
 
+
+  int ikx = max(IKX, IKY), iky = min(IKX, IKY);
 
   //===================
   // Get info
@@ -216,11 +142,12 @@ main(int argc, char** argv)
       cout << "1: Print out density, potential pairs" << endl;
       cout << "2: Check density" << endl;
       cout << "3: Check orthogonality" << endl;
-      cout << "4: Quit" << endl;
+      cout << "4: Internal ortho check" << endl;
+      cout << "5: Quit" << endl;
       cout << "?? ";
       cin >> iwhich;
       
-      if (iwhich < 1 || iwhich > 4) iwhich = 4;
+      if (iwhich < 1 || iwhich > 5) iwhich = 5;
 
       switch(iwhich) {
       case 1:
@@ -249,16 +176,16 @@ main(int argc, char** argv)
 	    if (Type == Trig) {
 	      x = ortho->r_to_rb(z);
 	      out << setw(15) << z
-		  << setw(15) << ortho->potl(N, i, z)
+		  << setw(15) << ortho->potl (N, i, z)
 		  << setw(15) << ortho->force(N, i, z)
-		  << setw(15) << ortho->dens(N, i, z)
+		  << setw(15) << ortho->dens (N, i, z)
 		  << endl;
 	    } else {
 	      x = orthoSL->z_to_xi(z);
 	      out << setw(15) << z
-		  << setw(15) << orthoSL->get_pot(x, IKX, IKY, N)
-		  << setw(15) << orthoSL->get_force(x, IKX, IKY, N)
-		  << setw(15) << orthoSL->get_dens(x, IKX, IKY, N)
+		  << setw(15) << orthoSL->get_pot  (x, ikx, iky, N)
+		  << setw(15) << orthoSL->get_force(x, ikx, iky, N)
+		  << setw(15) << orthoSL->get_dens (x, ikx, iky, N)
 		  << endl;
 	    }
 	  }
@@ -281,64 +208,66 @@ main(int argc, char** argv)
 	  int num;
 	  cin >> num;
 	  
-	  cout << "N? ";
-	  int N;
-	  cin >> N;
+	  cout << "eps? ";
+	  double eps;
+	  cin >> eps;
 	  
-	  cout << "dz? ";
-	  double dz;
-	  cin >> dz;
-	  
+	  double dz = 2.0*ZMAX/num;
+	  double h  = dz*eps;
 	  double x, z, d1, d2, d3;
 	  
 	  for (int i=0; i<num; i++) {
-	    z = -ZMAX + 2.0*ZMAX*(0.5 + i)/num;
+	    z = -ZMAX + dz*(0.5 + i);
+
+	    out << setw(15) << z;
+
 	    if (Type == Trig) {
-	      x = ortho->r_to_rb(z);
 
-	      d1 = (
-		    ortho->potl(N, i, z+dz)    -
-		    ortho->potl(N, i, z)*2.0   +
-		    ortho->potl(N, i, z-dz)
-		    ) / (dz*dz);
+	      for (int n=0; n<NMAX; n++) {
 
-	      d2 = (
-		    ortho->force(N, i, z-0.5*dz) -
-		    ortho->force(N, i, z+0.5*dz)
-		    ) / dz;
+		d1 = (
+		      ortho->potl(n, i, z+h)    -
+		      ortho->potl(n, i, z)*2.0   +
+		      ortho->potl(n, i, z-h)
+		      ) / (h*h);
+		
+		d2 = (
+		      ortho->force(n, i, z-0.5*h) -
+		      ortho->force(n, i, z+0.5*h)
+		      ) / h;
 
-	      d3 = -KX*KX*ortho->potl(N, i, z);
+		d3 = -KX*KX*ortho->potl(n, i, z);
 
 
-	      out << setw(15) << z
-		  << setw(15) << d1+d3
-		  << setw(15) << d2+d3
-		  << setw(15) << -ortho->dens(N, i, z)
-		  << endl;
+		out << setw(15) << d1+d3
+		    << setw(15) << d2+d3
+		    << setw(15) << -ortho->dens(n, i, z);
+	      }
+
 	    } else {
-	      x = orthoSL->z_to_xi(z);
 
-	      d1 = (
-		    orthoSL->get_pot(x+dz, IKX, IKY, N)   -
-		    orthoSL->get_pot(x, IKX, IKY, N)*2.0  +
-		    orthoSL->get_pot(x-dz, IKX, IKY, N) 
-		    ) / (dz*dz);
+	      Eigen::VectorXd pot0(NMAX), potN(NMAX), potP(NMAX), den0(NMAX);
+	      Eigen::VectorXd frcP(NMAX), frcN(NMAX);
 
-	      d2 = (
-		    orthoSL->get_force(x+0.5*dz, IKX, IKY, N) -
-		    orthoSL->get_force(x-0.5*dz, IKX, IKY, N)
-		    ) / dz;
+	      orthoSL->get_pot  (pot0, z  ,     ikx, iky);
+	      orthoSL->get_pot  (potN, z-h,     ikx, iky);
+	      orthoSL->get_pot  (potP, z+h,     ikx, iky);
+	      orthoSL->get_force(frcN, z-0.5*h, ikx, iky);
+	      orthoSL->get_force(frcP, z+0.5*h, ikx, iky);
+	      orthoSL->get_dens (den0, z,       ikx, iky);
 
-	      d3 = -4.0*M_PI*M_PI*(IKX*IKX+IKY*IKY)*
-		orthoSL->get_pot(x, IKX, IKY, N);
+	      for (int n=0; n<NMAX; n++) {
 
-	      out << setw(15) << z
-		  << setw(15) << d1+d3
-		  << setw(15) << d2+d3
-		  << setw(15) << orthoSL->get_dens(x, IKX, IKY, N)
-		  << endl;
+		d1 = (potP(n) - 2.0*pot0(n) + potN(n)) / (h*h);
+		d2 = (frcP(n) - frcN(n)) / h;
+		d3 = -4.0*M_PI*M_PI*(IKX*IKX+IKY*IKY) * pot0(n);
 
+		out << setw(15) << d1+d3
+		    << setw(15) << d2+d3
+		    << setw(15) << den0(n);
+	      }
 	    }
+	    out << endl;
 	  }
 	}
 	
@@ -352,58 +281,101 @@ main(int argc, char** argv)
 	  
 	  LegeQuad lw(num);
 	  
-	  std::cout << "N1, N2? ";
-	  int N1, N2;
-	  std::cin >> N1;
-	  std::cin >> N2;
-	  
-	  double ximin, ximax;
-	  switch (Type) {
-	  case Trig:
-	    ximin = ortho->r_to_rb(-ZMAX);
-	    ximax = ortho->r_to_rb( ZMAX);
-	    break;
-	  case SL:
-	    ximin = orthoSL->z_to_xi(-ZMAX);
-	    ximax = orthoSL->z_to_xi( ZMAX);
-	    break;
+	  if (result.count("matrix")) {
+
+	    Eigen::VectorXd pot(NMAX), den(NMAX);
+	    Eigen::MatrixXd ans(NMAX, NMAX);
+	    ans.setZero();
+
+	    for (int i=0; i<num; i++) {
+	      double z = -ZMAX + 2.0*ZMAX*lw.knot(i);
+	      double W = 2.0*ZMAX*lw.weight(i);
+
+	      if (Type == Trig) {
+		ortho->potl(i, i, z, pot);
+		ortho->dens(i, i, z, den);
+	      } else {
+		orthoSL->get_pot (pot, z, ikx, iky);
+		orthoSL->get_dens(den, z, ikx, iky);
+	      }
+
+	      for (int n1=0; n1<NMAX; n1++) {
+		for (int n2=0; n2<NMAX; n2++) {
+		  ans(n1, n2) += pot(n1) * den(n2) * W;
+		}
+	      }
+	    }
+
+	    std::cout << std::endl << ans << std::endl;
 	  }
+	  else {
+	    std::cout << "N1, N2? ";
+	    int N1, N2;
+	    std::cin >> N1;
+	    std::cin >> N2;
 	  
-	  double x, r, ans=0.0;
-	  for (int i=0; i<num; i++) {
-	    
-	    x = ximin + (ximax - ximin)*lw.knot(i);
-	    
+	    double ximin, ximax;
 	    switch (Type) {
 	    case Trig:
-	      {
-	      
-	      double tmp1 = ortho->potl(N1, i, x);
-	      double tmp2 = ortho->dens(N1, i, x);
-	      double tmp3 = ortho->d_r_to_rb(x);
-
-	      ans += ortho->potl(N1, i, x)*
-		ortho->dens(N2, i, x) *
-		ortho->d_r_to_rb(x) * (ximax - ximin)*lw.weight(i);
-	      }
-	      
+	      ximin = ortho->r_to_rb(-ZMAX);
+	      ximax = ortho->r_to_rb( ZMAX);
 	      break;
-	      
 	    case SL:
-	      
-	      ans += orthoSL->get_pot(x, IKX, IKY, N1)*
-		orthoSL->get_dens(x, IKX, IKY, N2) /
-		orthoSL->d_xi_to_z(x) * (ximax - ximin)*lw.weight(i);
-	      
+	      ximin = orthoSL->z_to_xi(-ZMAX);
+	      ximax = orthoSL->z_to_xi( ZMAX);
 	      break;
 	    }
-	  }
 	  
-	  cout << "<" << N1 << "|" << N2 << "> = " << ans << endl;
+	    double z, r, ans=0.0;
+	    for (int i=0; i<num; i++) {
+	    
+	      z = -ZMAX + 2.0*ZMAX*lw.knot(i);
+	    
+	      switch (Type) {
+	      case Trig:
+		{
+		  
+		  double tmp1 = ortho->potl(N1, i, z);
+		  double tmp2 = ortho->dens(N1, i, z);
+		  
+		  ans += ortho->potl(N1, i, z)*
+		    ortho->dens(N2, i, z) * 2.0*ZMAX*lw.weight(i);
+		}
+	      
+		break;
+	      
+	      case SL:
+	      
+		ans += orthoSL->get_pot(z, IKX, IKY, N1)*
+		  orthoSL->get_dens(z, IKX, IKY, N2) * 2.0*ZMAX*lw.weight(i);
+		
+		break;
+	      }
+	    }
+	    std::cout << "<" << N1 << "|" << N2 << "> = " << ans << std::endl;
+	  }
+	  break;
 	}
-	
-	break;
-	
+	case 4:
+	{
+	  switch (Type) {
+	  case Trig:
+	    std::cout << "No internal orthogonality check for OneDTrig"
+		      << std::endl;
+	    break;
+	  case SL:
+	    {
+	      int knots;
+	      std::cout << "Number of knots? ";
+	      std::cin >> knots;
+	      auto orthoMat = orthoSL->orthoCheck(knots);
+	      std::cout << "Orthogonality check for SLGridSlab" << std::endl;
+	      for (size_t i=0; i<orthoMat.size(); i++)
+		std::cout << orthoMat[i] << std::endl << std::endl;
+	    }
+	    break;
+	  }
+	}
       default:
 	done = true;
 	break;
@@ -412,7 +384,7 @@ main(int argc, char** argv)
       if (done) break;
     }
   }
-  
+
   if (use_mpi) MPI_Finalize();
   
   return 0;
